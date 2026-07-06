@@ -14,3 +14,15 @@ Add yourself here in your pull request (name, link of your choice, and a few
 words on what you contributed):
 
 <!-- - **Your Name** ([link](https://example.com)) — what you contributed -->
+
+## Feature ideas
+
+Many enhancements started as suggestions from the Builderius and wider
+web-design community. Thank you:
+
+- **Inline rename** — Israel Reyes, Tim Gray
+- **Density toggle (compact mode)** — Max Ziebell
+- **Light / dark / auto theme** — David McCan
+
+Suggested something that shipped and want to be listed (or listed
+differently)? Open an issue or a pull request.

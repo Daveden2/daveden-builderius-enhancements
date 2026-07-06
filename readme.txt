@@ -13,6 +13,17 @@ Enhance; a top-level menu when Builderius is inactive).
 Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
+== Credits ==
+
+Several features were suggested by the Builderius and wider web-design
+community. Thank you:
+
+* Inline rename — Israel Reyes and Tim Gray
+* Density toggle (compact mode) — Max Ziebell
+* Light / dark / auto theme — David McCan
+
+Suggested a feature that shipped? Open an issue on GitHub to be credited.
+
 == Changelog ==
 
 = 1.3.0 =
