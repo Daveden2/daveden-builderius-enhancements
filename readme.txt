@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -14,6 +14,21 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
 == Changelog ==
+
+= 1.2.1 =
+Light-theme contrast and dark-surface fixes across the builder chrome:
+* Native icons, footer-bar tabs, muted labels and white headings now meet
+  WCAG AA contrast in the light theme — the dark-palette foreground tokens are
+  remapped once, instead of leaking through the native rules that paint them.
+* Content-tab category accordions no longer paint a dark band on hover.
+* Media Queries / breakpoints modal: repainted as a light surface (was a dark
+  card with near-unreadable text).
+* Builderius menu tiles, the Navigator right-click menu hover, applied-class
+  chips, tooltips, switch tracks and the idle Save button: fixed
+  black-on-dark and low-contrast states.
+* Sense AI connect panel: heading and token field themed for the light mode.
+* Preview resize handles now show a persistent capsule grip, so the drag
+  affordance is visible at rest (hover/focus still highlight it in the accent).
 
 = 1.2.0 =
 * Multi-select: dragging one row of a multi-selection now moves the whole

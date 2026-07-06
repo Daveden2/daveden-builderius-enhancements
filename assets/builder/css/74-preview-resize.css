@@ -22,19 +22,47 @@
 .dbe-preview-handle[data-edge="left"] { inset-inline-start: -12px !important; }
 .dbe-preview-handle[data-edge="right"] { inset-inline-end: -12px !important; }
 
-/* The visible grip line inside the hit area. */
+/* Grip affordance: a self-contained capsule that reads as a grabbable control
+   at rest against either the canvas surround or the white page (own surface +
+   hairline + soft lift), not just a hover-only hint. ::before is the capsule,
+   ::after stacks three grip dots at its centre. Both use tokens so the grip
+   tracks the theme; on hover/focus the capsule fills with the accent and the
+   dots flip to on-accent for a clear active state. */
 .dbe-preview-handle::before {
     content: "" !important;
-    inline-size: 4px !important;
-    block-size: 48px !important;
-    border-radius: 2px !important;
+    position: absolute !important;
+    inset-block-start: 50% !important;
+    transform: translateY(-50%) !important;
+    inline-size: 6px !important;
+    block-size: 44px !important;
+    border-radius: 999px !important;
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    box-shadow: 0 1px 3px var(--dbe-shadow) !important;
+    transition: background var(--dbe-t), border-color var(--dbe-t) !important;
+}
+.dbe-preview-handle::after {
+    content: "" !important;
+    position: absolute !important;
+    inset-block-start: 50% !important;
+    inset-inline-start: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    inline-size: 2px !important;
+    block-size: 2px !important;
+    border-radius: 50% !important;
     background: var(--dbe-muted) !important;
-    opacity: .6 !important;
+    box-shadow: 0 -5px 0 var(--dbe-muted), 0 5px 0 var(--dbe-muted) !important;
+    transition: background var(--dbe-t), box-shadow var(--dbe-t) !important;
 }
 .dbe-preview-handle:hover::before,
 .dbe-preview-handle:focus-visible::before {
     background: var(--dbe-accent) !important;
-    opacity: 1 !important;
+    border-color: var(--dbe-accent) !important;
+}
+.dbe-preview-handle:hover::after,
+.dbe-preview-handle:focus-visible::after {
+    background: var(--dbe-on-accent-strong) !important;
+    box-shadow: 0 -5px 0 var(--dbe-on-accent-strong), 0 5px 0 var(--dbe-on-accent-strong) !important;
 }
 .dbe-preview-handle:focus-visible {
     outline: 2px solid var(--dbe-focus) !important;

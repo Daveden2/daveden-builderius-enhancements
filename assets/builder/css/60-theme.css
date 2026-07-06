@@ -4,6 +4,64 @@
    builder. Kept separate from the feature styling so the toggle maps cleanly:
    theme_switcher off = stock dark chrome untouched. */
 
+/* --- Native palette remap (light / auto) ---
+   Builderius defines its dark-palette scale (--base-*, --primary-*) on
+   #builderiusPanel. Three of those are FOREGROUND tokens whose dark values are
+   invisible on light chrome, and they leak through every native rule that
+   paints an icon or label directly — fill/color: var(--base-2), the footer-tab
+   labels on var(--primary-4), the "white" headings on var(--base-1). Rather
+   than chase each of the 150+ rules, remap the three foreground-dominant vars
+   once, to the theme-correct light-dark() tokens. Redefined on #builderiusPanel
+   itself (matching id specificity + the theme-attribute ancestor) so it wins
+   over the native definition, and scoped to light/auto so the dark theme keeps
+   the native scale byte-for-byte. Surface / border vars (--primary-1..3) are
+   deliberately left native and handled per-component in the leak-audit passes
+   below, because those carry both fill and border roles that don't share one
+   light value. --accent-normal is likewise left native: it works as a
+   light-blue chip background with dark text in both themes, so only its
+   text/icon uses on light surfaces need fixing (see "Accent as foreground"). */
+html[data-dbe-theme="light"] #builderiusPanel,
+html[data-dbe-theme="auto"] #builderiusPanel {
+    --base-1: var(--dbe-text);     /* primary fg / native "white" text (#FEFEFE) */
+    --base-2: var(--dbe-text-2);   /* secondary fg + icon fill (#C5C5C5) */
+    --primary-4: var(--dbe-muted); /* muted labels / footer-bar tabs (#8D92A1) */
+}
+
+/* --- Palette-remap background exceptions ---
+   --base-2 and --primary-4 are overwhelmingly foreground tokens, but a handful
+   of native rules use them the other way — as a LIGHT control surface with dark
+   text on top (in dark mode #C5C5C5 / #8D92A1 read as light chips). The remap
+   above darkens those, turning the control black-on-black. Restore a light
+   surface for exactly those spots so the dark text stays legible. */
+/* --base-2 as a surface: native tooltip chip, switch tracks, quaternary button */
+html[data-dbe-theme="light"] .builderiusTooltip.react-tooltip,
+html[data-dbe-theme="auto"]  .builderiusTooltip.react-tooltip {
+    background: var(--dbe-l0) !important;
+    color: var(--dbe-text-2) !important;
+    border: 1px solid var(--dbe-warn-line) !important;
+    box-shadow: 0 4px 14px var(--dbe-shadow) !important;
+}
+html[data-dbe-theme="light"] .builderiusTooltip.react-tooltip .react-tooltip-arrow,
+html[data-dbe-theme="auto"]  .builderiusTooltip.react-tooltip .react-tooltip-arrow { background: var(--dbe-l0) !important; }
+html[data-dbe-theme="light"] .uniFormField .builderiusSwitch [role="switch"],
+html[data-dbe-theme="auto"]  .uniFormField .builderiusSwitch [role="switch"],
+html[data-dbe-theme="light"] .uniPanelField__switch,
+html[data-dbe-theme="auto"]  .uniPanelField__switch { --switch-background-color: var(--dbe-line-hi) !important; }
+html[data-dbe-theme="light"] .uniPanelButtonQuaternary,
+html[data-dbe-theme="auto"]  .uniPanelButtonQuaternary { background: var(--dbe-l2-hi) !important; color: var(--dbe-text-2) !important; }
+html[data-dbe-theme="light"] .uniPanelButtonQuaternary:hover,
+html[data-dbe-theme="auto"]  .uniPanelButtonQuaternary:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-accent) !important; }
+/* --primary-4 as a surface: the applied-class chips + the idle Save button
+   ("nothing to save" grey; the green .saveBtnShouldSave state uses --accent-
+   special and is untouched). Light grey chip keeps the dark label legible. */
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li,
+html[data-dbe-theme="auto"]  .uniModuleCssClassesSelect__list li {
+    background: var(--dbe-line-hi) !important;
+    color: var(--dbe-text-2) !important;
+}
+html[data-dbe-theme="light"] .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave),
+html[data-dbe-theme="auto"]  .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave) { background: var(--dbe-line-hi) !important; }
+
 /* --- Core surfaces --- */
 #builderiusPanel,
 .uniMainPanel,
@@ -254,3 +312,127 @@ html[data-dbe-theme="auto"] .uniSettingsPage__editorWrapper {
     background-color: var(--dbe-l2-hi) !important;
     color: var(--dbe-text) !important;
 }
+
+/* --- Leak audit pass 6: settings-panel category accordions --- */
+/* The Content-tab category headers (Primary, Attributes…) hover to
+   background: var(--primary-2) — a near-black band in the light theme — with
+   var(--accent-normal) text/icon. Repaint the hover as a light accent wash with
+   the theme accent, matching the tree-row hover language. Dark value of the
+   tint resolves to the native accent feel, so dark mode reads unchanged. */
+html[data-dbe-theme="light"] .uniCatTitle:hover,
+html[data-dbe-theme="auto"] .uniCatTitle:hover {
+    background: var(--dbe-accent-tint) !important;
+    border-color: transparent !important;
+}
+html[data-dbe-theme="light"] .uniCatTitle:hover span,
+html[data-dbe-theme="auto"] .uniCatTitle:hover span { color: var(--dbe-accent) !important; }
+html[data-dbe-theme="light"] .uniCatTitle:hover svg path,
+html[data-dbe-theme="auto"] .uniCatTitle:hover svg path { fill: var(--dbe-accent) !important; }
+
+/* --- Leak audit pass 7: accent as foreground on light chrome --- */
+/* --accent-normal (#5EA0ED) is the dark-theme accent; as a label/icon colour on
+   light surfaces it only reaches ~2.2-2.5:1. These two spots aren't covered by
+   the .uniPanelButton.active accent rule in 12-controls, so pin them to the
+   theme accent (the darker blue in light, identical #5EA0ED in dark). */
+html[data-dbe-theme="light"] .uniPanelButtonBreakpoint.active,
+html[data-dbe-theme="auto"] .uniPanelButtonBreakpoint.active,
+html[data-dbe-theme="light"] .uniFormField__settingLabel.nonEmptyValue,
+html[data-dbe-theme="auto"] .uniFormField__settingLabel.nonEmptyValue {
+    color: var(--dbe-accent) !important;
+}
+
+/* --- Leak audit pass 8: Sense AI remote-connect panel --- */
+/* The pre-connect screen ships a token field on the near-black --primary-2
+   surface. The heading (--base-1) and description now theme via the palette
+   remap, but the input keeps its dark fill — repaint it as a normal light
+   input so the whole offline panel reads as one light surface. (The connected
+   terminal itself is an xterm view with its own dark theme and is left as-is.) */
+html[data-dbe-theme="light"] .uniAiChat__remoteTokenInput,
+html[data-dbe-theme="auto"] .uniAiChat__remoteTokenInput {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+}
+
+/* --- Leak audit pass 9: Builderius menu (Navigator items) --- */
+/* The Builderius-logo menu renders in the left panel as carded shortcuts
+   (Demos / Pages / Templates). Native card = background: var(--primary-2) —
+   a near-black tile — with the title on var(--base-2). Once --base-2 is remapped
+   to a dark foreground (above) the tile is black-text-on-black. Repaint the
+   tiles as light cards so the dark title reads; hover/focus carry the accent
+   like the inserter tiles. The plain "link" variant (WordPress Admin rows) is
+   transparent + var(--primary-4) and already themes via the palette remap, so
+   it's excluded — only its hover accent needs darkening. */
+html[data-dbe-theme="light"] .uniNavigatorItems__items,
+html[data-dbe-theme="auto"] .uniNavigatorItems__items { border-top-color: var(--dbe-line) !important; }
+html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link),
+html[data-dbe-theme="auto"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link) {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    color: var(--dbe-text-2) !important;
+    transition: background var(--dbe-t), border-color var(--dbe-t), color var(--dbe-t) !important;
+}
+html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):hover,
+html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):focus-visible,
+html[data-dbe-theme="auto"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):hover,
+html[data-dbe-theme="auto"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):focus-visible {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniNavigatorItems__item[disabled],
+html[data-dbe-theme="auto"] .uniNavigatorItems__item[disabled] {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-l2-hi) !important;
+    color: var(--dbe-muted) !important;
+}
+html[data-dbe-theme="light"] .uniNavigatorItems__item:hover svg path,
+html[data-dbe-theme="auto"] .uniNavigatorItems__item:hover svg path { stroke: var(--dbe-accent) !important; }
+html[data-dbe-theme="light"] .uniNavigatorItems__item--link:hover,
+html[data-dbe-theme="auto"] .uniNavigatorItems__item--link:hover { color: var(--dbe-accent) !important; }
+
+/* --- Leak audit pass 10: Navigator context-menu hover band --- */
+/* Native paints the hovered/open menu item with background: var(--primary-1)
+   (near-black) — a dark band in light mode, and black-on-black once the item
+   text themes dark. Covers the root menu AND the injected flyout submenus
+   (both are .uniContextMenu ul li). Light accent wash matches the accordion
+   and tree-row hover language. */
+html[data-dbe-theme="light"] .uniBuilderContextMenu__inner .uniContextMenu ul li:not(.disabled):hover,
+html[data-dbe-theme="auto"]  .uniBuilderContextMenu__inner .uniContextMenu ul li:not(.disabled):hover {
+    background: var(--dbe-accent-tint) !important;
+}
+
+/* --- Leak audit pass 11: Media-queries / breakpoints modal --- */
+/* The whole .uniModal ships on native --black-alt-1 (#171719) with --primary-1
+   row hovers and --primary-2 hairlines — never themed for light, so in light
+   mode it was a dark card with (post-remap) dark text: unreadable throughout.
+   Rebuild it as a light modal; the table text already themes via the palette
+   remap once the surface is light. */
+html[data-dbe-theme="light"] .uniModal,
+html[data-dbe-theme="auto"]  .uniModal {
+    background: var(--dbe-l1) !important;
+    border: 1px solid var(--dbe-line) !important;
+    box-shadow: 0 10px 40px var(--dbe-shadow) !important;
+}
+html[data-dbe-theme="light"] .uniResponsiveStrategy,
+html[data-dbe-theme="auto"]  .uniResponsiveStrategy { background: var(--dbe-l2) !important; }
+html[data-dbe-theme="light"] .uniModal .uniBreakpointsTable__header,
+html[data-dbe-theme="auto"]  .uniModal .uniBreakpointsTable__header,
+html[data-dbe-theme="light"] .uniModal .uniBreakpointsTable__row,
+html[data-dbe-theme="auto"]  .uniModal .uniBreakpointsTable__row,
+html[data-dbe-theme="light"] .uniModal .uniBreakpointsTable__rowEdit,
+html[data-dbe-theme="auto"]  .uniModal .uniBreakpointsTable__rowEdit { border-color: var(--dbe-line) !important; }
+html[data-dbe-theme="light"] .uniBreakpointsTable__row:hover,
+html[data-dbe-theme="auto"]  .uniBreakpointsTable__row:hover { background: var(--dbe-accent-tint) !important; }
+html[data-dbe-theme="light"] .uniBreakpointsTable__rowEditInput,
+html[data-dbe-theme="auto"]  .uniBreakpointsTable__rowEditInput { border-color: var(--dbe-line) !important; }
+html[data-dbe-theme="light"] .uniBreakpointsTable__rowEditInput input[disabled],
+html[data-dbe-theme="auto"]  .uniBreakpointsTable__rowEditInput input[disabled] { background: var(--dbe-l2-hi) !important; }
+html[data-dbe-theme="light"] .uniModal .uniPanelButtonSecondary,
+html[data-dbe-theme="auto"]  .uniModal .uniPanelButtonSecondary,
+html[data-dbe-theme="light"] .uniModal .uniPanelButtonPrimary,
+html[data-dbe-theme="auto"]  .uniModal .uniPanelButtonPrimary { background: var(--dbe-line-hi) !important; color: var(--dbe-text) !important; }
+html[data-dbe-theme="light"] .uniModal__closeBtn,
+html[data-dbe-theme="auto"]  .uniModal__closeBtn { color: var(--dbe-text-2) !important; }
