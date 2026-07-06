@@ -141,7 +141,7 @@ function dbe_features() {
 		/* ------------------------------------------------------------- Editing */
 		'context_menu'        => array(
 			'title'       => __( 'Context-menu enhancements', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Hover flyout submenus and full keyboard support (arrow keys, Home/End, Escape) for the Navigator right-click menu, plus a right-click copy menu on the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Hover flyout submenus and full keyboard support (arrow keys, Home/End, Escape) for the Navigator right-click menu, plus a right-click copy/remove menu on the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,

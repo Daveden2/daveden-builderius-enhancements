@@ -2777,11 +2777,13 @@
     }
 
     /* Class-chip copy menu (context_menu). The class chips in the Styles
-       editor natively offer only remove (X); right-click (or Shift+F10 on a
-       focused chip) opens a small menu to copy the class name — with the
-       leading dot for CSS, without it for markup, or every class at once.
-       A plain fixed card (no showModal): dismissed by any outside pointer
-       press, scroll or Escape. */
+       editor natively offer only a hover-revealed remove (X); right-click
+       (or Shift+F10 on a focused chip) opens a small menu to copy the class
+       name — with the leading dot for CSS, without it for markup, or every
+       class at once — or remove it from the element (via the chip's own
+       remove control, so it goes through the builder store). A plain fixed
+       card (no showModal): dismissed by any outside pointer press, scroll
+       or Escape. */
     var dbeChipMenu = null;
 
     function closeChipMenu() {
@@ -2852,6 +2854,15 @@
             ul.appendChild(mkItem('Copy all classes (' + all.length + ')', function () {
                 dbeCopyText(all.map(function (n) { return n.replace(/^\./, ''); }).join(' '));
             }));
+        }
+        var actions = chipLi.querySelector('.actions');
+        if (actions) {
+            var rm = mkItem('Remove ' + name + ' from element', function () {
+                actions.click();
+                undoToast('Removed ' + name);
+            });
+            rm.classList.add('dbe-ctx-item--first');
+            ul.appendChild(rm);
         }
         menu.appendChild(ul);
         inner.appendChild(menu);

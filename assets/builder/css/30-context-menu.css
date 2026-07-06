@@ -5,6 +5,9 @@
 .dbe-ctx-item--first { border-top: 1px solid var(--dbe-sep-line) !important; margin-top: 4px !important; padding-top: 10px !important; }
 .dbe-ctx-parent .dbe-ctx-caret { margin-inline-start: auto !important; opacity: .55 !important; font-size: 15px !important; line-height: 1 !important; }
 .dbe-ctx-submenu {
+    /* Builderius sets Inter on #builderiusPanel; cards appended to <body>
+       (the chip menu, or a flyout with no native dialog) sit outside it. */
+    font-family: var(--dbe-ui-font) !important;
     position: fixed !important; z-index: 2147483000 !important; min-width: 176px !important;
     background: var(--dbe-menu-bg) !important; border: 1px solid var(--dbe-accent) !important;
     border-radius: var(--dbe-r-sm) !important; box-shadow: 0 6px 20px var(--dbe-shadow) !important;
