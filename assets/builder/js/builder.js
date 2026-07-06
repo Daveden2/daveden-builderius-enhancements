@@ -2776,6 +2776,144 @@
         list.insertBefore(li, list.firstChild);
     }
 
+    /* Class-chip copy menu (context_menu). The class chips in the Styles
+       editor natively offer only remove (X); right-click (or Shift+F10 on a
+       focused chip) opens a small menu to copy the class name — with the
+       leading dot for CSS, without it for markup, or every class at once.
+       A plain fixed card (no showModal): dismissed by any outside pointer
+       press, scroll or Escape. */
+    var dbeChipMenu = null;
+
+    function closeChipMenu() {
+        if (dbeChipMenu) { dbeChipMenu.remove(); dbeChipMenu = null; }
+    }
+
+    function dbeCopyText(text) {
+        function done() { undoToast('Copied ' + text); }
+        function fallback() {
+            try {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                done();
+            } catch (e) { undoToast('Copy failed — clipboard unavailable'); }
+        }
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, fallback);
+                return;
+            }
+        } catch (e) {}
+        fallback();
+    }
+
+    function openChipMenu(chipLi, x, y) {
+        closeChipMenu();
+        var nameEl = chipLi.querySelector('span') || chipLi;
+        var name = (nameEl.textContent || '').trim();
+        if (!name) { return; }
+        var bare = name.replace(/^[.#]/, '');
+        var all = [].slice.call(document.querySelectorAll('.uniModuleCssClassesSelect__list li > span'))
+            .map(function (s) { return (s.textContent || '').trim(); })
+            .filter(Boolean);
+
+        // Same card chain as the flyouts so 30-context-menu.css styles it.
+        var card = document.createElement('div');
+        card.className = 'uniBuilderContextMenu dbe-ctx-submenu dbe-chip-menu';
+        var inner = document.createElement('div');
+        inner.className = 'uniBuilderContextMenu__inner';
+        var menu = document.createElement('div');
+        menu.className = 'uniContextMenu';
+        menu.setAttribute('role', 'menu');
+        var ul = document.createElement('ul');
+        function mkItem(label, fn) {
+            var li = document.createElement('li');
+            li.className = 'uniContextMenu__item';
+            li.setAttribute('role', 'menuitem');
+            li.tabIndex = -1;
+            li.textContent = label;
+            function act(ev) { ev.preventDefault(); ev.stopPropagation(); closeChipMenu(); fn(); }
+            li.addEventListener('mousedown', act);
+            li.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') { act(ev); }
+            });
+            return li;
+        }
+        ul.appendChild(mkItem('Copy ' + name, function () { dbeCopyText(name); }));
+        if (bare !== name) {
+            ul.appendChild(mkItem('Copy ' + bare + ' (no dot)', function () { dbeCopyText(bare); }));
+        }
+        if (all.length > 1) {
+            ul.appendChild(mkItem('Copy all classes (' + all.length + ')', function () {
+                dbeCopyText(all.map(function (n) { return n.replace(/^\./, ''); }).join(' '));
+            }));
+        }
+        menu.appendChild(ul);
+        inner.appendChild(menu);
+        card.appendChild(inner);
+
+        // Keyboard: arrows move, Escape closes and returns focus to the chip.
+        card.addEventListener('keydown', function (ev) {
+            var items = [].slice.call(card.querySelectorAll('li'));
+            var idx = items.indexOf(document.activeElement);
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                items[(idx + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+            } else if (ev.key === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                closeChipMenu();
+                try { chipLi.focus(); } catch (e) {}
+            }
+        });
+
+        document.body.appendChild(card);
+        var cw = card.offsetWidth || 176;
+        var ch = card.offsetHeight || 80;
+        card.style.setProperty('left', Math.min(Math.max(8, x), window.innerWidth - cw - 8) + 'px', 'important');
+        card.style.setProperty('top', Math.min(Math.max(8, y), window.innerHeight - ch - 8) + 'px', 'important');
+        dbeChipMenu = card;
+        var first = card.querySelector('li');
+        if (first) { first.focus(); }
+    }
+
+    /* Chips are plain li>span with no focus support; tabindex lets keyboard
+       users reach them and open the copy menu with Shift+F10 / the Menu key. */
+    function decorateClassChips() {
+        document.querySelectorAll('.uniModuleCssClassesSelect__list li').forEach(function (li) {
+            if (li.dbeChipDecorated) { return; }
+            li.dbeChipDecorated = true;
+            li.tabIndex = 0;
+        });
+    }
+
+    function bindChipMenu() {
+        document.addEventListener('contextmenu', function (e) {
+            var li = e.target.closest && e.target.closest('.uniModuleCssClassesSelect__list li');
+            if (!li) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            openChipMenu(li, e.clientX || li.getBoundingClientRect().right, e.clientY || li.getBoundingClientRect().top);
+        }, true);
+        ['pointerdown', 'wheel'].forEach(function (t) {
+            document.addEventListener(t, function (e) {
+                if (dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) { closeChipMenu(); }
+            }, true);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && dbeChipMenu && !e.target.closest('.dbe-chip-menu')) {
+                e.stopPropagation();
+                closeChipMenu();
+            }
+        }, true);
+    }
+
     /* Scope guard (scope_guard). Builderius' Styles code editor shows a
        selector's existing rules whichever scope is active — the Global/
        Template toggle only routes where edits are SAVED, so a template rule
@@ -2929,7 +3067,7 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard') || on('context_menu');
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem');
 
     var scheduled = false;
@@ -2954,6 +3092,7 @@
                 try { ensureScopeBar(); } catch (e) {}
             }
             if (on('scope_guard')) { try { ensureScopeGuard(); } catch (e) {} }
+            if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) {
                 try { ensureThemeButton(); } catch (e) {}
                 try { applyMonacoTheme(); } catch (e) {}
@@ -3037,6 +3176,9 @@
             rebuildScopeIndex();
             bindScopeGuardRefresh();
         }
+
+        // Copy menu on the Styles editor's class chips.
+        if (on('context_menu')) { bindChipMenu(); }
 
         // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree.
         if (on('multi_select')) { bindMultiSelect(); }

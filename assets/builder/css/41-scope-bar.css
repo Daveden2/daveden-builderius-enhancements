@@ -11,6 +11,7 @@
 .dbe-scope-bar {
     display: flex !important; align-items: center !important; gap: 8px !important;
     margin-block: 8px !important; padding-block: 8px !important;
+    padding-inline: 10px !important; /* keep the badge dot off the panel edge */
     border-block: 1px solid var(--dbe-line) !important;
 }
 /* Quiet badge: long builder sessions want minimal colour, so the scope is a
