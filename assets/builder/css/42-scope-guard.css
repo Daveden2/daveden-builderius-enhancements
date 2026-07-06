@@ -4,6 +4,7 @@
 
 .dbe-scope-guard {
     display: flex !important;
+    flex-wrap: wrap !important; /* icon + message on top, button on its own row */
     align-items: center !important;
     gap: 8px !important;
     margin: 6px 10px 0 !important;
@@ -34,7 +35,7 @@
 }
 
 .dbe-scope-guard__switch {
-    flex: 0 0 auto !important;
+    flex: 1 1 100% !important; /* full-width row under the message */
     min-block-size: 24px !important; /* WCAG 2.5.8 pointer-target size */
     padding: 2px 10px !important;
     border: 1px solid var(--dbe-warn, #e0a94a) !important;

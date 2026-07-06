@@ -184,11 +184,73 @@ li.isComponent > .uniModTree__itemWrapper .uniModTree__item span:not(.dbe-tag-ba
 .uniPanelButtonTertiary.outlined.active { color: var(--dbe-accent) !important; }
 
 /* Monaco cannot be rethemed from outside (the bundle does not expose
-   window.monaco), so in the light theme the code editor stays a dark island —
-   give it a hairline frame so it reads as intentional. Its subtree is never
-   restyled directly (see the caret-drift note in 10-typography.css). */
+   window.monaco, so editor.setTheme('vs') never runs). Instead the light
+   theme INVERTS the editor's rendered pixels: hue-rotate keeps the syntax
+   hues recognisable, and a filter changes no metrics, so the caret stays
+   true (the drift trap in 10-typography.css is about FONT changes — never
+   restyle Monaco's fonts). The hairline frame stays so the island reads as
+   a bounded control either way. */
+html[data-dbe-theme="light"] .monaco-editor {
+    filter: invert(0.94) hue-rotate(180deg) !important;
+}
+@media (prefers-color-scheme: light) {
+    html[data-dbe-theme="auto"] .monaco-editor {
+        filter: invert(0.94) hue-rotate(180deg) !important;
+    }
+}
 html[data-dbe-theme="light"] .uniSettingsPage__editorWrapper,
 html[data-dbe-theme="auto"] .uniSettingsPage__editorWrapper {
     border: 1px solid var(--dbe-line);
     border-radius: var(--dbe-r-sm);
+}
+
+/* --- Leak audit pass 5: HTML-tag select + segmented radio buttons ---
+   The tag selector (uniSystemSelectModuleTags) hard-codes near-black chrome
+   (#171719 control, #202022 dropdown, #000 search well) AND near-black text
+   on it — unreadable in the light theme and low-contrast even in dark. The
+   segmented radio option buttons (uniFormFieldRadio, e.g. the Container's
+   Max Width presets) hard-code #383a3e pills. Repaint both with tokens. */
+.uniSystemSelectModuleTags__fakeInput,
+.uniSystemSelectModuleTags__valueWrapper .uniSystemSelectModuleTags__selectedValueInner {
+    background-color: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniSystemSelectModuleTags__placeholder { color: var(--dbe-muted) !important; }
+/* The class picker's selected-value strip (same widget family) hard-codes
+   pure black once a class chip exists. */
+.uniSystemSelectClasses__selectedValueInner {
+    background-color: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniSystemSelectModuleTags__dropdown {
+    background-color: var(--dbe-l1) !important;
+    color: var(--dbe-text-2) !important;
+    border: 1px solid var(--dbe-line) !important;
+}
+.uniSystemSelectModuleTags__searchInner,
+.uniSystemSelectModuleTags__search {
+    background-color: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+}
+.uniSystemSelectModuleTags__dropdown li,
+.uniSystemSelectModuleTags__dropdown button {
+    color: var(--dbe-text-2) !important;
+}
+.uniSystemSelectModuleTags__dropdown li:hover,
+.uniSystemSelectModuleTags__dropdown button:hover {
+    background-color: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text) !important;
+}
+
+/* Segmented radio option buttons. The checked state keeps its accent
+   treatment from 12-controls.css (higher specificity via :has); the hover
+   rule excludes it so hovering a selected option doesn't wash it out. */
+.uniFormFieldRadio label {
+    background-color: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    transition: background-color var(--dbe-t), color var(--dbe-t) !important;
+}
+.uniFormFieldRadio label:hover:not(:has(input:checked)) {
+    background-color: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text) !important;
 }
