@@ -169,7 +169,7 @@ function dbe_features() {
 		),
 		'multi_select'        => array(
 			'title'       => __( 'Multi-select', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Cmd/Ctrl+click and Shift+click select multiple Navigator rows for bulk remove or wrap.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Cmd+click (Mac) / Ctrl+click and Shift+click select multiple Navigator rows for bulk remove or wrap; dragging a selected row moves the whole selection.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '31-multi-select.css' ),
 			'js'          => true,

@@ -740,18 +740,26 @@
         }, 350);
     }
 
-    /* (d2b) Multi-select in the Navigator: Cmd/Ctrl+click toggles a row in the
-       selection, Shift+click selects a range from the anchor (last toggled row,
-       falling back to the builder's selection). The builder itself has no
-       multi-select state at all (activeModule is a single id), so this is our
-       own layer: a Set of ids painted via decorateTree (survives React
+    /* (d2b) Multi-select in the Navigator: Cmd+click (Mac) / Ctrl+click
+       (elsewhere) toggles a row in the selection, Shift+click selects a range
+       from the anchor (last toggled row, falling back to the builder's
+       selection). On a Mac, Ctrl+click is the system right-click gesture and
+       must stay one — only the Command key toggles there. The builder itself
+       has no multi-select state at all (activeModule is a single id), so this
+       is our own layer: a Set of ids painted via decorateTree (survives React
        re-renders), with modifier-clicks swallowed before the builder can turn
        them into a single-selection change. Plain click or Escape clears it.
        The context menu adapts: single-target items are disabled while a
        multi-selection is active; "Wrap in" wraps all selected siblings and
-       "Remove N elements" deletes them all (each capture-undoable). */
+       "Remove N elements" deletes them all (each capture-undoable). Dragging
+       a selected row brings the rest of the selection along (see the
+       multi-drag block below). */
     var dbeMultiSel = new Set();
     var dbeMultiAnchor = null;
+    // Case-insensitive: userAgentData reports "macOS", navigator.platform "MacIntel".
+    var dbeIsMac = /mac|ip(hone|ad|od)/i.test(
+        (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
+    );
 
     function clearMultiSel() {
         if (!dbeMultiSel.size) { return; }
@@ -833,12 +841,201 @@
         setTimeout(next, 300);
     }
 
+    /* Multi-drag: dragging one row of a multi-selection brings the rest along.
+       The builder's own drag-and-drop is a REAL move channel — a synthetic
+       dragstart → dragover → drop sequence with a shared DataTransfer goes
+       through the native drop handler exactly like a hand drag (repaints tree
+       + canvas, keeps ids, persists on Save). So: let the hand-dragged row
+       land wherever the user dropped it, then walk each remaining selected
+       row into place directly after it, preserving Navigator order. */
+    var dbeMultiDrag = null;
+    var dbeAutoDragging = false;
+
+    function fireDrag(el, type, dt, x, y) {
+        el.dispatchEvent(new DragEvent(type, {
+            bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y
+        }));
+    }
+
+    /* The selection in Navigator order, minus the dragged row and minus rows a
+       selected ancestor already carries along. */
+    function multiDragIds(draggedId) {
+        var mods = modules() || {};
+        function carried(id) {
+            var p = mods[id] ? mods[id].parent : '';
+            while (p) {
+                if (dbeMultiSel.has(p)) { return true; }
+                p = mods[p] ? mods[p].parent : '';
+            }
+            return false;
+        }
+        return domRowIds().filter(function (id) {
+            return dbeMultiSel.has(id) && id !== draggedId && !carried(id);
+        });
+    }
+
+    /* Drop-zone semantics (probed against 1.3.5-beta): within a row, the top
+       ~third is DROP_BEFORE, the middle/bottom DROP_INSIDE, and DROP_AFTER
+       exists only at the very bottom of a LAST-child row — the gap between two
+       rows is always "before the lower one". DROP_INSIDE inserts as the FIRST
+       child, not the last. So "place X directly after P" = drop X before P's
+       next sibling, or after P itself when P is the last child. */
+    function nextSiblingId(id) {
+        // Module-map key order goes STALE after a move (the moved id keeps its
+        // old slot) — the rendered Navigator is the authoritative order. The
+        // next row in DOM order that shares the parent is the next sibling;
+        // rows between are the subtree of id itself.
+        var mods = modules() || {};
+        var m = mods[id];
+        if (!m) { return null; }
+        var order = domRowIds();
+        var i = order.indexOf(id);
+        if (i === -1) { return null; }
+        for (var j = i + 1; j < order.length; j++) {
+            var o = mods[order[j]];
+            if (o && o.parent === m.parent) { return order[j]; }
+        }
+        return null;
+    }
+
+    /* Move srcId through the builder's drop handler: probe dragover
+       y-positions (fractions of the target row's height) until the drop
+       indicator reads the wanted mode, then drop. Success = srcId's parent
+       afterwards is expectParent. */
+    function dragRowTo(srcId, tgtId, mode, fractions, expectParent, done) {
+        var src = document.querySelector('.uniRightPanel .uni-tree-node-' + srcId);
+        var tgt = document.querySelector('.uniRightPanel .uni-tree-node-' + tgtId);
+        var tr = tgt && tgt.getBoundingClientRect();
+        if (!src || !tgt || !tr.height) { done(false); return; }
+        var dt = new DataTransfer();
+        var sr = src.getBoundingClientRect();
+        fireDrag(src, 'dragstart', dt, sr.x + sr.width / 2, sr.y + sr.height / 2);
+        var x = tr.x + tr.width / 2;
+        var ci = 0;
+        function probe() {
+            if (ci >= fractions.length) {
+                fireDrag(src, 'dragend', dt, x, tr.top); // cancel cleanly
+                done(false);
+                return;
+            }
+            var y = tr.top + tr.height * fractions[ci];
+            ci += 1;
+            fireDrag(tgt, 'dragenter', dt, x, y);
+            fireDrag(tgt, 'dragover', dt, x, y);
+            setTimeout(function () {
+                var spot = document.querySelector('.uniModTree__itemDropSpot');
+                if (!spot || !spot.classList.contains(mode)) { probe(); return; }
+                fireDrag(tgt, 'drop', dt, x, y);
+                fireDrag(src, 'dragend', dt, x, y);
+                setTimeout(function () {
+                    var mods = modules() || {};
+                    done(!!(mods[srcId] && mods[srcId].parent === expectParent));
+                }, 250);
+            }, 90);
+        }
+        setTimeout(probe, 90);
+    }
+
+    function placeAfter(srcId, prevId, done) {
+        var mods = modules() || {};
+        var prev = mods[prevId];
+        if (!prev) { done(false); return; }
+        var n = nextSiblingId(prevId);
+        if (n) { dragRowTo(srcId, n, 'DROP_BEFORE', [0.08, 0.2, 0.3], prev.parent, done); }
+        else { dragRowTo(srcId, prevId, 'DROP_AFTER', [0.97, 0.92, 0.85], prev.parent, done); }
+    }
+
+    function moveRestOfSelection(st) {
+        dbeAutoDragging = true;
+        var mods = modules() || {};
+        var draggedRow = document.querySelector('.uniRightPanel .uni-tree-node-' + st.draggedId);
+        var draggedVisible = !!(draggedRow && draggedRow.getBoundingClientRect().height);
+        var newParent = mods[st.draggedId] ? mods[st.draggedId].parent : '';
+        var moved = 0, failed = 0;
+        var ids, useInsideFallback = false;
+
+        if (draggedVisible) {
+            ids = st.ids.slice(); // forward: chain each after the previous
+        } else {
+            // Dropped inside a collapsed container: its row can't anchor a
+            // BEFORE/AFTER probe. Drop the rest INSIDE the same parent row
+            // instead; INSIDE inserts first, so reverse order keeps theirs.
+            ids = st.ids.slice().reverse();
+            useInsideFallback = !!newParent;
+        }
+
+        function finish() {
+            dbeAutoDragging = false;
+            var total = moved + 1; // + the hand-dragged row
+            undoToast(failed
+                ? ('Moved ' + total + ' element' + (total === 1 ? '' : 's') + ' — ' + failed + ' could not follow')
+                : ('Moved ' + total + ' elements together'));
+        }
+
+        var prev = st.draggedId;
+        function next() {
+            if (!ids.length) { finish(); return; }
+            var id = ids.shift();
+            function step(ok) {
+                if (ok) { moved += 1; if (!useInsideFallback) { prev = id; } } else { failed += 1; }
+                setTimeout(next, 120);
+            }
+            if (useInsideFallback) {
+                dragRowTo(id, newParent, 'DROP_INSIDE', [0.95, 0.8, 0.65], newParent, step);
+            } else {
+                placeAfter(id, prev, step);
+            }
+        }
+        if (!draggedVisible && !newParent) { failed = st.ids.length; finish(); return; }
+        next();
+    }
+
+    function bindMultiDrag() {
+        document.addEventListener('dragstart', function (e) {
+            if (dbeAutoDragging) { return; }
+            dbeMultiDrag = null;
+            if (dbeMultiSel.size < 2) { return; }
+            var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
+            if (!btn) { return; }
+            var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
+            if (!m || !dbeMultiSel.has(m[1])) { return; }
+            var mods = modules() || {};
+            dbeMultiDrag = {
+                draggedId: m[1],
+                ids: multiDragIds(m[1]),
+                dropped: false,
+                // Where the row started — if the drop leaves it unmoved (or the
+                // builder rejected it), don't gather the others around it.
+                fromParent: mods[m[1]] ? mods[m[1]].parent : '',
+                fromIndex: domRowIds().indexOf(m[1])
+            };
+        }, true);
+        document.addEventListener('drop', function (e) {
+            if (dbeAutoDragging || !dbeMultiDrag) { return; }
+            dbeMultiDrag.dropped = !!(e.target.closest && e.target.closest('.uniRightPanel'));
+        }, true);
+        document.addEventListener('dragend', function () {
+            if (dbeAutoDragging) { return; }
+            var st = dbeMultiDrag;
+            dbeMultiDrag = null;
+            if (!st || !st.dropped || !st.ids.length) { return; }
+            // Let the builder finish the hand-dragged row's own move first.
+            setTimeout(function () {
+                var mods = modules() || {};
+                var parentNow = mods[st.draggedId] ? mods[st.draggedId].parent : null;
+                if (parentNow === null) { return; } // row gone — bail
+                if (parentNow === st.fromParent && domRowIds().indexOf(st.draggedId) === st.fromIndex) { return; }
+                moveRestOfSelection(st);
+            }, 350);
+        }, true);
+    }
+
     function bindMultiSelect() {
         ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
             document.addEventListener(t, function (e) {
                 var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
                 if (!btn) { return; }
-                var mod = e.metaKey || e.ctrlKey, sh = e.shiftKey;
+                var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey), sh = e.shiftKey;
                 if (!mod && !sh) {
                     if (t === 'click') { clearMultiSel(); } // plain click = single selection again
                     return;
@@ -3192,7 +3389,7 @@
         if (on('context_menu')) { bindChipMenu(); }
 
         // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree.
-        if (on('multi_select')) { bindMultiSelect(); }
+        if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
 
         // Undo/redo last delete (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
         if (on('undo_delete')) {
