@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -14,6 +14,14 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
 == Changelog ==
+
+= 1.2.0 =
+* Multi-select: dragging one row of a multi-selection now moves the whole
+  selection — the remaining rows follow the dropped row into place, keeping
+  their Navigator order (a toast reports how many moved).
+* Multi-select: on a Mac only Cmd+click toggles rows into the selection;
+  Ctrl+click is the system right-click gesture and now opens the context
+  menu as expected. Ctrl+click still works on Windows and Linux.
 
 = 1.1.0 =
 * New scope guard toggle: warns when the rules shown in the Styles code
