@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -14,6 +14,16 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
 == Changelog ==
+
+= 1.2.2 =
+* Wrap in… : wrapping an element in a div, template or collection now keeps the
+  wrapper in the element's original position instead of appending it at the end
+  of its parent, and the wrapped element keeps its identity (a real move, not a
+  copy). Rebuilt on the builder's own add and move actions — no clipboard, and
+  it repaints and saves like any native edit.
+* Multi-select is temporarily withdrawn: dragging a multi-selection did not
+  reliably move the whole selection, so the option has been removed for now
+  while it is reworked. Single-element wrap, rename and remove are unaffected.
 
 = 1.2.1 =
 Light-theme contrast and dark-surface fixes across the builder chrome:

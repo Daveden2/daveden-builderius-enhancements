@@ -148,7 +148,7 @@ function dbe_features() {
 		),
 		'wrap_in'             => array(
 			'title'       => __( 'Wrap in…', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Right-click an element (or a multi-selection of siblings) and wrap it in a div, template, or collection with template.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Right-click an element and wrap it in a div, template, or collection with template.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,
@@ -167,13 +167,14 @@ function dbe_features() {
 			'css'         => array(),
 			'js'          => true,
 		),
-		'multi_select'        => array(
-			'title'       => __( 'Multi-select', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Cmd+click (Mac) / Ctrl+click and Shift+click select multiple Navigator rows for bulk remove or wrap; dragging a selected row moves the whole selection.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'editing',
-			'css'         => array( '31-multi-select.css' ),
-			'js'          => true,
-		),
+		/*
+		 * 'multi_select' is temporarily withdrawn (6 Jul 2026): the multi-row
+		 * drag never reliably carried the whole selection, so the option is
+		 * removed from the registry — it no longer appears in settings and its
+		 * JS/CSS are not wired. The supporting code (bindMultiSelect /
+		 * bindMultiDrag / removeMulti / the context-menu multi branches) is
+		 * parked in place; restore this entry to bring the feature back.
+		 */
 
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(

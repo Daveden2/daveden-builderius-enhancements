@@ -116,13 +116,19 @@
         });
     }
 
-    /* (d) Wrap the target element(s) in a new parent of the given type. Goes
-       through the builder's own paste + remove controllers (the only outside-in
-       channels that repaint AND persist — see the file-header channel note):
-       forge a clipboard payload whose root is the new wrapper with the wrapped
-       subtree(s) under it, select the target's parent, drive native Paste, then
-       remove the originals via native Remove. The wrapped result is appended as
-       the parent's last child (paste semantics) — not the original slot. */
+    /* (d) Wrap the target element(s) in a new parent of the given type, through
+       the builder's OWN add + move store actions — the same channel duplicate
+       and the native inserter use (addModule/addIndex fire builderius.Module.added,
+       so the tree repaints AND the change survives Save; a raw storeSet('modules')
+       would do neither).
+
+       The wrapper is inserted at the FIRST selected element's slot and the
+       selection is MOVED into it (ids preserved), so it lands EXACTLY where the
+       elements were — not appended at the parent's end like the old forged-paste
+       channel did. Builderius has no native wrap/group action, and addIndex only
+       force-appends when the parent is a VOID element (img/input/br/… — see the
+       native `gn` list), never for the container parents we wrap into, so the
+       index is always honoured. */
     function wrap(type, idsOpt) {
         if (dbeUndoBusy) { return; }
         var sf = store();
@@ -139,22 +145,15 @@
             undoToast('Wrap needs sibling elements');
             return;
         }
-        var order = Object.keys(mods).filter(function (id) { return ids.indexOf(id) !== -1; });
 
-        // A Collection only renders through a Template child (the native
-        // inserter always creates the pair), so wrapping in a collection
-        // forges Collection > Template > element(s). Settings mirror the
-        // native insert defaults (verified against 1.3.5-beta).
-        var spec = {
-            div:        { name: 'HtmlElement', label: 'Div',        settings: [{ name: 'tag', value: 'div' }] },
-            template:   { name: 'Template',    label: 'Template',   settings: [] },
-            collection: {
-                name: 'Collection', label: 'Collection',
-                settings: [{ name: 'interactiveMode', value: false }, { name: 'tag', value: 'div' }],
-                inner: { name: 'Template', label: 'Template', settings: [] }
-            }
-        }[type];
-        if (!spec) { return; }
+        // Sibling order + insertion slot come from the live index array (the
+        // module-map key order goes stale after moves; the index array does not).
+        var idx = sf.storeGet('indexes') || {};
+        var siblings = idx[parentId || 'root'] ? [].concat(idx[parentId || 'root']) : [];
+        var order = siblings.filter(function (id) { return ids.indexOf(id) !== -1; });
+        if (!order.length) { order = ids.slice(); }
+        var firstAt = siblings.indexOf(order[0]);
+        if (firstAt < 0) { firstAt = siblings.length; }
 
         var makeId = function () {
             return 'u' + Array.from({ length: 9 }, function () {
@@ -162,94 +161,91 @@
             }).join('');
         };
         var newId = makeId();
+        var attachId = newId; // where the selected elements are moved into
 
-        // Clipboard-payload module map: wrapper at the root (plus its inner
-        // node for collection), each selected subtree deep-copied under the
-        // innermost wrapper (map order = sibling order). Paste regenerates
-        // every id, so forged ids never collide with the live tree.
-        var payloadMods = {};
-        payloadMods[newId] = { id: newId, name: spec.name, label: spec.label, settings: spec.settings, parent: '' };
-        var attachId = newId;
-        if (spec.inner) {
+        // Build the wrapper action-side. Settings mirror the native insert
+        // defaults (verified against 1.3.5-beta). A Collection only renders its
+        // children through a Template child (the native inserter always makes
+        // the pair), so build Collection > Template and move the selection into
+        // the Template.
+        if (type === 'div') {
+            storeAddModule(sf, { id: newId, name: 'HtmlElement', label: 'Div',
+                settings: [{ name: 'tag', value: 'div' }] }, parentId, firstAt);
+        } else if (type === 'template') {
+            storeAddModule(sf, { id: newId, name: 'Template', label: 'Template', settings: [] }, parentId, firstAt);
+        } else if (type === 'collection') {
+            storeAddModule(sf, { id: newId, name: 'Collection', label: 'Collection',
+                settings: [{ name: 'interactiveMode', value: false }, { name: 'tag', value: 'div' }] }, parentId, firstAt);
             var innerId = makeId();
-            payloadMods[innerId] = { id: innerId, name: spec.inner.name, label: spec.inner.label, settings: spec.inner.settings, parent: newId };
+            storeAddModule(sf, { id: innerId, name: 'Template', label: 'Template', settings: [] }, newId, 0);
             attachId = innerId;
+        } else {
+            return;
         }
-        function collect(id) {
-            payloadMods[id] = JSON.parse(JSON.stringify(mods[id]));
-            Object.keys(mods).forEach(function (k) {
-                if (mods[k].parent === id) { collect(k); }
-            });
+
+        // Move each selected element into the wrapper, preserving Navigator order
+        // (storeMoveModule reads the live index each call, so the shrinking old
+        // parent stays correct as siblings are pulled out one by one).
+        order.forEach(function (id, i) { storeMoveModule(sf, id, attachId, i); });
+
+        clearMultiSel();
+        if (type === 'template') {
+            // A condition-less Template renders its children inside an inert
+            // <template>, so they leave the page until a rendering condition is
+            // set — say so, and land the user on the Template to make that next.
+            undoToast('Wrapped ' + order.length + ' element' + (order.length === 1 ? '' : 's') +
+                ' in a template — add a rendering condition or its contents won’t show on the page');
+        } else {
+            var typeLabel = type === 'collection' ? 'collection + template' : type;
+            undoToast('Wrapped ' + order.length + ' element' + (order.length === 1 ? '' : 's') + ' in ' + typeLabel);
         }
-        order.forEach(function (id) { collect(id); payloadMods[id].parent = attachId; });
 
-        var payload = JSON.stringify({
-            modules: payloadMods,
-            indexes: { root: [newId] },
-            template: { settings: [], technology: 'html' },
-            version: { 'builderius': '1.3.5-beta', 'builderius-pro': '1.3.5-beta' },
-            source: 'builderiusCopiedElements'
-        });
+        // Land on the new wrapper so the next step (condition, settings) is one click away.
+        waitFor(function () {
+            return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;
+        }, function (row) { if (row) { clickSeq(row); } });
+        console.log('[DBE] Wrapped ' + order.join(', ') + ' in ' + type + ' (' + newId + ') via store actions.');
+    }
 
-        dbeUndoBusy = true;
-        var beforeIds = Object.keys(mods);
-        var prevClip = null;
-        var fail = function (msg) { dbeUndoBusy = false; undoToast(msg); };
-
-        var doPaste = function (menuRowId) {
-            navigator.clipboard.readText()
-                .then(function (t) { prevClip = t; })
-                .catch(function () {})
-                .then(function () { return navigator.clipboard.writeText(payload); })
-                .then(function () {
-                    driveContextMenuItem(menuRowId, 'Paste', function (ok) {
-                        if (!ok) { fail('Wrap failed — could not reach Paste'); return; }
-                        waitFor(function () {
-                            var m2 = modules() || {};
-                            return Object.keys(m2).find(function (id) {
-                                return beforeIds.indexOf(id) === -1 && (m2[id].parent || '') === parentId;
-                            }) || null;
-                        }, function (pastedId) {
-                            if (prevClip !== null) { navigator.clipboard.writeText(prevClip).catch(function () {}); }
-                            if (!pastedId) { fail('Wrap failed — wrapper not inserted'); return; }
-                            dbeUndoBusy = false;
-                            clearMultiSel();
-                            // Remove the originals through the native channel
-                            // (each one is individually Cmd+Z-undoable).
-                            var typeLabel = type === 'collection' ? 'collection + template' : type;
-                            removeMulti(order, 'Wrapped ' + order.length + ' element' + (order.length === 1 ? '' : 's') +
-                                ' in ' + typeLabel + ' — appended at the end of its parent, drag to reposition');
-                            console.log('[DBE] Wrapped ' + order.join(', ') + ' in ' + type + ' (pasted as ' + pastedId + ').');
-                        });
-                    });
-                })
-                .catch(function () { fail('Wrap failed — clipboard blocked'); });
-        };
-
-        // Give the user's context menu a beat to close (it is a showModal dialog
-        // — while open, everything outside it is inert, including the tree row
-        // we need to click to select the paste target).
-        setTimeout(function () {
-            if (parentId) {
-                var attempts = 0;
-                (function selectParent() {
-                    var row = document.querySelector('.uniRightPanel .uni-tree-node-' + parentId);
-                    if (row) { clickSeq(row); }
-                    waitFor(function () { return activeId() === parentId || null; }, function (ok) {
-                        if (ok) { doPaste(parentId); }
-                        else if (++attempts < 4) { selectParent(); }
-                        else { fail('Wrap failed — could not select the parent'); }
-                    }, 20);
-                })();
-            } else {
-                // Root-level wrap: clear the selection so paste falls back to root.
-                try { sf.storeSet('activeModule', ''); } catch (e) {}
-                var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
-                var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
-                if (!m) { fail('Wrap failed — no tree rows'); return; }
-                doPaste(m[1]);
+    /* Add a module through the builder's OWN add action (mirrors the sense
+       bridge's handleAddModule and the native inserter). storeSet(name, payload)
+       dispatches the reducer named `name`, so "addModule"/"addIndex" fire their
+       lifecycle hooks — the repaint-and-persist path, not a raw slice write.
+       addIndex always runs; a numeric index then re-slots the id in the parent's
+       index array. */
+    function storeAddModule(sf, module, parentId, index) {
+        module.label = module.label || module.name;
+        module.parent = parentId || '';
+        sf.storeSet('addModule', { module: module });
+        sf.storeSet('addIndex', { module: module });
+        if (typeof index === 'number') {
+            var key = parentId || 'root';
+            var idx = sf.storeGet('indexes') || {};
+            var arr = idx[key] ? [].concat(idx[key]) : [];
+            var at = arr.indexOf(module.id);
+            if (at !== -1 && at !== index) {
+                arr.splice(at, 1);
+                arr.splice(index, 0, module.id);
+                var next = Object.assign({}, idx);
+                next[key] = arr;
+                sf.storeSet('indexes', next);
             }
-        }, 300);
+        }
+    }
+
+    /* Move a module via the builder's move action (mirrors handleMoveModule):
+       reads the live index each call so a shrinking old-parent stays correct. */
+    function storeMoveModule(sf, moduleId, newParentId, newIndex) {
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[moduleId]) { return; }
+        var idx = sf.storeGet('indexes') || {};
+        var oldParent = mods[moduleId].parent || 'root';
+        var newParent = (typeof newParentId === 'string') ? (newParentId || 'root') : oldParent;
+        var oldIndex = (idx[oldParent] ? [].concat(idx[oldParent]) : []).indexOf(moduleId);
+        sf.storeSet('moveModule', {
+            oldParent: oldParent, sourceId: moduleId, oldIndex: oldIndex,
+            newIndex: (typeof newIndex === 'number') ? newIndex : 0, newParent: newParent
+        });
     }
 
     /* (d2) Rename the element from the tree context menu. Builderius HAS a
@@ -350,7 +346,7 @@
 
     /* (d2c) Auto-BEM / bulk class naming. Right-click an element -> "Add class
        names…" opens a dialog listing the element and its subtree with suggested
-       class names in the flat `{block}-{descriptor}` convention, editable per
+       class names in the `{block}__{descriptor}` BEM convention, editable per
        row. Applying drives the NATIVE class picker per element (select the tree
        row, open .uniSystemSelectClasses, type, Enter) — the only outside-in
        channel that repaints AND persists; classes land in the module's
@@ -383,10 +379,13 @@
         return s && Array.isArray(s.value) ? s.value : [];
     }
 
-    /* The subtree in tree order (module-map key order = sibling order). Only
-       HtmlElements that map to a canvas node can take a class through the
-       picker; everything else (components, collections, templates) is listed
-       for context but not selectable. */
+    /* The subtree in tree order (module-map key order = sibling order). Any
+       module that maps to a REAL canvas tag and carries tagClass can take a
+       class through the picker — that's HtmlElement AND Collection /
+       SubCollection (loop wrappers render as a real div/select/etc. and already
+       hold classes like .pick, .property-grid) AND the Composite family. Only
+       genuine <template> nodes (inert, no visible box) and Component instances
+       are context-only, not selectable. */
     function bemCollectRows(rootId) {
         var mods = modules() || {};
         var iframe = document.getElementById('builderInner');
@@ -400,7 +399,9 @@
             rows.push({
                 id: id, depth: depth, mod: mod, tag: tag,
                 classes: moduleClasses(mod),
-                supported: mod.name === 'HtmlElement' && !!tag
+                // Classable = renders a real tag, but not an inert <template>
+                // wrapper and not a Component instance.
+                supported: !!tag && tag !== 'template' && mod.name !== 'Component'
             });
             Object.keys(mods).forEach(function (k) {
                 if ((mods[k].parent || '') === id) { walk(k, depth + 1); }
@@ -416,12 +417,14 @@
     }
 
     /* One suggestion per row: the root is the block itself, descendants get
-       {block}-{descriptor}, duplicates numbered -2/-3 in tree order. */
+       {block}__{descriptor} (BEM element syntax), duplicates numbered -2/-3 in
+       tree order. Matches the double-underscore BEM this site is built in
+       (hero__title, section-head__group, property-card__price, …). */
     function bemSuggest(block, rows) {
         var used = {};
         return rows.map(function (row, i) {
             if (!row.supported) { return ''; }
-            var name = i === 0 ? block : block + '-' + bemDescriptor(row);
+            var name = i === 0 ? block : block + '__' + bemDescriptor(row);
             var base = name, n = 2;
             while (used[name]) { name = base + '-' + n; n += 1; }
             used[name] = true;
@@ -851,12 +854,6 @@
     var dbeMultiDrag = null;
     var dbeAutoDragging = false;
 
-    function fireDrag(el, type, dt, x, y) {
-        el.dispatchEvent(new DragEvent(type, {
-            bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y
-        }));
-    }
-
     /* The selection in Navigator order, minus the dragged row and minus rows a
        selected ancestor already carries along. */
     function multiDragIds(draggedId) {
@@ -874,120 +871,40 @@
         });
     }
 
-    /* Drop-zone semantics (probed against 1.3.5-beta): within a row, the top
-       ~third is DROP_BEFORE, the middle/bottom DROP_INSIDE, and DROP_AFTER
-       exists only at the very bottom of a LAST-child row — the gap between two
-       rows is always "before the lower one". DROP_INSIDE inserts as the FIRST
-       child, not the last. So "place X directly after P" = drop X before P's
-       next sibling, or after P itself when P is the last child. */
-    function nextSiblingId(id) {
-        // Module-map key order goes STALE after a move (the moved id keeps its
-        // old slot) — the rendered Navigator is the authoritative order. The
-        // next row in DOM order that shares the parent is the next sibling;
-        // rows between are the subtree of id itself.
-        var mods = modules() || {};
-        var m = mods[id];
-        if (!m) { return null; }
-        var order = domRowIds();
-        var i = order.indexOf(id);
-        if (i === -1) { return null; }
-        for (var j = i + 1; j < order.length; j++) {
-            var o = mods[order[j]];
-            if (o && o.parent === m.parent) { return order[j]; }
-        }
-        return null;
-    }
-
-    /* Move srcId through the builder's drop handler: probe dragover
-       y-positions (fractions of the target row's height) until the drop
-       indicator reads the wanted mode, then drop. Success = srcId's parent
-       afterwards is expectParent. */
-    function dragRowTo(srcId, tgtId, mode, fractions, expectParent, done) {
-        var src = document.querySelector('.uniRightPanel .uni-tree-node-' + srcId);
-        var tgt = document.querySelector('.uniRightPanel .uni-tree-node-' + tgtId);
-        var tr = tgt && tgt.getBoundingClientRect();
-        if (!src || !tgt || !tr.height) { done(false); return; }
-        var dt = new DataTransfer();
-        var sr = src.getBoundingClientRect();
-        fireDrag(src, 'dragstart', dt, sr.x + sr.width / 2, sr.y + sr.height / 2);
-        var x = tr.x + tr.width / 2;
-        var ci = 0;
-        function probe() {
-            if (ci >= fractions.length) {
-                fireDrag(src, 'dragend', dt, x, tr.top); // cancel cleanly
-                done(false);
-                return;
-            }
-            var y = tr.top + tr.height * fractions[ci];
-            ci += 1;
-            fireDrag(tgt, 'dragenter', dt, x, y);
-            fireDrag(tgt, 'dragover', dt, x, y);
-            setTimeout(function () {
-                var spot = document.querySelector('.uniModTree__itemDropSpot');
-                if (!spot || !spot.classList.contains(mode)) { probe(); return; }
-                fireDrag(tgt, 'drop', dt, x, y);
-                fireDrag(src, 'dragend', dt, x, y);
-                setTimeout(function () {
-                    var mods = modules() || {};
-                    done(!!(mods[srcId] && mods[srcId].parent === expectParent));
-                }, 250);
-            }, 90);
-        }
-        setTimeout(probe, 90);
-    }
-
-    function placeAfter(srcId, prevId, done) {
-        var mods = modules() || {};
-        var prev = mods[prevId];
-        if (!prev) { done(false); return; }
-        var n = nextSiblingId(prevId);
-        if (n) { dragRowTo(srcId, n, 'DROP_BEFORE', [0.08, 0.2, 0.3], prev.parent, done); }
-        else { dragRowTo(srcId, prevId, 'DROP_AFTER', [0.97, 0.92, 0.85], prev.parent, done); }
-    }
-
+    /* Bring the rest of the selection in beside the hand-dragged row. An earlier
+       build drove a synthetic drag per follower and read Builderius's drop
+       indicator to place it — but that indicator only ever resolves to
+       DROP_INSIDE on a container row and DROP_AFTER on a leaf row (probed against
+       1.3.5-beta, 6 Jul 2026); DROP_BEFORE never appears, so "place before the
+       next sibling" could not match and the follower silently stayed put — the
+       "drag into another parent leaves the rest behind" bug. The move store
+       action places by parent + index directly, with no drop-zone guessing, so
+       every follower lands deterministically wherever the dragged row ended up. */
     function moveRestOfSelection(st) {
-        dbeAutoDragging = true;
+        var sf = store();
         var mods = modules() || {};
-        var draggedRow = document.querySelector('.uniRightPanel .uni-tree-node-' + st.draggedId);
-        var draggedVisible = !!(draggedRow && draggedRow.getBoundingClientRect().height);
-        var newParent = mods[st.draggedId] ? mods[st.draggedId].parent : '';
+        var dragged = mods[st.draggedId];
+        if (!sf || !dragged) { return; }
+        var newParent = dragged.parent || '';
+        var order = sf.storeGet('indexes') || {};
+        var siblings = order[newParent || 'root'] ? [].concat(order[newParent || 'root']) : [];
+        var base = siblings.indexOf(st.draggedId);
+        if (base < 0) { base = siblings.length - 1; }
+
         var moved = 0, failed = 0;
-        var ids, useInsideFallback = false;
+        // st.ids is in Navigator order; drop each just after the dragged row,
+        // keeping their relative order (base+1, base+2, …).
+        st.ids.forEach(function (id, k) {
+            if (!mods[id]) { failed += 1; return; }
+            try { storeMoveModule(sf, id, newParent, base + 1 + k); moved += 1; }
+            catch (e) { failed += 1; }
+        });
 
-        if (draggedVisible) {
-            ids = st.ids.slice(); // forward: chain each after the previous
-        } else {
-            // Dropped inside a collapsed container: its row can't anchor a
-            // BEFORE/AFTER probe. Drop the rest INSIDE the same parent row
-            // instead; INSIDE inserts first, so reverse order keeps theirs.
-            ids = st.ids.slice().reverse();
-            useInsideFallback = !!newParent;
-        }
-
-        function finish() {
-            dbeAutoDragging = false;
-            var total = moved + 1; // + the hand-dragged row
-            undoToast(failed
-                ? ('Moved ' + total + ' element' + (total === 1 ? '' : 's') + ' — ' + failed + ' could not follow')
-                : ('Moved ' + total + ' elements together'));
-        }
-
-        var prev = st.draggedId;
-        function next() {
-            if (!ids.length) { finish(); return; }
-            var id = ids.shift();
-            function step(ok) {
-                if (ok) { moved += 1; if (!useInsideFallback) { prev = id; } } else { failed += 1; }
-                setTimeout(next, 120);
-            }
-            if (useInsideFallback) {
-                dragRowTo(id, newParent, 'DROP_INSIDE', [0.95, 0.8, 0.65], newParent, step);
-            } else {
-                placeAfter(id, prev, step);
-            }
-        }
-        if (!draggedVisible && !newParent) { failed = st.ids.length; finish(); return; }
-        next();
+        clearMultiSel();
+        var total = moved + 1; // + the hand-dragged row
+        undoToast(failed
+            ? ('Moved ' + total + ' element' + (total === 1 ? '' : 's') + ' — ' + failed + ' could not follow')
+            : ('Moved ' + total + ' elements together'));
     }
 
     function bindMultiDrag() {
@@ -995,7 +912,17 @@
             if (dbeAutoDragging) { return; }
             dbeMultiDrag = null;
             if (dbeMultiSel.size < 2) { return; }
+            // dragstart fires on the row's <li.uniModTree__itemDrag> (the react-dnd
+            // drag source); the .uniModTree__item button that carries the
+            // uni-tree-node-<id> class is a DESCENDANT of it, so closest() walking
+            // UP the tree never reaches it. Take the button off the drag source's
+            // own subtree instead (its own row button is first in document order,
+            // ahead of any nested child rows).
             var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
+            if (!btn) {
+                var src = e.target.closest && e.target.closest('.uniRightPanel li.uniModTree__itemDrag');
+                btn = src && src.querySelector('.uniModTree__item');
+            }
             if (!btn) { return; }
             var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
             if (!m || !dbeMultiSel.has(m[1])) { return; }
@@ -1519,6 +1446,14 @@
     function onContextMenuShow() {
         requestAnimationFrame(function () {
             removeSubmenus();
+            // While a feature is auto-driving the native menu (wrap's Paste,
+            // multi-remove's Remove — driveContextMenuItem sets .dbe-auto-ctx),
+            // leave the menu exactly as Builderius rendered it. The regrouping
+            // below folds the native Copy/Paste/Remove into hover-only flyouts,
+            // which the auto-driver can't reach — that is what broke wrapping in
+            // a div/collection (the Paste channel), while wrap-in-template, which
+            // never touches the menu, kept working.
+            if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
             var anyItem = document.querySelector('.uniContextMenu__item');
             if (!anyItem) { return; }
             var container = anyItem.parentElement;
@@ -3388,7 +3323,11 @@
         // Copy menu on the Styles editor's class chips.
         if (on('context_menu')) { bindChipMenu(); }
 
-        // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree.
+        // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree —
+        // temporarily withdrawn (the multi-row drag never reliably carried the
+        // whole selection). The 'multi_select' registry entry is removed, so
+        // on('multi_select') is always false; bindMultiSelect / bindMultiDrag
+        // stay parked below for when the drag is fixed.
         if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
 
         // Undo/redo last delete (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
