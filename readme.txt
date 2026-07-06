@@ -1,9 +1,9 @@
 === Daveden Builder Enhancements ===
 Contributors: davedendigital
 Requires at least: 6.4
-Tested up to: 6.8
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -14,6 +14,20 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
 == Changelog ==
+
+= 1.1.0 =
+* New scope guard toggle: warns when the rules shown in the Styles code
+  editor live in the other CSS scope, with a one-click switch on its own row.
+* Copy menu on the Styles editor class chips: copy with or without the
+  leading dot, copy all classes, and now remove the class from the element;
+  the menu also renders in the builder's own typeface instead of the system
+  font.
+* Context menu: the native Actions header is styled as a group heading;
+  scope badge wording clarified; scope-bar edge padding.
+* Light theme fixes: tag select, segmented radio pills and the Monaco
+  editor island.
+* Plugin icon shown in the WordPress updates UI.
+* CODEOWNERS file so pull requests request the maintainer's review.
 
 = 1.0.0 =
 * Initial public release.
