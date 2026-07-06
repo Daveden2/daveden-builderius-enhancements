@@ -19,6 +19,7 @@ Several features were suggested by the Builderius and wider web-design
 community. Thank you:
 
 * Inline rename — Israel Reyes and Tim Gray
+* Follow selection in the tree — Israel Reyes
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
 
@@ -31,7 +32,8 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
   rename it inline, without opening the right-click menu (a new toggle).
 * New — Follow selection in the tree: when you click an element in the preview,
   the Navigator expands the branches down to it and scrolls it into view, so the
-  selected element is always visible in the tree (a new toggle).
+  selected element is always visible in the tree (a new toggle). Props Israel
+  Reyes.
 * Wrap in… : wrapping an element in a div, template or collection now keeps the
   wrapper in the element's original position instead of appending it at the end
   of its parent, and the wrapped element keeps its identity (a real move, not a

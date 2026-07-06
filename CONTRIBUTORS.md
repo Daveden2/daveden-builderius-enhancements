@@ -21,6 +21,7 @@ Many enhancements started as suggestions from the Builderius and wider
 web-design community. Thank you:
 
 - **Inline rename** — Israel Reyes, Tim Gray
+- **Follow selection in the tree** — Israel Reyes
 - **Density toggle (compact mode)** — Max Ziebell
 - **Light / dark / auto theme** — David McCan
 
