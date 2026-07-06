@@ -1,0 +1,26 @@
+/* Navigator search: a filter box above the tree. Non-matching rows dim
+   rather than hide, so document structure stays visible and clickable. */
+.dbe-tree-search {
+    padding: 8px 10px 2px !important;
+}
+.dbe-tree-search input {
+    box-sizing: border-box !important;
+    inline-size: 100% !important;
+    min-height: 28px !important;
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    color: var(--dbe-text-2) !important;
+    font: 400 13px/1.4 var(--dbe-ui-font) !important;
+    padding: 4px 8px !important;
+    transition: border-color var(--dbe-t) !important;
+}
+.dbe-tree-search input:focus { border-color: var(--dbe-accent) !important; }
+.dbe-tree-search__count {
+    display: block !important;
+    padding: 4px 2px 0 !important;
+    font: 500 11px/1.3 var(--dbe-ui-font) !important;
+    color: var(--dbe-muted) !important;
+    min-block-size: 15px !important;
+}
+.uniModTree__item.dbe-tree-dim { opacity: .35 !important; }

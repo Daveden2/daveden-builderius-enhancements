@@ -1,0 +1,67 @@
+/* Keyboard shortcuts overlay (? in the builder). A native <dialog> so focus
+   containment, Escape and the top layer come for free. */
+dialog.dbe-shortcuts {
+    inline-size: min(440px, 90vw);
+    max-block-size: 80vh;
+    overflow: auto;
+    background: var(--dbe-l1);
+    color: var(--dbe-text-2);
+    border: 1px solid var(--dbe-line-hi);
+    border-radius: var(--dbe-r-md);
+    box-shadow: 0 12px 40px var(--dbe-shadow);
+    padding: 20px;
+    font: 400 13px/1.5 var(--dbe-ui-font);
+}
+dialog.dbe-shortcuts::backdrop {
+    background: rgb(0 0 0 / 0.4);
+}
+.dbe-shortcuts__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: 12px;
+}
+.dbe-shortcuts__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dbe-text);
+    margin: 0;
+}
+.dbe-shortcuts__close {
+    border: 0;
+    background: transparent;
+    color: var(--dbe-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 6px;
+    min-inline-size: 24px;
+    min-block-size: 24px;
+    border-radius: var(--dbe-r-sm);
+    cursor: pointer;
+}
+.dbe-shortcuts__close:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+.dbe-shortcuts table { border-collapse: collapse; inline-size: 100%; }
+.dbe-shortcuts th {
+    text-align: start;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--dbe-muted);
+    padding: 10px 0 4px;
+}
+.dbe-shortcuts td {
+    padding: 5px 0;
+    border-block-start: 1px solid var(--dbe-line);
+    vertical-align: top;
+}
+.dbe-shortcuts td:first-child { white-space: nowrap; padding-inline-end: 16px; }
+.dbe-shortcuts kbd {
+    display: inline-block;
+    background: var(--dbe-l2);
+    border: 1px solid var(--dbe-line-hi);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font: 500 11px/1.5 var(--dbe-mono);
+    color: var(--dbe-text);
+}

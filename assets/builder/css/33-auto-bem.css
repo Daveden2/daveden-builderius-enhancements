@@ -1,0 +1,177 @@
+/* Auto-BEM / bulk class naming: the "Add class names…" dialog and the
+   progress cover shown while the queue drives the native class picker.
+   Dialog pattern matches the shortcuts overlay (71-shortcuts.css). */
+
+dialog.dbe-bem {
+    inline-size: min(560px, 92vw);
+    max-block-size: 84vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--dbe-l1);
+    color: var(--dbe-text-2);
+    border: 1px solid var(--dbe-line-hi);
+    border-radius: var(--dbe-r-md);
+    box-shadow: 0 12px 40px var(--dbe-shadow);
+    padding: 20px;
+    font: 400 13px/1.5 var(--dbe-ui-font);
+}
+dialog.dbe-bem:not([open]) { display: none; }
+dialog.dbe-bem::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dbe-bem__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: 12px;
+}
+.dbe-bem__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dbe-text);
+    margin: 0;
+}
+.dbe-bem__close {
+    border: 0;
+    background: transparent;
+    color: var(--dbe-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 6px;
+    min-inline-size: 24px;
+    min-block-size: 24px;
+    border-radius: var(--dbe-r-sm);
+    cursor: pointer;
+}
+.dbe-bem__close:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+
+.dbe-bem__block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-block-end: 12px;
+}
+.dbe-bem__block label {
+    font-weight: 600;
+    color: var(--dbe-text);
+    white-space: nowrap;
+}
+
+.dbe-bem input[type="text"] {
+    background: var(--dbe-l2);
+    color: var(--dbe-text);
+    border: 1px solid var(--dbe-line);
+    border-radius: var(--dbe-r-sm);
+    font: 400 13px/1.4 var(--dbe-mono, monospace);
+    padding: 5px 8px;
+    min-block-size: 28px;
+    box-sizing: border-box;
+    transition: border-color var(--dbe-t);
+}
+.dbe-bem input[type="text"]:focus { border-color: var(--dbe-accent); outline: none; }
+.dbe-bem__block input { flex: 1 1 auto; }
+
+.dbe-bem__list {
+    overflow: auto;
+    border-block: 1px solid var(--dbe-line);
+    padding-block: 6px;
+    flex: 1 1 auto;
+    min-block-size: 0;
+}
+.dbe-bem__row {
+    display: grid;
+    grid-template-columns: auto auto 1fr minmax(140px, 200px);
+    align-items: center;
+    column-gap: 8px;
+    padding-block: 4px;
+    padding-inline-start: calc(var(--dbe-bem-depth, 0) * 18px);
+}
+.dbe-bem__row.is-unsupported { opacity: .55; }
+.dbe-bem__check {
+    inline-size: 15px;
+    block-size: 15px;
+    accent-color: var(--dbe-accent);
+}
+.dbe-bem__tag {
+    font: 500 12px/1.4 var(--dbe-mono, monospace);
+    color: var(--dbe-text);
+    white-space: nowrap;
+}
+.dbe-bem__label {
+    color: var(--dbe-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dbe-bem__field { inline-size: 100%; }
+.dbe-bem__hint {
+    grid-column: 3 / 5;
+    font-size: 11px;
+    color: var(--dbe-muted);
+}
+.dbe-bem__hint:empty { display: none; }
+
+.dbe-bem__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-block-start: 14px;
+}
+.dbe-bem__cancel,
+.dbe-bem__apply {
+    border: 0;
+    border-radius: var(--dbe-r-sm);
+    font: 600 13px/1 var(--dbe-ui-font);
+    padding: 9px 14px;
+    min-block-size: 32px;
+    cursor: pointer;
+    transition: background var(--dbe-t), color var(--dbe-t);
+}
+.dbe-bem__cancel {
+    background: transparent;
+    color: var(--dbe-text-2);
+    border: 1px solid var(--dbe-line-hi);
+}
+.dbe-bem__cancel:hover { background: var(--dbe-hover-wash); color: var(--dbe-text); }
+.dbe-bem__apply {
+    background: var(--dbe-accent-strong);
+    color: var(--dbe-on-accent-strong);
+}
+.dbe-bem__apply:hover:not(:disabled) { filter: brightness(1.08); }
+.dbe-bem__apply:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Progress cover: full-viewport click shield + a status card. A plain fixed
+   div (not a dialog) — showModal would make the builder inert for the queue's
+   own clicks. */
+.dbe-bem-progress {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--dbe-l0) 55%, transparent);
+}
+.dbe-bem-progress__card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--dbe-l1);
+    color: var(--dbe-text);
+    border: 1px solid var(--dbe-line-hi);
+    border-radius: var(--dbe-r-md);
+    box-shadow: 0 12px 40px var(--dbe-shadow);
+    padding: 16px 20px;
+    font: 500 13px/1.4 var(--dbe-ui-font);
+}
+.dbe-bem-progress__label { margin: 0; }
+.dbe-bem-progress__stop {
+    border: 1px solid var(--dbe-line-hi);
+    background: var(--dbe-l2);
+    color: var(--dbe-text-2);
+    border-radius: var(--dbe-r-sm);
+    font: 600 12px/1 var(--dbe-ui-font);
+    padding: 8px 12px;
+    min-block-size: 28px;
+    cursor: pointer;
+}
+.dbe-bem-progress__stop:hover:not(:disabled) { background: var(--dbe-l2-hi); color: var(--dbe-text); }
+.dbe-bem-progress__stop:disabled { opacity: .6; cursor: default; }

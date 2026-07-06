@@ -1,0 +1,23 @@
+/* Density toggle: comfortable (default, matches the tree-row styling) vs
+   compact. Compact keeps every pointer target at 24px or more (WCAG 2.5.8). */
+:root {
+    --dbe-row-min-h: 32px;
+    --dbe-row-pad-block: 8px;
+    --dbe-row-font: 13px;
+}
+html[data-dbe-density="compact"] {
+    --dbe-row-min-h: 24px;
+    --dbe-row-pad-block: 3px;
+    --dbe-row-font: 12px;
+}
+html[data-dbe-density] .uniModTree__item {
+    height: auto !important;
+    min-height: var(--dbe-row-min-h) !important;
+    padding-block: var(--dbe-row-pad-block) !important;
+    font-size: var(--dbe-row-font) !important;
+}
+html[data-dbe-density] .uniModTree__item span:not(.dbe-tag-badge) {
+    font-size: var(--dbe-row-font) !important;
+}
+html[data-dbe-density="compact"] .uniModTree__itemWrapper { margin-block-end: 1px !important; }
+html[data-dbe-density="compact"] .uniCatTitle { padding-block: 8px 4px !important; }

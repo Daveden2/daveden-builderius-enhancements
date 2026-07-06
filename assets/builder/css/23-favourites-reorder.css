@@ -1,0 +1,70 @@
+/* Rearrange favourites: a toggle button at the top of the favourites bar
+   enters drag mode; icons then reorder by drag or arrow keys. Order lives in
+   localStorage and is re-applied after React re-renders. */
+
+.dbe-fav-reorder {
+    list-style: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    margin: 0 0 4px !important;
+    padding: 0 !important;
+}
+
+.dbe-fav-reorder-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    inline-size: 24px !important; /* WCAG 2.5.8 pointer-target size */
+    block-size: 24px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+    background: transparent !important;
+    color: var(--dbe-muted) !important;
+    cursor: pointer !important;
+}
+.dbe-fav-reorder-btn:hover {
+    color: var(--dbe-text) !important;
+}
+.dbe-fav-reorder-btn[aria-pressed="true"] {
+    color: var(--dbe-accent) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
+}
+.dbe-fav-reorder-btn:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 1px !important;
+}
+
+/* Drag-mode affordances. */
+.dbe-fav-reordering .uniModTree__favouritesListItem,
+.dbe-fav-reordering .uniModTree__favouritesListItem button {
+    cursor: grab !important;
+}
+.uniModTree__favouritesListItem.dbe-fav-dragging,
+.uniModTree__favouritesListItem.dbe-fav-dragging button {
+    cursor: grabbing !important;
+}
+.uniModTree__favouritesListItem.dbe-fav-dragging {
+    opacity: .8 !important;
+    outline: 2px solid var(--dbe-accent) !important;
+    outline-offset: -2px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}
+.dbe-fav-reordering .uniModTree__favouritesListItem:focus-within {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}
+
+/* Screen-reader-only live region for move announcements. */
+.dbe-visually-hidden {
+    position: absolute !important;
+    inline-size: 1px !important;
+    block-size: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}

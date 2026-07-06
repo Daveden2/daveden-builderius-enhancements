@@ -1,0 +1,39 @@
+/* Injected context-menu chrome: "Wrap in" / "Save to" flyout submenus,
+   keyboard focus ring, disabled items and the multi-select note row.
+   Shared by several features (OR-gated in PHP). */
+
+.dbe-ctx-item--first { border-top: 1px solid var(--dbe-sep-line) !important; margin-top: 4px !important; padding-top: 10px !important; }
+.dbe-ctx-parent .dbe-ctx-caret { margin-inline-start: auto !important; opacity: .55 !important; font-size: 15px !important; line-height: 1 !important; }
+.dbe-ctx-submenu {
+    position: fixed !important; z-index: 2147483000 !important; min-width: 176px !important;
+    background: var(--dbe-menu-bg) !important; border: 1px solid var(--dbe-accent) !important;
+    border-radius: var(--dbe-r-sm) !important; box-shadow: 0 6px 20px var(--dbe-shadow) !important;
+    padding: 0 !important; opacity: 1 !important; transform: none !important;
+    visibility: visible !important; pointer-events: auto !important;
+}
+.dbe-ctx-submenu ul { list-style: none !important; margin: 0 !important; padding: 0 !important; }
+/* Keyboard focus for menu items (native + injected) — the roving-tabindex
+   handler in builder.js makes them focusable; inset ring so it isn't clipped
+   by the card edge. Hover and focus share the brighter text treatment. */
+.uniContextMenu__item:focus-visible {
+    outline: none !important;
+    box-shadow: inset 0 0 0 2px var(--dbe-focus) !important;
+    border-radius: 4px !important;
+    color: light-dark(#1c1e24, #ffffff) !important;
+}
+
+/* Items that act on a single element are disabled while a multi-selection is
+   active (or a wrap target is invalid); the note row shows what the selection is. */
+.uniContextMenu__item.dbe-ctx-disabled {
+    opacity: .45 !important;
+    cursor: default !important;
+}
+.uniContextMenu__item.dbe-ctx-disabled:hover { background: transparent !important; }
+li.dbe-ctx-note {
+    padding-block: 6px !important;
+    font-size: 11px !important;
+    letter-spacing: .04em !important;
+    text-transform: uppercase !important;
+    color: var(--dbe-muted) !important;
+    cursor: default !important;
+}

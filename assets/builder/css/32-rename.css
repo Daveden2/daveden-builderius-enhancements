@@ -1,0 +1,20 @@
+/* Inline rename (context menu > "Rename"): edit field overlaid on the row. */
+.uniModTree__itemContentWrapper.dbe-renaming { position: relative !important; }
+.dbe-rename-input {
+    position: absolute !important; inset: 0 !important; z-index: 5 !important;
+    box-sizing: border-box !important; width: 100% !important;
+    background: var(--dbe-l2) !important; color: var(--dbe-text) !important;
+    border: 0 !important; outline: none !important;
+    /* The always-on accent ring IS the focus indicator — the field only exists
+       while focussed (blur commits and removes it). */
+    box-shadow: inset 0 0 0 2px var(--dbe-accent) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    font: 500 13px/1.2 var(--dbe-ui-font) !important;
+    padding-inline: 10px !important;
+}
+/* Browser-default selection is a low-contrast wash on both themes; strong
+   accent is the only accent token that carries white text at AA. */
+.dbe-rename-input::selection {
+    background: var(--dbe-accent-strong) !important;
+    color: var(--dbe-on-accent-strong) !important;
+}

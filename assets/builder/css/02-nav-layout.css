@@ -1,0 +1,55 @@
+/* Navigator panel layout normalisation.
+ *
+ * Builderius sizes .uniModTree to 100% of .uniRightPanel (overflow: hidden).
+ * Anything injected ABOVE the tree (the Navigator search row, and any future
+ * header rows) pushes the tree down by its own height, clipping the bottom of
+ * the tree and the .uniModTree__footer — which holds the delete-element and
+ * edit-favourites buttons. Making the panel a flex column and letting the
+ * tree flex into the REMAINING height keeps the footer reachable no matter
+ * what sits above the tree.
+ */
+.uniRightPanel {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+}
+
+.uniRightPanel > .dbe-tree-search {
+    flex: 0 0 auto !important;
+}
+
+.uniRightPanel > .uniModTree {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+/* Inside the tree column, only the row container may give up height. */
+.uniModTree > .uniPanelHeader,
+.uniModTree > .uniPanelTabs,
+.uniModTree > .uniModTree__footer {
+    flex: 0 0 auto !important;
+}
+
+.uniModTree > .uniModTree__container {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+
+/* The unclassed scroller Builderius renders inside the container carries a
+ * JS-computed fixed height; let it shrink with the container and scroll. */
+.uniModTree__container > div:first-child {
+    max-height: 100% !important;
+    overflow-y: auto !important;
+}
+
+/* End-of-tree breathing room. The scroll viewport is a nested div with an
+ * inline margin-bottom of -28px (Builderius' scrollbar-hiding trick), so at
+ * full scroll the last row sits under the overlay-scrollbar zone. The lists
+ * and wrapper carry fixed heights their rows overflow, so padding on THEM
+ * never reaches the scrollable extent — the only box that does is the
+ * bottom-most in-flow one: the top-level list's last item. Padding there
+ * clears the scrollbar zone and leaves an obvious gap after the last row. */
+.uniModTree__wrapper > .uniModTree__list > li.uniModTree__itemDrag:last-child {
+    padding-block-end: 44px !important;
+}

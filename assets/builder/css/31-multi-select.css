@@ -1,0 +1,7 @@
+/* Multi-selected Navigator rows (Cmd/Ctrl+click, Shift+click range): full
+   inset accent ring instead of the single-selection left bar, same tint family. */
+.uniModTree__item.dbe-multi-selected {
+    background: var(--dbe-accent-tint) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
+}
+.uniModTree__item.dbe-multi-selected span:not(.dbe-tag-badge) { color: var(--dbe-text) !important; }

@@ -1,0 +1,8 @@
+/* Visible focus indicator on every interactive control (WCAG 2.4.7/2.4.13). */
+.uniLeftPanel :focus-visible, .uniRightPanel :focus-visible,
+.uniTopPanel :focus-visible, .uniFooterPanel :focus-visible,
+.uniFooterPanelBar :focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 1px !important;
+}
+.monaco-editor :focus-visible { outline: revert !important; }

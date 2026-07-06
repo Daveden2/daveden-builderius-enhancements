@@ -1,0 +1,194 @@
+/* Theme layer: repaint the natively hard-coded dark chrome with tokens.
+   The dark token values were matched to the stock colours, so in the dark
+   theme this file is a visual no-op; in light/auto it is what re-skins the
+   builder. Kept separate from the feature styling so the toggle maps cleanly:
+   theme_switcher off = stock dark chrome untouched. */
+
+/* --- Core surfaces --- */
+#builderiusPanel,
+.uniMainPanel,
+.uniIframePanel {
+    background: var(--dbe-l1) !important;
+}
+.uniLeftPanel, .uniLeftPanelOuter,
+.uniRightPanel,
+.uniFooterPanelContent, .uniFooterPanelContentInner,
+.uniSettingsPage,
+.uniModTree {
+    background: var(--dbe-l1) !important;
+}
+/* The unclassed resizable wrappers around the side panels. */
+.uniMainPanel div:has(> .uniLeftPanelOuter),
+.uniMainPanel div:has(> .uniRightPanel) {
+    background: var(--dbe-l1) !important;
+}
+
+/* --- Base text --- */
+.uniLeftPanel, .uniRightPanel, .uniFooterPanelContent {
+    color: var(--dbe-text-2);
+}
+.uniModTree__item { color: var(--dbe-text-2) !important; }
+.uniModTree__item span { color: inherit; }
+.uniPanelHeader__title, .uniPanelHeader__title .text { color: var(--dbe-text) !important; }
+
+/* --- Top/footer bar buttons (icon + label) --- */
+.uniTopPanel .uniPanelButton,
+.uniTopPanel .uniPanelIconButton,
+.uniModTree__footer .uniPanelIconButton,
+.uniPanelHeader__icons .uniPanelIconButton {
+    color: var(--dbe-muted) !important;
+}
+.uniTopPanel .uniPanelButton:hover,
+.uniTopPanel .uniPanelIconButton:hover,
+.uniPanelHeader__icons .uniPanelIconButton:hover {
+    color: var(--dbe-text) !important;
+}
+
+/* --- Native context menu (a <dialog> in the top layer) --- */
+.uniBuilderContextMenu {
+    background: var(--dbe-menu-bg) !important;
+    border-color: var(--dbe-accent) !important;
+}
+.uniContextMenu, .uniContextMenu__item { color: var(--dbe-text-2) !important; }
+.uniContextMenu__item:hover:not(.disabled) { color: var(--dbe-text) !important; }
+
+/* --- Notifications / empty states --- */
+.uniInlineNotification {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-muted) !important;
+    border-radius: var(--dbe-r-sm) !important;
+}
+
+/* --- Leak audit pass 1 --- */
+.resizablePanels { background: var(--dbe-l1) !important; }
+.uniFooterPanel { background: var(--dbe-l1) !important; }
+.uniFooterPanelBar { background: var(--dbe-l0) !important; }
+/* Canvas surround: the deepest level frames the page being edited. */
+.uniIframePanel__outerWrapper, .uniIframePanel__outer { background: var(--dbe-l0) !important; }
+/* Right-panel tab strip ships a solid black bar. */
+.uniRightPanel .uniPanelTabs { background: var(--dbe-l1) !important; }
+/* Navigator tree rows: native #2e2f32 fill → raised token surface. */
+.uniModTree__item { background: var(--dbe-l2) !important; }
+/* Top-bar inputs (canvas width/zoom) + selects + Navigator search field. */
+.uniTopPanel input,
+.uniTopPanel .uniSystemSelect,
+.uniSystemSelect,
+.uniPanelHeader__searchInputWrapper,
+.uniPanelHeader__searchInputWrapper input {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-line) !important;
+}
+.proBadge { background: var(--dbe-l2-hi) !important; color: var(--dbe-muted) !important; }
+/* CSS-vars/Selectors search row: native hard-codes #202022 on the row and
+   solid black on the input wrapper (leaks in light mode). The Selectors tab's
+   wrapper is a bare .scoped (no .rounded), so match both — but leave the
+   .breakpointsSelectWrapper alone (natively transparent). Dark values are the
+   tokens' own dark resolutions, so dark mode stays native-identical. */
+.uniSearchSelectors { background: var(--dbe-l1) !important; }
+.uniSearchSelectors .scoped:not(.breakpointsSelectWrapper),
+.uniSearchSelectors .scoped:not(.breakpointsSelectWrapper) input {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-line) !important;
+}
+
+/* --- Leak audit pass 2 --- */
+/* Component rows: the native green (#07CC91) fails on light surfaces —
+   same hue, theme-resolved strength (dark value = native, no-op). */
+li.isComponent > .uniModTree__itemWrapper .uniModTree__item,
+li.isComponent > .uniModTree__itemWrapper .uniModTree__item span:not(.dbe-tag-badge) {
+    color: var(--dbe-component) !important;
+}
+/* Overlay-scrollbar handles: neutral wash that tracks the theme. */
+.os-scrollbar-handle {
+    background: color-mix(in srgb, var(--dbe-text) 25%, transparent) !important;
+}
+
+/* --- Leak audit pass 3 (Styles code editor view) --- */
+/* Panel tab strips ship a solid black bar (left panel + injected code tabs). */
+.uniPanelTabs { background: var(--dbe-l1) !important; }
+/* Class/ID picker fake-input + the %local% hint boxes. */
+.uniSystemSelectClasses__fakeInput {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-line) !important;
+}
+.uniInlineTooltipMessage {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-muted) !important;
+}
+/* --- Leak audit pass 4 (Selectors list + tertiary buttons) --- */
+/* Selectors tab list: native hard-codes the dark --primary-* scale on the
+   item cards (--primary-2 fill/border, --base-2 title text). Token
+   equivalents; hover/active keep the accent cue but via --dbe-accent so the
+   blue darkens on light surfaces (dark value = the native #5ea0ed). */
+.uniSelectorsCss__items { border-top-color: var(--dbe-line) !important; }
+.uniSelectorsCss__item {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniSelectorsCss__item .uniSelectorsCss__itemTitle { color: var(--dbe-text-2) !important; }
+.uniSelectorsCss__item:hover,
+.uniSelectorsCss__item:focus-visible { color: var(--dbe-accent) !important; }
+.uniSelectorsCss__item:hover .uniSelectorsCss__itemTitle,
+.uniSelectorsCss__item:focus-visible .uniSelectorsCss__itemTitle,
+.uniSelectorsCss__item.active .uniSelectorsCss__itemTitle { color: var(--dbe-accent) !important; }
+.uniSelectorsCss__item.active {
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+.uniSelectorsCss__item[disabled] {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-l2-hi) !important;
+    color: var(--dbe-muted) !important;
+}
+/* Inline selector rename card + its input (native #202022 on black). */
+.uniSelectorsCss__itemEdit {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-l2) !important;
+}
+.uniSelectorsCss__itemEdit input {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-accent) !important;
+}
+/* Tertiary buttons (Dynamic Data "Variable"/"Snippets", form radio rows…):
+   native --primary-3 fill + --base-2 text, hover dips to --primary-2 with the
+   accent label — same shape, token values (dark = native-equivalent). */
+.uniPanelButtonTertiary {
+    background-color: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniPanelButtonTertiary:hover,
+.uniPanelButtonTertiary:focus-within {
+    background-color: var(--dbe-l2) !important;
+    border-color: var(--dbe-l2) !important;
+    color: var(--dbe-accent) !important;
+}
+.uniPanelButtonTertiary.active {
+    background-color: var(--dbe-accent) !important;
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-on-accent) !important;
+}
+.uniPanelButtonTertiary.outlined,
+.uniPanelButtonTertiaryOutlined,
+.uniPanelButtonTertiaryOutlined span {
+    background-color: transparent !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniPanelButtonTertiary.outlined:hover,
+.uniPanelButtonTertiary.outlined.active { color: var(--dbe-accent) !important; }
+
+/* Monaco cannot be rethemed from outside (the bundle does not expose
+   window.monaco), so in the light theme the code editor stays a dark island —
+   give it a hairline frame so it reads as intentional. Its subtree is never
+   restyled directly (see the caret-drift note in 10-typography.css). */
+html[data-dbe-theme="light"] .uniSettingsPage__editorWrapper,
+html[data-dbe-theme="auto"] .uniSettingsPage__editorWrapper {
+    border: 1px solid var(--dbe-line);
+    border-radius: var(--dbe-r-sm);
+}

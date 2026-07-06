@@ -1,0 +1,75 @@
+/* Styles tab: CSS scope level (local / global / template).
+   Builderius' Global/Template scope switch lives ONLY in the right-panel
+   Selectors tab, and the level is otherwise hinted only in small tooltip text.
+   Surface the switch at the element's Styles editor and colour-code the level
+   with a badge, plus a Global/Template segmented control (builder.js drives
+   the native scope control, so the change is real). */
+.uniLeftPanel[data-dbe-level="local"]    { --dbe-lvl-color: var(--dbe-lvl-local); }
+.uniLeftPanel[data-dbe-level="global"]   { --dbe-lvl-color: var(--dbe-lvl-global); }
+.uniLeftPanel[data-dbe-level="template"] { --dbe-lvl-color: var(--dbe-lvl-template); }
+/* Scope bar: level badge + Global/Template switch. */
+.dbe-scope-bar {
+    display: flex !important; align-items: center !important; gap: 8px !important;
+    margin-block: 8px !important; padding-block: 8px !important;
+    border-block: 1px solid var(--dbe-line) !important;
+}
+/* Quiet badge: long builder sessions want minimal colour, so the scope is a
+   small coloured dot next to a neutral label — not a filled chip. The dot is
+   the only colour cue left (the editor outline is gone too). */
+.dbe-scope-badge {
+    display: inline-flex !important; align-items: center !important; gap: 6px !important;
+    padding: 0 !important; border-radius: 0 !important;
+    font-size: 11px !important; font-weight: 600 !important;
+    letter-spacing: .04em !important; text-transform: uppercase !important;
+    background: transparent !important; color: var(--dbe-text-2) !important;
+}
+.dbe-scope-badge::before {
+    content: "" !important; width: 8px !important; height: 8px !important;
+    border-radius: 50% !important; background: var(--dbe-lvl-color, var(--dbe-line)) !important;
+}
+.dbe-scope-switch {
+    display: inline-flex !important; margin-inline-start: auto !important;
+    border: 1px solid var(--dbe-line) !important; border-radius: var(--dbe-r-sm) !important;
+    overflow: hidden !important;
+}
+.dbe-scope-switch button {
+    padding: 4px 10px !important; font-size: 12px !important; font-weight: 500 !important;
+    background: var(--dbe-l2) !important; color: var(--dbe-text-2) !important;
+    border: 0 !important; cursor: pointer !important;
+    transition: background var(--dbe-t), color var(--dbe-t) !important;
+}
+.dbe-scope-switch button + button { border-inline-start: 1px solid var(--dbe-line) !important; }
+.dbe-scope-switch button:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-text) !important; }
+/* Active segment stays neutral (raised fill + strong text) — the badge dot
+   already carries the scope colour. */
+.dbe-scope-switch button.is-active {
+    background: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text) !important;
+    font-weight: 600 !important;
+}
+
+/* Scope-switch mask: an opaque, panel-coloured cover placed over each side panel
+   while the multi-step switch churns, then faded out to reveal the settled result.
+   Starts opaque (no fade-in) so nothing peeks through; only the reveal animates. */
+.dbe-scope-mask {
+    position: fixed !important;
+    z-index: 2147482000 !important;
+    background: var(--dbe-l1) !important;
+    opacity: 1;
+    transition: opacity 300ms ease !important;
+    pointer-events: all !important;
+}
+.dbe-scope-mask.is-fading { opacity: 0; }
+.dbe-scope-mask__label {
+    position: absolute !important;
+    inset-block-start: 96px !important;
+    inset-inline: 0 !important;
+    text-align: center !important;
+    font-family: var(--dbe-ui-font) !important;
+    font-size: 12px !important; font-weight: 500 !important;
+    letter-spacing: .04em !important;
+    color: var(--dbe-muted) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dbe-scope-mask { transition-duration: 1ms !important; }
+}

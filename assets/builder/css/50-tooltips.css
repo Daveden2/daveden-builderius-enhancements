@@ -1,0 +1,28 @@
+/* Tooltips for icon-only chrome buttons (data-dbe-tip).
+   One shared fixed-position chip, driven by delegated JS. Builderius wraps
+   SOME controls (favourites bar, footer language toggle) in a react-tooltip
+   .tooltipItem — those keep their native tooltip and are skipped; this covers
+   the header/top-bar icons that have no tooltip and no accessible name at all.
+   pointer-events:none so it never obscures the target (WCAG 1.4.13); dismissed
+   on Escape, pointerdown, scroll, and blur/mouseleave. */
+.dbe-tooltip {
+    position: fixed !important;
+    z-index: 2147483000 !important;
+    max-width: 260px !important;
+    padding: 5px 9px !important;
+    background: var(--dbe-l0) !important;
+    color: var(--dbe-text-2) !important;      /* 9.5:1 on --dbe-l0 — AA */
+    /* Attention hairline (same hue as the scope bar's "global" badge) so the
+       chip pops from the dark panels — the grey --dbe-line one melted into them. */
+    border: 1px solid var(--dbe-warn-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    box-shadow: 0 4px 14px var(--dbe-shadow) !important;
+    font: 500 12px/1.35 var(--dbe-ui-font) !important;
+    pointer-events: none !important;
+    opacity: 0;
+    transition: opacity .12s ease;
+}
+.dbe-tooltip.is-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+    .dbe-tooltip { transition: none; }
+}

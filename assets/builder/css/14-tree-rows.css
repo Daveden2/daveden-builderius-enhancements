@@ -1,0 +1,53 @@
+/* Navigator tree rows: rounded, hover wash, accent selection, indent guides,
+   drag-handle strip removed. (Multi-select row state lives in 31-multi-select.css.) */
+
+/* Stock rows are 26px tall at 12px — hard to scan and a tight pointer target.
+   13px text + taller rows with a 2px gap (≥32px comfortably clears WCAG 2.5.8). */
+.uniModTree__item {
+    border-radius: var(--dbe-r-sm) !important;
+    transition: background var(--dbe-t) !important;
+    height: auto !important;
+    min-height: 32px !important;
+    padding-block: 8px !important;
+    padding-inline-start: 10px !important; /* stock 4px sat tight against the rounded corner */
+    font-size: 13px !important;
+}
+/* The 2px row gap lives on the wrapper so drop indicators inherit the spacing. */
+.uniModTree__itemWrapper { margin-block-end: 2px !important; }
+/* Indent guides: a hairline down each nested child group makes parent/child
+   relationships scannable at a glance (stock relies on an 8px indent alone). */
+.uniModTree__itemDrag > .uniModTree__list {
+    border-inline-start: 1px solid var(--dbe-line-hi) !important;
+    padding-inline-start: 8px !important;
+    margin-inline-start: 4px !important;
+}
+/* Drag handle strip removed: the row's li carries draggable="true", so a drag
+   starts from anywhere on the row (verified — dragstart from the row body enters
+   the full drag state). The 8px strip was decoration only; hiding it reclaims
+   width and de-clutters the tree. */
+.uniModTree__itemDragHandleWrapper { display: none !important; }
+/* The handle also used to recolour as the "drop INSIDE this element" cue —
+   re-route that state onto the target row itself. */
+.uniModTree__itemDrag:has(> .uniModTree__itemDropSpot.DROP_INSIDE) > .uniModTree__itemWrapper .uniModTree__item {
+    box-shadow: inset 0 0 0 2px var(--dbe-accent) !important;
+}
+.uniModTree__item span:not(.dbe-tag-badge) { font-size: 13px !important; }
+/* Stock draws the row's border on three sides only (border-left: none) — the
+   drag-handle strip used to cap the left edge. With the strip removed, bordered
+   highlight states (drag activation) showed an open, cut-off ring. Restore the
+   left segment; the colour is deliberately NOT !important so stock's stateful
+   border-color rules (e.g. .isActivated → accent) still recolour all four sides. */
+.uniModTree__item {
+    border-inline-start-width: 1px !important;
+    border-inline-start-style: solid !important;
+    border-inline-start-color: var(--primary-2);
+}
+.uniModTree__item:hover { background: var(--dbe-accent-tint) !important; }
+.uniModTree__item.dbe-tree-selected {
+    background: var(--dbe-accent-tint-hi) !important;
+    box-shadow: inset 2px 0 0 var(--dbe-accent) !important;
+}
+/* Keep the label legible (AA) on the lighter tints, and brighten it as feedback.
+   The tag marker inherits, so it brightens with the label. */
+.uniModTree__item:hover span:not(.dbe-tag-badge) { color: var(--dbe-text-2) !important; }
+.uniModTree__item.dbe-tree-selected span:not(.dbe-tag-badge) { color: var(--dbe-text) !important; }

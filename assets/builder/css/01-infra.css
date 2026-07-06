@@ -1,0 +1,29 @@
+/* Shared runtime infrastructure — used by wrap-in, undo/redo delete and
+   multi-select (OR-gated in PHP, owned by no single toggle). */
+
+/* While a context menu is being auto-driven (undo paste, wrap paste, bulk
+   remove) it is hidden so the user sees no flash. */
+html.dbe-auto-ctx dialog.uniBuilderContextMenu { visibility: hidden !important; }
+
+/* Status toast (role=status) for undo/wrap/bulk outcomes. */
+.dbe-undo-toast {
+    position: fixed !important;
+    inset-block-end: 48px !important;
+    inset-inline-start: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 2147483000 !important;
+    background: var(--dbe-l0) !important;
+    color: var(--dbe-text) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-inline-start: 3px solid var(--dbe-accent) !important;
+    border-radius: var(--dbe-r-md) !important;
+    padding: 8px 14px !important;
+    font: 500 13px/1.4 var(--dbe-ui-font) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity .18s ease !important;
+}
+.dbe-undo-toast.is-visible { opacity: 1 !important; }
+@media (prefers-reduced-motion: reduce) {
+    .dbe-undo-toast { transition: none !important; }
+}

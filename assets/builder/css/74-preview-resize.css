@@ -1,0 +1,52 @@
+/* Preview resize handles: grab strips on both edges of the canvas. Width
+   writes drive the builder's own top-bar width input, so the readout updates
+   natively and the matching breakpoint button highlights itself. The canvas
+   is centred by Builderius (justify-content on the outer wrappers), so both
+   edges mirror around the middle while dragging. */
+
+.dbe-preview-handle {
+    position: absolute !important;
+    inset-block: 0 !important;
+    inline-size: 24px !important; /* WCAG 2.5.8 pointer-target size */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: ew-resize !important;
+    touch-action: none !important;
+    z-index: 6 !important;
+}
+.dbe-preview-handle[data-edge="left"] { inset-inline-start: -12px !important; }
+.dbe-preview-handle[data-edge="right"] { inset-inline-end: -12px !important; }
+
+/* The visible grip line inside the hit area. */
+.dbe-preview-handle::before {
+    content: "" !important;
+    inline-size: 4px !important;
+    block-size: 48px !important;
+    border-radius: 2px !important;
+    background: var(--dbe-muted) !important;
+    opacity: .6 !important;
+}
+.dbe-preview-handle:hover::before,
+.dbe-preview-handle:focus-visible::before {
+    background: var(--dbe-accent) !important;
+    opacity: 1 !important;
+}
+.dbe-preview-handle:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}
+
+/* While dragging, the iframe must not swallow pointer events, and nothing
+   should get text-selected. */
+.uniIframePanel.dbe-preview-resizing #builderInner {
+    pointer-events: none !important;
+}
+.uniIframePanel.dbe-preview-resizing {
+    user-select: none !important;
+}

@@ -1,0 +1,82 @@
+/* Controls styling: inserter tiles, inputs/selects/textareas, segmented
+   radios and buttons, with the WCAG contrast fixes. */
+
+/* --- Inserter tiles: carded, bordered, with a hover lift --- */
+.uniModItems__item {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-md) !important;
+    color: var(--dbe-text-2) !important;
+    transition: background var(--dbe-t), border-color var(--dbe-t), transform var(--dbe-t) !important;
+}
+.uniModItems__item:hover {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-accent) !important;
+    transform: translateY(-1px) !important;
+}
+.uniModItems__item:active { transform: translateY(0) !important; }
+.uniModItems__itemTitle { font-size: 12.5px !important; font-weight: 500 !important; }
+
+/* --- Inputs / selects / textareas: raised surface, radius, comfortable size --- */
+.uniLeftPanel input[type="text"], .uniLeftPanel input[type="number"],
+.uniLeftPanel input:not([type]), .uniLeftPanel .uniSystemSelect__valueWrapper,
+.uniLeftPanel .uniSystemInput, .uniLeftPanel textarea:not(.inputarea),
+.uniRightPanel input[type="text"], .uniRightPanel .uniSystemSelect__valueWrapper {
+    min-height: 28px !important;
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    color: var(--dbe-text-2) !important;
+    font-size: 13px !important; line-height: 1.4 !important; padding: 5px 8px !important;
+    transition: border-color var(--dbe-t) !important;
+}
+.uniLeftPanel input:hover, .uniLeftPanel .uniSystemSelect__valueWrapper:hover,
+.uniLeftPanel textarea:not(.inputarea):hover { border-color: var(--dbe-line-hi) !important; }
+.uniLeftPanel input:focus, .uniLeftPanel textarea:not(.inputarea):focus,
+.uniLeftPanel .uniSystemSelect__valueWrapper:focus-within {
+    border-color: var(--dbe-accent) !important;
+}
+
+/* --- Segmented radio (e.g. Heading level H1–H6): clear accent-checked state --- */
+.uniFormFieldRadio {
+    border: 1px solid var(--dbe-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    overflow: hidden !important;
+}
+.uniFormFieldRadio label { transition: background var(--dbe-t), color var(--dbe-t) !important; }
+.uniFormFieldRadio label:hover { background: var(--dbe-l2-hi) !important; }
+.uniFormFieldRadio label:has(input:checked) {
+    background: var(--dbe-accent-tint-hi) !important;
+    color: var(--dbe-text) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
+}
+
+/* --- Buttons: rounder, with feedback --- */
+.uniPanelButtonPrimary, .uniPanelButtonSecondary, .uniPanelButton, .uniPanelIconButton {
+    border-radius: var(--dbe-r-sm) !important;
+    transition: background var(--dbe-t), box-shadow var(--dbe-t), filter var(--dbe-t) !important;
+}
+.uniPanelButton:hover, .uniPanelIconButton:hover { background: var(--dbe-hover-wash) !important; }
+/* Primary/publish (green) keeps its hue — hover reads via a soft glow, not a
+   lightness shift (which would drop contrast on its dark label). */
+.uniPanelButtonPrimary:hover { box-shadow: 0 2px 10px rgba(7, 204, 145, .35) !important; }
+
+/* Active toolbar toggle (e.g. "Elements +"): the stock treatment is a solid
+   accent fill, which dominates the whole chrome while the inserter is open.
+   Quieter outline style instead — accent border + accent text/icon on the
+   dark bar (#5ea0ed on --dbe-l0 = 6.5:1, passes AA for text and non-text). */
+.uniPanelButton.active, .uniPanelButton:focus-visible {
+    background: transparent !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+.uniPanelButton.active svg, .uniPanelButton:focus-visible svg {
+    fill: var(--dbe-accent) !important;
+}
+
+/* Contrast fix: white text on the mid-tone accent = 2.7:1 (fails). Use the
+   darkened accent (5.0:1) wherever white sits on accent. */
+.uniAiChat__terminalStartBtn {
+    background-color: var(--dbe-accent-strong) !important; color: var(--dbe-on-accent-strong) !important;
+    border-radius: var(--dbe-r-sm) !important;
+}

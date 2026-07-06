@@ -1,0 +1,223 @@
+/* Daveden Builder Enhancements — settings screen. */
+
+.dbe-settings {
+  max-width: 760px;
+}
+
+.dbe-intro {
+  max-width: 65ch;
+  color: #50575e;
+}
+
+/* --- Tab bar (revealed by settings.js; without JS all panels stay visible) --- */
+.dbe-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-block: 16px 0;
+  border-bottom: 1px solid #c3c4c7;
+}
+
+.dbe-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #50575e;
+  cursor: pointer;
+}
+
+.dbe-tab:hover {
+  color: #1d2327;
+}
+
+.dbe-tab.is-active {
+  border-bottom-color: #2271b1;
+  color: #1d2327;
+  font-weight: 600;
+}
+
+.dbe-tab:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: -2px;
+}
+
+/* --- Panels --- */
+.dbe-panel {
+  margin-block-start: 24px;
+}
+
+.dbe-panel[hidden] {
+  display: none;
+}
+
+.dbe-panel__title {
+  font-size: 16px;
+  margin-block-end: 8px;
+}
+
+/* Once JS tabs are active the per-panel headings duplicate the tab label. */
+.dbe-js-tabs .dbe-panel__title {
+  display: none;
+}
+
+/* --- Dashboard panel --- */
+.dbe-dashboard {
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.dbe-dashboard p {
+  max-width: 65ch;
+}
+
+.dbe-dashboard__meta {
+  color: #50575e;
+}
+
+.dbe-dashboard__video {
+  margin: 16px 0 0;
+  max-width: 560px;
+}
+
+.dbe-dashboard__video iframe {
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 4px;
+}
+
+.dbe-dashboard__video figcaption {
+  margin-block-start: 6px;
+  font-size: 12px;
+  color: #50575e;
+}
+
+.dbe-dashboard h3 {
+  margin-block: 20px 8px;
+  font-size: 14px;
+}
+
+.dbe-dashboard__summary {
+  margin: 0;
+}
+
+.dbe-dashboard__summary li {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 40ch;
+  padding-block: 6px;
+  border-block-end: 1px solid #f0f0f1;
+  margin: 0;
+}
+
+.dbe-dashboard__summary li:last-child {
+  border-block-end: 0;
+}
+
+.dbe-dashboard__tab {
+  font-weight: 600;
+  color: #1d2327;
+}
+
+.dbe-dashboard__count {
+  color: #50575e;
+}
+
+/* --- Toggle rows --- */
+.dbe-field {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 16px;
+  margin-block-end: 8px;
+}
+
+.dbe-field__title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2327;
+}
+
+.dbe-field__desc {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  color: #50575e;
+}
+
+.dbe-field__sub {
+  margin: 12px 0 0;
+}
+
+.dbe-field__sub label {
+  display: inline-block;
+  margin-inline-end: 8px;
+  font-weight: 600;
+}
+
+/* --- Switch (a styled checkbox — stays a native, accessible control) ---
+   Selectors are input[type="checkbox"]-qualified: WP core's forms.css styles
+   checkboxes (size, border, and a :checked::before checkmark) at that
+   specificity, and the bare class loses to it. */
+input[type="checkbox"].dbe-switch {
+  appearance: none;
+  flex: none;
+  inline-size: 44px;
+  block-size: 24px;
+  margin: 2px 0 0;
+  border: 1px solid #8c8f94;
+  border-radius: 12px;
+  background: #dcdcde;
+  position: relative;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+input[type="checkbox"].dbe-switch::before,
+input[type="checkbox"].dbe-switch:checked::before {
+  content: "";
+  float: none;
+  display: block;
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 18px;
+  block-size: 18px;
+  margin: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: translate 120ms ease;
+}
+
+input[type="checkbox"].dbe-switch:checked {
+  background: #2271b1;
+  border-color: #2271b1;
+}
+
+input[type="checkbox"].dbe-switch:checked::before {
+  translate: 20px 0;
+}
+
+input[type="checkbox"].dbe-switch:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"].dbe-switch,
+  input[type="checkbox"].dbe-switch::before {
+    transition: none;
+  }
+}

@@ -1,0 +1,216 @@
+/* Tab styling: accent-underline pattern for panel tabs and document-tab
+   treatment for the entity tabs above the canvas. */
+
+/* --- Tabs (Content/Styles + Elements/Selectors/CSS vars share this class) --- */
+.uniPanelTabs__tab {
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    transition: color var(--dbe-t), border-color var(--dbe-t) !important;
+}
+.uniPanelTabs__tab, .uniPanelTabs__tab span { color: var(--dbe-muted) !important; }
+.uniPanelTabs__tab:hover, .uniPanelTabs__tab:hover span { color: var(--dbe-text-2) !important; }
+.uniPanelTabs__tab.active { border-bottom-color: var(--dbe-accent) !important; }
+.uniPanelTabs__tab.active, .uniPanelTabs__tab.active span {
+    color: var(--dbe-text) !important; font-weight: 600 !important;
+}
+
+/* --- Entity tabs (open templates/pages above the canvas) --- */
+/* Stock: flat black strip; the active tab's only cue is a slightly lighter bg,
+   and the hover style is IDENTICAL to the active style — while hovering you
+   cannot tell which tab is open. Document-tab treatment instead: the active tab
+   carries an accent top bar + the panel surface (visually connecting it to the
+   canvas below); hover is a distinct, darker lift. */
+.uniIframeTabs, .uniIframeTabs__wrapper { background-color: var(--dbe-l0) !important; }
+.uniIframeTabs {
+    border-inline: 3px solid var(--dbe-l0) !important;
+    box-shadow: inset 0 -1px 0 var(--dbe-line) !important;
+}
+.uniIframeTabButton {
+    border-right: 1px solid var(--dbe-line) !important;
+    background-color: transparent !important;
+    color: var(--dbe-muted) !important;
+    cursor: pointer !important;
+    padding: 6px 12px !important;
+    transition: background var(--dbe-t), color var(--dbe-t) !important;
+}
+.uniIframeTabButton:hover, .uniIframeTabButton:focus-visible {
+    background-color: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniIframeTabButton.active {
+    background-color: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+    box-shadow: inset 0 2px 0 var(--dbe-accent) !important;
+}
+/* Close icon: give the 11px glyph a real hover target + feedback. */
+.uniIframeTabButton__closeIcon { padding: 4px !important; border-radius: var(--dbe-r-sm) !important; }
+.uniIframeTabButton__closeIcon:hover { background: var(--dbe-hover-wash) !important; }
+.uniIframeTabButton__closeIcon:hover svg path { fill: var(--dbe-text) !important; }
+
+/* --- Global/Template scope switchers (Selectors tab + CSS vars tab) ---
+   Stock: filled segmented chips that read as buttons, not as the view switch
+   they are. Same accent-underline treatment as the panel tabs above — the
+   indicator always sits under the text as written, so horizontal text gets a
+   bottom bar (the rotated footer-panel rail gets its own edge below). */
+.uniScopeControl {
+    display: inline-flex !important;
+    gap: 2px !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--dbe-line) !important;
+    border-radius: 0 !important;
+}
+.uniScopeControl button {
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--dbe-muted) !important;
+    padding: 5px 12px !important;
+    margin-bottom: -1px !important; /* underline sits on the container hairline */
+    cursor: pointer !important;
+    transition: color var(--dbe-t), border-color var(--dbe-t) !important;
+}
+.uniScopeControl button:hover { color: var(--dbe-text-2) !important; }
+.uniScopeControl button.active {
+    border-bottom-color: var(--dbe-accent) !important;
+    color: var(--dbe-text) !important;
+    font-weight: 600 !important;
+}
+
+/* --- Footer bar tabs (Custom CSS / JavaScript / Dynamic Data / …) ---
+   Document-tab treatment matching the entity tabs: the active tab carries an
+   accent bar on the edge facing the panel content and the panel surface.
+   These are icon+text tabs sitting on the DARKER --dbe-l0 bar, so the resting
+   colour is text-2 (light: 8.2:1 on #e3e5ea), not muted (4.8:1 there — an AA
+   squeak with no headroom for the icon strokes). */
+.uniFooterPanelBar .uniPanelIconButton--footer {
+    border-radius: 0 !important;
+    color: var(--dbe-text-2) !important;
+    transition: color var(--dbe-t), background var(--dbe-t), box-shadow var(--dbe-t) !important;
+}
+.uniFooterPanelBar .uniPanelIconButton--footer:hover:not(.locked) {
+    background: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
+.uniFooterPanelBar .uniPanelIconButton--footer.uniPanelIconButton--active {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+    box-shadow: inset 0 2px 0 var(--dbe-accent) !important;
+}
+/* .55 over the new brighter base still reads but drops below 3:1 in light
+   mode; .65 keeps the locked cue while the label stays legible. */
+.uniFooterPanelBar .uniPanelIconButton--footer.locked { opacity: .65 !important; }
+
+/* --- Vertical Template/Global rail inside the footer panels (JavaScript,
+   Dynamic Data) — same "underline sits under the text as written" rule as
+   every other tab. The buttons are writing-mode: vertical-rl with the label
+   span flipped rotate(180deg), so the glyph baselines face the PHYSICAL RIGHT
+   edge: the underline is a right-edge bar (which also faces the panel
+   content, matching the footer tabs' accent edge). Physical property on
+   purpose — logical sides don't track the span's 180° flip. */
+.uniFooterTabScopes button {
+    border: 0 !important;
+    border-right: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--dbe-muted) !important;
+    cursor: pointer !important;
+    transition: color var(--dbe-t), border-color var(--dbe-t) !important;
+}
+.uniFooterTabScopes button:hover { color: var(--dbe-text-2) !important; }
+.uniFooterTabScopes button.active {
+    border-right-color: var(--dbe-accent) !important;
+    color: var(--dbe-text) !important;
+    font-weight: 600 !important;
+}
+
+/* --- Open variable/snippet tabs inside the footer panels --- */
+.uniVarsTabButton {
+    background: transparent !important;
+    border-right: 1px solid var(--dbe-line) !important;
+    color: var(--dbe-muted) !important;
+    cursor: pointer !important;
+    transition: background var(--dbe-t), color var(--dbe-t) !important;
+}
+.uniVarsTabButton:hover, .uniVarsTabButton:focus-visible {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+}
+.uniVarsTabButton.active {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+    box-shadow: inset 0 2px 0 var(--dbe-accent) !important;
+}
+
+/* --- CSS vars tab inline-size ---
+   Builderius auto-widens the whole right panel to a fixed 600px on the CSS
+   vars tab (inline min/width/max on the panel wrapper — same behaviour as
+   the CSS code editor on the left). Clamp it back to a middle width: wide
+   enough that a variable row (name input + value input + edit/delete icons)
+   stays usable, narrow enough not to swallow the canvas. The earlier 260px
+   clamp squeezed the value input to ~12px — unusable. The physical
+   margin-right override mirrors the physical inline style Builderius sets. */
+.uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
+    min-width: 380px !important;
+    width: 380px !important;
+    max-width: 420px !important;
+}
+.uniMainPanel:has(.uniVarsCss) .uniIframePanel {
+    margin-right: 380px !important;
+    width: calc(100% - 380px) !important;
+}
+
+/* --- CSS vars rows ---
+   Stock row is a GRID with fixed-width form labels (name 160px, value 60px)
+   sized for the native 600px panel — inside the clamp the value input is
+   unusable. Re-plot the grid: name + edit/delete actions on row one, the
+   value input full-width on row two, and release the labels' fixed widths. */
+.uniVarsCss__item {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    row-gap: 6px !important;
+}
+.uniVarsCss__item .uniVarsCss__itemEditInput.input1 {
+    grid-row: 1 !important;
+    grid-column: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
+.uniVarsCss__item .uniVarsCss__actions {
+    grid-row: 1 !important;
+    grid-column: 2 !important;
+}
+.uniVarsCss__item .uniVarsCss__itemEditInput.input2 {
+    grid-row: 2 !important;
+    grid-column: 1 / -1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
+.uniVarsCss__item .uniVarsCss__itemEditInput input {
+    inline-size: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* --- CSS vars tab search row ---
+   Stock row is breakpoint select + search + "New variable" on one nowrap
+   line; inside the clamped 260px panel the search input ends up ~56px wide.
+   Wrap the row: breakpoint + full-width search on line one, the button on
+   its own line below. (DOM: .uniSearchSelectors > .breakpointsSelectWrapper
+   + div.scoped.rounded > input + .newVarWrapper > button.newCssVar) */
+.uniVarsCss .uniSearchSelectors {
+    flex-wrap: wrap !important;
+    row-gap: 8px !important;
+}
+.uniVarsCss .uniSearchSelectors > .scoped.rounded {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+}
+.uniVarsCss .uniSearchSelectors > .scoped.rounded input {
+    inline-size: 100% !important;
+    box-sizing: border-box !important;
+}
+.uniVarsCss .uniSearchSelectors .newVarWrapper {
+    flex: 1 1 100% !important;
+    order: 2 !important;
+}

@@ -1,0 +1,9 @@
+/* Navigator tag marker: plain monospace <tag>, inheriting the row's text
+   colour — a coloured pill competed with the labels instead of supporting them. */
+.uniModTree__item .dbe-tag-badge { /* specificity must beat the blanket UI-font rule (10-typography) */
+    font-family: var(--dbe-mono) !important;
+    font-size: .95em;
+    margin-inline-end: 6px;
+    color: inherit;
+    text-transform: lowercase;
+}

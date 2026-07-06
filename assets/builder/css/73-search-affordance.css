@@ -1,0 +1,60 @@
+/* Search affordance: a magnifier glyph inside every chrome search field.
+   The icon is a mask (not a background image) so it recolours with the
+   theme tokens for free — muted at rest, accent while the field has focus.
+   Hosts get position:relative + a ::before; their input gets start padding
+   to clear the glyph. Wrappers covered:
+   - .dbe-tree-search              (our Navigator filter, 70-tree-search.css)
+   - .uniVarsCss .scoped.rounded   (CSS vars tab "Search for variables")
+   - .uniPanelHeader__searchInputWrapper (native panel-header search, e.g.
+     the Inserter; mounts on demand) */
+
+.dbe-tree-search,
+.uniVarsCss .uniSearchSelectors > .scoped.rounded,
+.uniPanelHeader__searchInputWrapper {
+    position: relative !important;
+}
+
+.dbe-tree-search::before,
+.uniVarsCss .uniSearchSelectors > .scoped.rounded::before,
+.uniPanelHeader__searchInputWrapper::before {
+    content: "" !important;
+    position: absolute !important;
+    inset-block-start: 50% !important;
+    inline-size: 13px !important;
+    block-size: 13px !important;
+    background-color: var(--dbe-muted) !important;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.75" stroke="black" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="black" stroke-width="1.5" stroke-linecap="round"/></svg>') center / contain no-repeat !important;
+    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.75" stroke="black" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="black" stroke-width="1.5" stroke-linecap="round"/></svg>') center / contain no-repeat !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+}
+
+/* Live affordance: glyph picks up the accent while the field is in use. */
+.dbe-tree-search:focus-within::before,
+.uniVarsCss .uniSearchSelectors > .scoped.rounded:focus-within::before,
+.uniPanelHeader__searchInputWrapper:focus-within::before {
+    background-color: var(--dbe-accent) !important;
+}
+
+/* Glyph position + input clearance, per host (padding differs). The tree
+   search wrapper carries its own 8-10px padding (70-tree-search.css), so
+   its glyph sits deeper in. */
+.dbe-tree-search::before {
+    inset-inline-start: 20px !important;
+    /* Wrapper = 8px top pad + 28px input + count row below; centre on the
+       input, not the wrapper: 8 + 28/2 = 22px. */
+    inset-block-start: 22px !important;
+    transform: translateY(-50%) !important;
+}
+.dbe-tree-search input { padding-inline-start: 30px !important; }
+
+.uniVarsCss .uniSearchSelectors > .scoped.rounded::before,
+.uniPanelHeader__searchInputWrapper::before {
+    inset-inline-start: 9px !important;
+    transform: translateY(-50%) !important;
+}
+.uniVarsCss .uniSearchSelectors > .scoped.rounded input,
+.uniPanelHeader__searchInputWrapper input {
+    padding-inline-start: 28px !important;
+    box-sizing: border-box !important;
+}

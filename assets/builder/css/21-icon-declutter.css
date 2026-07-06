@@ -1,0 +1,5 @@
+/* Reclaim Navigator real estate: hide the element-type icon (the bare <svg>
+   child of each row). Expand chevrons live in <i> and are kept. Collection /
+   Template rows are tagged .dbe-keep-icon by builder.js so their icon stays. */
+.uniModTree__item > svg { display: none !important; }
+.uniModTree__item.dbe-keep-icon > svg { display: inline-block !important; }

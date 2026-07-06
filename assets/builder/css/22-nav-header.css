@@ -1,0 +1,8 @@
+/* Navigator header icon strip: lay the (now multiple) header buttons out
+   with a small gap — hosts the injected expand-all / collapse-subtrees
+   buttons alongside the stock toggle. */
+.uniPanelHeader__icons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}

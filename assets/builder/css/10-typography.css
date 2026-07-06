@@ -1,0 +1,65 @@
+/* Typography & design-token restyle: one UI typeface across the chrome,
+   elevation depth, panel/group headers, field labels. */
+
+/* --- Typography: one UI typeface across the chrome (canvas iframe + SVG icons untouched) --- */
+.uniTopPanel, .uniMainPanel, .uniLeftPanel, .uniLeftPanelOuter,
+.uniRightPanel, .uniFooterPanel, #builderiusPanel,
+/* Monaco/CodeMirror subtrees are excluded entirely rather than counter-overridden:
+   both editors position the caret from character widths measured with their OWN
+   configured font, so forcing any other font-family on the rendered text (even a
+   similar mono stack) makes the cursor drift away from the typed characters. */
+.uniTopPanel *:not([class*="codicon"]):not(.monaco-editor, .monaco-editor *, .cm-editor, .cm-editor *),
+.uniLeftPanel *:not([class*="codicon"]):not(.monaco-editor, .monaco-editor *, .cm-editor, .cm-editor *),
+.uniRightPanel *:not([class*="codicon"]):not(.monaco-editor, .monaco-editor *, .cm-editor, .cm-editor *),
+.uniFooterPanel *:not([class*="codicon"]):not(.monaco-editor, .monaco-editor *, .cm-editor, .cm-editor *) {
+    font-family: var(--dbe-ui-font) !important;
+}
+textarea.uniCodeField {
+    font-family: var(--dbe-mono) !important;
+}
+[class*="codicon"], [class*="codicon"]::before { font-family: "codicon" !important; }
+
+/* --- Depth: darken the top toolbar + footer bar so they frame the workspace --- */
+.uniTopPanel {
+    background: var(--dbe-l0) !important;
+    box-shadow: inset 0 -1px 0 var(--dbe-line) !important;
+}
+.uniFooterPanelBar {
+    background: var(--dbe-l0) !important;
+    box-shadow: inset 0 1px 0 var(--dbe-line) !important;
+}
+/* Seam between chrome panels and the canvas. */
+.uniLeftPanelOuter { box-shadow: inset -1px 0 0 var(--dbe-line) !important; }
+.uniRightPanel     { box-shadow: inset  1px 0 0 var(--dbe-line) !important; }
+
+/* --- Panel headers --- */
+.uniPanelHeader__title, .uniPanelHeader__title .text {
+    font-size: 13px !important; font-weight: 600 !important; color: var(--dbe-text) !important;
+}
+
+/* --- Group headers: uppercase, spaced, divider above → groups read as blocks --- */
+.uniCatTitle {
+    border-top: 1px solid var(--dbe-line) !important;
+    margin-block-start: 6px !important;
+    padding-block: 14px 8px !important;
+}
+.uniCatTitle:first-child { border-top: 0 !important; margin-block-start: 0 !important; }
+/* Inserter section labels: stock 10px start padding sits tight against the
+   text and 2px off the tiles' 12px grid — align and give the text room. */
+.uniModItems__catTitle {
+    padding-inline: 12px !important;
+    padding-block: 16px 10px !important;
+}
+.uniCatTitle, .uniCatTitle > span {
+    font-size: 11px !important; font-weight: 700 !important;
+    letter-spacing: .07em !important; text-transform: uppercase !important;
+    color: var(--dbe-muted) !important;
+}
+
+/* --- Field labels --- */
+.uniFormField__settingLabelInline {
+    font-size: 12px !important; font-weight: 500 !important;
+    letter-spacing: normal !important; color: var(--dbe-muted) !important;
+}
+/* "value present" label keeps its accent signal, just AA-legible. */
+.uniFormField__settingLabel { font-size: 12px !important; font-weight: 500 !important; }
