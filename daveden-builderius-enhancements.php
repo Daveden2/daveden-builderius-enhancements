@@ -42,10 +42,26 @@ require_once DBE_DIR . 'vendor/plugin-update-checker/plugin-update-checker.php';
  * the Plugins screen. Release flow: bump version → commit → tag vX.Y.Z →
  * publish a GitHub release.
  */
-\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+$dbe_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
 	'https://github.com/Daveden2/daveden-builderius-enhancements/',
 	__FILE__,
 	'daveden-builderius-enhancements'
+);
+
+/*
+ * Plugin icon for the WordPress updates UI (the update row and the plugin
+ * details modal). Served from the installed plugin's own assets, so it
+ * always matches the running version.
+ */
+$dbe_update_checker->addResultFilter(
+	function ( $info ) {
+		$info->icons = array(
+			'svg' => DBE_URL . 'assets/icon.svg',
+			'1x'  => DBE_URL . 'assets/icon-128.png',
+			'2x'  => DBE_URL . 'assets/icon-256.png',
+		);
+		return $info;
+	}
 );
 
 require_once DBE_DIR . 'includes/features.php';
