@@ -344,8 +344,8 @@
         input.select();
     }
 
-    /* (d2c) Auto-BEM / bulk class naming. Right-click an element -> "Add class
-       names…" opens a dialog listing the element and its subtree with suggested
+    /* (d2c) Auto-BEM / bulk class naming. Right-click an element -> "Auto-BEM…"
+       opens a dialog listing the element and its subtree with suggested
        class names in the `{block}__{descriptor}` BEM convention, editable per
        row. Applying drives the NATIVE class picker per element (select the tree
        row, open .uniSystemSelectClasses, type, Enter) — the only outside-in
@@ -379,13 +379,31 @@
         return s && Array.isArray(s.value) ? s.value : [];
     }
 
-    /* The subtree in tree order (module-map key order = sibling order). Any
-       module that maps to a REAL canvas tag and carries tagClass can take a
-       class through the picker — that's HtmlElement AND Collection /
-       SubCollection (loop wrappers render as a real div/select/etc. and already
-       hold classes like .pick, .property-grid) AND the Composite family. Only
-       genuine <template> nodes (inert, no visible box) and Component instances
-       are context-only, not selectable. */
+    /* An element can take a class through the picker when it renders a real box
+       and holds a tagClass: HtmlElement, the Collection / SubCollection loop
+       wrappers (they render a real div/select/etc. and already hold classes like
+       .pick, .property-grid), and the Composite family — but NOT an inert
+       <template> node or a Component instance. Decided from the MODULE, not a
+       canvas node, so an element the canvas has not painted (the empty container
+       a freshly-added Section ships with, or one hidden by a rendering condition)
+       is still classable — that was the "can't tick the section's container" bug. */
+    function bemClassable(mod) {
+        if (!mod || mod.name === 'Component' || mod.name === 'Template' || mod.name === 'RecursiveTemplate') {
+            return false;
+        }
+        return mod.name === 'HtmlElement' || mod.name === 'Collection' ||
+            mod.name === 'SubCollection' || /Composite/.test(mod.name);
+    }
+
+    /* The element's tag from its own `tag` setting first (present even when the
+       canvas has not painted the element), falling back to the live canvas node. */
+    function bemModuleTag(mod, canvasTag) {
+        var t = (mod && mod.settings || []).filter(function (s) { return s.name === 'tag'; })[0];
+        if (t && typeof t.value === 'string' && t.value) { return t.value.toLowerCase(); }
+        return canvasTag || null;
+    }
+
+    /* The subtree in tree order (module-map key order = sibling order). */
     function bemCollectRows(rootId) {
         var mods = modules() || {};
         var iframe = document.getElementById('builderInner');
@@ -395,13 +413,11 @@
             var mod = mods[id];
             if (!mod) { return; }
             var canvasEl = idoc && idoc.querySelector('.uni-node-' + id);
-            var tag = canvasEl ? canvasEl.tagName.toLowerCase() : null;
+            var tag = bemModuleTag(mod, canvasEl ? canvasEl.tagName.toLowerCase() : null);
             rows.push({
                 id: id, depth: depth, mod: mod, tag: tag,
                 classes: moduleClasses(mod),
-                // Classable = renders a real tag, but not an inert <template>
-                // wrapper and not a Component instance.
-                supported: !!tag && tag !== 'template' && mod.name !== 'Component'
+                supported: bemClassable(mod) && !!tag && tag !== 'template'
             });
             Object.keys(mods).forEach(function (k) {
                 if ((mods[k].parent || '') === id) { walk(k, depth + 1); }
@@ -443,13 +459,13 @@
         if (old) { old.remove(); }
         var dlg = document.createElement('dialog');
         dlg.className = 'dbe-bem';
-        dlg.setAttribute('aria-label', 'Add class names');
+        dlg.setAttribute('aria-label', 'Auto-BEM');
 
         var head = document.createElement('div');
         head.className = 'dbe-bem__head';
         var title = document.createElement('h2');
         title.className = 'dbe-bem__title';
-        title.textContent = 'Add class names';
+        title.textContent = 'Auto-BEM';
         var close = document.createElement('button');
         close.type = 'button';
         close.className = 'dbe-bem__close';
@@ -1528,19 +1544,17 @@
                 }
             }
 
-            // "Add class names…" -> the Auto-BEM dialog (single row, HtmlElement
-            // with a canvas node only — components can't take a tagClass).
+            // "Auto-BEM…" -> the class-naming dialog. Offered on any element that
+            // can hold a tagClass (decided from the module, not a canvas node, so
+            // an unpainted element still qualifies); components / templates can't.
             if (!multiIds && on('auto_bem')) {
                 var bemMods = modules();
                 var bemMod = bemMods && lastCtxId && bemMods[lastCtxId];
-                var bemIframe = document.getElementById('builderInner');
-                var bemDoc = bemIframe && bemIframe.contentDocument;
-                if (bemMod && bemMod.name === 'HtmlElement' && bemDoc &&
-                    bemDoc.querySelector('.uni-node-' + lastCtxId)) {
+                if (bemClassable(bemMod)) {
                     var bemLi = document.createElement('li');
                     bemLi.className = 'uniContextMenu__item dbe-ctx-item';
                     bemLi.setAttribute('role', 'menuitem');
-                    bemLi.textContent = 'Add class names…';
+                    bemLi.textContent = 'Auto-BEM…';
                     bemLi.addEventListener('mousedown', function (ev) {
                         ev.preventDefault();
                         ev.stopPropagation();
@@ -1640,7 +1654,7 @@
                 container.appendChild(makeParent('Clipboard', false, function () { return clipItems; }, !!multiIds));
             }
 
-            // Name & classes › Rename / Reset label / Add class names…
+            // Name & classes › Rename / Reset label / Auto-BEM…
             if (nameItems.length) {
                 container.appendChild(makeParent('Name & classes', false, function () { return nameItems; }, false));
             }

@@ -24,6 +24,11 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 * Multi-select is temporarily withdrawn: dragging a multi-selection did not
   reliably move the whole selection, so the option has been removed for now
   while it is reworked. Single-element wrap, rename and remove are unaffected.
+* Auto-BEM: the class-naming feature and its context-menu item are now named
+  "Auto-BEM" (was "Add class names…" / "Bulk class naming"), the clearer name.
+* Auto-BEM: an element the canvas has not painted — such as the empty container
+  a freshly-added Section ships with — can now be ticked and named. Whether a
+  row is class-able is decided from the element itself rather than the preview.
 
 = 1.2.1 =
 Light-theme contrast and dark-surface fixes across the builder chrome:

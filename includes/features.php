@@ -199,8 +199,8 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'auto_bem'            => array(
-			'title'       => __( 'Bulk class naming', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Right-click an element for “Add class names…”: a dialog suggests flat block-element class names (e.g. hero, hero-title, hero-image) for the element and its subtree, editable per row, then applies them in one pass.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Auto-BEM', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Right-click an element for “Auto-BEM…”: a dialog suggests flat block-element class names (e.g. hero, hero__title, hero__image) for the element and its subtree, editable per row, then applies them in one pass.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'styles',
 			'css'         => array( '33-auto-bem.css' ),
 			'js'          => true,
