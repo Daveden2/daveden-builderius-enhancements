@@ -2776,10 +2776,160 @@
         list.insertBefore(li, list.firstChild);
     }
 
+    /* Scope guard (scope_guard). Builderius' Styles code editor shows a
+       selector's existing rules whichever scope is active — the Global/
+       Template toggle only routes where edits are SAVED, so a template rule
+       viewed under Global gets silently forked into global CSS by an edit.
+       PHP supplies both scopes' SAVED stylesheets (from the builderius_dsm
+       posts) in CFG.scopeGuard.css; this indexes the class tokens per scope
+       and warns (or auto-switches, per the sub-setting) when the selected
+       selector's rules live in the other scope. Saved state only: the index
+       re-fetches after each Save. */
+    var dbeScopeCss = (CFG.scopeGuard && CFG.scopeGuard.css) || null;
+    var dbeScopeIndex = null;
+    var dbeScopeAutoLast = ''; // last selector auto-switched for (stops re-flips)
+
+    /* Class tokens used by any rule selector in a stylesheet. Membership is
+       all the guard needs, so this is a brace-walk, not a CSS parser: text
+       between the previous rule boundary and an opening brace is a selector
+       (unless it starts an at-rule), and every .class token in it counts. */
+    function dbeClassTokens(cssText) {
+        if (typeof cssText !== 'string') { return null; } // scope unknown
+        var set = {};
+        var txt = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+        var buf = '';
+        for (var i = 0; i < txt.length; i++) {
+            var c = txt.charAt(i);
+            if (c === '{') {
+                var sel = buf.trim();
+                if (sel && sel.charAt(0) !== '@') {
+                    var toks = sel.match(/\.[A-Za-z0-9_-]+/g);
+                    if (toks) { toks.forEach(function (t) { set[t] = true; }); }
+                }
+                buf = '';
+            } else if (c === '}' || c === ';') {
+                buf = '';
+            } else {
+                buf += c;
+            }
+        }
+        return set;
+    }
+
+    function rebuildScopeIndex() {
+        dbeScopeIndex = dbeScopeCss ? {
+            template: dbeClassTokens(dbeScopeCss.template),
+            global: dbeClassTokens(dbeScopeCss.global)
+        } : null;
+    }
+
+    /* Where the selected class's saved rules live. Null when either scope's
+       stylesheet could not be resolved — the guard stays quiet rather than
+       warn from half the picture. */
+    function dbeScopeOwnership(selector) {
+        if (!dbeScopeIndex || !dbeScopeIndex.template || !dbeScopeIndex.global) { return null; }
+        return {
+            template: !!dbeScopeIndex.template[selector],
+            global: !!dbeScopeIndex.global[selector]
+        };
+    }
+
+    function refetchScopeCss() {
+        var sg = CFG.scopeGuard || {};
+        if (!sg.restUrl || !window.fetch) { return; }
+        var url = sg.restUrl + (sg.restUrl.indexOf('?') === -1 ? '?' : '&') +
+            'template=' + encodeURIComponent(sg.templateSlug || '');
+        fetch(url, { headers: { 'X-WP-Nonce': sg.restNonce || '' }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && typeof data === 'object') {
+                    dbeScopeCss = data;
+                    rebuildScopeIndex();
+                    schedule();
+                }
+            })
+            .catch(function () {});
+    }
+
+    function bindScopeGuardRefresh() {
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary')) {
+                setTimeout(refetchScopeCss, 2000); // let the save round-trip land
+            }
+        }, true);
+    }
+
+    function ensureScopeGuard() {
+        var lp = document.querySelector('.uniLeftPanel');
+        var existing = lp && lp.querySelector('.dbe-scope-guard');
+        var remove = function () { if (existing) { existing.remove(); } };
+        if (!lp) { return; }
+        var picker = lp.querySelector('.uniSettingsPageModuleDataForEditorWrapper');
+        if (!picker) { return remove(); }
+
+        var sel = currentSelectorName(lp);
+        if (!sel || sel.charAt(0) !== '.') { return remove(); } // %local% / none: unambiguous
+
+        var active = scopeStoreValue();
+        active = active === null ? dbeScope : (active ? 'global' : 'template');
+        var own = dbeScopeOwnership(sel);
+        // Warn only on the clear-cut case: the active scope has NO saved
+        // rules for this class while the other scope does.
+        var owner = null;
+        if (own) {
+            if (active === 'global' && !own.global && own.template) { owner = 'template'; }
+            else if (active === 'template' && !own.template && own.global) { owner = 'global'; }
+        }
+        if (!owner) { dbeScopeAutoLast = ''; return remove(); }
+
+        var mode = (CFG.scopeGuard && CFG.scopeGuard.mode) || 'warn';
+        if (mode === 'auto' && dbeScopeAutoLast !== sel) {
+            // Flip once per selector; if the user flips back we respect it.
+            dbeScopeAutoLast = sel;
+            remove();
+            try { setScope(owner); undoToast('Scope switched to ' + owner + ' — it owns the ' + sel + ' rules'); } catch (e) {}
+            return;
+        }
+
+        var ownerLabel = owner.charAt(0).toUpperCase() + owner.slice(1);
+        var activeLabel = active.charAt(0).toUpperCase() + active.slice(1);
+        var guard = existing;
+        if (!guard) {
+            guard = document.createElement('div');
+            guard.className = 'dbe-scope-guard';
+            guard.setAttribute('role', 'status');
+            var msg = document.createElement('span');
+            msg.className = 'dbe-scope-guard__msg';
+            guard.appendChild(msg);
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dbe-scope-guard__switch';
+            btn.addEventListener('click', function () {
+                var target = guard.getAttribute('data-dbe-owner');
+                if (target) { try { setScope(target); } catch (e) {} }
+            });
+            guard.appendChild(btn);
+            var bar = lp.querySelector('.dbe-scope-bar');
+            var anchor = bar || picker;
+            if (anchor.nextSibling) { anchor.parentNode.insertBefore(guard, anchor.nextSibling); }
+            else { anchor.parentNode.appendChild(guard); }
+        }
+        guard.setAttribute('data-dbe-owner', owner);
+        guard.querySelector('.dbe-scope-guard__msg').innerHTML = '';
+        var code = document.createElement('code');
+        code.textContent = sel;
+        var msgEl = guard.querySelector('.dbe-scope-guard__msg');
+        msgEl.appendChild(code);
+        msgEl.appendChild(document.createTextNode(
+            ' rules are stored in ' + ownerLabel + ' — edits here save to ' + activeLabel + '.'
+        ));
+        guard.querySelector('.dbe-scope-guard__switch').textContent = 'Switch to ' + ownerLabel;
+    }
+
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard');
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem');
 
     var scheduled = false;
@@ -2803,6 +2953,7 @@
                 try { readScopeFromControl(); } catch (e) {}
                 try { ensureScopeBar(); } catch (e) {}
             }
+            if (on('scope_guard')) { try { ensureScopeGuard(); } catch (e) {} }
             if (on('theme_switcher')) {
                 try { ensureThemeButton(); } catch (e) {}
                 try { applyMonacoTheme(); } catch (e) {}
@@ -2879,6 +3030,12 @@
             // Hook the native context menu.
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow); } catch (e) {}
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus); } catch (e) {}
+        }
+
+        // Scope guard: index the per-scope stylesheets and track saves.
+        if (on('scope_guard')) {
+            rebuildScopeIndex();
+            bindScopeGuardRefresh();
         }
 
         // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree.

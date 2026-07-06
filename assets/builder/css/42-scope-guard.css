@@ -1,0 +1,55 @@
+/* Scope guard: the warning strip under the Styles editor's scope bar shown
+   when the selected selector's saved rules live in the OTHER scope. Amber =
+   the plugin's caution accent. */
+
+.dbe-scope-guard {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 6px 10px 0 !important;
+    padding: 6px 10px !important;
+    border: 1px solid var(--dbe-warn, #e0a94a) !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    color: var(--dbe-text-2) !important;
+    background: transparent !important;
+}
+
+.dbe-scope-guard::before {
+    content: "\26A0" !important; /* warning sign */
+    color: var(--dbe-warn, #e0a94a) !important;
+    flex: 0 0 auto !important;
+}
+
+.dbe-scope-guard__msg {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+.dbe-scope-guard__msg code {
+    font-size: 11px !important;
+    color: var(--dbe-text) !important;
+    background: transparent !important;
+}
+
+.dbe-scope-guard__switch {
+    flex: 0 0 auto !important;
+    min-block-size: 24px !important; /* WCAG 2.5.8 pointer-target size */
+    padding: 2px 10px !important;
+    border: 1px solid var(--dbe-warn, #e0a94a) !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+    background: transparent !important;
+    color: var(--dbe-text) !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+}
+
+.dbe-scope-guard__switch:hover {
+    background: var(--dbe-l2-hi) !important;
+}
+
+.dbe-scope-guard__switch:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 1px !important;
+}

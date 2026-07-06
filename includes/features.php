@@ -190,6 +190,13 @@ function dbe_features() {
 			'css'         => array( '41-scope-bar.css' ),
 			'js'          => true,
 		),
+		'scope_guard'         => array(
+			'title'       => __( 'Scope guard', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Warns when the selector shown in the Styles editor keeps its saved rules in the other scope — the editor displays rules from both scopes, but edits save to the active one. Can also switch scope automatically. Tracks saved styles, so rules added since the last save index after the next save.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'styles',
+			'css'         => array( '42-scope-guard.css' ),
+			'js'          => true,
+		),
 		'auto_bem'            => array(
 			'title'       => __( 'Bulk class naming', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Right-click an element for “Add class names…”: a dialog suggests flat block-element class names (e.g. hero, hero-title, hero-image) for the element and its subtree, editable per row, then applies them in one pass.', 'daveden-builderius-enhancements' ),
@@ -269,6 +276,15 @@ function dbe_enum_settings() {
 				'compact'     => __( 'Compact', 'daveden-builderius-enhancements' ),
 			),
 			'default' => 'comfortable',
+		),
+		'scope_guard_mode' => array(
+			'parent'  => 'scope_guard',
+			'title'   => __( 'When the rules live in the other scope', 'daveden-builderius-enhancements' ),
+			'choices' => array(
+				'warn' => __( 'Show a warning with a switch button', 'daveden-builderius-enhancements' ),
+				'auto' => __( 'Switch scope automatically', 'daveden-builderius-enhancements' ),
+			),
+			'default' => 'warn',
 		),
 	);
 }

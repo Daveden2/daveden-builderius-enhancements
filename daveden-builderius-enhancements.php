@@ -68,6 +68,7 @@ require_once DBE_DIR . 'includes/features.php';
 require_once DBE_DIR . 'includes/options.php';
 require_once DBE_DIR . 'includes/settings-page.php';
 require_once DBE_DIR . 'includes/output-builder.php';
+require_once DBE_DIR . 'includes/scope-css.php';
 require_once DBE_DIR . 'includes/output-preview.php';
 require_once DBE_DIR . 'includes/admin-bar.php';
 
