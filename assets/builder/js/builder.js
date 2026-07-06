@@ -1330,6 +1330,14 @@
 
             var grouped = on('context_menu');
 
+            // Restyle the native "Actions" header row as a group heading (all
+            // caps, muted — the same treatment as the multi-select note row).
+            if (grouped) {
+                [].slice.call(container.querySelectorAll('.uniContextMenu__item.disabled')).forEach(function (li) {
+                    if ((li.textContent || '').trim() === 'Actions') { li.classList.add('dbe-ctx-heading'); }
+                });
+            }
+
             // Multi-selection this menu acts on (null = normal single-row menu).
             var multiIds = multiCtxIds();
             if (multiIds) {
@@ -2120,6 +2128,15 @@
             bar.className = 'dbe-scope-bar';
             var badge = document.createElement('span');
             badge.className = 'dbe-scope-badge';
+            // Builderius shows a class's EXISTING rules in the editor no matter
+            // which scope is active — the scope only routes where edits are
+            // saved. Spell that out, or a rule seen under Global (but stored in
+            // Template) gets silently forked into global CSS by an edit.
+            badge.setAttribute('data-dbe-tip',
+                'Scope controls where edits are SAVED. The editor shows the ' +
+                'selector’s existing rules from both scopes, so a rule you ' +
+                'see here may be stored in the other scope.');
+            badge.tabIndex = 0;
             bar.appendChild(badge);
             var sw = document.createElement('div');
             sw.className = 'dbe-scope-switch';

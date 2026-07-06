@@ -29,7 +29,8 @@
     cursor: default !important;
 }
 .uniContextMenu__item.dbe-ctx-disabled:hover { background: transparent !important; }
-li.dbe-ctx-note {
+li.dbe-ctx-note,
+li.dbe-ctx-heading {
     padding-block: 6px !important;
     font-size: 11px !important;
     letter-spacing: .04em !important;
