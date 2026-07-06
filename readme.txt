@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.2
+Stable tag: 1.3.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -15,7 +15,12 @@ Targets Builderius 1.3.5-beta. The plugin directory name must contain
 
 == Changelog ==
 
-= 1.2.2 =
+= 1.3.0 =
+* New — Double-click to rename: double-click an element on its Navigator row to
+  rename it inline, without opening the right-click menu (a new toggle).
+* New — Follow selection in the tree: when you click an element in the preview,
+  the Navigator expands the branches down to it and scrolls it into view, so the
+  selected element is always visible in the tree (a new toggle).
 * Wrap in… : wrapping an element in a div, template or collection now keeps the
   wrapper in the element's original position instead of appending it at the end
   of its parent, and the wrapped element keeps its identity (a real move, not a

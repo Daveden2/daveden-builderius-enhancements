@@ -137,6 +137,13 @@ function dbe_features() {
 			'css'         => array( '23-favourites-reorder.css' ),
 			'js'          => true,
 		),
+		'reveal_selected'     => array(
+			'title'       => __( 'Follow selection in the tree', 'daveden-builderius-enhancements' ),
+			'description' => __( 'When you click an element in the preview, expand the Navigator branches down to it and scroll it into view, so the selected element is always visible in the tree.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'navigator',
+			'css'         => array(),
+			'js'          => true,
+		),
 
 		/* ------------------------------------------------------------- Editing */
 		'context_menu'        => array(
@@ -156,6 +163,13 @@ function dbe_features() {
 		'inline_rename'       => array(
 			'title'       => __( 'Inline rename', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Rename an element directly on its Navigator row via the context menu, or reset its label back to the default (its HTML tag).', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '32-rename.css' ),
+			'js'          => true,
+		),
+		'dblclick_rename'     => array(
+			'title'       => __( 'Double-click to rename', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Double-click an element on its Navigator row to rename it inline, without opening the right-click menu.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '32-rename.css' ),
 			'js'          => true,

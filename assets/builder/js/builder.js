@@ -3228,6 +3228,96 @@
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem');
 
     var scheduled = false;
+    /* (g) Double-click a Navigator row to rename it inline — a second entry point
+       to startRename(), for users who expect double-click-to-rename from
+       comparable tools. The two single-clicks that precede the double select the
+       row (native); then the inline field opens on it. Needs 32-rename.css for the
+       field styling, so the feature ships that CSS whether or not inline_rename
+       (the context-menu entry point) is also on. */
+    function bindDblclickRename() {
+        document.addEventListener('dblclick', function (e) {
+            var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
+            if (!btn) { return; }
+            var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
+            if (!m) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            startRename(m[1]);
+        }, true);
+    }
+
+    /* (h) Follow the preview selection in the tree: when the active module changes
+       (e.g. the user clicks an element on the canvas), expand every collapsed
+       ancestor branch down to it and scroll its row into view, so the selection is
+       never hidden inside a collapsed subtree. Polled — Builderius sets
+       activeModule in a reducer with no hook to subscribe to; the check is a cheap
+       storeGet compare that only acts when the id actually changes. */
+    var dbeLastRevealedId = null;
+    var dbeRevealTimer = null;
+    /* Bring the row into view inside the Navigator's OWN scroll box. The tree
+       nests several overflow:visible wrappers inside one scrollable container, so
+       walk up to the nearest ancestor that actually scrolls (auto/scroll overflow,
+       real height, content taller than box) and centre the row by hand — steadier
+       than scrollIntoView across the nested layout, and a no-op when the row is
+       already fully visible or the panel has no height (collapsed / hidden). */
+    function scrollRowIntoTree(row) {
+        var sc = row.parentElement;
+        while (sc && sc !== document.body) {
+            var oy = getComputedStyle(sc).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && sc.clientHeight > 0 && sc.scrollHeight > sc.clientHeight + 2) { break; }
+            sc = sc.parentElement;
+        }
+        if (!sc || sc === document.body || !sc.clientHeight) {
+            try { row.scrollIntoView({ block: 'center' }); } catch (e) {}
+            return;
+        }
+        var rr = row.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+        if (rr.top >= sr.top && rr.bottom <= sr.bottom) { return; } // already fully visible
+        sc.scrollTop += (rr.top - sr.top) - (sc.clientHeight - rr.height) / 2;
+    }
+    function revealActiveInTree() {
+        if (renameState) { return; }
+        var id = activeId();
+        if (!id || id === dbeLastRevealedId) { return; }
+        var mods = modules();
+        if (!mods || !mods[id]) { return; }
+        dbeLastRevealedId = id;
+
+        // Expand each collapsed ancestor, root-most first. Collapsed subtrees stay
+        // mounted (their <ul> is display:none), so every ancestor row is already in
+        // the DOM — one pass reaches them all. Only rows without .expanded are
+        // clicked, so an already-open branch is never toggled shut.
+        var chain = [], p = mods[id].parent || '';
+        while (p) { chain.unshift(p); p = mods[p] ? (mods[p].parent || '') : ''; }
+        chain.forEach(function (aid) {
+            var abtn = document.querySelector('.uniRightPanel .uni-tree-node-' + aid);
+            if (abtn && !abtn.classList.contains('expanded')) {
+                var chev = abtn.querySelector('i');
+                if (chev) { clickSeq(chev); }
+            }
+        });
+
+        // Scroll the row into view once it actually has layout (expansion is an
+        // async re-render; getClientRects() is empty while an ancestor is still
+        // collapsed or the panel is hidden), and only if it is not already fully
+        // visible — no jump when clicking around already-visible rows.
+        waitFor(function () {
+            var row = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+            return (row && row.getClientRects().length) ? row : null;
+        }, function (row) {
+            if (row) { try { scrollRowIntoTree(row); } catch (e) {} }
+        });
+    }
+    function bindRevealActive() {
+        if (dbeRevealTimer) { return; }
+        // Seed with the current selection so the very first tick does not yank the
+        // view to whatever happened to be selected at load.
+        dbeLastRevealedId = activeId();
+        dbeRevealTimer = setInterval(function () {
+            try { revealActiveInTree(); } catch (e) {}
+        }, 200);
+    }
+
     function schedule() {
         if (scheduled) { return; }
         scheduled = true;
@@ -3352,6 +3442,12 @@
 
         // Keyboard shortcuts overlay (?).
         if (on('shortcuts_overlay')) { bindShortcutsKey(); }
+
+        // Double-click a Navigator row to rename it inline.
+        if (on('dblclick_rename')) { bindDblclickRename(); }
+
+        // Follow the preview selection: expand + scroll the active row into view.
+        if (on('reveal_selected')) { bindRevealActive(); }
     }
 
     /* Presence heartbeat for the admin-bar "Edit template" link (see
