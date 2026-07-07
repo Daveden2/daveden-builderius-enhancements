@@ -142,11 +142,52 @@
   margin-block-end: 8px;
 }
 
+.dbe-field__titlerow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .dbe-field__title {
   display: block;
   font-size: 14px;
   font-weight: 600;
   color: #1d2327;
+}
+
+/* "Pro" badge: amber pill with near-black text (contrast ~8:1, AA). */
+.dbe-badge--pro {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #dba617;
+  color: #1d2327;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Pro-locked row: amber edge + pale wash, note explains why. Text stays at
+   full contrast; only the (disabled) switch is dimmed. */
+.dbe-field--pro-locked {
+  border-inline-start: 3px solid #dba617;
+  background: #fcf9e8;
+}
+
+.dbe-field__pro-note {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 13px;
+  font-weight: 500;
+  color: #614a00; /* dark amber on the pale wash, AA */
+}
+
+input[type="checkbox"].dbe-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .dbe-field__desc {

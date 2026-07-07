@@ -96,15 +96,30 @@ add_action( 'admin_enqueue_scripts', 'dbe_admin_assets' );
  * @param array  $feature Registry entry.
  */
 function dbe_render_toggle( $id, $feature ) {
-	$options  = dbe_get_options();
-	$field_id = 'dbe-f-' . $id;
-	$desc_id  = $field_id . '-desc';
+	$options      = dbe_get_options();
+	$field_id     = 'dbe-f-' . $id;
+	$desc_id      = $field_id . '-desc';
+	$note_id      = $field_id . '-pronote';
+	$requires_pro = ! empty( $feature['requires_pro'] );
+	$pro_locked   = $requires_pro && ! dbe_builderius_pro_active();
+	// The locked note is part of the field's accessible description.
+	$describedby  = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
 	?>
-	<div class="dbe-field">
+	<div class="dbe-field<?php echo $pro_locked ? ' dbe-field--pro-locked' : ''; ?>">
 		<div class="dbe-field__text">
-			<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
+			<span class="dbe-field__titlerow">
+				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
+				<?php if ( $requires_pro ) : ?>
+					<span class="dbe-badge dbe-badge--pro"><?php esc_html_e( 'Pro', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', requires Builderius Pro', 'daveden-builderius-enhancements' ); ?></span></span>
+				<?php endif; ?>
+			</span>
 			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( $feature['description'] ); ?></p>
-			<?php dbe_render_enum_subfields( $id ); ?>
+			<?php if ( $pro_locked ) : ?>
+				<p class="dbe-field__pro-note" id="<?php echo esc_attr( $note_id ); ?>">
+					<?php esc_html_e( 'Builderius Pro isn’t active, so this feature stays off. Activate Builderius Pro to use it.', 'daveden-builderius-enhancements' ); ?>
+				</p>
+			<?php endif; ?>
+			<?php dbe_render_enum_subfields( $id, $pro_locked ); ?>
 		</div>
 		<input
 			type="checkbox"
@@ -112,8 +127,9 @@ function dbe_render_toggle( $id, $feature ) {
 			id="<?php echo esc_attr( $field_id ); ?>"
 			name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>"
 			value="1"
-			aria-describedby="<?php echo esc_attr( $desc_id ); ?>"
+			aria-describedby="<?php echo esc_attr( $describedby ); ?>"
 			<?php checked( ! empty( $options[ $id ] ) ); ?>
+			<?php disabled( $pro_locked ); ?>
 		>
 	</div>
 	<?php
@@ -123,8 +139,11 @@ function dbe_render_toggle( $id, $feature ) {
  * Enum selects that belong to a parent feature (default theme / density).
  *
  * @param string $parent_id Parent feature id.
+ * @param bool   $disabled  Whether the parent feature is Pro-locked (greys the
+ *                          select and drops it from the POST, so the saved value
+ *                          is preserved by dbe_sanitise_options()).
  */
-function dbe_render_enum_subfields( $parent_id ) {
+function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		if ( $setting['parent'] !== $parent_id ) {
 			continue;
@@ -134,7 +153,7 @@ function dbe_render_enum_subfields( $parent_id ) {
 		?>
 		<p class="dbe-field__sub">
 			<label for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $setting['title'] ); ?></label>
-			<select id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>">
+			<select id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>" <?php disabled( $disabled ); ?>>
 				<?php foreach ( $setting['choices'] as $value => $label ) : ?>
 					<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current, $value ); ?>><?php echo esc_html( $label ); ?></option>
 				<?php endforeach; ?>
