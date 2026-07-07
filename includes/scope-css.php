@@ -7,11 +7,21 @@
  * where edits are SAVED. To warn when the shown rules live in the OTHER
  * scope, the builder JS needs to know which scope owns which selectors.
  * That is not readable from the page (the store keys are unnamed closures),
- * but it IS readable here: Builderius persists each entity's state in a
- * `builderius_dsm` post whose JSON config carries the raw stylesheet under
- * the `css` key. post_name is the entity slug; the global stylesheet lives
- * under the slug `global-settings`. The newest row per slug matches what the
- * builder loads (verified against the live editor on 1.3.5-beta).
+ * but it IS readable here from Builderius' persistence layer.
+ *
+ * Storage model (verified on 1.3.5-beta, 7 Jul 2026): every entity's saved
+ * state lives in the branch/commit chain — entity post (`builderius_template`
+ * / `builderius_component` / `builderius_sett_set`) → `builderius_branch`
+ * (post_parent = entity) → `builderius_commit` rows (post_parent = branch),
+ * each commit's post_content being the JSON config with the raw stylesheet
+ * under the `css` key. The branch's `active_commit` meta (an array keyed by
+ * blog ID → commit hash = commit post_name) names the checked-out commit.
+ * The GLOBAL stylesheet's entity is the `builderius_sett_set` post.
+ *
+ * `builderius_dsm` posts are only point-in-time snapshots (they froze here on
+ * 21 Jun 2026 — reading them fed the guard weeks-stale CSS, so classes saved
+ * since then resolved to "no scope owns this" and the warning never fired).
+ * They are kept only as a fallback for installs without branch/commit rows.
  *
  * The payload reflects the last SAVED state — in-session drafts index after
  * the next save (the JS re-fetches through the REST route below).
@@ -22,7 +32,25 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The newest saved CSS blob for a DSM entity slug.
+ * The `css` blob from a Builderius JSON config post.
+ *
+ * @param int $post_id Post whose post_content is an entity JSON config.
+ * @return string|null Raw CSS, or null when the key can't be resolved.
+ */
+function dbe_config_post_css( $post_id ) {
+	if ( ! $post_id ) {
+		return null;
+	}
+	$config = json_decode( get_post_field( 'post_content', (int) $post_id ), true );
+	if ( is_array( $config ) && isset( $config['css'] ) && is_string( $config['css'] ) ) {
+		return $config['css'];
+	}
+	return null;
+}
+
+/**
+ * The newest saved CSS blob for a DSM entity slug (legacy snapshot storage —
+ * fallback only; see the file header).
  *
  * @param string $slug DSM post_name ('home', 'global-settings', …).
  * @return string|null Raw CSS, or null when the entity/key can't be resolved.
@@ -38,14 +66,102 @@ function dbe_dsm_css( $slug ) {
 			$slug
 		)
 	);
-	if ( ! $id ) {
+	return $id ? dbe_config_post_css( (int) $id ) : null;
+}
+
+/**
+ * The current saved CSS for a Builderius entity, from its branch/commit
+ * chain: newest branch under the entity, the branch's `active_commit` meta
+ * (blog ID → commit hash) naming the checked-out commit, that commit's
+ * config `css`. Falls back to the branch's newest commit when the meta is
+ * missing or doesn't resolve.
+ *
+ * @param int $entity_id builderius_template / builderius_sett_set /
+ *                       builderius_component post ID.
+ * @return string|null Raw CSS, or null when no commit resolves.
+ */
+function dbe_branch_commit_css( $entity_id ) {
+	global $wpdb;
+	if ( ! $entity_id ) {
 		return null;
 	}
-	$config = json_decode( get_post_field( 'post_content', (int) $id ), true );
-	if ( is_array( $config ) && isset( $config['css'] ) && is_string( $config['css'] ) ) {
-		return $config['css'];
+	$branch_id = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'builderius_branch' AND post_parent = %d ORDER BY ID DESC LIMIT 1",
+			$entity_id
+		)
+	);
+	if ( ! $branch_id ) {
+		return null;
 	}
-	return null;
+	$commit_id = null;
+	$active    = get_post_meta( (int) $branch_id, 'active_commit', true );
+	if ( is_string( $active ) && '' !== $active ) {
+		$active = json_decode( $active, true );
+	}
+	if ( is_array( $active ) ) {
+		$hash = isset( $active[ get_current_blog_id() ] ) ? $active[ get_current_blog_id() ] : reset( $active );
+		if ( is_string( $hash ) && '' !== $hash ) {
+			$commit_id = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'builderius_commit' AND post_parent = %d AND post_name = %s ORDER BY ID DESC LIMIT 1",
+					$branch_id,
+					$hash
+				)
+			);
+		}
+	}
+	if ( ! $commit_id ) {
+		$commit_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'builderius_commit' AND post_parent = %d ORDER BY ID DESC LIMIT 1",
+				$branch_id
+			)
+		);
+	}
+	return $commit_id ? dbe_config_post_css( (int) $commit_id ) : null;
+}
+
+/**
+ * The current saved CSS for the template scope.
+ *
+ * @param string $slug Template post_name ('home', …).
+ * @return string|null
+ */
+function dbe_template_scope_css( $slug ) {
+	global $wpdb;
+	if ( '' === $slug ) {
+		return null;
+	}
+	$entity_id = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'builderius_template' AND post_name = %s ORDER BY ID DESC LIMIT 1",
+			$slug
+		)
+	);
+	$css = dbe_branch_commit_css( (int) $entity_id );
+	return null !== $css ? $css : dbe_dsm_css( $slug );
+}
+
+/**
+ * The current saved CSS for the global scope. Its entity is the
+ * `builderius_sett_set` post (the settings set — post_name 'html' on
+ * current builds; older snapshots used the DSM slug 'global-settings').
+ *
+ * @return string|null
+ */
+function dbe_global_scope_css() {
+	global $wpdb;
+	$entity_id = $wpdb->get_var(
+		"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'builderius_sett_set' ORDER BY ID DESC LIMIT 1"
+	);
+	$css = dbe_branch_commit_css( (int) $entity_id );
+	if ( null !== $css ) {
+		return $css;
+	}
+	$slug = $entity_id ? get_post_field( 'post_name', (int) $entity_id ) : '';
+	$css  = dbe_dsm_css( (string) $slug );
+	return null !== $css ? $css : dbe_dsm_css( 'global-settings' );
 }
 
 /**
@@ -79,8 +195,8 @@ function dbe_scope_guard_config() {
 		'mode'         => dbe_setting( 'scope_guard_mode' ),
 		'templateSlug' => $slug,
 		'css'          => array(
-			'template' => dbe_dsm_css( $slug ),
-			'global'   => dbe_dsm_css( 'global-settings' ),
+			'template' => dbe_template_scope_css( $slug ),
+			'global'   => dbe_global_scope_css(),
 		),
 		'restUrl'      => rest_url( 'dbe/v1/scope-css' ),
 		'restNonce'    => wp_create_nonce( 'wp_rest' ),
@@ -109,8 +225,8 @@ function dbe_register_scope_css_route() {
 			),
 			'callback'            => function ( $request ) {
 				return array(
-					'template' => dbe_dsm_css( (string) $request->get_param( 'template' ) ),
-					'global'   => dbe_dsm_css( 'global-settings' ),
+					'template' => dbe_template_scope_css( (string) $request->get_param( 'template' ) ),
+					'global'   => dbe_global_scope_css(),
 				);
 			},
 		)
