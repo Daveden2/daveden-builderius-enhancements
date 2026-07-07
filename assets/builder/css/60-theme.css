@@ -464,3 +464,20 @@ html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_addNewBtn {
 }
 html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_addNewBtn:hover,
 html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_addNewBtn:hover { color: var(--dbe-accent) !important; }
+
+/* --- Component INSTANCE properties panel (leak-audit) ---
+   Setting a placed component's property values uses a different class from the
+   definition side above: uniSettingComponentProperties (double-underscore BEM).
+   Its property-label rows (__itemTitle) keep the native --primary-2 surface and
+   the field dividers (__hr) a native dark line, while the foreground token is
+   remapped light-theme dark, so the labels read black-on-black. Repaint the
+   label rows and dividers with the theme surface/line tokens; the darker theme
+   keeps the native scale (no-op). */
+html[data-dbe-theme="light"] .uniSettingComponentProperties__itemTitle,
+html[data-dbe-theme="auto"]  .uniSettingComponentProperties__itemTitle {
+    background: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniSettingComponentProperties .uniFormField__hr,
+html[data-dbe-theme="auto"]  .uniSettingComponentProperties .uniFormField__hr { background: var(--dbe-line) !important; }
