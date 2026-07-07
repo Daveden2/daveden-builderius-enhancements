@@ -2,7 +2,20 @@
    keyboard focus ring, disabled items and the multi-select note row.
    Shared by several features (OR-gated in PHP). */
 
-.dbe-ctx-item--first { border-top: 1px solid var(--dbe-sep-line) !important; margin-top: 4px !important; padding-top: 10px !important; }
+/* Compact rows. The native menu ships ~14px block padding, so a fully-loaded
+   menu (Duplicate, clipboard, Rename, Wrap, moves, Remove…) grows tall enough
+   to need repositioning — and reads as sparse. We inject rows into this same
+   list, so tightening it here compacts native and injected rows together, and
+   the flyouts (same wrapper chain) inherit it. 8px block padding on a 13px
+   line keeps rows at ~29px — comfortably above the 24px pointer-target floor
+   (WCAG 2.5.8). Horizontal padding is left alone; only height was the problem. */
+.uniBuilderContextMenu .uniContextMenu ul li.uniContextMenu__item {
+    padding-block: 8px !important;
+}
+
+/* Cluster separator: a hairline plus a small gap, not a chunky pad. The row's
+   own 8px top padding does the breathing; this only adds the rule + 4px. */
+.dbe-ctx-item--first { border-block-start: 1px solid var(--dbe-sep-line) !important; margin-block-start: 4px !important; padding-block-start: 8px !important; }
 .dbe-ctx-parent .dbe-ctx-caret { margin-inline-start: auto !important; opacity: .55 !important; font-size: 15px !important; line-height: 1 !important; }
 .dbe-ctx-submenu {
     /* Builderius sets Inter on #builderiusPanel; cards appended to <body>

@@ -1319,6 +1319,36 @@
         fly.style.setProperty('top', top + 'px', 'important');
     }
 
+    /* The native menu is a position:fixed <dialog> whose top/left Builderius
+       computes from the click point BEFORE our extra rows exist (it has no
+       max-height and never re-measures). Once we've appended items it can run
+       past the bottom of the viewport, clipping the lower rows — the reported
+       bug. Re-clamp it into view (shift up, as positionFlyout already does for
+       flyouts) and, when it is genuinely taller than the viewport, cap the
+       height and let the list scroll. Wrap in / Save to flyouts are appended
+       inside the dialog but are position:fixed, so their containing block is
+       the viewport and the dialog's overflow never clips them. */
+    function fitContextMenu(dialog) {
+        if (!dialog) { return; }
+        var margin = 8;
+        var avail = window.innerHeight - margin * 2;
+        // Drop any cap left from a previous open so we measure the natural height.
+        dialog.style.removeProperty('max-height');
+        dialog.style.removeProperty('overflow-y');
+        var h = dialog.offsetHeight; // forces reflow — rows are already appended
+        var top = parseFloat(dialog.style.top);
+        if (isNaN(top)) { top = dialog.getBoundingClientRect().top; }
+        if (h > avail) {
+            top = margin;
+            dialog.style.maxHeight = avail + 'px';
+            dialog.style.overflowY = 'auto';
+        } else if (top + h > window.innerHeight - margin) {
+            top = window.innerHeight - h - margin;
+        }
+        if (top < margin) { top = margin; }
+        dialog.style.top = top + 'px';
+    }
+
     function makeFlyout(items) {
         // Rebuild the native menu wrapper chain so the flyout inherits the card
         // styling and the .uniContextMenu list/item resets.
@@ -1585,6 +1615,10 @@
             if (!container || container.querySelector('.dbe-ctx-parent') || container.hasAttribute('data-dbe-flat')) { return; }
             if (!/Duplicate|Create Component/.test(container.textContent || '')) { return; }
 
+            // The <dialog> we're about to grow — re-clamped into view once the
+            // extra rows are in (fitContextMenu), on every exit path below.
+            var ctxDialog = container.closest('dialog') || container.closest('.uniBuilderContextMenu');
+
             var grouped = on('context_menu');
 
             // Restyle the native "Actions" header row as a group heading (all
@@ -1785,6 +1819,7 @@
                     if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
+                fitContextMenu(ctxDialog);
                 return;
             }
 
@@ -1850,6 +1885,7 @@
             });
 
             setupMenuKeyboard(container);
+            fitContextMenu(ctxDialog);
         });
     }
 
