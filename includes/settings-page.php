@@ -156,13 +156,13 @@ function dbe_render_dashboard_panel() {
 			<?php
 			printf(
 				/* translators: %s: link to the author's YouTube channel. */
-				esc_html__( 'Daveden Builder Enhancements is a set of quality-of-life tweaks for the Builderius builder by %s — changes the community would like to see in the builder itself, each behind its own toggle.', 'daveden-builderius-enhancements' ),
+				esc_html__( 'Daveden Builder Enhancements is a set of quality-of-life tweaks for the Builderius builder by %s: changes the community would like to see in the builder itself, each behind its own toggle.', 'daveden-builderius-enhancements' ),
 				'<a href="https://youtube.com/@daveden2" target="_blank" rel="noopener">Daveden</a>'
 			);
 			?>
 		</p>
 		<p>
-			<?php esc_html_e( 'Everything here touches only the builder chrome: nothing changes on the front end of the site, and switching a toggle off (or deactivating the plugin) leaves your templates exactly as they were. Each tweak is intended to be temporary — as native equivalents land in core Builderius, the corresponding toggles will be retired.', 'daveden-builderius-enhancements' ); ?>
+			<?php esc_html_e( 'Everything here changes only the builder interface: nothing changes on the front end of the site, and switching a toggle off (or deactivating the plugin) leaves your templates exactly as they were. Each tweak is intended to be temporary; as native equivalents land in core Builderius, the corresponding toggles will be retired.', 'daveden-builderius-enhancements' ); ?>
 		</p>
 		<p class="dbe-dashboard__meta">
 			<?php
