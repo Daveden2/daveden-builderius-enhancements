@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -27,6 +27,24 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.5.1 =
+* Fixed: the Global/Template scope switch could not add rules to a scope the
+  class was not already in. When a class had saved rules in only one scope,
+  Builderius kept forcing the editor back to that scope, so switching to the
+  empty scope to start a rule there was ignored (the Selectors tab was the only
+  way in). The scope bar and scope guard now re-point the editor at the chosen
+  scope through Builderius' own cssSelector hook, so the first rule saves where
+  you asked; once a class has rules in both scopes the native behaviour is
+  unchanged. Reported upstream to Builderius.
+* Fixed: in the light theme, a placed component's instance property labels
+  rendered black-on-black. The label rows kept a native dark surface while the
+  text was remapped for the light theme; both now use the theme tokens.
+* Changed: the CSS code editor, CSS scope bar and CSS scope guard now require
+  Builderius Pro, since they depend on the Pro CSS code editor and
+  template-specific CSS. When Pro is inactive these features stay off (the
+  native CSS-mode icon is left in place), their settings rows are disabled with
+  a note, and your saved on/off choices are kept for when Pro is active again.
 
 = 1.5.0 =
 * Fixed — the CSS scope guard was reading weeks-stale stylesheets. Builderius

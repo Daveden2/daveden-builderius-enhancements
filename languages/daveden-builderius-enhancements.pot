@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-07T20:19:36+00:00\n"
+"POT-Creation-Date: 2026-07-07T21:43:54+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: daveden-builderius-enhancements.php
 #: includes/settings-page.php:44
 #: includes/settings-page.php:52
-#: includes/settings-page.php:244
+#: includes/settings-page.php:263
 msgid "Daveden Builder Enhancements"
 msgstr ""
 
@@ -257,119 +257,119 @@ msgid "CSS code editor by default"
 msgstr ""
 
 #: includes/features.php:218
-msgid "Opens the Styles tab straight into the CSS code editor, keeps the Content and Styles tabs visible while you are there, and adds a button to widen the panel when you need more room."
-msgstr ""
-
-#: includes/features.php:224
-msgid "CSS scope bar"
+msgid "Opens the Styles tab straight into the CSS code editor, keeps the Content and Styles tabs visible while you are there, and adds a button to widen the panel when you need more room. Requires Builderius Pro: the CSS code editor is a Pro feature, so this stays off (and the CSS-mode icon is left in place) when Pro is inactive."
 msgstr ""
 
 #: includes/features.php:225
-msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor."
+msgid "CSS scope bar"
 msgstr ""
 
-#: includes/features.php:231
+#: includes/features.php:226
+msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features."
+msgstr ""
+
+#: includes/features.php:233
 msgid "CSS scope guard"
 msgstr ""
 
-#: includes/features.php:232
-msgid "Warns you when the selected class keeps its saved rules in the other scope. The editor shows rules from both scopes, but edits only save to the active one, so it is easy to fork a rule by mistake. Can also switch scope for you automatically. Works from saved styles, so brand-new rules are recognised after the next save."
+#: includes/features.php:234
+msgid "Warns you when the selected class keeps its saved rules in the other scope. The editor shows rules from both scopes, but edits only save to the active one, so it is easy to fork a rule by mistake. Can also switch scope for you automatically. Works from saved styles, so brand-new rules are recognised after the next save. Requires Builderius Pro: global and template CSS scopes are Pro-only."
 msgstr ""
 
-#: includes/features.php:238
+#: includes/features.php:241
 #: includes/i18n-builder.php:67
 msgid "Auto-BEM"
 msgstr ""
 
-#: includes/features.php:239
+#: includes/features.php:242
 msgid "Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go."
 msgstr ""
 
-#: includes/features.php:247
+#: includes/features.php:250
 msgid "Tooltips & accessible names"
 msgstr ""
 
-#: includes/features.php:248
+#: includes/features.php:251
 msgid "Adds tooltips and accessible names to around 25 icon-only builder buttons that ship without either."
 msgstr ""
 
-#: includes/features.php:254
+#: includes/features.php:257
 msgid "Keyboard shortcuts overlay"
 msgstr ""
 
-#: includes/features.php:255
+#: includes/features.php:258
 msgid "Press ? in the builder to see a list of keyboard shortcuts, both the native ones and those added by this plugin."
 msgstr ""
 
-#: includes/features.php:261
+#: includes/features.php:264
 msgid "Unsaved-changes marker"
 msgstr ""
 
-#: includes/features.php:262
+#: includes/features.php:265
 msgid "Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload."
 msgstr ""
 
-#: includes/features.php:268
+#: includes/features.php:271
 msgid "Second-tab warning"
 msgstr ""
 
-#: includes/features.php:269
+#: includes/features.php:272
 msgid "Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab."
 msgstr ""
 
-#: includes/features.php:275
+#: includes/features.php:278
 msgid "Preview resize handles"
 msgstr ""
 
-#: includes/features.php:276
+#: includes/features.php:279
 msgid "Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout in the top bar updates as you drag, and clicking a breakpoint button snaps the preview back to that size."
 msgstr ""
 
-#: includes/features.php:282
+#: includes/features.php:285
 msgid "Preview overlay contrast fix"
 msgstr ""
 
-#: includes/features.php:283
+#: includes/features.php:286
 msgid "Fixes the label colours on the preview's hover and selection overlays, so you can tell the two apart and the labels meet WCAG AA contrast."
 msgstr ""
 
-#: includes/features.php:300
+#: includes/features.php:303
 msgid "Default theme"
 msgstr ""
 
-#: includes/features.php:302
+#: includes/features.php:305
 msgid "Auto (follows the operating system)"
 msgstr ""
 
-#: includes/features.php:303
+#: includes/features.php:306
 msgid "Light"
 msgstr ""
 
-#: includes/features.php:304
+#: includes/features.php:307
 msgid "Dark"
 msgstr ""
 
-#: includes/features.php:310
+#: includes/features.php:313
 msgid "Default density"
 msgstr ""
 
-#: includes/features.php:312
+#: includes/features.php:315
 msgid "Comfortable"
 msgstr ""
 
-#: includes/features.php:313
+#: includes/features.php:316
 msgid "Compact"
 msgstr ""
 
-#: includes/features.php:319
+#: includes/features.php:322
 msgid "When rules are saved in the other scope"
 msgstr ""
 
-#: includes/features.php:321
+#: includes/features.php:324
 msgid "Show a warning with a switch button"
 msgstr ""
 
-#: includes/features.php:322
+#: includes/features.php:325
 msgid "Switch scope automatically"
 msgstr ""
 
@@ -1085,52 +1085,64 @@ msgstr ""
 msgid "Builder Enhance"
 msgstr ""
 
+#: includes/settings-page.php:113
+msgid "Pro"
+msgstr ""
+
+#: includes/settings-page.php:113
+msgid ", requires Builderius Pro"
+msgstr ""
+
+#: includes/settings-page.php:119
+msgid "Builderius Pro isn’t active, so this feature stays off. Activate Builderius Pro to use it."
+msgstr ""
+
 #. translators: %s: link to the author's YouTube channel.
-#: includes/settings-page.php:159
+#: includes/settings-page.php:178
 #, php-format
 msgid "Daveden Builder Enhancements is a set of quality-of-life tweaks for the Builderius builder by %s: changes the community would like to see in the builder itself, each behind its own toggle."
 msgstr ""
 
-#: includes/settings-page.php:165
+#: includes/settings-page.php:184
 msgid "Everything here changes only the builder interface: nothing changes on the front end of the site, and switching a toggle off (or deactivating the plugin) leaves your templates exactly as they were. Each tweak is intended to be temporary; as native equivalents land in core Builderius, the corresponding toggles will be retired."
 msgstr ""
 
 #. translators: %s: plugin version number.
-#: includes/settings-page.php:171
+#: includes/settings-page.php:190
 #, php-format
 msgid "Version %s"
 msgstr ""
 
-#: includes/settings-page.php:177
+#: includes/settings-page.php:196
 msgid "GitHub repository"
 msgstr ""
 
-#: includes/settings-page.php:181
+#: includes/settings-page.php:200
 msgid "Daveden on YouTube"
 msgstr ""
 
-#: includes/settings-page.php:187
+#: includes/settings-page.php:206
 msgid "Introduction to Daveden Builder Enhancements (YouTube video)"
 msgstr ""
 
-#: includes/settings-page.php:193
+#: includes/settings-page.php:212
 msgid "Introduction to the plugin on the Daveden YouTube channel."
 msgstr ""
 
-#: includes/settings-page.php:195
+#: includes/settings-page.php:214
 msgid "Enabled features"
 msgstr ""
 
 #. translators: 1: enabled feature count, 2: total feature count.
-#: includes/settings-page.php:219
+#: includes/settings-page.php:238
 #, php-format
 msgid "%1$d of %2$d enabled"
 msgstr ""
 
-#: includes/settings-page.php:245
+#: includes/settings-page.php:264
 msgid "Enhancements for the Builderius builder UI. Each feature can be switched off independently; changes apply the next time the builder loads."
 msgstr ""
 
-#: includes/settings-page.php:279
+#: includes/settings-page.php:298
 msgid "Save changes"
 msgstr ""
