@@ -2270,6 +2270,47 @@
             else { cb(null); }
         })();
     }
+    /* Re-point the styles editor at `target` scope for the active class.
+
+       The native builder has a defect: when a class has saved rules in only ONE
+       scope, an effect force-switches the working object
+       (activeSelectorSettingsCssObj) back to that scope on every render, so a
+       raw isGlobalScope write cannot open the EMPTY scope to add a first rule
+       there. Verified 7 Jul 2026 against the store: with a template-only class
+       selected, isGlobalScope read Global while activeSelectorSettingsCssObj
+       stayed Template, and edits saved to Template. The effect is gated on
+       `!isCssMode`, so it bites the visual properties panel; in the CSS code
+       editor the same symptom appears because the editor's content is bound to
+       the working object, which nothing refreshes on a scope flip in code mode.
+
+       Builderius' own public hook `cssSelector.modifyCssObj` sets that working
+       object with an EXPLICIT scope, loading the class's existing rules FROM the
+       target scope's stylesheet (or empty when the class isn't there yet), so
+       the user's next declaration lands in the target scope. Once a rule exists
+       in both scopes the native force-switch stops firing and the toggle is free.
+
+       `force` splits the two calls in setScope: the immediate one sets the
+       scope; the deferred one only RE-asserts if the native effect has since
+       flipped the working object back, so it never clobbers an edit already in
+       flight when no revert happened (e.g. code mode, where the effect is
+       dormant). Class selectors only; %local% one-offs are unambiguous. */
+    function repointScope(target, force) {
+        try {
+            var sf = store();
+            var sel = sf.storeGet('activeSelector');
+            if (!sel || sel.charAt(0) === '%') { return; }
+            var want = target === 'global';
+            var cur = sf.storeGet('activeSelectorSettingsCssObj') || {};
+            if (!force && cur.selector === sel && cur.isGlobalScope === want) { return; }
+            var settings = want ? sf.storeGet('getGlobalSettings') : sf.storeGet('getEntitySettings');
+            var css = settings && typeof settings.css === 'string' ? settings.css : '';
+            var bp = sf.storeGet('activeBreakpoint') || '';
+            window.Builderius.API.hooks.doAction('builderius.cssSelector.modifyCssObj', {
+                value: css, selector: sel, breakpoint: bp, isGlobalScope: want
+            });
+        } catch (e) { /* store or hooks unavailable; leave the native toggle as-is */ }
+    }
+
     /* Switch the CSS scope from the Styles editor.
 
        FAST PATH: write the store's `isGlobalScope` boolean — byte-for-byte what
@@ -2288,6 +2329,8 @@
             try {
                 store().storeSet('isGlobalScope', target === 'global');
                 dbeScope = target;
+                repointScope(target, true);                              // open the target scope now
+                setTimeout(function () { repointScope(target, false); }, 60); // re-assert if the native effect reverts it
                 schedule();
                 return Promise.resolve();
             } catch (e) { /* fall through to the slow path */ }
