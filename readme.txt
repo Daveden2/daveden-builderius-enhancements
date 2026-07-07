@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -27,6 +27,20 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.5.2 =
+* Fixed: the tree context menu clipped its lower items when opened low on the
+  screen. Builderius positions the menu from the click point before our extra
+  rows (Rename, Wrap in, Move up/down, Unwrap and so on) are added, and never
+  re-measures, so a fully-loaded menu could run past the bottom of the viewport.
+  It is now re-clamped into view once the rows are in — shifted up to fit, or
+  capped and scrolled when it is genuinely taller than the viewport. The Wrap in
+  and Save to flyouts are unaffected.
+* Changed: context-menu rows are more compact. The native menu's generous row
+  padding made a loaded menu tall and sparse; rows are now tighter (still above
+  the 24px minimum pointer-target size) with slimmer cluster separators, cutting
+  a full menu's height by roughly a quarter. Native and injected rows, and the
+  flyouts, all share the tighter spacing.
 
 = 1.5.1 =
 * Fixed: the Global/Template scope switch could not add rules to a scope the
