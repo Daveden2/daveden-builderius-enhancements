@@ -190,6 +190,7 @@ function dbe_print_builder_footer() {
 		'theme'     => array( 'default' => dbe_setting( 'theme_default' ) ),
 		'density'   => array( 'default' => dbe_setting( 'density_default' ) ),
 		'heartbeat' => dbe_heartbeat_config(),
+		'i18n'      => dbe_builder_strings(),
 		'version'   => DBE_VERSION,
 	);
 	if ( dbe_enabled( 'scope_guard' ) ) {

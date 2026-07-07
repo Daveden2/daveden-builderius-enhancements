@@ -9,6 +9,23 @@
     var F = CFG.features || {};
     function on(id) { return !!F[id]; }
 
+    /* Translations, supplied by PHP (includes/i18n-builder.php) on CFG.i18n.
+       dbeT() falls back to the in-file English so a missing key never blanks a
+       control; dbeFmt() resolves sprintf-style %s / %1$s placeholders; dbeTn()
+       picks a One/Many key pair by count (English plural shape — see the
+       PHP file header for the limitation). */
+    var I18N = CFG.i18n || {};
+    function dbeT(key, fallback) { return I18N[key] || fallback; }
+    function dbeFmt(s) {
+        var args = [].slice.call(arguments, 1), i = 0;
+        return String(s).replace(/%(\d+\$)?s/g, function (m, n) {
+            return String(n ? args[parseInt(n, 10) - 1] : args[i++]);
+        });
+    }
+    function dbeTn(count, keyOne, fallbackOne, keyMany, fallbackMany) {
+        return count === 1 ? dbeT(keyOne, fallbackOne) : dbeT(keyMany, fallbackMany);
+    }
+
     var ROW_SEL = '.uniRightPanel .uniModTree__item';
     var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
@@ -142,7 +159,7 @@
         // mixed selection, this is the backstop.
         var parentId = mods[ids[0]].parent || '';
         if (ids.some(function (id) { return (mods[id].parent || '') !== parentId; })) {
-            undoToast('Wrap needs sibling elements');
+            undoToast(dbeT('wrapNeedsSiblings', 'Wrap needs sibling elements'));
             return;
         }
 
@@ -193,11 +210,14 @@
             // A condition-less Template renders its children inside an inert
             // <template>, so they leave the page until a rendering condition is
             // set — say so, and land the user on the Template to make that next.
-            undoToast('Wrapped ' + order.length + ' element' + (order.length === 1 ? '' : 's') +
-                ' in a template — add a rendering condition or its contents won’t show on the page');
+            undoToast(dbeFmt(dbeTn(order.length,
+                'wrappedInTemplateOne', 'Wrapped %s element in a template. Add a rendering condition or its contents won’t show on the page',
+                'wrappedInTemplateMany', 'Wrapped %s elements in a template. Add a rendering condition or their contents won’t show on the page'), order.length));
         } else {
-            var typeLabel = type === 'collection' ? 'collection + template' : type;
-            undoToast('Wrapped ' + order.length + ' element' + (order.length === 1 ? '' : 's') + ' in ' + typeLabel);
+            var typeLabel = type === 'collection' ? dbeT('wrapTypeCollection', 'collection + template') : type;
+            undoToast(dbeFmt(dbeTn(order.length,
+                'wrappedOne', 'Wrapped %1$s element in %2$s',
+                'wrappedMany', 'Wrapped %1$s elements in %2$s'), order.length, typeLabel));
         }
 
         // Land on the new wrapper so the next step (condition, settings) is one click away.
@@ -266,7 +286,8 @@
         var to = at + dir;
         if (to < 0 || to >= sibs.length) { return; }
         storeMoveModule(sf, id, parent, to);
-        undoToast('Moved “' + (mods[id].label || 'element') + '” ' + (dir < 0 ? 'up' : 'down'));
+        undoToast(dbeFmt(dir < 0 ? dbeT('movedUp', 'Moved “%s” up') : dbeT('movedDown', 'Moved “%s” down'),
+            mods[id].label || dbeT('element', 'element')));
     }
 
     /* (d1b) Select the target's parent. The reliable channel is a click on the
@@ -297,12 +318,12 @@
         var wrapperAt = parentSibs.indexOf(id);
         if (wrapperAt < 0) { wrapperAt = parentSibs.length; }
         var kids = idx[id] ? [].concat(idx[id]) : [];
-        if (!kids.length) { undoToast('Nothing to unwrap — this element has no children'); return; }
+        if (!kids.length) { undoToast(dbeT('nothingToUnwrap', 'Nothing to unwrap: this element has no children')); return; }
         kids.forEach(function (kid, i) { storeMoveModule(sf, kid, parent, wrapperAt + i); });
         // The wrapper is empty now — remove it via the native channel (undoable),
         // giving the moves a beat to commit and the user's menu time to close.
         setTimeout(function () { driveContextMenuItem(id, 'Remove', function () {}); }, 200);
-        undoToast('Unwrapped ' + kids.length + ' element' + (kids.length === 1 ? '' : 's'));
+        undoToast(dbeFmt(dbeTn(kids.length, 'unwrappedOne', 'Unwrapped %s element', 'unwrappedMany', 'Unwrapped %s elements'), kids.length));
     }
 
     /* (d2) Rename the element from the tree context menu. Builderius HAS a
@@ -376,7 +397,7 @@
         input.type = 'text';
         input.className = 'dbe-rename-input';
         input.value = oldLabel;
-        input.setAttribute('aria-label', 'Rename element');
+        input.setAttribute('aria-label', dbeT('renameElement', 'Rename element'));
 
         renameState = {
             id: id, input: input, wrapper: wrapper, li: li, oldLabel: oldLabel,
@@ -516,17 +537,17 @@
         if (old) { old.remove(); }
         var dlg = document.createElement('dialog');
         dlg.className = 'dbe-bem';
-        dlg.setAttribute('aria-label', 'Auto-BEM');
+        dlg.setAttribute('aria-label', dbeT('autoBem', 'Auto-BEM'));
 
         var head = document.createElement('div');
         head.className = 'dbe-bem__head';
         var title = document.createElement('h2');
         title.className = 'dbe-bem__title';
-        title.textContent = 'Auto-BEM';
+        title.textContent = dbeT('autoBem', 'Auto-BEM');
         var close = document.createElement('button');
         close.type = 'button';
         close.className = 'dbe-bem__close';
-        close.setAttribute('aria-label', 'Close');
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
         close.textContent = '✕';
         close.addEventListener('click', function () { dlg.close(); });
         head.appendChild(title);
@@ -538,7 +559,7 @@
         blockRow.className = 'dbe-bem__block';
         var blockLabel = document.createElement('label');
         blockLabel.setAttribute('for', 'dbe-bem-block');
-        blockLabel.textContent = 'Block name';
+        blockLabel.textContent = dbeT('blockName', 'Block name');
         var blockInput = document.createElement('input');
         blockInput.type = 'text';
         blockInput.id = 'dbe-bem-block';
@@ -550,7 +571,7 @@
         var list = document.createElement('div');
         list.className = 'dbe-bem__list';
         list.setAttribute('role', 'group');
-        list.setAttribute('aria-label', 'Elements and class names');
+        list.setAttribute('aria-label', dbeT('elementsAndClassNames', 'Elements and class names'));
         dlg.appendChild(list);
 
         var applyBtn; // forward ref for the count refresh
@@ -568,7 +589,7 @@
             // already named; unsupported rows cannot be checked at all.
             check.checked = row.supported && !row.classes.length;
             check.disabled = !row.supported;
-            check.setAttribute('aria-label', 'Add a class to this element');
+            check.setAttribute('aria-label', dbeT('addClassToElement', 'Add a class to this element'));
 
             var tagBadge = document.createElement('span');
             tagBadge.className = 'dbe-bem__tag';
@@ -584,13 +605,13 @@
             field.className = 'dbe-bem__field';
             field.value = suggestions[i];
             field.disabled = !row.supported;
-            field.setAttribute('aria-label', 'Class name');
+            field.setAttribute('aria-label', dbeT('className', 'Class name'));
             field.addEventListener('input', function () { field.dataset.dbeEdited = '1'; });
 
             var hint = document.createElement('span');
             hint.className = 'dbe-bem__hint';
-            if (!row.supported) { hint.textContent = 'not supported'; }
-            else if (row.classes.length) { hint.textContent = 'has .' + row.classes.join(' .'); }
+            if (!row.supported) { hint.textContent = dbeT('notSupported', 'not supported'); }
+            else if (row.classes.length) { hint.textContent = dbeFmt(dbeT('hasClasses', 'has %s'), '.' + row.classes.join(' .')); }
 
             check.addEventListener('change', refreshApplyCount);
 
@@ -618,7 +639,7 @@
         }
         function refreshApplyCount() {
             var n = pendingRows().length;
-            applyBtn.textContent = 'Add ' + n + ' class' + (n === 1 ? '' : 'es');
+            applyBtn.textContent = dbeFmt(dbeTn(n, 'addClassesOne', 'Add %s class', 'addClassesMany', 'Add %s classes'), n);
             applyBtn.disabled = !n;
         }
 
@@ -627,7 +648,7 @@
         var cancel = document.createElement('button');
         cancel.type = 'button';
         cancel.className = 'dbe-bem__cancel';
-        cancel.textContent = 'Cancel';
+        cancel.textContent = dbeT('cancel', 'Cancel');
         cancel.addEventListener('click', function () { dlg.close(); });
         applyBtn = document.createElement('button');
         applyBtn.type = 'button';
@@ -638,7 +659,7 @@
             });
             var bad = jobs.filter(function (j) { return !BEM_CLASS_RE.test(j.className); });
             if (bad.length) {
-                undoToast('Invalid class name: “' + bad[0].className + '”');
+                undoToast(dbeFmt(dbeT('invalidClassName', 'Invalid class name: “%s”'), bad[0].className));
                 return;
             }
             // The dialog is showModal(): everything outside it is inert, so it
@@ -677,12 +698,12 @@
         var stop = document.createElement('button');
         stop.type = 'button';
         stop.className = 'dbe-bem-progress__stop';
-        stop.textContent = 'Stop';
+        stop.textContent = dbeT('stop', 'Stop');
         var aborted = false;
         stop.addEventListener('click', function () {
             aborted = true;
             stop.disabled = true;
-            stop.textContent = 'Stopping…';
+            stop.textContent = dbeT('stopping', 'Stopping…');
         });
         card.appendChild(label);
         card.appendChild(stop);
@@ -784,7 +805,7 @@
             (function next() {
                 if (i >= list.length || progress.aborted()) { whenDone(); return; }
                 var job = list[i];
-                progress.update('Applying classes… ' + (added + 1) + '/' + total + '  (.' + job.className + ')');
+                progress.update(dbeFmt(dbeT('applyingClasses', 'Applying classes… %1$s/%2$s (%3$s)'), added + 1, total, '.' + job.className));
                 bemApplyOne(job.id, job.className, function (ok) {
                     if (ok) { added += 1; } else if (!isRetry) { retry.push(job); }
                     i += 1;
@@ -797,9 +818,9 @@
             var failed = total - added;
             progress.close();
             dbeBemBusy = false;
-            undoToast('Added ' + added + ' class' + (added === 1 ? '' : 'es') +
-                (failed ? ', ' + failed + ' failed' : '') +
-                (added ? ' — remember to save' : ''));
+            undoToast(dbeFmt(dbeTn(added, 'addedClassesOne', 'Added %s class', 'addedClassesMany', 'Added %s classes'), added) +
+                (failed ? dbeFmt(dbeT('addedFailedSuffix', ', %s failed'), failed) : '') +
+                (added ? dbeT('rememberToSave', ' (remember to save)') : ''));
             schedule();
         }
 
@@ -901,7 +922,9 @@
         var i = 0, removed = 0, retried = false;
         function next() {
             if (i >= ids.length) {
-                undoToast(doneMsg || ('Removed ' + removed + ' element' + (removed === 1 ? '' : 's') + ' — Cmd+Z restores one at a time'));
+                undoToast(doneMsg || dbeFmt(dbeTn(removed,
+                    'removedElementsOne', 'Removed %s element (Cmd+Z restores one at a time)',
+                    'removedElementsMany', 'Removed %s elements (Cmd+Z restores one at a time)'), removed));
                 return;
             }
             var id = ids[i];
@@ -976,8 +999,10 @@
         clearMultiSel();
         var total = moved + 1; // + the hand-dragged row
         undoToast(failed
-            ? ('Moved ' + total + ' element' + (total === 1 ? '' : 's') + ' — ' + failed + ' could not follow')
-            : ('Moved ' + total + ' elements together'));
+            ? dbeFmt(dbeTn(total,
+                'movedSomeFailedOne', 'Moved %1$s element (%2$s could not follow)',
+                'movedSomeFailedMany', 'Moved %1$s elements (%2$s could not follow)'), total, failed)
+            : dbeFmt(dbeT('movedTogether', 'Moved %s elements together'), total));
     }
 
     function bindMultiDrag() {
@@ -1121,7 +1146,7 @@
                 subtree[p.id].parent = '';
                 undoStack.push({
                     id: p.id,
-                    label: snapMods[p.id].label || snapMods[p.id].name || 'element',
+                    label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
                     parentId: snapMods[p.id].parent || '', // '' = root
                     subtree: subtree
                 });
@@ -1164,9 +1189,9 @@
     function performUndo() {
         if (dbeUndoBusy) { return; }
         var rec = undoStack.pop();
-        if (!rec) { undoToast('Nothing to undo'); return; }
+        if (!rec) { undoToast(dbeT('nothingToUndo', 'Nothing to undo')); return; }
         if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
-            undoToast('Cannot restore “' + rec.label + '” — its parent is gone');
+            undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
             return;
         }
         dbeUndoBusy = true;
@@ -1193,7 +1218,7 @@
                 .then(function () { return navigator.clipboard.writeText(payload); })
                 .then(function () {
                     driveContextMenuItem(menuRowId, 'Paste', function (ok) {
-                        if (!ok) { fail('Undo failed — could not reach Paste'); return; }
+                        if (!ok) { fail(dbeT('undoFailedPaste', 'Undo failed: could not reach Paste')); return; }
                         waitFor(function () {
                             var mods = modules() || {};
                             return Object.keys(mods).find(function (id) {
@@ -1201,14 +1226,14 @@
                             }) || null;
                         }, function (newId) {
                             if (prevClip !== null) { navigator.clipboard.writeText(prevClip).catch(function () {}); }
-                            if (!newId) { fail('Undo failed — element not restored'); return; }
+                            if (!newId) { fail(dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
                             dbeUndoBusy = false;
                             redoStack.push({ id: newId, label: rec.label });
-                            undoToast('Restored “' + rec.label + '”');
+                            undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
                         });
                     });
                 })
-                .catch(function () { fail('Undo failed — clipboard blocked'); });
+                .catch(function () { fail(dbeT('undoFailedClipboard', 'Undo failed: clipboard blocked')); });
         };
         if (rec.parentId) {
             // Real selection: paste inserts into the ACTIVE module. The tree is
@@ -1222,7 +1247,7 @@
                 waitFor(function () { return activeId() === rec.parentId || null; }, function (ok) {
                     if (ok) { paste(rec.parentId); }
                     else if (++attempts < 4) { selectParent(); }
-                    else { fail('Undo failed — could not select the parent'); }
+                    else { fail(dbeT('undoFailedSelectParent', 'Undo failed: could not select the parent')); }
                 }, 20); // 4 tries x ~500ms instead of one 1.5s wait
             })();
         } else {
@@ -1230,7 +1255,7 @@
             try { store().storeSet('activeModule', ''); } catch (e) {}
             var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
             var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
-            if (!m) { fail('Undo failed — no tree rows'); return; }
+            if (!m) { fail(dbeT('undoFailedNoRows', 'Undo failed: no tree rows')); return; }
             paste(m[1]);
         }
     }
@@ -1238,10 +1263,10 @@
     function performRedo() {
         if (dbeUndoBusy) { return; }
         var rec = redoStack.pop();
-        if (!rec) { undoToast('Nothing to redo'); return; }
+        if (!rec) { undoToast(dbeT('nothingToRedo', 'Nothing to redo')); return; }
         if (!document.querySelector('.uniRightPanel .uni-tree-node-' + rec.id)) {
             redoStack = [];
-            undoToast('Cannot redo — “' + rec.label + '” no longer exists');
+            undoToast(dbeFmt(dbeT('cannotRedoGone', 'Cannot redo: “%s” no longer exists'), rec.label));
             return;
         }
         dbeUndoBusy = true;
@@ -1250,8 +1275,8 @@
             setTimeout(function () {
                 dbeRedoDeleting = false;
                 dbeUndoBusy = false;
-                if (ok) { undoToast('Deleted “' + rec.label + '” again'); }
-                else { redoStack.push(rec); undoToast('Redo failed'); }
+                if (ok) { undoToast(dbeFmt(dbeT('deletedAgain', 'Deleted “%s” again'), rec.label)); }
+                else { redoStack.push(rec); undoToast(dbeT('redoFailed', 'Redo failed')); }
             }, 300);
         });
     }
@@ -1594,7 +1619,7 @@
                 var renameLi = document.createElement('li');
                 renameLi.className = 'uniContextMenu__item dbe-ctx-item';
                 renameLi.setAttribute('role', 'menuitem');
-                renameLi.textContent = 'Rename';
+                renameLi.textContent = dbeT('rename', 'Rename');
                 renameLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -1614,7 +1639,7 @@
                     var resetLi = document.createElement('li');
                     resetLi.className = 'uniContextMenu__item dbe-ctx-item';
                     resetLi.setAttribute('role', 'menuitem');
-                    resetLi.textContent = 'Reset label';
+                    resetLi.textContent = dbeT('resetLabel', 'Reset label');
                     resetLi.addEventListener('mousedown', function (ev) {
                         ev.preventDefault();
                         ev.stopPropagation();
@@ -1622,7 +1647,7 @@
                         removeSubmenus();
                         try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
                         commitRename(id, ctxDefault);
-                        undoToast('Label reset to <' + ctxDefault + '>');
+                        undoToast(dbeFmt(dbeT('labelResetTo', 'Label reset to <%s>'), ctxDefault));
                     });
                     nameItems.push(resetLi);
                 }
@@ -1638,7 +1663,7 @@
                     var bemLi = document.createElement('li');
                     bemLi.className = 'uniContextMenu__item dbe-ctx-item';
                     bemLi.setAttribute('role', 'menuitem');
-                    bemLi.textContent = 'Auto-BEM…';
+                    bemLi.textContent = dbeT('autoBemMenu', 'Auto-BEM…');
                     bemLi.addEventListener('mousedown', function (ev) {
                         ev.preventDefault();
                         ev.stopPropagation();
@@ -1661,7 +1686,7 @@
                 expandLi = document.createElement('li');
                 expandLi.className = 'uniContextMenu__item dbe-ctx-item';
                 expandLi.setAttribute('role', 'menuitem');
-                expandLi.textContent = 'Expand children';
+                expandLi.textContent = dbeT('expandChildren', 'Expand children');
                 expandLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -1688,7 +1713,7 @@
                 removeNLi = document.createElement('li');
                 removeNLi.className = 'uniContextMenu__item dbe-ctx-item dbe-ctx-item--first';
                 removeNLi.setAttribute('role', 'menuitem');
-                removeNLi.textContent = 'Remove ' + multiIds.length + ' elements';
+                removeNLi.textContent = dbeFmt(dbeT('removeNElements', 'Remove %s elements'), multiIds.length);
                 removeNLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -1711,7 +1736,7 @@
                 if (uwKids.length && uwHasParent) {
                     (function () {
                         var uid = lastCtxId;
-                        unwrapLi = makeCtxItem('Unwrap', function () { unwrap(uid); });
+                        unwrapLi = makeCtxItem(dbeT('unwrap', 'Unwrap'), function () { unwrap(uid); });
                     })();
                 }
             }
@@ -1727,9 +1752,9 @@
                     var emIdx = store().storeGet('indexes') || {};
                     var emSibs = [].concat(emIdx[emParent || 'root'] || []);
                     var emAt = emSibs.indexOf(emId);
-                    moveUpLi = makeCtxItem('Move up', function () { moveSibling(emId, -1); }, { disabled: emAt <= 0 });
-                    moveDownLi = makeCtxItem('Move down', function () { moveSibling(emId, 1); }, { disabled: emAt < 0 || emAt >= emSibs.length - 1 });
-                    if (emParent) { selectParentLi = makeCtxItem('Select parent', function () { selectParentOf(emId); }); }
+                    moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, { disabled: emAt <= 0 });
+                    moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, { disabled: emAt < 0 || emAt >= emSibs.length - 1 });
+                    if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }); }
                 }
             }
 
@@ -1746,18 +1771,18 @@
                 if (removeNLi) { container.appendChild(removeNLi); }
                 if (wrapEnabled) {
                     var flatWrap = makeParent(
-                        multiIds ? ('Wrap ' + multiIds.length + ' in') : 'Wrap in',
+                        multiIds ? dbeFmt(dbeT('wrapNIn', 'Wrap %s in'), multiIds.length) : dbeT('wrapIn', 'Wrap in'),
                         false,
                         function () {
                             return [
-                                makeWrapItem('div', 'Div'),
-                                makeWrapItem('template', 'Template'),
-                                makeWrapItem('collection', 'Collection + template')
+                                makeWrapItem('div', dbeT('divLabel', 'Div')),
+                                makeWrapItem('template', dbeT('templateLabel', 'Template')),
+                                makeWrapItem('collection', dbeT('collectionTemplateLabel', 'Collection + template'))
                             ];
                         },
                         wrapDisabled
                     );
-                    if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', 'Only sibling elements can be wrapped together'); }
+                    if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
                 return;
@@ -1779,24 +1804,24 @@
 
             // Structure cluster: Wrap in… flyout (the wrap targets are hoisted
             // flat inside it — flyouts can't nest) + Unwrap.
-            var wrapLabel = multiIds ? ('Wrap ' + multiIds.length + ' in ') : 'Wrap in ';
+            var wrapLabel = multiIds ? dbeFmt(dbeT('wrapNIn', 'Wrap %s in'), multiIds.length) : dbeT('wrapIn', 'Wrap in');
             var wrapParent = null;
             if (wrapEnabled) {
-                wrapParent = makeParent(multiIds ? ('Wrap ' + multiIds.length + ' in…') : 'Wrap in…', false, function () {
+                wrapParent = makeParent(multiIds ? dbeFmt(dbeT('wrapNInEllipsis', 'Wrap %s in…'), multiIds.length) : dbeT('wrapInEllipsis', 'Wrap in…'), false, function () {
                     return [
-                        makeWrapItem('div', wrapLabel + 'Div'),
-                        makeWrapItem('template', wrapLabel + 'Template'),
-                        makeWrapItem('collection', wrapLabel + 'Collection + template')
+                        makeWrapItem('div', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('divLabel', 'Div'))),
+                        makeWrapItem('template', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('templateLabel', 'Template'))),
+                        makeWrapItem('collection', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('collectionTemplateLabel', 'Collection + template')))
                     ];
                 }, wrapDisabled);
-                if (wrapDisabled) { wrapParent.setAttribute('data-dbe-tip', 'Only sibling elements can be wrapped together'); }
+                if (wrapDisabled) { wrapParent.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
             }
 
             // Reuse cluster: Create Component + Save to. Keep Save as a flyout only
             // when it branches (>1 native item); a lone Save item goes flat.
             var saveItem = null;
             if (natSave.length > 1) {
-                saveItem = makeParent('Save to…', false, function () { return natSave; }, !!multiIds);
+                saveItem = makeParent(dbeT('saveTo', 'Save to…'), false, function () { return natSave; }, !!multiIds);
             } else if (natSave.length === 1) {
                 saveItem = natSave[0];
                 if (multiIds) { disableCtxItem(saveItem); }
@@ -1857,8 +1882,8 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-collapse-subtrees';
-        btn.setAttribute('aria-label', 'Collapse subtrees');
-        btn.title = 'Collapse subtrees (keeps top-level elements open)';
+        btn.setAttribute('aria-label', dbeT('collapseSubtrees', 'Collapse subtrees'));
+        btn.title = dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)');
         btn.innerHTML = '<span><svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             '<path d="M1.2 1.5h9.6M6 12.5V6M3.8 8.2 6 6l2.2 2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
             '</svg></span>';
@@ -1896,8 +1921,8 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-expand-all';
-        btn.setAttribute('aria-label', 'Expand all');
-        btn.title = 'Expand all elements';
+        btn.setAttribute('aria-label', dbeT('expandAll', 'Expand all'));
+        btn.title = dbeT('expandAllElements', 'Expand all elements');
         btn.innerHTML = '<span><svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             '<path d="M1.2 1.5h9.6M6 5.5V12M3.8 9.8 6 12l2.2-2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
             '</svg></span>';
@@ -1923,31 +1948,31 @@
     }
 
     var DBE_TIPS = [
-        ['.uniRightPanel .uniPanelHeader__icons .dbe-expand-all', 'Expand all elements'],
-        ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', 'Collapse subtrees — keeps top level open'],
-        ['.uniLeftPanel .uniIconConditionsMode', 'Dynamic data conditions'],
-        ['.uniLeftPanel .uniIconCssMode', 'Toggle CSS code editor'],
-        ['.uniLeftPanel .dbe-expand-panel', 'Widen panel for the CSS editor'],
-        ['.uniPanelButton--builderiusMenu', 'Builderius menu'],
-        ['.uniGlobalBreakpoints__modalIcon', 'Breakpoint settings'],
-        ['.uniReloadIframeBtn', 'Reload preview'],
-        ['.uniIconButton.caretIcon', 'Save options'],
-        ['.uniModTree__footer button.uniPanelIconButton', 'Delete selected element — click twice to confirm'],
-        ['.uniModTree__footer .editFavouritesIcon', 'Edit favourite elements'],
-        ['.uniFooterPanelBar .collapsePanelIcon', 'Collapse bottom panel'],
-        ['.uniBreakpointsTable__addNew', 'Add breakpoint'],
-        ['.uniBreakpointsTable__delete', 'Delete breakpoint'],
-        ['.uniFormField__ddTagsBtn', 'Insert dynamic data']
+        ['.uniRightPanel .uniPanelHeader__icons .dbe-expand-all', dbeT('expandAllElements', 'Expand all elements')],
+        ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)')],
+        ['.uniLeftPanel .uniIconConditionsMode', dbeT('tipDynamicConditions', 'Dynamic data conditions')],
+        ['.uniLeftPanel .uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
+        ['.uniLeftPanel .dbe-expand-panel', dbeT('tipWidenPanelCss', 'Widen panel for the CSS editor')],
+        ['.uniPanelButton--builderiusMenu', dbeT('tipBuilderiusMenu', 'Builderius menu')],
+        ['.uniGlobalBreakpoints__modalIcon', dbeT('tipBreakpointSettings', 'Breakpoint settings')],
+        ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],
+        ['.uniIconButton.caretIcon', dbeT('tipSaveOptions', 'Save options')],
+        ['.uniModTree__footer button.uniPanelIconButton', dbeT('tipDeleteSelected', 'Delete selected element (click twice to confirm)')],
+        ['.uniModTree__footer .editFavouritesIcon', dbeT('tipEditFavourites', 'Edit favourite elements')],
+        ['.uniFooterPanelBar .collapsePanelIcon', dbeT('tipCollapseBottomPanel', 'Collapse bottom panel')],
+        ['.uniBreakpointsTable__addNew', dbeT('tipAddBreakpoint', 'Add breakpoint')],
+        ['.uniBreakpointsTable__delete', dbeT('tipDeleteBreakpoint', 'Delete breakpoint')],
+        ['.uniFormField__ddTagsBtn', dbeT('tipInsertDynamicData', 'Insert dynamic data')]
     ];
 
     /* Fallback breakpoint labels, used only when dbeBreakpoints() can't read
        the real list from the builder. Order is base canvas first, then
        breakpoints large-to-small. */
     var DBE_BP_LABELS = [
-        'Base styles — full width',
-        'Desktop — max 1279px',
-        'Tablet — max 991px',
-        'Mobile — max 478px'
+        dbeT('bpFallbackBase', 'Base styles (full width)'),
+        dbeT('bpFallbackDesktop', 'Desktop (max 1279px)'),
+        dbeT('bpFallbackTablet', 'Tablet (max 991px)'),
+        dbeT('bpFallbackMobile', 'Mobile (max 478px)')
     ];
 
     function labelChromeIcons() {
@@ -1961,9 +1986,9 @@
         document.querySelectorAll('.uniPanelButtonBreakpoint').forEach(function (b, i) {
             var bp = bps && bps[i];
             if (bp) {
-                setTip(b, bp.width ? (bp.label + ' — max ' + bp.width + 'px') : (bp.label + ' — base styles, full width'));
+                setTip(b, bp.width ? dbeFmt(dbeT('bpMax', '%1$s (max %2$spx)'), bp.label, bp.width) : dbeFmt(dbeT('bpBase', '%s (base styles, full width)'), bp.label));
             } else {
-                setTip(b, DBE_BP_LABELS[i] || 'Breakpoint');
+                setTip(b, DBE_BP_LABELS[i] || dbeT('breakpoint', 'Breakpoint'));
             }
         });
         // The stock Navigator button is a collapse-all/expand-all toggle whose
@@ -1973,7 +1998,7 @@
         if (stock) {
             var d = stock.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
-            setTip(stock, d.indexOf('M0.53125') === 0 ? 'Collapse all' : 'Expand all');
+            setTip(stock, d.indexOf('M0.53125') === 0 ? dbeT('collapseAll', 'Collapse all') : dbeT('expandAll', 'Expand all'));
         }
         // Left-panel page header icons carry no distinguishing classes — identify
         // by glyph. The Inserter reuses the same collapse/expand toggle glyph pair
@@ -1984,9 +2009,9 @@
             if (/dbe-|uniIconCssMode|uniIconConditionsMode/.test(b.className)) { return; }
             var d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
-            if (d.indexOf('M0.53125') === 0) { setTip(b, 'Collapse all groups'); }
-            else if (d.indexOf('M11.6445') === 0) { setTip(b, 'Expand all groups'); }
-            else if (d.indexOf('M11.9198') === 0) { setTip(b, 'Close panel'); }
+            if (d.indexOf('M0.53125') === 0) { setTip(b, dbeT('collapseAllGroups', 'Collapse all groups')); }
+            else if (d.indexOf('M11.6445') === 0) { setTip(b, dbeT('expandAllGroups', 'Expand all groups')); }
+            else if (d.indexOf('M11.9198') === 0) { setTip(b, dbeT('closePanel', 'Close panel')); }
         });
         // Top-bar right: the square icon hides both side panels for a full-width
         // canvas (verified: right panel unmounts, canvas 1392 -> 1652, .active
@@ -1997,9 +2022,9 @@
             var d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
             if (d.indexOf('M14.4551') === 0) {
-                setTip(b, b.classList.contains('active') ? 'Show side panels' : 'Hide side panels — full-width canvas');
+                setTip(b, b.classList.contains('active') ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'));
             } else if (d.indexOf('M19.6173') === 0) {
-                setTip(b, 'Preview page in a new tab');
+                setTip(b, dbeT('previewNewTab', 'Preview page in a new tab'));
             }
         });
     }
@@ -2158,8 +2183,8 @@
             if (onClick) { b.addEventListener('click', onClick); }
             return b;
         };
-        strip.appendChild(mk('Content', false, gotoContent));
-        strip.appendChild(mk('Styles', true, null));
+        strip.appendChild(mk(dbeT('contentTab', 'Content'), false, gotoContent));
+        strip.appendChild(mk(dbeT('stylesTab', 'Styles'), true, null));
         var header = sp.querySelector('.uniPanelHeader');
         if (header && header.nextSibling) { sp.insertBefore(strip, header.nextSibling); }
         else { sp.insertBefore(strip, sp.firstChild); }
@@ -2179,8 +2204,8 @@
             btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-expand-panel';
-            btn.setAttribute('aria-label', 'Widen settings panel');
-            btn.title = 'Widen settings panel for the CSS editor';
+            btn.setAttribute('aria-label', dbeT('widenSettingsPanel', 'Widen settings panel'));
+            btn.title = dbeT('widenSettingsPanelTip', 'Widen settings panel for the CSS editor');
             btn.innerHTML = '<span>' + EXPAND_SVG + '</span>';
             btn.addEventListener('click', function () {
                 var wide = document.body.classList.toggle('dbe-css-wide');
@@ -2365,7 +2390,7 @@
         if (masks.length) {
             var lbl = document.createElement('div');
             lbl.className = 'dbe-scope-mask__label';
-            lbl.textContent = 'Switching scope…';
+            lbl.textContent = dbeT('switchingScope', 'Switching scope…');
             masks[0].appendChild(lbl);
         }
         var cleanup = function () {
@@ -2405,20 +2430,20 @@
             // saved. Spell that out, or a rule seen under Global (but stored in
             // Template) gets silently forked into global CSS by an edit.
             badge.setAttribute('data-dbe-tip',
-                'Scope controls where edits are SAVED. The editor shows the ' +
+                dbeT('scopeBadgeTip', 'Scope controls where edits are SAVED. The editor shows the ' +
                 'selector’s existing rules from both scopes, so a rule you ' +
-                'see here may be stored in the other scope.');
+                'see here may be stored in the other scope.'));
             badge.tabIndex = 0;
             bar.appendChild(badge);
             var sw = document.createElement('div');
             sw.className = 'dbe-scope-switch';
             sw.setAttribute('role', 'group');
-            sw.setAttribute('aria-label', 'CSS scope');
+            sw.setAttribute('aria-label', dbeT('cssScope', 'CSS scope'));
             ['global', 'template'].forEach(function (sc) {
                 var b = document.createElement('button');
                 b.type = 'button';
                 b.setAttribute('data-scope', sc);
-                b.textContent = sc.charAt(0).toUpperCase() + sc.slice(1);
+                b.textContent = sc === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
                 b.addEventListener('click', function () {
                     // Fast path (store write) is instant — no cover needed. Only
                     // the slow Selectors-tab bounce gets masked: it is a multi-
@@ -2437,7 +2462,7 @@
             else { picker.parentNode.appendChild(bar); }
         }
         bar.querySelector('.dbe-scope-badge').textContent =
-            level === 'local' ? 'Local' : (level === 'template' ? 'Template' : 'Global');
+            level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? dbeT('scopeTemplate', 'Template') : dbeT('scopeGlobal', 'Global'));
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             b.classList.toggle('is-active', b.getAttribute('data-scope') === dbeScope);
         });
@@ -2457,6 +2482,18 @@
         auto:  '<circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11Z" fill="currentColor"/>'
     };
     var lastMonacoTheme = null;
+
+    /* Translated display names for the theme/density keywords (the keywords
+       themselves stay English — they are data attributes and storage keys). */
+    function dbeModeName(mode) {
+        return {
+            light: dbeT('themeLight', 'light'),
+            dark: dbeT('themeDark', 'dark'),
+            auto: dbeT('themeAuto', 'auto'),
+            comfortable: dbeT('densityComfortable', 'comfortable'),
+            compact: dbeT('densityCompact', 'compact')
+        }[mode] || mode;
+    }
 
     function currentTheme() {
         var t = document.documentElement.dataset.dbeTheme;
@@ -2483,7 +2520,7 @@
         btn.querySelector('span').innerHTML =
             '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             THEME_ICONS[t] + '</svg>';
-        setTip(btn, 'Theme: ' + t + ' — switch to ' + next);
+        setTip(btn, dbeFmt(dbeT('themeTip', 'Theme: %1$s (switch to %2$s)'), dbeModeName(t), dbeModeName(next)));
     }
     function setTheme(t) {
         document.documentElement.dataset.dbeTheme = t;
@@ -2526,7 +2563,7 @@
         btn.querySelector('span').innerHTML =
             '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             DENSITY_ICONS[d] + '</svg>';
-        setTip(btn, 'Density: ' + d + ' — switch to ' + next);
+        setTip(btn, dbeFmt(dbeT('densityTip', 'Density: %1$s (switch to %2$s)'), dbeModeName(d), dbeModeName(next)));
     }
     function ensureDensityButton() {
         var col = document.querySelector('.uniTopPanel__rightCol');
@@ -2576,8 +2613,8 @@
         wrap.className = 'dbe-tree-search';
         var input = document.createElement('input');
         input.type = 'search';
-        input.placeholder = 'Filter elements…';
-        input.setAttribute('aria-label', 'Filter elements by label or tag');
+        input.placeholder = dbeT('filterElements', 'Filter elements…');
+        input.setAttribute('aria-label', dbeT('filterElementsAria', 'Filter elements by label or tag'));
         var count = document.createElement('span');
         count.className = 'dbe-tree-search__count';
         count.setAttribute('role', 'status'); // polite live region for the match count
@@ -2619,7 +2656,7 @@
             cue = document.createElement('span');
             cue.className = 'dbe-save-cue';
             cue.setAttribute('role', 'status');
-            cue.textContent = 'Unsaved';
+            cue.textContent = dbeT('unsaved', 'Unsaved');
             save.parentNode.insertBefore(cue, save);
             save.addEventListener('click', function () {
                 // Give the save request a beat, then treat the current state as clean.
@@ -2637,24 +2674,24 @@
 
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
     var SHORTCUT_GROUPS = [
-        ['General', [
-            ['?', 'Open this shortcuts overlay'],
-            ['Esc', 'Close menus and dialogs; clear the multi-selection'],
-            ['Delete', 'Remove the selected element (Builderius)'],
-            ['Cmd/Ctrl+C · Cmd/Ctrl+V', 'Copy / paste the selected element (Builderius)']
+        [dbeT('scGroupGeneral', 'General'), [
+            ['?', dbeT('scOpenOverlay', 'Open this shortcuts overlay')],
+            ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
+            ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
+            ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ]],
-        ['Navigator', [
-            ['Cmd/Ctrl+Z', 'Restore the last deleted element'],
-            ['Cmd/Ctrl+Shift+Z', 'Redo the delete'],
-            ['Cmd/Ctrl+click', 'Add or remove a row from the multi-selection'],
-            ['Shift+click', 'Select a range of rows'],
-            ['Shift+F10', 'Open the context menu on the focused row']
+        [dbeT('scGroupNavigator', 'Navigator'), [
+            ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
+            ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
+            ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
+            ['Shift+click', dbeT('scRange', 'Select a range of rows')],
+            ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
         ]],
-        ['Context menu', [
-            ['↑ ↓', 'Move between items (wraps)'],
-            ['Home · End', 'First / last item'],
-            ['Enter · Space', 'Activate an item or open its submenu'],
-            ['→ ←', 'Open / close a submenu']
+        [dbeT('scGroupContextMenu', 'Context menu'), [
+            ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
+            ['Home · End', dbeT('scFirstLast', 'First / last item')],
+            ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
+            ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
         ]]
     ];
     function openShortcutsDialog() {
@@ -2662,16 +2699,16 @@
         if (!dlg) {
             dlg = document.createElement('dialog');
             dlg.className = 'dbe-shortcuts';
-            dlg.setAttribute('aria-label', 'Keyboard shortcuts');
+            dlg.setAttribute('aria-label', dbeT('keyboardShortcuts', 'Keyboard shortcuts'));
             var head = document.createElement('div');
             head.className = 'dbe-shortcuts__head';
             var title = document.createElement('h2');
             title.className = 'dbe-shortcuts__title';
-            title.textContent = 'Keyboard shortcuts';
+            title.textContent = dbeT('keyboardShortcuts', 'Keyboard shortcuts');
             var close = document.createElement('button');
             close.type = 'button';
             close.className = 'dbe-shortcuts__close';
-            close.setAttribute('aria-label', 'Close');
+            close.setAttribute('aria-label', dbeT('close', 'Close'));
             close.textContent = '✕';
             close.addEventListener('click', function () { dlg.close(); });
             head.appendChild(title);
@@ -2766,7 +2803,7 @@
         h.setAttribute('data-edge', edge);
         h.setAttribute('role', 'separator');
         h.setAttribute('aria-orientation', 'vertical');
-        h.setAttribute('aria-label', 'Resize preview canvas');
+        h.setAttribute('aria-label', dbeT('resizePreview', 'Resize preview canvas'));
 
         var drag = null;
         h.addEventListener('pointerdown', function (ev) {
@@ -2929,7 +2966,7 @@
             if (!icon) { return; }
             if (onMode) {
                 icon.setAttribute('data-dbe-fav-label', icon.getAttribute('aria-label') || '');
-                icon.setAttribute('aria-label', favLabel(li) + ' — press up or down arrow to move, Escape to finish');
+                icon.setAttribute('aria-label', dbeFmt(dbeT('favArrowHint', '%s (press up or down arrow to move, Escape to finish)'), favLabel(li)));
             } else {
                 var prev = icon.getAttribute('data-dbe-fav-label');
                 if (prev) { icon.setAttribute('aria-label', prev); } else { icon.removeAttribute('aria-label'); }
@@ -2937,10 +2974,10 @@
             }
         });
         if (onMode) {
-            favAnnounce('Rearrange mode on — drag the icons, or focus one and use the arrow keys');
+            favAnnounce(dbeT('favModeOn', 'Rearrange mode on: drag the icons, or focus one and use the arrow keys'));
         } else {
             favPersistOrder();
-            favAnnounce('Rearrange mode off — order saved');
+            favAnnounce(dbeT('modeOffSaved', 'Rearrange mode off: order saved'));
         }
     }
 
@@ -2988,7 +3025,7 @@
             drag = null;
             favPersistOrder();
             var items = favItems();
-            favAnnounce('Moved ' + favLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+            favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), items.indexOf(li) + 1, items.length));
         }
         list.addEventListener('pointerup', endFavDrag, true);
         list.addEventListener('pointercancel', endFavDrag, true);
@@ -3013,7 +3050,7 @@
             list.insertBefore(li, ev.key === 'ArrowUp' ? sib : sib.nextSibling);
             favPersistOrder();
             var items = favItems();
-            favAnnounce('Moved ' + favLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+            favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), items.indexOf(li) + 1, items.length));
             var focusTarget = li.querySelector('button.modIcon');
             if (focusTarget) { focusTarget.focus(); }
         }, true);
@@ -3035,8 +3072,8 @@
         btn.type = 'button';
         btn.className = 'dbe-fav-reorder-btn';
         btn.setAttribute('aria-pressed', 'false');
-        btn.setAttribute('aria-label', 'Rearrange favourites');
-        btn.setAttribute('data-dbe-tip', 'Rearrange favourites');
+        btn.setAttribute('aria-label', dbeT('rearrangeFavourites', 'Rearrange favourites'));
+        btn.setAttribute('data-dbe-tip', dbeT('rearrangeFavourites', 'Rearrange favourites'));
         btn.innerHTML = '<svg width="10" height="14" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             '<circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="7" cy="2.5" r="1.3" fill="currentColor"/>' +
             '<circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/>' +
@@ -3259,10 +3296,10 @@
         if (perm.some(function (v) { return isNaN(v); })) { return; }
         if (perm.every(function (v, i) { return v === i; })) { return; } // unchanged
         var old = readComponentProps();
-        if (!old) { propAnnounce('Order changed on screen, but it could not be saved to the component'); return; }
+        if (!old) { propAnnounce(dbeT('propSaveFailed', 'Order changed on screen, but it could not be saved to the component')); return; }
         var next = perm.map(function (idx) { return old[idx]; });
         if (next.some(function (x) { return x === undefined; }) || next.length !== old.length) { return; } // stale — don't corrupt
-        if (!writeComponentProps(next)) { propAnnounce('Order changed on screen, but it could not be saved to the component'); }
+        if (!writeComponentProps(next)) { propAnnounce(dbeT('propSaveFailed', 'Order changed on screen, but it could not be saved to the component')); }
     }
 
     function setPropMode(list, onMode) {
@@ -3283,10 +3320,10 @@
                 li.setAttribute('tabindex', '0');
                 if (li.classList.contains('uniSettingComponentTmplProperties_itemEdit') && props[i]) {
                     var nm = li.querySelector('.uniSettingComponentTmplProperties_itemName');
-                    if (nm) { nm.setAttribute('data-dbe-prop-label', props[i].label || props[i].name || 'Property'); }
+                    if (nm) { nm.setAttribute('data-dbe-prop-label', props[i].label || props[i].name || dbeT('property', 'Property')); }
                 }
             });
-            propAnnounce('Rearrange mode on — drag a property, or focus one and use the arrow keys');
+            propAnnounce(dbeT('propModeOn', 'Rearrange mode on: drag a property, or focus one and use the arrow keys'));
         } else {
             propPersistOrder(list);
             propItems(list).forEach(function (li) {
@@ -3294,7 +3331,7 @@
                 var nm = li.querySelector('.uniSettingComponentTmplProperties_itemName[data-dbe-prop-label]');
                 if (nm) { nm.removeAttribute('data-dbe-prop-label'); }
             });
-            propAnnounce('Rearrange mode off — order saved');
+            propAnnounce(dbeT('modeOffSaved', 'Rearrange mode off: order saved'));
         }
     }
 
@@ -3336,7 +3373,7 @@
             li.classList.remove('dbe-prop-dragging');
             drag = null;
             var items = propItems(list);
-            propAnnounce('Moved ' + propLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+            propAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), propLabel(li), items.indexOf(li) + 1, items.length));
         }
         list.addEventListener('pointerup', endDrag, true);
         list.addEventListener('pointercancel', endDrag, true);
@@ -3361,7 +3398,7 @@
                 sib.classList.contains('uniSettingComponentTmplProperties_itemEdit'))) { return; }
             list.insertBefore(li, ev.key === 'ArrowUp' ? sib : sib.nextSibling);
             var items = propItems(list);
-            propAnnounce('Moved ' + propLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+            propAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), propLabel(li), items.indexOf(li) + 1, items.length));
             li.focus();
         }, true);
     }
@@ -3379,12 +3416,14 @@
         btn.type = 'button';
         btn.className = 'dbe-prop-reorder-btn';
         btn.setAttribute('aria-pressed', 'false');
-        btn.setAttribute('data-dbe-tip', 'Rearrange properties');
+        btn.setAttribute('data-dbe-tip', dbeT('rearrangeProperties', 'Rearrange properties'));
         btn.innerHTML = '<svg width="10" height="14" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             '<circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="7" cy="2.5" r="1.3" fill="currentColor"/>' +
             '<circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/>' +
-            '<circle cx="3" cy="11.5" r="1.3" fill="currentColor"/><circle cx="7" cy="11.5" r="1.3" fill="currentColor"/></svg>' +
-            '<span>Rearrange</span>';
+            '<circle cx="3" cy="11.5" r="1.3" fill="currentColor"/><circle cx="7" cy="11.5" r="1.3" fill="currentColor"/></svg>';
+        var btnText = document.createElement('span');
+        btnText.textContent = dbeT('rearrange', 'Rearrange');
+        btn.appendChild(btnText);
         btn.addEventListener('click', function () {
             setPropMode(list, btn.getAttribute('aria-pressed') !== 'true');
         });
@@ -3409,7 +3448,7 @@
     }
 
     function dbeCopyText(text) {
-        function done() { undoToast('Copied ' + text); }
+        function done() { undoToast(dbeFmt(dbeT('copied', 'Copied %s'), text)); }
         function fallback() {
             try {
                 var ta = document.createElement('textarea');
@@ -3421,7 +3460,7 @@
                 document.execCommand('copy');
                 ta.remove();
                 done();
-            } catch (e) { undoToast('Copy failed — clipboard unavailable'); }
+            } catch (e) { undoToast(dbeT('copyFailed', 'Copy failed: clipboard unavailable')); }
         }
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3464,20 +3503,20 @@
             });
             return li;
         }
-        ul.appendChild(mkItem('Copy ' + name, function () { dbeCopyText(name); }));
+        ul.appendChild(mkItem(dbeFmt(dbeT('copyName', 'Copy %s'), name), function () { dbeCopyText(name); }));
         if (bare !== name) {
-            ul.appendChild(mkItem('Copy ' + bare + ' (no dot)', function () { dbeCopyText(bare); }));
+            ul.appendChild(mkItem(dbeFmt(dbeT('copyNoDot', 'Copy %s (no dot)'), bare), function () { dbeCopyText(bare); }));
         }
         if (all.length > 1) {
-            ul.appendChild(mkItem('Copy all classes (' + all.length + ')', function () {
+            ul.appendChild(mkItem(dbeFmt(dbeT('copyAllClasses', 'Copy all classes (%s)'), all.length), function () {
                 dbeCopyText(all.map(function (n) { return n.replace(/^\./, ''); }).join(' '));
             }));
         }
         var actions = chipLi.querySelector('.actions');
         if (actions) {
-            var rm = mkItem('Remove ' + name + ' from element', function () {
+            var rm = mkItem(dbeFmt(dbeT('removeFromElement', 'Remove %s from element'), name), function () {
                 actions.click();
-                undoToast('Removed ' + name);
+                undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name));
             });
             rm.classList.add('dbe-ctx-item--first');
             ul.appendChild(rm);
@@ -3654,12 +3693,16 @@
             // Flip once per selector; if the user flips back we respect it.
             dbeScopeAutoLast = sel;
             remove();
-            try { setScope(owner); undoToast('Scope switched to ' + owner + ' — it owns the ' + sel + ' rules'); } catch (e) {}
+            try {
+                setScope(owner);
+                undoToast(dbeFmt(dbeT('scopeSwitchedOwns', 'Scope switched to %1$s: it owns the %2$s rules'),
+                    owner === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template'), sel));
+            } catch (e) {}
             return;
         }
 
-        var ownerLabel = owner.charAt(0).toUpperCase() + owner.slice(1);
-        var activeLabel = active.charAt(0).toUpperCase() + active.slice(1);
+        var ownerLabel = owner === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
+        var activeLabel = active === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
         var guard = existing;
         if (!guard) {
             guard = document.createElement('div');
@@ -3688,9 +3731,9 @@
         var msgEl = guard.querySelector('.dbe-scope-guard__msg');
         msgEl.appendChild(code);
         msgEl.appendChild(document.createTextNode(
-            ' rules are stored in ' + ownerLabel + ' — edits here save to ' + activeLabel + '.'
+            ' ' + dbeFmt(dbeT('guardRules', 'rules are stored in %1$s. Edits here save to %2$s.'), ownerLabel, activeLabel)
         ));
-        guard.querySelector('.dbe-scope-guard__switch').textContent = 'Switch to ' + ownerLabel;
+        guard.querySelector('.dbe-scope-guard__switch').textContent = dbeFmt(dbeT('switchTo', 'Switch to %s'), ownerLabel);
     }
 
     /* Which feature groups need which wiring. */

@@ -1,11 +1,12 @@
 <?php
 /**
  * Plugin Name:       Daveden Builder Enhancements
- * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI — each behind its own toggle.
+ * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
  * Version:           1.4.0
  * Author:            Daveden Digital
  * License:           GPL-2.0-or-later
  * Text Domain:       daveden-builderius-enhancements
+ * Domain Path:       /languages
  * Requires at least: 6.4
  * Requires PHP:      7.4
  *
@@ -65,12 +66,23 @@ $dbe_update_checker->addResultFilter(
 );
 
 require_once DBE_DIR . 'includes/features.php';
+require_once DBE_DIR . 'includes/i18n-builder.php';
 require_once DBE_DIR . 'includes/options.php';
 require_once DBE_DIR . 'includes/settings-page.php';
 require_once DBE_DIR . 'includes/output-builder.php';
 require_once DBE_DIR . 'includes/scope-css.php';
 require_once DBE_DIR . 'includes/output-preview.php';
 require_once DBE_DIR . 'includes/admin-bar.php';
+
+/**
+ * Load bundled translations from /languages. WordPress loads community
+ * language packs on its own; this covers translations shipped with the
+ * plugin itself (it is distributed from GitHub, not wordpress.org).
+ */
+function dbe_load_textdomain() {
+	load_plugin_textdomain( 'daveden-builderius-enhancements', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+}
+add_action( 'init', 'dbe_load_textdomain' );
 
 register_activation_hook( __FILE__, 'dbe_activate' );
 

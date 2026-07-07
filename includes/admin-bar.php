@@ -175,6 +175,10 @@ function dbe_adminbar_second_tab_warning() {
 (function () {
 	'use strict';
 	var HB = <?php echo wp_json_encode( $heartbeat ); ?>;
+	var MSG = <?php echo wp_json_encode( array(
+		'open' => __( 'The Builderius builder already appears to be open in another tab', 'daveden-builderius-enhancements' ),
+		'warn' => __( 'Editing in two builder tabs at once can overwrite each other’s changes. Open the builder here anyway?', 'daveden-builderius-enhancements' ),
+	) ); ?>;
 	// The builder page heartbeats into localStorage (builder.js); a beat
 	// fresher than HB.staleAfter means a builder tab is (very likely) open.
 	document.addEventListener('click', function (e) {
@@ -186,9 +190,9 @@ function dbe_adminbar_second_tab_warning() {
 		var beat;
 		try { beat = JSON.parse(raw); } catch (err) { return; }
 		if (!beat || typeof beat.t !== 'number' || (Date.now() - beat.t) > HB.staleAfter) { return; }
-		var msg = 'The Builderius builder already appears to be open in another tab'
+		var msg = MSG.open
 			+ (beat.title ? ':\n“' + beat.title + '”' : '')
-			+ '\n\nEditing in two builder tabs at once can overwrite each other’s changes. Open the builder here anyway?';
+			+ '\n\n' + MSG.warn;
 		if (!window.confirm(msg)) {
 			e.preventDefault();
 			e.stopPropagation();
