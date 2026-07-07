@@ -436,3 +436,31 @@ html[data-dbe-theme="light"] .uniModal .uniPanelButtonPrimary,
 html[data-dbe-theme="auto"]  .uniModal .uniPanelButtonPrimary { background: var(--dbe-line-hi) !important; color: var(--dbe-text) !important; }
 html[data-dbe-theme="light"] .uniModal__closeBtn,
 html[data-dbe-theme="auto"]  .uniModal__closeBtn { color: var(--dbe-text-2) !important; }
+
+/* --- Component properties panel (leak-audit) ---
+   The created-properties list (.uniSettingComponentTmplProperties) — its
+   property rows, the select-option rows and the "New property" / "New option"
+   buttons — paint on native dark-scale surfaces (--primary-1/2) with a dark
+   foreground token, so in the light theme the whole panel reads black-on-black.
+   Repaint the rows and buttons with the theme-aware surface/text tokens so the
+   labels stay legible; the darker theme keeps the native scale (no-op). */
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_item,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_item,
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_itemEdit,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_itemEdit {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_item *,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_item *,
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_itemEdit *,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_itemEdit * { color: var(--dbe-text) !important; }
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_addNewBtn,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_addNewBtn {
+    background: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniSettingComponentTmplProperties_addNewBtn:hover,
+html[data-dbe-theme="auto"]  .uniSettingComponentTmplProperties_addNewBtn:hover { color: var(--dbe-accent) !important; }

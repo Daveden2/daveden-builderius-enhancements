@@ -148,14 +148,21 @@ function dbe_features() {
 		/* ------------------------------------------------------------- Editing */
 		'context_menu'        => array(
 			'title'       => __( 'Context-menu enhancements', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Hover flyout submenus and full keyboard support (arrow keys, Home/End, Escape) for the Navigator right-click menu, plus a right-click copy/remove menu on the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'A flat, logically-grouped Navigator right-click menu — the everyday actions one click away, with full keyboard support (arrow keys, Home/End, Escape) and flyouts kept only where an action branches (Wrap in…, Save to…). Also adds a right-click copy/remove menu on the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,
 		),
 		'wrap_in'             => array(
-			'title'       => __( 'Wrap in…', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Right-click an element and wrap it in a div, template, or collection with template.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Wrap in… / Unwrap', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Right-click an element to wrap it in a div, template, or collection with template — or Unwrap a wrapper, promoting its children up one level and removing the empty shell.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array(),
+			'js'          => true,
+		),
+		'element_moves'       => array(
+			'title'       => __( 'Move & navigate elements', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Right-click an element for Move up / Move down (reorder it among its siblings) and Select parent (move the selection up one level).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,
@@ -189,6 +196,21 @@ function dbe_features() {
 		 * bindMultiDrag / removeMulti / the context-menu multi branches) is
 		 * parked in place; restore this entry to bring the feature back.
 		 */
+
+		'properties_reorder'  => array(
+			'title'       => __( 'Rearrange component properties', 'daveden-builderius-enhancements' ),
+			'description' => __( 'A rearrange button on a component’s properties panel switches into drag mode: drag the properties (or use the arrow keys) into a new order, saved with the component.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '24-properties-reorder.css' ),
+			'js'          => true,
+		),
+		'attr_helpers'        => array(
+			'title'       => __( 'HTML attribute helpers', 'daveden-builderius-enhancements' ),
+			'description' => __( 'When an element’s Advanced panel opens with no HTML attributes, a blank row is ready to type into (removed again if left empty), and the name field suggests common attributes (id, role, aria-*, data-…).', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '34-attr-helpers.css' ),
+			'js'          => true,
+		),
 
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(

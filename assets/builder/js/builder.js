@@ -248,6 +248,63 @@
         });
     }
 
+    /* (d1) Move the target element up or down among its siblings via the builder's
+       own move action (the repaint-and-persist channel). `to` is the desired final
+       position in the sibling order; if a Builderius version treats newIndex as
+       pre-removal instead, adjust the down case here. Selection is by id, so the
+       row stays selected as it moves — no reselect needed. */
+    function moveSibling(id, dir) {
+        if (dbeUndoBusy) { return; }
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[id]) { return; }
+        var parent = mods[id].parent || '';
+        var idx = sf.storeGet('indexes') || {};
+        var sibs = idx[parent || 'root'] ? [].concat(idx[parent || 'root']) : [];
+        var at = sibs.indexOf(id);
+        if (at < 0) { return; }
+        var to = at + dir;
+        if (to < 0 || to >= sibs.length) { return; }
+        storeMoveModule(sf, id, parent, to);
+        undoToast('Moved “' + (mods[id].label || 'element') + '” ' + (dir < 0 ? 'up' : 'down'));
+    }
+
+    /* (d1b) Select the target's parent. The reliable channel is a click on the
+       parent's tree row — a raw storeSet('activeModule') is not trusted to
+       repaint the panels (see the rename channel note). */
+    function selectParentOf(id) {
+        var mods = modules() || {};
+        var p = mods[id] && mods[id].parent;
+        if (!p) { return; }
+        var row = document.querySelector('.uniRightPanel .uni-tree-node-' + p);
+        if (row) { clickSeq(row); }
+        else { try { store().storeSet('activeModule', p); } catch (e) {} }
+    }
+
+    /* (d1c) Unwrap — the inverse of wrap(): move every child up into the target's
+       own parent at the target's slot (order preserved), then remove the now-empty
+       wrapper through the native menu channel so the removal stays individually
+       undoable. Index math mirrors wrap()'s move-into; the move reducer's newIndex
+       semantics are version-sensitive, so confirm against a live save. */
+    function unwrap(id) {
+        if (dbeUndoBusy) { return; }
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[id]) { return; }
+        var parent = mods[id].parent || '';
+        var idx = sf.storeGet('indexes') || {};
+        var parentSibs = idx[parent || 'root'] ? [].concat(idx[parent || 'root']) : [];
+        var wrapperAt = parentSibs.indexOf(id);
+        if (wrapperAt < 0) { wrapperAt = parentSibs.length; }
+        var kids = idx[id] ? [].concat(idx[id]) : [];
+        if (!kids.length) { undoToast('Nothing to unwrap — this element has no children'); return; }
+        kids.forEach(function (kid, i) { storeMoveModule(sf, kid, parent, wrapperAt + i); });
+        // The wrapper is empty now — remove it via the native channel (undoable),
+        // giving the moves a beat to commit and the user's menu time to close.
+        setTimeout(function () { driveContextMenuItem(id, 'Remove', function () {}); }, 200);
+        undoToast('Unwrapped ' + kids.length + ' element' + (kids.length === 1 ? '' : 's'));
+    }
+
     /* (d2) Rename the element from the tree context menu. Builderius HAS a
        native rename channel — the settings-panel header title (.uniPanelHeader__title
        .text) is a contenteditable bound to the selected module's label — but it
@@ -1307,6 +1364,32 @@
         return li;
     }
 
+    /* A plain injected leaf item. Mirrors the inline Rename / Auto-BEM pattern:
+       mousedown closes the menu, then runs the action. A disabled item renders
+       greyed and non-interactive, and stays out of the keyboard focus ring
+       (menuScopeItems skips aria-disabled rows). */
+    function makeCtxItem(labelText, onActivate, opts) {
+        opts = opts || {};
+        var li = document.createElement('li');
+        li.className = 'uniContextMenu__item dbe-ctx-item';
+        li.setAttribute('role', 'menuitem');
+        li.textContent = labelText;
+        if (opts.disabled) {
+            li.classList.add('disabled', 'dbe-ctx-disabled');
+            li.setAttribute('aria-disabled', 'true');
+            if (opts.tip) { li.setAttribute('data-dbe-tip', opts.tip); }
+            return li;
+        }
+        li.addEventListener('mousedown', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            removeSubmenus();
+            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+            onActivate();
+        });
+        return li;
+    }
+
     function makeWrapItem(type, labelText) {
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item';
@@ -1452,13 +1535,14 @@
         return items;
     }
 
-    /* The element context menu. With context_menu ON the long flat list is
-       regrouped into logical submenus — Duplicate and Create Component stay
-       top-level, Copy/Paste fold into "Clipboard", the naming actions into
-       "Name & classes", wrap + expand into "Structure", the native Save items
-       into "Save to", and Remove drops to the bottom behind a separator. With
-       context_menu OFF the injected items keep their original flat layout and
-       the native items are left untouched. */
+    /* The element context menu. With context_menu ON the items are re-laid into
+       one flat, logically-clustered list (separator borders between clusters, no
+       nested groups): Duplicate · Copy/Paste · Rename/Reset/Auto-BEM ·
+       Wrap in…/Unwrap · Move up/down/Select parent/Expand · Create Component/
+       Save to… · Remove. Native items keep their React handlers when re-parented.
+       Flyouts survive only where an action branches (Wrap in…, Save to…). With
+       context_menu OFF the injected items are appended after the untouched
+       native ones. */
     function onContextMenuShow() {
         requestAnimationFrame(function () {
             removeSubmenus();
@@ -1473,7 +1557,7 @@
             var anyItem = document.querySelector('.uniContextMenu__item');
             if (!anyItem) { return; }
             var container = anyItem.parentElement;
-            if (!container || container.querySelector('.dbe-ctx-parent')) { return; }
+            if (!container || container.querySelector('.dbe-ctx-parent') || container.hasAttribute('data-dbe-flat')) { return; }
             if (!/Duplicate|Create Component/.test(container.textContent || '')) { return; }
 
             var grouped = on('context_menu');
@@ -1616,15 +1700,48 @@
                 });
             }
 
-            /* --- Flat layout (context_menu off): original append order --- */
-            if (!grouped) {
-                if (nameItems.length) {
-                    nameItems[0].classList.add('dbe-ctx-item--first');
-                    nameItems.forEach(function (li) { container.appendChild(li); });
+            // "Unwrap" (rides on wrap_in) — promote the target's children up a
+            // level and drop the empty wrapper. Single-target, needs children.
+            var unwrapLi = null;
+            if (!multiIds && wrapEnabled && lastCtxId) {
+                var uwIdx = store().storeGet('indexes') || {};
+                var uwKids = [].concat(uwIdx[lastCtxId] || []);
+                var uwMods = modules() || {};
+                var uwHasParent = !!(uwMods[lastCtxId] && (uwMods[lastCtxId].parent || ''));
+                if (uwKids.length && uwHasParent) {
+                    (function () {
+                        var uid = lastCtxId;
+                        unwrapLi = makeCtxItem('Unwrap', function () { unwrap(uid); });
+                    })();
                 }
-                if (expandLi) {
-                    if (!nameItems.length) { expandLi.classList.add('dbe-ctx-item--first'); }
-                    container.appendChild(expandLi);
+            }
+
+            // "Move up" / "Move down" / "Select parent" (element_moves) — single-target.
+            var moveUpLi = null, moveDownLi = null, selectParentLi = null;
+            if (!multiIds && on('element_moves') && lastCtxId) {
+                var emId = lastCtxId;
+                var emMods = modules() || {};
+                var emMod = emMods[emId];
+                if (emMod) {
+                    var emParent = emMod.parent || '';
+                    var emIdx = store().storeGet('indexes') || {};
+                    var emSibs = [].concat(emIdx[emParent || 'root'] || []);
+                    var emAt = emSibs.indexOf(emId);
+                    moveUpLi = makeCtxItem('Move up', function () { moveSibling(emId, -1); }, { disabled: emAt <= 0 });
+                    moveDownLi = makeCtxItem('Move down', function () { moveSibling(emId, 1); }, { disabled: emAt < 0 || emAt >= emSibs.length - 1 });
+                    if (emParent) { selectParentLi = makeCtxItem('Select parent', function () { selectParentOf(emId); }); }
+                }
+            }
+
+            /* --- Flat layout (context_menu off): append injected items after the
+               native ones, so each feature still works with grouping turned off. */
+            if (!grouped) {
+                var injected = nameItems.concat(
+                    [unwrapLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                );
+                if (injected.length) {
+                    injected[0].classList.add('dbe-ctx-item--first');
+                    injected.forEach(function (li) { container.appendChild(li); });
                 }
                 if (removeNLi) { container.appendChild(removeNLi); }
                 if (wrapEnabled) {
@@ -1646,57 +1763,66 @@
                 return;
             }
 
-            /* --- Grouped layout (context_menu on) --- */
+            /* --- Flat, logically-clustered layout (context_menu on) --- */
+            container.setAttribute('data-dbe-flat', '1'); // re-entry guard
 
-            // Clipboard › Copy / Paste (single-target: disabled for multi).
-            var clipItems = collectNativeItems(container, /^(Copy|Paste)$/);
-            if (clipItems.length) {
-                container.appendChild(makeParent('Clipboard', false, function () { return clipItems; }, !!multiIds));
-            }
+            // Native items we reposition. Detaching keeps their React handlers
+            // alive (they delegate from an ancestor). An empty match means the
+            // native label drifted (new version / locale) — that cluster is just
+            // skipped, never a crash. The multi-select pass above already disabled
+            // the single-target ones, and that state rides along with the node.
+            var natDuplicate = collectNativeItems(container, /^Duplicate$/);
+            var natClip = collectNativeItems(container, /^(Copy|Paste)$/);
+            var natCreate = collectNativeItems(container, /^Create Component$/);
+            var natSave = collectNativeItems(container, /^Save\b/);
+            var natRemove = collectNativeItems(container, /^Remove$/);
 
-            // Name & classes › Rename / Reset label / Auto-BEM…
-            if (nameItems.length) {
-                container.appendChild(makeParent('Name & classes', false, function () { return nameItems; }, false));
-            }
-
-            // Structure › Wrap in … / Expand children. The wrap actions are
-            // hoisted flat into this flyout (labels gain a "Wrap in " prefix) —
-            // flyouts cannot nest: openFlyout() tears down any open submenu.
-            if (wrapEnabled || expandLi) {
-                var wrapLabel = multiIds ? ('Wrap ' + multiIds.length + ' in ') : 'Wrap in ';
-                var structParent = makeParent('Structure', false, function () {
-                    var items = [];
-                    if (wrapEnabled) {
-                        items.push(makeWrapItem('div', wrapLabel + 'Div'));
-                        items.push(makeWrapItem('template', wrapLabel + 'Template'));
-                        items.push(makeWrapItem('collection', wrapLabel + 'Collection + template'));
-                    }
-                    if (expandLi) { items.push(expandLi); }
-                    return items;
+            // Structure cluster: Wrap in… flyout (the wrap targets are hoisted
+            // flat inside it — flyouts can't nest) + Unwrap.
+            var wrapLabel = multiIds ? ('Wrap ' + multiIds.length + ' in ') : 'Wrap in ';
+            var wrapParent = null;
+            if (wrapEnabled) {
+                wrapParent = makeParent(multiIds ? ('Wrap ' + multiIds.length + ' in…') : 'Wrap in…', false, function () {
+                    return [
+                        makeWrapItem('div', wrapLabel + 'Div'),
+                        makeWrapItem('template', wrapLabel + 'Template'),
+                        makeWrapItem('collection', wrapLabel + 'Collection + template')
+                    ];
                 }, wrapDisabled);
-                if (wrapDisabled) { structParent.setAttribute('data-dbe-tip', 'Only sibling elements can be wrapped together'); }
-                container.appendChild(structParent);
+                if (wrapDisabled) { wrapParent.setAttribute('data-dbe-tip', 'Only sibling elements can be wrapped together'); }
             }
 
-            // Save to › the native "Save ..." (SOON) items (disabled for multi).
-            var saveItems = collectNativeItems(container, /^Save\b/);
-            if (saveItems.length) {
-                container.appendChild(makeParent('Save to', false, function () { return saveItems; }, !!multiIds));
+            // Reuse cluster: Create Component + Save to. Keep Save as a flyout only
+            // when it branches (>1 native item); a lone Save item goes flat.
+            var saveItem = null;
+            if (natSave.length > 1) {
+                saveItem = makeParent('Save to…', false, function () { return natSave; }, !!multiIds);
+            } else if (natSave.length === 1) {
+                saveItem = natSave[0];
+                if (multiIds) { disableCtxItem(saveItem); }
             }
 
-            // Remove sits last, behind a separator — the destructive action is
-            // easiest to hit by muscle memory, so give it its own zone. For a
-            // multi-selection "Remove N elements" replaces the (single-target)
-            // native item.
-            var removeNative = collectNativeItems(container, /^Remove$/);
-            if (multiIds) {
-                if (removeNLi) { container.appendChild(removeNLi); }
-            } else if (removeNative.length) {
-                removeNative.forEach(function (li) {
-                    li.classList.add('dbe-ctx-item--first');
-                    container.appendChild(li);
-                });
-            }
+            // Assemble the clusters in order; empty ones drop out. The first item
+            // of every cluster after the first gets a top-border separator via
+            // .dbe-ctx-item--first — no separator <li>, so the keyboard focus ring
+            // (which skips only disabled rows) is untouched.
+            var clusters = [
+                natDuplicate,                                                    // Clone
+                natClip,                                                         // Clipboard
+                nameItems,                                                       // Name & style
+                [wrapParent, unwrapLi].filter(Boolean),                          // Structure
+                [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
+                natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
+                multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
+            ];
+
+            var seenCluster = false;
+            clusters.forEach(function (items) {
+                if (!items || !items.length) { return; }
+                if (seenCluster) { items[0].classList.add('dbe-ctx-item--first'); }
+                seenCluster = true;
+                items.forEach(function (li) { container.appendChild(li); });
+            });
 
             setupMenuKeyboard(container);
         });
@@ -2922,6 +3048,352 @@
         list.insertBefore(li, list.firstChild);
     }
 
+    /* ---- HTML attribute helpers (attr_helpers) -----------------------------
+       Two conveniences on the Advanced panel's HTML-attributes control:
+       (1) when the list opens empty, seed one blank row so the user can type
+           straight away — and drop it again if it is left blank, so an empty
+           attribute never reaches a save; (2) a native <datalist> of common
+           attribute names on each name field. Both are pure DOM sugar over the
+           native control — the store is only written through Builderius's own
+           add / remove buttons, never a raw storeSet. */
+    var dbeAttrSeededRow = null; // the blank row we added, awaiting use or cleanup
+    var dbeAttrSeededFor = null; // activeModule id we last seeded for (double-seed guard)
+
+    // A row is `_item` in display mode, `_itemEdit` while it holds live name/value
+    // inputs (a freshly-added or edited row is always `_itemEdit`).
+    var ATTR_ROW_SEL = '.uniSettingHtmlAttribute_item, .uniSettingHtmlAttribute_itemEdit';
+    function attrList() { return document.querySelector('ul.uniSettingHtmlAttribute_list'); }
+    function attrRows(list) { return [].slice.call(list.querySelectorAll(ATTR_ROW_SEL)); }
+    function attrNameInput(row) {
+        return row.querySelector('.uniSettingHtmlAttribute_itemName input') || row.querySelector('input');
+    }
+    function attrRowBlank(row) {
+        var inputs = [].slice.call(row.querySelectorAll('input'));
+        return inputs.length > 0 && inputs.every(function (i) { return !(i.value || '').trim(); });
+    }
+    function attrRemoveRow(row) {
+        var btn = row.querySelector('.uniSettingHtmlAttribute_itemActions button') || row.querySelector('button');
+        if (btn) { clickSeq(btn); }
+    }
+
+    function ensureAttrDatalist() {
+        if (document.getElementById('dbe-attr-names')) { return; }
+        var dl = document.createElement('datalist');
+        dl.id = 'dbe-attr-names';
+        ['id', 'role', 'title', 'tabindex', 'aria-label', 'aria-labelledby', 'aria-describedby',
+         'aria-hidden', 'aria-live', 'data-', 'lang', 'dir', 'hidden'].forEach(function (n) {
+            var o = document.createElement('option');
+            o.value = n;
+            dl.appendChild(o);
+        });
+        document.body.appendChild(dl);
+    }
+
+    function bindAttrQuickPick(list) {
+        ensureAttrDatalist();
+        attrRows(list).forEach(function (row) {
+            var nameInput = attrNameInput(row);
+            // React may drop an unmanaged attribute on re-render — re-apply each tick.
+            if (nameInput && nameInput.getAttribute('list') !== 'dbe-attr-names') {
+                nameInput.setAttribute('list', 'dbe-attr-names');
+            }
+        });
+    }
+
+    function bindAttrAutoClean() {
+        if (document.dbeAttrCleanBound) { return; }
+        document.dbeAttrCleanBound = true;
+        // When focus leaves the seeded row while it is still blank, drop it — the
+        // row the user never filled in never reaches the store's save.
+        document.addEventListener('focusout', function () {
+            if (!dbeAttrSeededRow) { return; }
+            setTimeout(function () {
+                var r = dbeAttrSeededRow;
+                if (!r) { return; }
+                if (!document.body.contains(r)) { dbeAttrSeededRow = null; return; }
+                if (r.contains(document.activeElement)) { return; } // still editing it
+                r.classList.remove('dbe-attr-seeded');
+                if (attrRowBlank(r)) { attrRemoveRow(r); }
+                dbeAttrSeededRow = null; // its fate is settled either way
+            }, 60);
+        }, true);
+    }
+
+    function ensureBlankAttrRow() {
+        bindAttrAutoClean();
+        var list = attrList();
+        if (!list) { return; } // Advanced panel not open / no attributes control here
+        bindAttrQuickPick(list);
+        var mid = activeId();
+        if (dbeAttrSeededFor === mid) { return; } // already handled this element
+        var rows = attrRows(list);
+        if (rows.length > 0) { dbeAttrSeededFor = mid; return; } // user already has rows
+        var addBtn = (list.parentNode && list.parentNode.querySelector('button.uniSettingHtmlAttribute_addNewBtn')) ||
+            document.querySelector('button.uniSettingHtmlAttribute_addNewBtn');
+        if (!addBtn) { return; }
+        dbeAttrSeededFor = mid;
+        clickSeq(addBtn);
+        waitFor(function () {
+            var l = attrList();
+            return (l && l.querySelector(ATTR_ROW_SEL)) || null;
+        }, function (r) {
+            if (!r) { return; }
+            dbeAttrSeededRow = r;
+            r.classList.add('dbe-attr-seeded');
+            var l = attrList();
+            if (l) { bindAttrQuickPick(l); }
+            var ni = attrNameInput(r);
+            if (ni) { try { ni.focus(); } catch (e) {} }
+        });
+    }
+
+    /* ---- Component properties reorder (properties_reorder) -----------------
+       A rearrange toggle on a component's created-properties list (the DEFINE
+       panel — .uniSettingComponentTmplProperties — not the per-instance value
+       list). Drag mode reorders rows by pointer or arrow keys; on exit the new
+       order is written back to the component's `componentTmplProperties` entity
+       setting — real saveable data (unlike favourites' per-browser order), so it
+       persists with the component. The permutation is captured from each row's
+       original array index, recorded at drag-start, so no name-matching. */
+    var dbePropStatus = null;
+
+    var PROP_ROW_SEL = '.uniSettingComponentTmplProperties_item, .uniSettingComponentTmplProperties_itemEdit';
+
+    /* The TOP-LEVEL created-properties list — never a select-option `_sublist`
+       (which shares the `_list` class) and never a list nested inside a property
+       row that is being edited. */
+    function propList() {
+        var lists = [].slice.call(document.querySelectorAll('ul.uniSettingComponentTmplProperties_list'));
+        for (var i = 0; i < lists.length; i++) {
+            var l = lists[i];
+            if (l.classList.contains('uniSettingComponentTmplProperties_sublist')) { continue; }
+            if (l.closest('.uniSettingComponentTmplProperties_item, .uniSettingComponentTmplProperties_itemEdit')) { continue; }
+            return l;
+        }
+        return null;
+    }
+    /* Property rows — a row is `_item` normally, `_itemEdit` while it is being
+       edited/expanded; both are top-level properties to reorder. */
+    function propItems(list) {
+        return [].slice.call(list.children).filter(function (li) {
+            return li.classList && (li.classList.contains('uniSettingComponentTmplProperties_item') ||
+                li.classList.contains('uniSettingComponentTmplProperties_itemEdit'));
+        });
+    }
+    function propLabel(li) {
+        var n = li.querySelector('.uniSettingComponentTmplProperties_itemName');
+        return (n && (n.textContent || '').trim()) || 'property';
+    }
+    function propAnnounce(msg) {
+        if (!dbePropStatus || !document.body.contains(dbePropStatus)) {
+            dbePropStatus = document.createElement('div');
+            dbePropStatus.className = 'dbe-visually-hidden';
+            dbePropStatus.setAttribute('role', 'status');
+            document.body.appendChild(dbePropStatus);
+        }
+        dbePropStatus.textContent = msg;
+    }
+
+    /* The entity's settings container (Builderius core: getEntitySettings ===
+       state entity.settings). It may be an object keyed by setting name OR an
+       array of {name, setting} — handle both. */
+    function entitySettings() {
+        try {
+            var ent = store().storeGet('entity');
+            if (ent && ent.settings) { return ent.settings; }
+        } catch (e) {}
+        return null;
+    }
+    function entitySetting(name) {
+        var s = entitySettings();
+        if (!s) { return undefined; }
+        if (Array.isArray(s)) {
+            var hit = s.filter(function (e) { return e && e.name === name; })[0];
+            return hit ? hit.setting : undefined;
+        }
+        return s[name];
+    }
+
+    /* Read the created-properties array from entity settings; fall back to the
+       React fiber props around the list. Returns null if unreachable. */
+    function readComponentProps() {
+        var v = entitySetting('componentTmplProperties');
+        if (Array.isArray(v)) { return v; }
+        var list = propList();
+        if (!list) { return null; }
+        try {
+            var fk = Object.keys(list).find(function (k) { return k.indexOf('__reactFiber$') === 0; });
+            var f = fk && list[fk];
+            for (var i = 0; i < 12 && f; i++, f = f.return) {
+                var p = f.memoizedProps;
+                if (!p) { continue; }
+                for (var key in p) {
+                    var val = p[key];
+                    if (Array.isArray(val) && val.length && val.every(function (it) {
+                        return it && typeof it === 'object' && ('name' in it || 'label' in it || 'type' in it);
+                    })) { return val; }
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    /* Write the reordered array back through the builder's own setEntitySettings
+       action — the exact channel core's duplicate/remove use:
+       Xr("setEntitySettings", [{name:"componentTmplProperties", setting:e},
+       {name:"dataVars", setting:i}], false). dataVars is passed through unchanged
+       (a reorder doesn't alter it). VERIFY live that the dispatch persists. */
+    function writeComponentProps(arr) {
+        try {
+            var payload = [{ name: 'componentTmplProperties', setting: arr }];
+            var dv = entitySetting('dataVars');
+            if (dv !== undefined) { payload.push({ name: 'dataVars', setting: dv }); }
+            store().storeSet('setEntitySettings', payload, false);
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function propPersistOrder(list) {
+        var rows = propItems(list);
+        var perm = rows.map(function (li) { return parseInt(li.getAttribute('data-dbe-prop-idx'), 10); });
+        if (perm.some(function (v) { return isNaN(v); })) { return; }
+        if (perm.every(function (v, i) { return v === i; })) { return; } // unchanged
+        var old = readComponentProps();
+        if (!old) { propAnnounce('Order changed on screen, but it could not be saved to the component'); return; }
+        var next = perm.map(function (idx) { return old[idx]; });
+        if (next.some(function (x) { return x === undefined; }) || next.length !== old.length) { return; } // stale — don't corrupt
+        if (!writeComponentProps(next)) { propAnnounce('Order changed on screen, but it could not be saved to the component'); }
+    }
+
+    function setPropMode(list, onMode) {
+        var container = list.closest('.uniSettingComponentTmplProperties') || list.parentNode;
+        var btn = container && container.querySelector('.dbe-prop-reorder-btn');
+        list.classList.toggle('dbe-prop-reordering', onMode);
+        if (btn) { btn.setAttribute('aria-pressed', onMode ? 'true' : 'false'); }
+        if (onMode) {
+            // DOM order == array order on entry — record it for the permutation.
+            // Builderius keeps exactly one property expanded (an "open" _itemEdit
+            // row with no native collapse control); the CSS collapses it to a
+            // uniform strip while reordering, but its header then reads a generic
+            // "Property", so surface the real label on the name element for the
+            // ::after relabel (see 24-properties-reorder.css).
+            var props = readComponentProps() || [];
+            propItems(list).forEach(function (li, i) {
+                li.setAttribute('data-dbe-prop-idx', i);
+                li.setAttribute('tabindex', '0');
+                if (li.classList.contains('uniSettingComponentTmplProperties_itemEdit') && props[i]) {
+                    var nm = li.querySelector('.uniSettingComponentTmplProperties_itemName');
+                    if (nm) { nm.setAttribute('data-dbe-prop-label', props[i].label || props[i].name || 'Property'); }
+                }
+            });
+            propAnnounce('Rearrange mode on — drag a property, or focus one and use the arrow keys');
+        } else {
+            propPersistOrder(list);
+            propItems(list).forEach(function (li) {
+                li.removeAttribute('tabindex');
+                var nm = li.querySelector('.uniSettingComponentTmplProperties_itemName[data-dbe-prop-label]');
+                if (nm) { nm.removeAttribute('data-dbe-prop-label'); }
+            });
+            propAnnounce('Rearrange mode off — order saved');
+        }
+    }
+
+    function bindPropDrag(list) {
+        if (list.dbePropBound) { return; }
+        list.dbePropBound = true;
+        var drag = null;
+        list.addEventListener('click', function (ev) {
+            if (!list.classList.contains('dbe-prop-reordering')) { return; }
+            if (ev.target.closest && ev.target.closest('.dbe-prop-reorder')) { return; }
+            ev.preventDefault();
+            ev.stopPropagation();
+        }, true);
+        list.addEventListener('pointerdown', function (ev) {
+            if (!list.classList.contains('dbe-prop-reordering')) { return; }
+            var li = ev.target.closest && ev.target.closest(PROP_ROW_SEL);
+            if (!li) { return; }
+            ev.preventDefault();
+            ev.stopPropagation();
+            drag = { li: li };
+            li.classList.add('dbe-prop-dragging');
+            try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
+        }, true);
+        list.addEventListener('pointermove', function (ev) {
+            if (!drag) { return; }
+            var items = propItems(list).filter(function (it) { return it !== drag.li; });
+            for (var i = 0; i < items.length; i++) {
+                var r = items[i].getBoundingClientRect();
+                if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
+                    var before = ev.clientY < r.top + r.height / 2;
+                    list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
+                    break;
+                }
+            }
+        }, true);
+        function endDrag() {
+            if (!drag) { return; }
+            var li = drag.li;
+            li.classList.remove('dbe-prop-dragging');
+            drag = null;
+            var items = propItems(list);
+            propAnnounce('Moved ' + propLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+        }
+        list.addEventListener('pointerup', endDrag, true);
+        list.addEventListener('pointercancel', endDrag, true);
+        list.addEventListener('keydown', function (ev) {
+            if (!list.classList.contains('dbe-prop-reordering')) { return; }
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                setPropMode(list, false);
+                var container = list.closest('.uniSettingComponentTmplProperties') || list.parentNode;
+                var b = container && container.querySelector('.dbe-prop-reorder-btn');
+                if (b) { b.focus(); }
+                return;
+            }
+            if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') { return; }
+            var li = ev.target.closest && ev.target.closest(PROP_ROW_SEL);
+            if (!li) { return; }
+            ev.preventDefault();
+            ev.stopPropagation();
+            var sib = ev.key === 'ArrowUp' ? li.previousElementSibling : li.nextElementSibling;
+            if (!sib || !(sib.classList.contains('uniSettingComponentTmplProperties_item') ||
+                sib.classList.contains('uniSettingComponentTmplProperties_itemEdit'))) { return; }
+            list.insertBefore(li, ev.key === 'ArrowUp' ? sib : sib.nextSibling);
+            var items = propItems(list);
+            propAnnounce('Moved ' + propLabel(li) + ' to position ' + (items.indexOf(li) + 1) + ' of ' + items.length);
+            li.focus();
+        }, true);
+    }
+
+    function ensurePropertiesReorder() {
+        var list = propList();
+        if (!list) { return; }
+        bindPropDrag(list);
+        var container = list.closest('.uniSettingComponentTmplProperties') || list.parentNode;
+        if (!container || container.querySelector('.dbe-prop-reorder')) { return; }
+        if (propItems(list).length < 2) { return; } // nothing to reorder
+        var wrapEl = document.createElement('div');
+        wrapEl.className = 'dbe-prop-reorder';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dbe-prop-reorder-btn';
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('data-dbe-tip', 'Rearrange properties');
+        btn.innerHTML = '<svg width="10" height="14" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="7" cy="2.5" r="1.3" fill="currentColor"/>' +
+            '<circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/>' +
+            '<circle cx="3" cy="11.5" r="1.3" fill="currentColor"/><circle cx="7" cy="11.5" r="1.3" fill="currentColor"/></svg>' +
+            '<span>Rearrange</span>';
+        btn.addEventListener('click', function () {
+            setPropMode(list, btn.getAttribute('aria-pressed') !== 'true');
+        });
+        wrapEl.appendChild(btn);
+        var addBtn = container.querySelector('.uniSettingComponentTmplProperties_addNewBtn');
+        if (addBtn && addBtn.parentNode) { addBtn.parentNode.insertBefore(wrapEl, addBtn); }
+        else { container.insertBefore(wrapEl, container.firstChild); }
+    }
+
     /* Class-chip copy menu (context_menu). The class chips in the Styles
        editor natively offer only a hover-revealed remove (X); right-click
        (or Shift+F10 on a focused chip) opens a small menu to copy the class
@@ -3224,8 +3696,8 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard') || on('context_menu');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard') || on('context_menu') || on('properties_reorder') || on('attr_helpers');
+    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -3355,6 +3827,8 @@
                 try { ensureFavouritesReorder(); } catch (e) {}
                 try { applyFavouritesOrder(); } catch (e) {}
             }
+            if (on('properties_reorder')) { try { ensurePropertiesReorder(); } catch (e) {} }
+            if (on('attr_helpers')) { try { ensureBlankAttrRow(); } catch (e) {} }
         });
     }
 

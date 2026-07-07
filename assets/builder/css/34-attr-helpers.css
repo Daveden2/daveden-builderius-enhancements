@@ -1,0 +1,11 @@
+/* HTML attribute helpers. The seeded blank row and the name-field suggestions
+   both ride on the native attributes control, so there is little to style — the
+   <datalist> dropdown is browser-native. A faint cue marks the seeded row while
+   it is still empty, so it reads as a ready-to-fill placeholder rather than a
+   saved attribute. */
+
+.uniSettingHtmlAttribute_item.dbe-attr-seeded {
+    outline: 1px dashed var(--dbe-sep-line, currentColor) !important;
+    outline-offset: -1px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}

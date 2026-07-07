@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -20,12 +20,37 @@ community. Thank you:
 
 * Inline rename — Israel Reyes and Tim Gray
 * Follow selection in the tree — Israel Reyes
+* HTML attribute helpers — Tim Gray
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
 
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.4.0 =
+* New — Move & navigate elements: right-click an element for Move up / Move down
+  (reorder it among its siblings) and Select parent (move the selection up one
+  level). A new toggle.
+* New — Rearrange component properties: a rearrange button on a component's
+  properties panel switches into drag mode; drag the properties (or use the
+  arrow keys) into a new order, saved with the component. A new toggle.
+* New — HTML attribute helpers: when an element's Advanced panel opens with no
+  HTML attributes, a blank row is ready to type into (removed again if left
+  empty), and the name field suggests common attributes (id, role, aria-*,
+  data-…). A new toggle. Props Tim Gray.
+* Wrap in… : adds Unwrap — remove a wrapper element and promote its children up
+  one level, dropping the empty shell (the inverse of wrapping).
+* Context menu: the right-click menu is now one flat, logically-grouped list —
+  the everyday actions one click away — instead of nested flyout groups.
+  Flyouts are kept only where an action branches (Wrap in…, Save to…). Full
+  keyboard support is unchanged.
+* Rearrange component properties: an expanded property (which Builderius gives
+  no collapse control) now collapses to a uniform strip during reorder and
+  shows its real name, so it can be grabbed and moved like the others.
+* Light theme: the component properties panel — the New property button, the
+  property rows and the select-option rows — no longer renders black-on-black;
+  repainted with the theme's surface and text tokens.
 
 = 1.3.0 =
 * New — Double-click to rename: double-click an element on its Navigator row to
