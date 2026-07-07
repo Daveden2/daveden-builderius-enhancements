@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -27,6 +27,24 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.5.0 =
+* Fixed — the CSS scope guard was reading weeks-stale stylesheets. Builderius
+  keeps the current saved state in its branch/commit storage (the newest
+  builderius_commit named by the branch's active_commit meta), not in the
+  builderius_dsm snapshot posts the guard indexed, and the global stylesheet's
+  entity is the settings set (the old global-settings slug is defunct). The
+  guard and its refresh route now resolve the live commit, keeping the old
+  snapshot read as a fallback for installs without commit rows.
+* Changed — the settings-page copy is rewritten in plain British English: every
+  description now says what the feature does in full sentences, with
+  consistent terms throughout.
+* New — the builder UI is translatable. Every string the plugin renders in the
+  builder (tooltips, menus, dialogs, toasts, screen-reader announcements) now
+  goes through WordPress internationalisation and ships on the config object,
+  with a POT template in /languages and bundled-translation loading. The only
+  strings left in English are the native Builderius menu labels the plugin
+  matches against to drive the builder.
 
 = 1.4.0 =
 * New — Move & navigate elements: right-click an element for Move up / Move down
