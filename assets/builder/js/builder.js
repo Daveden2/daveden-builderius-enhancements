@@ -2266,6 +2266,20 @@
     var dbeScope = 'global';        // cached scope; default matches Builderius
     var dbeSwitchingScope = false;
 
+    /* Display name for the non-global scope. It follows the entity being
+       edited: "Component" when a component is open, "Template" otherwise —
+       mirroring the native TemplateScopeBtn, which labels itself from
+       entityMeta.type (verified 8 Jul 2026: editing a component, getEntitySettings
+       already returns the COMPONENT's CSS, so the store routes edits correctly;
+       only our label lagged). The internal scope key stays 'template' for both,
+       so nothing about the switch behaviour or the data-dbe-level CSS changes —
+       only the words the user reads. */
+    function entityScopeLabel() {
+        var t;
+        try { var m = store().storeGet('entityMeta'); t = m && m.type; } catch (e) { /* store not ready */ }
+        return t === 'component' ? dbeT('scopeComponent', 'Component') : dbeT('scopeTemplate', 'Template');
+    }
+
     /* The store's scope boolean, or null when unavailable (store not ready, or
        the key renamed by a Builderius update). */
     function scopeStoreValue() {
@@ -2522,7 +2536,7 @@
                 var b = document.createElement('button');
                 b.type = 'button';
                 b.setAttribute('data-scope', sc);
-                b.textContent = sc === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
+                b.textContent = sc === 'global' ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
                 b.addEventListener('click', function () {
                     // Fast path (store write) is instant — no cover needed. Only
                     // the slow Selectors-tab bounce gets masked: it is a multi-
@@ -2540,11 +2554,189 @@
             if (picker.nextSibling) { picker.parentNode.insertBefore(bar, picker.nextSibling); }
             else { picker.parentNode.appendChild(bar); }
         }
+        var entLabel = entityScopeLabel();
         bar.querySelector('.dbe-scope-badge').textContent =
-            level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? dbeT('scopeTemplate', 'Template') : dbeT('scopeGlobal', 'Global'));
+            level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
-            b.classList.toggle('is-active', b.getAttribute('data-scope') === dbeScope);
+            var sc = b.getAttribute('data-scope');
+            if (sc === 'template') { b.textContent = entLabel; } // keep the label in sync after an entity switch
+            b.classList.toggle('is-active', sc === dbeScope);
         });
+    }
+
+    /* (h) Scope isolation.
+
+       The native per-selector CSS editor shows a class's rules from whichever
+       scope PHYSICALLY stores them, ignoring the active Global/Template scope —
+       the scope only routes where a SAVE lands. So the same rules appear under
+       both scopes, and an edit made while the "wrong" scope is active silently
+       forks the rules into it. We can't rebind the native Monaco editor
+       reliably: neither writing `isGlobalScope` nor the public
+       `cssSelector.modifyCssObj` hook re-renders it (verified 8 Jul 2026 against
+       the live store — the editor content is bound to a model set at selection
+       time and nothing refreshes it on a scope flip).
+
+       So we drive the truth from the one authoritative source instead: each
+       scope's raw stylesheet in the store (getGlobalSettings.css /
+       getEntitySettings.css — the latter is the component's OR the template's
+       CSS, whichever entity is open, so this works identically for both). When
+       the active scope has NO rules for the selector but the other scope does,
+       we cover the editor — hiding the phantom rules and blocking the
+       fork-prone edit — and offer a one-click switch. A status line names the
+       scope the visible rules belong to at all times.
+
+       Base breakpoint + class selectors only: %local% is unambiguous, and
+       per-breakpoint presence isn't reliably parseable from the flat stylesheet
+       (a false "empty" would hide real CSS). This supersedes the older
+       REST-fed scope guard, which only warned and left the merged view intact. */
+    function scopeCss(which) {
+        try {
+            var s = store().storeGet(which === 'global' ? 'getGlobalSettings' : 'getEntitySettings');
+            return s && typeof s.css === 'string' ? s.css : '';
+        } catch (e) { return ''; }
+    }
+    /* Strip comments, collapse whitespace, tighten comma groups — so a stored
+       rule head compares equal to the store's `activeSelector` string. */
+    function normSel(str) {
+        return String(str).replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').trim();
+    }
+    /* True when `selector` is a base-breakpoint (top-level) rule head in `css`.
+       Walks balanced braces; conditional at-rule bodies (@media/@supports/…) and
+       other at-rules (@font-face, @keyframes) are skipped, so a responsive
+       override never counts as a base rule. Grouped heads (`.a, .b`) match on
+       any member. */
+    function selectorInScope(css, selector) {
+        if (!css) { return false; }
+        var want = normSel(selector), i = 0, n = css.length;
+        while (i < n) {
+            if (css[i] === '/' && css[i + 1] === '*') { var e = css.indexOf('*/', i + 2); i = e < 0 ? n : e + 2; continue; }
+            var open = css.indexOf('{', i);
+            if (open < 0) { break; }
+            var head = css.slice(i, open);
+            var depth = 1, j = open + 1;
+            while (j < n && depth > 0) {
+                var c = css[j];
+                if (c === '/' && css[j + 1] === '*') { var e2 = css.indexOf('*/', j + 2); j = e2 < 0 ? n : e2 + 2; continue; }
+                if (c === '{') { depth++; } else if (c === '}') { depth--; }
+                j++;
+            }
+            var h = normSel(head);
+            if (h.charAt(0) !== '@' && (h === want || h.split(',').indexOf(want) >= 0)) { return true; }
+            i = j;
+        }
+        return false;
+    }
+
+    /* Render the scope status line + editor cover for the active selector.
+       Idempotent and signature-guarded so an unchanged tick writes no DOM (the
+       panel MutationObserver re-runs schedule() on our own edits otherwise). */
+    function ensureScopeIsolation() {
+        var lp = document.querySelector('.uniLeftPanel');
+        if (!lp) { return; }
+        var mon = lp.querySelector('.monaco-editor');
+        var holder = mon && mon.parentElement;
+        function teardown() {
+            var st = lp.querySelector('.dbe-scope-status'); if (st) { st.remove(); }
+            var cov = lp.querySelector('.dbe-scope-cover'); if (cov) { cov.remove(); }
+            if (holder) { holder.classList.remove('dbe-scope-hold'); }
+            if (mon) { mon.classList.remove('dbe-scope-covered'); mon.removeAttribute('inert'); }
+        }
+        if (!isCssCodeMode(lp) || !holder) { return teardown(); }
+        var sf; try { sf = store(); } catch (e) { return teardown(); }
+        var sel, bp, isGlobal;
+        try {
+            sel = sf.storeGet('activeSelector');
+            bp = sf.storeGet('activeBreakpoint') || '';
+            isGlobal = sf.storeGet('isGlobalScope') === true;
+        } catch (e) { return teardown(); }
+        // Class selectors at the base breakpoint only — see the note above.
+        if (!sel || sel.charAt(0) !== '.' || bp !== '') { return teardown(); }
+
+        var activeName = isGlobal ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
+        var otherName = isGlobal ? entityScopeLabel() : dbeT('scopeGlobal', 'Global');
+        var otherTarget = isGlobal ? 'template' : 'global';
+        var activeHas = selectorInScope(scopeCss(isGlobal ? 'global' : 'entity'), sel);
+        var otherHas = selectorInScope(scopeCss(isGlobal ? 'entity' : 'global'), sel);
+        var state = activeHas ? 'own' : (otherHas ? 'elsewhere' : 'new');
+        var sig = state + '|' + sel + '|' + activeName + '|' + otherName + '|' + (otherHas ? 1 : 0);
+
+        // Status line — always present, anchored under the scope bar.
+        var status = lp.querySelector('.dbe-scope-status');
+        if (!status) {
+            status = document.createElement('div');
+            status.className = 'dbe-scope-status';
+            status.setAttribute('role', 'status');
+            var bar = lp.querySelector('.dbe-scope-bar');
+            var anchor = bar || lp.querySelector('.uniSettingsPageModuleDataForEditorWrapper');
+            if (!anchor) { return; }
+            if (anchor.nextSibling) { anchor.parentNode.insertBefore(status, anchor.nextSibling); }
+            else { anchor.parentNode.appendChild(status); }
+        }
+
+        if (status.getAttribute('data-dbe-sig') !== sig) {
+            status.setAttribute('data-dbe-sig', sig);
+            status.setAttribute('data-dbe-state', state);
+            var verb = state === 'own' ? dbeFmt(dbeT('scopeEditing', 'Editing %s rules'), activeName)
+                : state === 'new' ? dbeFmt(dbeT('scopeNewRule', 'New %s rule'), activeName)
+                    : dbeFmt(dbeT('scopeNoRules', 'No %s rules'), activeName);
+            status.innerHTML = '';
+            var vspan = document.createElement('span');
+            vspan.className = 'dbe-scope-status__verb';
+            vspan.textContent = verb;
+            var code = document.createElement('code');
+            code.textContent = sel;
+            status.appendChild(vspan);
+            status.appendChild(code);
+            if (state === 'own' && otherHas) {
+                var dup = document.createElement('span');
+                dup.className = 'dbe-scope-status__dup';
+                dup.textContent = ' ' + dbeFmt(dbeT('scopeAlsoIn', '· also in %s'), otherName);
+                status.appendChild(dup);
+            }
+        }
+
+        // Cover the editor only when the visible rules belong to the other scope.
+        if (state === 'elsewhere') {
+            holder.classList.add('dbe-scope-hold');
+            mon.classList.add('dbe-scope-covered');
+            mon.setAttribute('inert', ''); // keep Tab focus out of the hidden editor
+            var cover = holder.querySelector('.dbe-scope-cover');
+            if (!cover) {
+                cover = document.createElement('div');
+                cover.className = 'dbe-scope-cover';
+                var note = document.createElement('p');
+                note.className = 'dbe-scope-cover__note';
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dbe-scope-cover__switch';
+                btn.addEventListener('click', function () {
+                    var t = cover.getAttribute('data-dbe-target');
+                    if (t) { try { setScope(t); } catch (e) {} }
+                });
+                cover.appendChild(note);
+                cover.appendChild(btn);
+                holder.appendChild(cover);
+            }
+            if (cover.getAttribute('data-dbe-sig') !== sig) {
+                cover.setAttribute('data-dbe-sig', sig);
+                cover.setAttribute('data-dbe-target', otherTarget);
+                var noteEl = cover.querySelector('.dbe-scope-cover__note');
+                noteEl.innerHTML = '';
+                var c2 = document.createElement('code');
+                c2.textContent = sel;
+                noteEl.appendChild(document.createTextNode(dbeFmt(dbeT('scopeCoverPre', 'No %s rules for '), activeName)));
+                noteEl.appendChild(c2);
+                noteEl.appendChild(document.createTextNode(dbeFmt(dbeT('scopeCoverPost', '. Its rules live in %s.'), otherName)));
+                cover.querySelector('.dbe-scope-cover__switch').textContent = dbeFmt(dbeT('switchTo', 'Switch to %s'), otherName);
+            }
+        } else {
+            var existingCover = holder.querySelector('.dbe-scope-cover');
+            if (existingCover) { existingCover.remove(); }
+            holder.classList.remove('dbe-scope-hold');
+            mon.classList.remove('dbe-scope-covered');
+            mon.removeAttribute('inert');
+        }
     }
 
     /* (i) Theme switcher: cycles light -> dark -> auto, persisted per browser.
@@ -3661,164 +3853,10 @@
         }, true);
     }
 
-    /* Scope guard (scope_guard). Builderius' Styles code editor shows a
-       selector's existing rules whichever scope is active — the Global/
-       Template toggle only routes where edits are SAVED, so a template rule
-       viewed under Global gets silently forked into global CSS by an edit.
-       PHP supplies both scopes' SAVED stylesheets (from the builderius_dsm
-       posts) in CFG.scopeGuard.css; this indexes the class tokens per scope
-       and warns (or auto-switches, per the sub-setting) when the selected
-       selector's rules live in the other scope. Saved state only: the index
-       re-fetches after each Save. */
-    var dbeScopeCss = (CFG.scopeGuard && CFG.scopeGuard.css) || null;
-    var dbeScopeIndex = null;
-    var dbeScopeAutoLast = ''; // last selector auto-switched for (stops re-flips)
-
-    /* Class tokens used by any rule selector in a stylesheet. Membership is
-       all the guard needs, so this is a brace-walk, not a CSS parser: text
-       between the previous rule boundary and an opening brace is a selector
-       (unless it starts an at-rule), and every .class token in it counts. */
-    function dbeClassTokens(cssText) {
-        if (typeof cssText !== 'string') { return null; } // scope unknown
-        var set = {};
-        var txt = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
-        var buf = '';
-        for (var i = 0; i < txt.length; i++) {
-            var c = txt.charAt(i);
-            if (c === '{') {
-                var sel = buf.trim();
-                if (sel && sel.charAt(0) !== '@') {
-                    var toks = sel.match(/\.[A-Za-z0-9_-]+/g);
-                    if (toks) { toks.forEach(function (t) { set[t] = true; }); }
-                }
-                buf = '';
-            } else if (c === '}' || c === ';') {
-                buf = '';
-            } else {
-                buf += c;
-            }
-        }
-        return set;
-    }
-
-    function rebuildScopeIndex() {
-        dbeScopeIndex = dbeScopeCss ? {
-            template: dbeClassTokens(dbeScopeCss.template),
-            global: dbeClassTokens(dbeScopeCss.global)
-        } : null;
-    }
-
-    /* Where the selected class's saved rules live. Null when either scope's
-       stylesheet could not be resolved — the guard stays quiet rather than
-       warn from half the picture. */
-    function dbeScopeOwnership(selector) {
-        if (!dbeScopeIndex || !dbeScopeIndex.template || !dbeScopeIndex.global) { return null; }
-        return {
-            template: !!dbeScopeIndex.template[selector],
-            global: !!dbeScopeIndex.global[selector]
-        };
-    }
-
-    function refetchScopeCss() {
-        var sg = CFG.scopeGuard || {};
-        if (!sg.restUrl || !window.fetch) { return; }
-        var url = sg.restUrl + (sg.restUrl.indexOf('?') === -1 ? '?' : '&') +
-            'template=' + encodeURIComponent(sg.templateSlug || '');
-        fetch(url, { headers: { 'X-WP-Nonce': sg.restNonce || '' }, credentials: 'same-origin' })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && typeof data === 'object') {
-                    dbeScopeCss = data;
-                    rebuildScopeIndex();
-                    schedule();
-                }
-            })
-            .catch(function () {});
-    }
-
-    function bindScopeGuardRefresh() {
-        document.addEventListener('click', function (e) {
-            if (e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary')) {
-                setTimeout(refetchScopeCss, 2000); // let the save round-trip land
-            }
-        }, true);
-    }
-
-    function ensureScopeGuard() {
-        var lp = document.querySelector('.uniLeftPanel');
-        var existing = lp && lp.querySelector('.dbe-scope-guard');
-        var remove = function () { if (existing) { existing.remove(); } };
-        if (!lp) { return; }
-        var picker = lp.querySelector('.uniSettingsPageModuleDataForEditorWrapper');
-        if (!picker) { return remove(); }
-
-        var sel = currentSelectorName(lp);
-        if (!sel || sel.charAt(0) !== '.') { return remove(); } // %local% / none: unambiguous
-
-        var active = scopeStoreValue();
-        active = active === null ? dbeScope : (active ? 'global' : 'template');
-        var own = dbeScopeOwnership(sel);
-        // Warn only on the clear-cut case: the active scope has NO saved
-        // rules for this class while the other scope does.
-        var owner = null;
-        if (own) {
-            if (active === 'global' && !own.global && own.template) { owner = 'template'; }
-            else if (active === 'template' && !own.template && own.global) { owner = 'global'; }
-        }
-        if (!owner) { dbeScopeAutoLast = ''; return remove(); }
-
-        var mode = (CFG.scopeGuard && CFG.scopeGuard.mode) || 'warn';
-        if (mode === 'auto' && dbeScopeAutoLast !== sel) {
-            // Flip once per selector; if the user flips back we respect it.
-            dbeScopeAutoLast = sel;
-            remove();
-            try {
-                setScope(owner);
-                undoToast(dbeFmt(dbeT('scopeSwitchedOwns', 'Scope switched to %1$s: it owns the %2$s rules'),
-                    owner === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template'), sel));
-            } catch (e) {}
-            return;
-        }
-
-        var ownerLabel = owner === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
-        var activeLabel = active === 'global' ? dbeT('scopeGlobal', 'Global') : dbeT('scopeTemplate', 'Template');
-        var guard = existing;
-        if (!guard) {
-            guard = document.createElement('div');
-            guard.className = 'dbe-scope-guard';
-            guard.setAttribute('role', 'status');
-            var msg = document.createElement('span');
-            msg.className = 'dbe-scope-guard__msg';
-            guard.appendChild(msg);
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'dbe-scope-guard__switch';
-            btn.addEventListener('click', function () {
-                var target = guard.getAttribute('data-dbe-owner');
-                if (target) { try { setScope(target); } catch (e) {} }
-            });
-            guard.appendChild(btn);
-            var bar = lp.querySelector('.dbe-scope-bar');
-            var anchor = bar || picker;
-            if (anchor.nextSibling) { anchor.parentNode.insertBefore(guard, anchor.nextSibling); }
-            else { anchor.parentNode.appendChild(guard); }
-        }
-        guard.setAttribute('data-dbe-owner', owner);
-        guard.querySelector('.dbe-scope-guard__msg').innerHTML = '';
-        var code = document.createElement('code');
-        code.textContent = sel;
-        var msgEl = guard.querySelector('.dbe-scope-guard__msg');
-        msgEl.appendChild(code);
-        msgEl.appendChild(document.createTextNode(
-            ' ' + dbeFmt(dbeT('guardRules', 'rules are stored in %1$s. Edits here save to %2$s.'), ownerLabel, activeLabel)
-        ));
-        guard.querySelector('.dbe-scope-guard__switch').textContent = dbeFmt(dbeT('switchTo', 'Switch to %s'), ownerLabel);
-    }
-
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('scope_guard') || on('context_menu') || on('properties_reorder') || on('attr_helpers');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers');
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves');
 
     var scheduled = false;
@@ -3931,8 +3969,8 @@
             if (on('scope_bar')) {
                 try { readScopeFromControl(); } catch (e) {}
                 try { ensureScopeBar(); } catch (e) {}
+                try { ensureScopeIsolation(); } catch (e) {}
             }
-            if (on('scope_guard')) { try { ensureScopeGuard(); } catch (e) {} }
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) {
                 try { ensureThemeButton(); } catch (e) {}
@@ -4012,12 +4050,6 @@
             // Hook the native context menu.
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow); } catch (e) {}
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus); } catch (e) {}
-        }
-
-        // Scope guard: index the per-scope stylesheets and track saves.
-        if (on('scope_guard')) {
-            rebuildScopeIndex();
-            bindScopeGuardRefresh();
         }
 
         // Copy menu on the Styles editor's class chips.

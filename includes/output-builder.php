@@ -193,9 +193,6 @@ function dbe_print_builder_footer() {
 		'i18n'      => dbe_builder_strings(),
 		'version'   => DBE_VERSION,
 	);
-	if ( dbe_enabled( 'scope_guard' ) ) {
-		$config['scopeGuard'] = dbe_scope_guard_config();
-	}
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '<script id="dbe-builder-enhancements-js">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

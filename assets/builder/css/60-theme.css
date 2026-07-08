@@ -172,6 +172,25 @@ li.isComponent > .uniModTree__itemWrapper .uniModTree__item span:not(.dbe-tag-ba
     color: var(--dbe-text-2) !important;
     border-color: var(--dbe-line) !important;
 }
+/* Class picker dropdown: native floats this class list on the dark --primary
+   scale. Only the search input and item text were re-themed, so in light mode
+   the popover stayed dark behind dark item text — an unreadable dark-on-dark
+   list. Re-surface it with the theme tokens; --dbe-l1's dark value is the same
+   #202022 the native uses, so dark mode is unchanged. */
+.uniSystemSelectClasses__dropdown {
+    background: var(--dbe-l1) !important;
+}
+.uniSystemSelectClasses__cat {
+    color: var(--dbe-muted) !important;
+}
+.uniSystemSelectClasses__item {
+    color: var(--dbe-text-2) !important;
+}
+.uniSystemSelectClasses__item:hover,
+.uniSystemSelectClasses__item:focus-visible {
+    background: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
 .uniInlineTooltipMessage {
     background: var(--dbe-l2) !important;
     color: var(--dbe-muted) !important;

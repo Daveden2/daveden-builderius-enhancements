@@ -1,0 +1,118 @@
+/* Scope isolation: make the Styles code editor scope-accurate.
+
+   The native per-selector editor shows a class's rules from whichever scope
+   physically stores them, ignoring the active Global/Template scope, so the two
+   scopes look merged. builder.js (ensureScopeIsolation) reads each scope's raw
+   stylesheet from the store and drives two things here:
+
+   - .dbe-scope-status — a small line naming the scope the visible rules belong
+     to ("Editing Global rules", "New Template rule", "No Global rules").
+   - .dbe-scope-cover — an opaque cover over the editor for the one confusing
+     case: the active scope has no rules for the class but the OTHER scope does.
+     It hides the phantom rules, states where they live, and offers a switch.
+
+   The scope colour comes from --dbe-lvl-color, set on .uniLeftPanel by the
+   scope bar (41-scope-bar.css) from data-dbe-level. */
+
+/* Status line ------------------------------------------------------------ */
+.dbe-scope-status {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: baseline !important;
+    gap: 4px 6px !important;
+    margin: 6px 10px 0 !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    color: var(--dbe-muted) !important;
+}
+.dbe-scope-status__verb {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-weight: 600 !important;
+    letter-spacing: .02em !important;
+    color: var(--dbe-text-2) !important;
+}
+/* A leading dot in the active scope's colour — the same cue the scope badge
+   uses, so the status line and the badge read as one system. */
+.dbe-scope-status__verb::before {
+    content: "" !important;
+    inline-size: 7px !important;
+    block-size: 7px !important;
+    border-radius: 50% !important;
+    background: var(--dbe-lvl-color, var(--dbe-line)) !important;
+}
+.dbe-scope-status code {
+    font-size: 11px !important;
+    color: var(--dbe-text) !important;
+    background: transparent !important;
+}
+.dbe-scope-status__dup {
+    color: var(--dbe-muted) !important;
+}
+/* "No rules here" is the notable state — nudge the verb toward the warn accent
+   so the empty-scope status reads as a heads-up, not a plain label. */
+.dbe-scope-status[data-dbe-state="elsewhere"] .dbe-scope-status__verb {
+    color: var(--dbe-warn, #e0a94a) !important;
+}
+
+/* Editor cover ----------------------------------------------------------- */
+/* The holder is the div wrapping .monaco-editor; make it the positioning
+   context only while a cover is present, so native layout is untouched
+   otherwise. */
+.dbe-scope-hold {
+    position: relative !important;
+}
+.monaco-editor.dbe-scope-covered {
+    /* Belt-and-braces: the cover is opaque, but drop interaction too. */
+    pointer-events: none !important;
+}
+.dbe-scope-cover {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 5 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    /* Opaque panel fill so the phantom rules beneath are fully hidden — the
+       editor reads as empty. */
+    background: var(--dbe-l1) !important;
+}
+.dbe-scope-cover__note {
+    margin: 0 !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+    color: var(--dbe-text-2) !important;
+}
+.dbe-scope-cover__note::before {
+    content: "\24D8" !important; /* circled i */
+    margin-inline-end: 6px !important;
+    color: var(--dbe-lvl-color, var(--dbe-warn, #e0a94a)) !important;
+}
+.dbe-scope-cover__note code {
+    font-size: 11px !important;
+    color: var(--dbe-text) !important;
+    background: transparent !important;
+}
+.dbe-scope-cover__switch {
+    min-block-size: 24px !important; /* WCAG 2.5.8 pointer-target size */
+    padding: 4px 12px !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: background var(--dbe-t, 120ms ease) !important;
+}
+.dbe-scope-cover__switch:hover {
+    background: var(--dbe-l2-hi) !important;
+}
+.dbe-scope-cover__switch:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 1px !important;
+}

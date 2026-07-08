@@ -223,17 +223,9 @@ function dbe_features() {
 		),
 		'scope_bar'           => array(
 			'title'        => __( 'CSS scope bar', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'styles',
-			'css'          => array( '41-scope-bar.css' ),
-			'js'           => true,
-			'requires_pro' => true,
-		),
-		'scope_guard'         => array(
-			'title'        => __( 'CSS scope guard', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Warns you when the selected class keeps its saved rules in the other scope. The editor shows rules from both scopes, but edits only save to the active one, so it is easy to fork a rule by mistake. Can also switch scope for you automatically. Works from saved styles, so brand-new rules are recognised after the next save. Requires Builderius Pro: global and template CSS scopes are Pro-only.', 'daveden-builderius-enhancements' ),
-			'tab'          => 'styles',
-			'css'          => array( '42-scope-guard.css' ),
+			'css'          => array( '41-scope-bar.css', '43-scope-isolation.css' ),
 			'js'           => true,
 			'requires_pro' => true,
 		),
@@ -316,15 +308,6 @@ function dbe_enum_settings() {
 				'compact'     => __( 'Compact', 'daveden-builderius-enhancements' ),
 			),
 			'default' => 'comfortable',
-		),
-		'scope_guard_mode' => array(
-			'parent'  => 'scope_guard',
-			'title'   => __( 'When rules are saved in the other scope', 'daveden-builderius-enhancements' ),
-			'choices' => array(
-				'warn' => __( 'Show a warning with a switch button', 'daveden-builderius-enhancements' ),
-				'auto' => __( 'Switch scope automatically', 'daveden-builderius-enhancements' ),
-			),
-			'default' => 'warn',
 		),
 	);
 }

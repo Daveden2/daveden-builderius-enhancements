@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Daveden Builder Enhancements 1.5.0\n"
+"Project-Id-Version: Daveden Builder Enhancements 1.6.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/daveden-builderius-enhancements\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-07T21:43:54+00:00\n"
+"POT-Creation-Date: 2026-07-08T09:44:51+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -59,7 +59,7 @@ msgid "Appearance"
 msgstr ""
 
 #: includes/features.php:24
-#: includes/i18n-builder.php:216
+#: includes/i18n-builder.php:225
 msgid "Navigator"
 msgstr ""
 
@@ -172,7 +172,7 @@ msgid "Adds a filter box above the tree that dims any row whose label or HTML ta
 msgstr ""
 
 #: includes/features.php:134
-#: includes/i18n-builder.php:236
+#: includes/i18n-builder.php:245
 msgid "Rearrange favourites"
 msgstr ""
 
@@ -265,112 +265,92 @@ msgid "CSS scope bar"
 msgstr ""
 
 #: includes/features.php:226
-msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features."
+msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features."
 msgstr ""
 
 #: includes/features.php:233
-msgid "CSS scope guard"
-msgstr ""
-
-#: includes/features.php:234
-msgid "Warns you when the selected class keeps its saved rules in the other scope. The editor shows rules from both scopes, but edits only save to the active one, so it is easy to fork a rule by mistake. Can also switch scope for you automatically. Works from saved styles, so brand-new rules are recognised after the next save. Requires Builderius Pro: global and template CSS scopes are Pro-only."
-msgstr ""
-
-#: includes/features.php:241
 #: includes/i18n-builder.php:67
 msgid "Auto-BEM"
 msgstr ""
 
-#: includes/features.php:242
+#: includes/features.php:234
 msgid "Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go."
 msgstr ""
 
-#: includes/features.php:250
+#: includes/features.php:242
 msgid "Tooltips & accessible names"
 msgstr ""
 
-#: includes/features.php:251
+#: includes/features.php:243
 msgid "Adds tooltips and accessible names to around 25 icon-only builder buttons that ship without either."
 msgstr ""
 
-#: includes/features.php:257
+#: includes/features.php:249
 msgid "Keyboard shortcuts overlay"
 msgstr ""
 
-#: includes/features.php:258
+#: includes/features.php:250
 msgid "Press ? in the builder to see a list of keyboard shortcuts, both the native ones and those added by this plugin."
 msgstr ""
 
-#: includes/features.php:264
+#: includes/features.php:256
 msgid "Unsaved-changes marker"
 msgstr ""
 
-#: includes/features.php:265
+#: includes/features.php:257
 msgid "Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload."
 msgstr ""
 
-#: includes/features.php:271
+#: includes/features.php:263
 msgid "Second-tab warning"
 msgstr ""
 
-#: includes/features.php:272
+#: includes/features.php:264
 msgid "Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab."
 msgstr ""
 
-#: includes/features.php:278
+#: includes/features.php:270
 msgid "Preview resize handles"
 msgstr ""
 
-#: includes/features.php:279
+#: includes/features.php:271
 msgid "Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout in the top bar updates as you drag, and clicking a breakpoint button snaps the preview back to that size."
 msgstr ""
 
-#: includes/features.php:285
+#: includes/features.php:277
 msgid "Preview overlay contrast fix"
 msgstr ""
 
-#: includes/features.php:286
+#: includes/features.php:278
 msgid "Fixes the label colours on the preview's hover and selection overlays, so you can tell the two apart and the labels meet WCAG AA contrast."
 msgstr ""
 
-#: includes/features.php:303
+#: includes/features.php:295
 msgid "Default theme"
 msgstr ""
 
-#: includes/features.php:305
+#: includes/features.php:297
 msgid "Auto (follows the operating system)"
 msgstr ""
 
-#: includes/features.php:306
+#: includes/features.php:298
 msgid "Light"
 msgstr ""
 
-#: includes/features.php:307
+#: includes/features.php:299
 msgid "Dark"
 msgstr ""
 
-#: includes/features.php:313
+#: includes/features.php:305
 msgid "Default density"
 msgstr ""
 
-#: includes/features.php:315
+#: includes/features.php:307
 msgid "Comfortable"
 msgstr ""
 
-#: includes/features.php:316
+#: includes/features.php:308
 msgid "Compact"
-msgstr ""
-
-#: includes/features.php:322
-msgid "When rules are saved in the other scope"
-msgstr ""
-
-#: includes/features.php:324
-msgid "Show a warning with a switch button"
-msgstr ""
-
-#: includes/features.php:325
-msgid "Switch scope automatically"
 msgstr ""
 
 #: includes/i18n-builder.php:34
@@ -849,233 +829,261 @@ msgid "Global"
 msgstr ""
 
 #: includes/i18n-builder.php:187
+msgid "Component"
+msgstr ""
+
+#: includes/i18n-builder.php:188
 msgid "Local"
 msgstr ""
 
-#. translators: 1: scope that stores the rules, 2: scope edits save to. Follows the class name.
-#: includes/i18n-builder.php:189
+#. translators: %s: scope name (Global, Template or Component). Precedes the class name.
+#: includes/i18n-builder.php:190
 #, php-format
-msgid "rules are stored in %1$s. Edits here save to %2$s."
+msgid "Editing %s rules"
 msgstr ""
 
-#. translators: %s: scope name (Global or Template).
-#: includes/i18n-builder.php:191
+#. translators: %s: scope name. Precedes the class name.
+#: includes/i18n-builder.php:192
+#, php-format
+msgid "New %s rule"
+msgstr ""
+
+#. translators: %s: scope name. Precedes the class name.
+#: includes/i18n-builder.php:194
+#, php-format
+msgid "No %s rules"
+msgstr ""
+
+#. translators: %s: the other scope's name. Follows the class name.
+#: includes/i18n-builder.php:196
+#, php-format
+msgid "· also in %s"
+msgstr ""
+
+#. translators: %s: active scope name. Precedes the class name (in a code chip).
+#: includes/i18n-builder.php:198
+#, php-format
+msgid "No %s rules for "
+msgstr ""
+
+#. translators: %s: the scope that stores the rules. Follows the class name.
+#: includes/i18n-builder.php:200
+#, php-format
+msgid ". Its rules live in %s."
+msgstr ""
+
+#. translators: %s: scope name (Global, Template or Component).
+#: includes/i18n-builder.php:202
 #, php-format
 msgid "Switch to %s"
 msgstr ""
 
-#. translators: 1: scope name, 2: CSS selector.
-#: includes/i18n-builder.php:193
-#, php-format
-msgid "Scope switched to %1$s: it owns the %2$s rules"
-msgstr ""
-
 #. translators: 1: current theme, 2: next theme.
-#: includes/i18n-builder.php:197
+#: includes/i18n-builder.php:206
 #, php-format
 msgid "Theme: %1$s (switch to %2$s)"
 msgstr ""
 
-#: includes/i18n-builder.php:198
+#: includes/i18n-builder.php:207
 msgid "light"
 msgstr ""
 
-#: includes/i18n-builder.php:199
+#: includes/i18n-builder.php:208
 msgid "dark"
 msgstr ""
 
-#: includes/i18n-builder.php:200
+#: includes/i18n-builder.php:209
 msgid "auto"
 msgstr ""
 
 #. translators: 1: current density, 2: next density.
-#: includes/i18n-builder.php:202
+#: includes/i18n-builder.php:211
 #, php-format
 msgid "Density: %1$s (switch to %2$s)"
 msgstr ""
 
-#: includes/i18n-builder.php:203
+#: includes/i18n-builder.php:212
 msgid "comfortable"
 msgstr ""
 
-#: includes/i18n-builder.php:204
+#: includes/i18n-builder.php:213
 msgid "compact"
 msgstr ""
 
-#: includes/i18n-builder.php:207
+#: includes/i18n-builder.php:216
 msgid "Filter elements…"
 msgstr ""
 
-#: includes/i18n-builder.php:208
+#: includes/i18n-builder.php:217
 msgid "Filter elements by label or tag"
 msgstr ""
 
-#: includes/i18n-builder.php:211
+#: includes/i18n-builder.php:220
 msgid "Unsaved"
 msgstr ""
 
-#: includes/i18n-builder.php:214
+#: includes/i18n-builder.php:223
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: includes/i18n-builder.php:215
+#: includes/i18n-builder.php:224
 msgid "General"
 msgstr ""
 
-#: includes/i18n-builder.php:217
+#: includes/i18n-builder.php:226
 msgid "Context menu"
 msgstr ""
 
-#: includes/i18n-builder.php:218
+#: includes/i18n-builder.php:227
 msgid "Open this shortcuts overlay"
 msgstr ""
 
-#: includes/i18n-builder.php:219
+#: includes/i18n-builder.php:228
 msgid "Close menus and dialogs; clear the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:220
+#: includes/i18n-builder.php:229
 msgid "Remove the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:221
+#: includes/i18n-builder.php:230
 msgid "Copy / paste the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:222
+#: includes/i18n-builder.php:231
 msgid "Restore the last deleted element"
 msgstr ""
 
-#: includes/i18n-builder.php:223
+#: includes/i18n-builder.php:232
 msgid "Redo the delete"
 msgstr ""
 
-#: includes/i18n-builder.php:224
+#: includes/i18n-builder.php:233
 msgid "Add or remove a row from the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:225
+#: includes/i18n-builder.php:234
 msgid "Select a range of rows"
 msgstr ""
 
-#: includes/i18n-builder.php:226
+#: includes/i18n-builder.php:235
 msgid "Open the context menu on the focused row"
 msgstr ""
 
-#: includes/i18n-builder.php:227
+#: includes/i18n-builder.php:236
 msgid "Move between items (wraps)"
 msgstr ""
 
-#: includes/i18n-builder.php:228
+#: includes/i18n-builder.php:237
 msgid "First / last item"
 msgstr ""
 
-#: includes/i18n-builder.php:229
+#: includes/i18n-builder.php:238
 msgid "Activate an item or open its submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:230
+#: includes/i18n-builder.php:239
 msgid "Open / close a submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:233
+#: includes/i18n-builder.php:242
 msgid "Resize preview canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:237
+#: includes/i18n-builder.php:246
 msgid "Rearrange properties"
 msgstr ""
 
-#: includes/i18n-builder.php:238
+#: includes/i18n-builder.php:247
 msgid "Rearrange"
 msgstr ""
 
 #. translators: %s: favourite element name.
-#: includes/i18n-builder.php:240
+#: includes/i18n-builder.php:249
 #, php-format
 msgid "%s (press up or down arrow to move, Escape to finish)"
 msgstr ""
 
-#: includes/i18n-builder.php:241
+#: includes/i18n-builder.php:250
 msgid "Rearrange mode on: drag the icons, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:242
+#: includes/i18n-builder.php:251
 msgid "Rearrange mode on: drag a property, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:243
+#: includes/i18n-builder.php:252
 msgid "Rearrange mode off: order saved"
 msgstr ""
 
 #. translators: 1: item name, 2: new position, 3: total items.
-#: includes/i18n-builder.php:245
+#: includes/i18n-builder.php:254
 #, php-format
 msgid "Moved %1$s to position %2$s of %3$s"
 msgstr ""
 
-#: includes/i18n-builder.php:246
+#: includes/i18n-builder.php:255
 msgid "Order changed on screen, but it could not be saved to the component"
 msgstr ""
 
-#: includes/i18n-builder.php:247
+#: includes/i18n-builder.php:256
 msgid "Property"
 msgstr ""
 
 #. translators: %s: number of elements moved.
-#: includes/i18n-builder.php:249
+#: includes/i18n-builder.php:258
 #, php-format
 msgid "Moved %s elements together"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:251
+#: includes/i18n-builder.php:260
 #, php-format
 msgid "Moved %1$s element (%2$s could not follow)"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:253
+#: includes/i18n-builder.php:262
 #, php-format
 msgid "Moved %1$s elements (%2$s could not follow)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:257
+#: includes/i18n-builder.php:266
 #, php-format
 msgid "Copy %s"
 msgstr ""
 
 #. translators: %s: class name without the leading dot.
-#: includes/i18n-builder.php:259
+#: includes/i18n-builder.php:268
 #, php-format
 msgid "Copy %s (no dot)"
 msgstr ""
 
 #. translators: %s: number of classes.
-#: includes/i18n-builder.php:261
+#: includes/i18n-builder.php:270
 #, php-format
 msgid "Copy all classes (%s)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:263
+#: includes/i18n-builder.php:272
 #, php-format
 msgid "Remove %s from element"
 msgstr ""
 
 #. translators: %s: the copied text.
-#: includes/i18n-builder.php:265
+#: includes/i18n-builder.php:274
 #, php-format
 msgid "Copied %s"
 msgstr ""
 
-#: includes/i18n-builder.php:266
+#: includes/i18n-builder.php:275
 msgid "Copy failed: clipboard unavailable"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:268
+#: includes/i18n-builder.php:277
 #, php-format
 msgid "Removed %s"
 msgstr ""

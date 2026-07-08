@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.5.2
+Stable tag: 1.6.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -27,6 +27,29 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.6.0 =
+* Changed: the CSS scope bar now keeps the Styles editor accurate about scope.
+  Builderius shows a class's rules whichever scope is active (the Global/Template
+  switch only decides where a save lands), so the same rules appeared under both
+  scopes and an edit could be forked into the wrong one. The editor now shows
+  only the active scope's rules for the selected class: it labels the scope you
+  are editing, and when the rules actually live in the other scope it hides them
+  behind a short note with a one-click switch, instead of presenting them as if
+  they were yours. A global-only class reads as Global, a component or template
+  class reads under that scope, and a scope with no rules reads as empty. Applies
+  to class selectors at the base breakpoint.
+* Removed: the separate CSS scope guard toggle. Its job, warning when a class's
+  rules live in the other scope, is now done by the CSS scope bar, which reads
+  the live editor state rather than a saved-styles index. That means it needs no
+  background refresh and updates the moment you switch scope or selector. If you
+  relied on the scope guard, turn on the CSS scope bar to keep the same
+  protection. The guard's REST endpoint has also been removed.
+* Fixed: in the light theme, the class picker dropdown (the list of existing
+  classes shown when you add a class in the Styles panel) rendered dark text on
+  a dark surface, leaving the class names unreadable. The dropdown, its group
+  headings and its items now use the light theme's surface and text tokens. The
+  dark theme is unchanged.
 
 = 1.5.2 =
 * Fixed: the tree context menu clipped its lower items when opened low on the

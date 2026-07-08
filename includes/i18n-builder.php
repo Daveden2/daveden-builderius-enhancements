@@ -184,13 +184,22 @@ function dbe_builder_strings() {
 		'cssScope'                => __( 'CSS scope', 'daveden-builderius-enhancements' ),
 		'scopeGlobal'             => __( 'Global', 'daveden-builderius-enhancements' ),
 		'scopeTemplate'           => __( 'Template', 'daveden-builderius-enhancements' ),
+		'scopeComponent'          => __( 'Component', 'daveden-builderius-enhancements' ),
 		'scopeLocal'              => __( 'Local', 'daveden-builderius-enhancements' ),
-		/* translators: 1: scope that stores the rules, 2: scope edits save to. Follows the class name. */
-		'guardRules'              => __( 'rules are stored in %1$s. Edits here save to %2$s.', 'daveden-builderius-enhancements' ),
-		/* translators: %s: scope name (Global or Template). */
+		/* translators: %s: scope name (Global, Template or Component). Precedes the class name. */
+		'scopeEditing'            => __( 'Editing %s rules', 'daveden-builderius-enhancements' ),
+		/* translators: %s: scope name. Precedes the class name. */
+		'scopeNewRule'            => __( 'New %s rule', 'daveden-builderius-enhancements' ),
+		/* translators: %s: scope name. Precedes the class name. */
+		'scopeNoRules'            => __( 'No %s rules', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the other scope's name. Follows the class name. */
+		'scopeAlsoIn'             => __( '· also in %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: active scope name. Precedes the class name (in a code chip). */
+		'scopeCoverPre'           => __( 'No %s rules for ', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the scope that stores the rules. Follows the class name. */
+		'scopeCoverPost'          => __( '. Its rules live in %s.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: scope name (Global, Template or Component). */
 		'switchTo'                => __( 'Switch to %s', 'daveden-builderius-enhancements' ),
-		/* translators: 1: scope name, 2: CSS selector. */
-		'scopeSwitchedOwns'       => __( 'Scope switched to %1$s: it owns the %2$s rules', 'daveden-builderius-enhancements' ),
 
 		// Theme & density buttons.
 		/* translators: 1: current theme, 2: next theme. */

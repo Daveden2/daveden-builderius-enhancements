@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Daveden Builder Enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           1.5.2
+ * Version:           1.6.0
  * Author:            Daveden Digital
  * License:           GPL-2.0-or-later
  * Text Domain:       daveden-builderius-enhancements
@@ -30,7 +30,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '1.5.2' );
+define( 'DBE_VERSION', '1.6.0' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -70,7 +70,6 @@ require_once DBE_DIR . 'includes/i18n-builder.php';
 require_once DBE_DIR . 'includes/options.php';
 require_once DBE_DIR . 'includes/settings-page.php';
 require_once DBE_DIR . 'includes/output-builder.php';
-require_once DBE_DIR . 'includes/scope-css.php';
 require_once DBE_DIR . 'includes/output-preview.php';
 require_once DBE_DIR . 'includes/admin-bar.php';
 
