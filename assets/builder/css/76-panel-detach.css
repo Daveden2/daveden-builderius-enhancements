@@ -1,0 +1,87 @@
+/* Detachable Navigator (panel_detach, experimental): float the Navigator panel
+   over the canvas. builder.js switches the (normally right-docked, absolutely
+   positioned) wrapper to position:fixed and drives its box from CSS vars; this
+   file reads them and reclaims the docked column. State is a body class so it
+   re-asserts idempotently after native re-renders. */
+
+/* --- Detach button (Navigator header) --- */
+.dbe-detach-btn.is-detached {
+    color: var(--dbe-accent) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
+}
+
+/* --- Floating panel --- */
+body.dbe-nav-detached .uniMainPanel div:has(> .uniRightPanel) {
+    position: fixed !important;
+    inset-block-start: var(--dbe-nav-y, 60px) !important;
+    inset-inline-start: var(--dbe-nav-x, 60px) !important;
+    inset-inline-end: auto !important;
+    inline-size: var(--dbe-nav-w, 320px) !important;
+    min-inline-size: 0 !important;
+    max-inline-size: none !important;
+    block-size: var(--dbe-nav-h, 480px) !important;
+    z-index: 2147482000 !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    border-radius: var(--dbe-r-md) !important;
+    box-shadow: 0 16px 48px var(--dbe-shadow) !important;
+    overflow: hidden !important;
+    transition: none !important;
+}
+
+/* Canvas reclaims the docked column (overrides the panel_resize reservation). */
+body.dbe-nav-detached .uniIframePanel:has(.uniRightPanel) {
+    margin-inline-end: 0 !important;
+    inline-size: 100% !important;
+}
+
+/* The header is the drag grip while floating; the docked-width handle is
+   meaningless for a float, so hide it. */
+body.dbe-nav-detached .uniRightPanel .uniPanelHeader {
+    cursor: move !important;
+    user-select: none !important;
+}
+body.dbe-nav-detached .dbe-panel-handle[data-side="right"] {
+    display: none !important;
+}
+
+/* Suppress transitions / selection and free the canvas iframe while dragging. */
+body.dbe-nav-dragging { user-select: none !important; }
+body.dbe-nav-dragging #builderInner { pointer-events: none !important; }
+
+/* --- Resize grip (bottom inline-end corner of the float) --- */
+.dbe-nav-resize {
+    display: none;
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-end: 0;
+    inline-size: 20px;
+    block-size: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: nwse-resize;
+    touch-action: none;
+    z-index: 1;
+}
+body.dbe-nav-detached .dbe-nav-resize { display: block; }
+/* Two short strokes forming a corner grip, tinted to the theme. */
+.dbe-nav-resize::after {
+    content: "";
+    position: absolute;
+    inset-block-end: 3px;
+    inset-inline-end: 3px;
+    inline-size: 9px;
+    block-size: 9px;
+    border-inline-end: 2px solid var(--dbe-muted);
+    border-block-end: 2px solid var(--dbe-muted);
+    border-end-end-radius: 3px;
+}
+.dbe-nav-resize:hover::after,
+.dbe-nav-resize:focus-visible::after {
+    border-color: var(--dbe-accent);
+}
+.dbe-nav-resize:focus-visible {
+    outline: 2px solid var(--dbe-focus);
+    outline-offset: -2px;
+    border-radius: var(--dbe-r-sm);
+}

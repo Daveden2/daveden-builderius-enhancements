@@ -1,0 +1,166 @@
+/* CSS-panel hint (css_hint_dialog): reclaim the space taken by Builderius'
+   two-line selector/breakpoint notification and replace it with one compact,
+   dismissable affordance that opens a unified explanation in a dialog. */
+
+/* Hide the native hint lines (kept in the DOM; builder.js anchors to them). */
+.uniLeftPanel .uniInlineTooltipMessage {
+    display: none !important;
+}
+
+/* --- Compact affordance ------------------------------------------------------
+   Expanded: an info dot + one-line banner + dismiss (×). Collapsed (remembered):
+   just the info dot, which still opens the dialog. */
+.dbe-css-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-block: 6px;
+}
+.dbe-css-hint-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-block-size: 24px; /* WCAG 2.5.8 */
+    padding-block: 2px;
+    padding-inline: 4px;
+    border: 0;
+    border-radius: var(--dbe-r-sm);
+    background: transparent;
+    color: var(--dbe-muted);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition: color var(--dbe-t), background var(--dbe-t);
+}
+.dbe-css-hint-btn:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+.dbe-css-hint-btn:focus-visible {
+    outline: 2px solid var(--dbe-focus);
+    outline-offset: 1px;
+}
+/* Info dot. */
+.dbe-css-hint-i {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 16px;
+    block-size: 16px;
+    border-radius: 50%;
+    background: var(--dbe-accent);
+    color: var(--dbe-on-accent-strong);
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+}
+.dbe-css-hint-label {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dbe-css-hint-dismiss {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 24px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dbe-r-sm);
+    background: transparent;
+    color: var(--dbe-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--dbe-t), background var(--dbe-t);
+}
+.dbe-css-hint-dismiss:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+.dbe-css-hint-dismiss:focus-visible {
+    outline: 2px solid var(--dbe-focus);
+    outline-offset: 1px;
+}
+/* Collapsed: only the info dot remains. */
+.dbe-css-hint.is-collapsed .dbe-css-hint-label,
+.dbe-css-hint.is-collapsed .dbe-css-hint-dismiss {
+    display: none;
+}
+
+/* --- Dialog ------------------------------------------------------------------ */
+.dbe-css-hint-dialog {
+    inline-size: min(30rem, calc(100vw - 2rem));
+    max-block-size: min(28rem, calc(100vh - 2rem));
+    padding: 0;
+    border: 1px solid var(--dbe-line-hi);
+    border-radius: var(--dbe-r-md);
+    background: var(--dbe-l1);
+    color: var(--dbe-text);
+    box-shadow: 0 12px 40px var(--dbe-shadow);
+}
+.dbe-css-hint-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+.dbe-css-hint-dialog__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 12px;
+    padding-inline: 16px;
+    border-block-end: 1px solid var(--dbe-line);
+}
+.dbe-css-hint-dialog__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--dbe-text);
+}
+.dbe-css-hint-dialog__close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 28px;
+    block-size: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dbe-r-sm);
+    background: transparent;
+    color: var(--dbe-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--dbe-t), background var(--dbe-t);
+}
+.dbe-css-hint-dialog__close:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+.dbe-css-hint-dialog__close:focus-visible {
+    outline: 2px solid var(--dbe-focus);
+    outline-offset: 1px;
+}
+.dbe-css-hint-dialog__body {
+    padding-block: 12px;
+    padding-inline: 16px;
+    overflow-y: auto;
+}
+.dbe-css-hint-dl { margin: 0; }
+.dbe-css-hint-dl dt {
+    margin-block-start: 12px;
+    font-weight: 600;
+    color: var(--dbe-text);
+}
+.dbe-css-hint-dl dt:first-child { margin-block-start: 0; }
+.dbe-css-hint-dl dd {
+    margin: 4px 0 0;
+    color: var(--dbe-text-2);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.dbe-css-hint-dialog code {
+    padding-inline: 4px;
+    border-radius: var(--dbe-r-sm);
+    background: var(--dbe-l2);
+    color: var(--dbe-text);
+    font-family: var(--dbe-mono);
+    font-size: 0.9em;
+}

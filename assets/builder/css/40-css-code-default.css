@@ -2,24 +2,14 @@
    Builderius' CSS-mode toggle (.uniIconCssMode) auto-widens the settings panel
    to a fixed 600px, swallowing a large slice of the workspace. Clamp the panel
    back to its normal width range (the same min/max the visual mode uses) so the
-   code editor opens compact. The "widen" header button (added by builder.js)
-   sets body.dbe-css-wide to opt into the full-width editor on demand. */
-body:not(.dbe-css-wide) .uniLeftPanelOuter {
+   code editor opens compact. When the panel_resize feature is on it re-points
+   this width at the shared --dbe-panel-width variable (75-panel-resize.css,
+   which loads after this file and wins) and gives the user a drag handle to
+   widen on demand — superseding the old one-shot "widen" header button. */
+.uniLeftPanelOuter {
     min-width: 260px !important;
     max-width: 340px !important;
 }
-/* The widen button only makes sense in the CSS code editor — hide it elsewhere.
-   (Detected by the code editor's own wrapper; .monaco-editor is unreliable
-   because the Content field mounts a Monaco editor too.) */
-.uniLeftPanel:not(:has(.uniSettingsPageModuleDataForEditorWrapper)) .dbe-expand-panel {
-    display: none !important;
-}
-/* Active state while the wide editor is engaged. */
-.dbe-expand-panel[aria-pressed="true"] {
-    color: var(--dbe-accent) !important;
-    box-shadow: inset 0 0 0 1px var(--dbe-accent) !important;
-}
-.dbe-expand-panel[aria-pressed="true"] svg { stroke: var(--dbe-accent) !important; }
 
 /* With code-by-default in force, the raw CSS-mode toggle is redundant and would
    only flip-flop against it — hide it. (builder.js still clicks it

@@ -11,7 +11,7 @@
    paints an icon or label directly — fill/color: var(--base-2), the footer-tab
    labels on var(--primary-4), the "white" headings on var(--base-1). Rather
    than chase each of the 150+ rules, remap the three foreground-dominant vars
-   once, to the theme-correct light-dark() tokens. Redefined on #builderiusPanel
+   once, to the theme-correct --dbe- tokens. Redefined on #builderiusPanel
    itself (matching id specificity + the theme-attribute ancestor) so it wins
    over the native definition, and scoped to light/auto so the dark theme keeps
    the native scale byte-for-byte. Surface / border vars (--primary-1..3) are

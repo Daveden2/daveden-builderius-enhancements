@@ -144,6 +144,14 @@ function dbe_features() {
 			'css'         => array(),
 			'js'          => true,
 		),
+		'panel_detach'        => array(
+			'title'        => __( 'Detachable Navigator', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds a detach button to the Navigator header so you can float the panel over the canvas. Drag it by its header, resize it from the bottom corner, and dock it again with the same button. Its position is remembered. Experimental: it floats the panel over the builder chrome, so a Builderius update could shift it.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'navigator',
+			'css'          => array( '76-panel-detach.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
 
 		/* ------------------------------------------------------------- Editing */
 		'context_menu'        => array(
@@ -215,7 +223,7 @@ function dbe_features() {
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(
 			'title'        => __( 'CSS code editor by default', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Opens the Styles tab straight into the CSS code editor, keeps the Content and Styles tabs visible while you are there, and adds a button to widen the panel when you need more room. Requires Builderius Pro: the CSS code editor is a Pro feature, so this stays off (and the CSS-mode icon is left in place) when Pro is inactive.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Opens the Styles tab straight into the CSS code editor and keeps the Content and Styles tabs visible while you are there. (To widen the panel for more room, use the Resizable side panels feature.) Requires Builderius Pro: the CSS code editor is a Pro feature, so this stays off (and the CSS-mode icon is left in place) when Pro is inactive.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'styles',
 			'css'          => array( '40-css-code-default.css' ),
 			'js'           => true,
@@ -244,6 +252,13 @@ function dbe_features() {
 				'css'          => array( '42-minimap.css' ),
 				'js'           => true,
 				'experimental' => true,
+			),
+			'css_hint_dialog'     => array(
+				'title'       => __( 'Tidy selector hint', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
+				'tab'         => 'styles',
+				'css'         => array( '44-css-hint.css' ),
+				'js'          => true,
 			),
 
 		/* ------------------------------------------------------------ Workflow */
@@ -280,6 +295,13 @@ function dbe_features() {
 			'description' => __( 'Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout in the top bar updates as you drag, and clicking a breakpoint button snaps the preview back to that size.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array( '74-preview-resize.css' ),
+			'js'          => true,
+		),
+		'panel_resize'        => array(
+			'title'       => __( 'Resizable side panels', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds a drag handle to the inner edge of each side panel so you can set their width. The settings panel and the Navigator share one width, so resizing either resizes both. Your chosen width is remembered. Replaces the old one-shot "widen settings panel" button.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'appearance',
+			'css'         => array( '75-panel-resize.css' ),
 			'js'          => true,
 		),
 		'overlay_contrast'    => array(

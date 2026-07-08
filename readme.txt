@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -27,6 +27,29 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.7.0 =
+* New: Resizable side panels (Appearance). Each side panel gets a drag handle on
+  its inner edge, with full keyboard support (arrow keys, Home/End). The settings
+  panel and the Navigator share one width, so resizing either resizes both, and
+  the width is remembered. This replaces the old one-shot "widen settings panel"
+  button, which has been removed.
+* New: Tidy selector hint (Styles panel). Builderius' two-line %local% /
+  %selector% notification under the CSS editor is replaced with a compact,
+  dismissable hint, reclaiming the vertical space. The full explanation moves into
+  a dialog and is reworded so both tokens are described the same way and
+  breakpoints are explained consistently for each. The stock wording only
+  mentions the breakpoint variables for %local% and only the breakpoints switcher
+  for a class.
+* New: Detachable Navigator (Navigator, experimental, off by default). A detach
+  button in the Navigator header floats the panel over the canvas; drag it by its
+  header, resize from the bottom corner, and dock it again with the same button.
+  Its position is remembered. Experimental because it floats over the builder
+  chrome, so a Builderius update could shift it.
+* New: "Figure" added to the right-click Wrap in… menu, alongside Div, Template
+  and Collection.
+* Fixed: the Navigator tab labels (Elements / Selectors / CSS vars) no longer
+  truncate in a narrow panel; the strip now wraps rather than clipping a label.
 
 = 1.6.0 =
 * Changed: the CSS scope bar now keeps the Styles editor accurate about scope.
