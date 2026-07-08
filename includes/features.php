@@ -237,6 +237,15 @@ function dbe_features() {
 			'js'          => true,
 		),
 
+			'hide_minimap'        => array(
+				'title'        => __( 'Hide the code minimap', 'daveden-builderius-enhancements' ),
+				'description'  => __( 'Removes the minimap (the small code-overview strip on the right of the CSS code editor) and reclaims the width Monaco reserves for it, so long lines run to the edge of the panel. It switches the editor option off inside the builder\'s bundled Monaco; if a Builderius update ever changes that, it falls back to simply hiding the minimap from view.', 'daveden-builderius-enhancements' ),
+				'tab'          => 'styles',
+				'css'          => array( '42-minimap.css' ),
+				'js'           => true,
+				'experimental' => true,
+			),
+
 		/* ------------------------------------------------------------ Workflow */
 		'tooltips'            => array(
 			'title'       => __( 'Tooltips & accessible names', 'daveden-builderius-enhancements' ),

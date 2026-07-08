@@ -15,12 +15,16 @@ defined( 'ABSPATH' ) || exit;
 const DBE_OPTION = 'daveden_builder_enhancements';
 
 /**
- * Registry-derived defaults: every feature on, enums at their declared default.
+ * Registry-derived defaults: every feature on, except experimental ones which
+ * default off; enums at their declared default.
  *
  * @return array<string,mixed>
  */
 function dbe_default_options() {
-	$defaults = array_fill_keys( array_keys( dbe_features() ), true );
+	$defaults = array();
+	foreach ( dbe_features() as $id => $feature ) {
+		$defaults[ $id ] = empty( $feature['experimental'] );
+	}
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		$defaults[ $id ] = $setting['default'];
 	}

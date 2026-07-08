@@ -1,0 +1,15 @@
+/* Hide Monaco's minimap (the code-overview strip) and overview ruler in the
+   builder's code editors.
+
+   This hides the PAINT only — Monaco still reserves the minimap's width in its
+   layout, so it is the fail-soft fallback. builder.js (dbeDisableMinimap) also
+   switches the minimap OPTION off on every editor, which is what actually
+   reclaims the width so long lines reach the panel edge; this CSS keeps the
+   overview out of sight if that bundle access ever breaks. Global to every
+   builder Monaco instance. */
+.uniLeftPanel .monaco-editor .minimap,
+.uniLeftPanel .monaco-editor .decorationsOverviewRuler,
+.monaco-editor .minimap,
+.monaco-editor .decorationsOverviewRuler {
+    display: none !important;
+}

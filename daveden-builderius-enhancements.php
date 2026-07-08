@@ -4,6 +4,7 @@
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
  * Version:           1.6.0
  * Author:            Daveden Digital
+ * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
  * Text Domain:       daveden-builderius-enhancements
  * Domain Path:       /languages
@@ -74,6 +75,7 @@ $dbe_update_checker->addResultFilter(
 	}
 );
 
+require_once DBE_DIR . 'includes/update-info-fallback.php';
 require_once DBE_DIR . 'includes/features.php';
 require_once DBE_DIR . 'includes/i18n-builder.php';
 require_once DBE_DIR . 'includes/options.php';

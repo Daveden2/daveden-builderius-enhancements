@@ -194,10 +194,14 @@ function dbe_builder_strings() {
 		'scopeNoRules'            => __( 'No %s rules', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the other scope's name. Follows the class name. */
 		'scopeAlsoIn'             => __( '· also in %s', 'daveden-builderius-enhancements' ),
-		/* translators: %s: active scope name. Precedes the class name (in a code chip). */
-		'scopeCoverPre'           => __( 'No %s rules for ', 'daveden-builderius-enhancements' ),
-		/* translators: %s: the scope that stores the rules. Follows the class name. */
-		'scopeCoverPost'          => __( '. Its rules live in %s.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the scope that stores the rules. Follows the class name in the warning. */
+		'scopeRulesIn'            => __( '· rules in %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: active scope name (Global, Template or Component). Button that seeds an empty rule so the class becomes editable in the active scope. */
+		'scopeAddHere'            => __( 'Add %s rules', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the scope that owns the rules. Editor-cover note explaining why editing is off. */
+		'scopeCoverWhy'           => __( 'Editing here would change %s rules', 'daveden-builderius-enhancements' ),
+		/* Status verb for the %local% one-off, which belongs to no class and no scope. */
+		'scopeLocalEditing'       => __( 'Editing element styles', 'daveden-builderius-enhancements' ),
 		/* translators: %s: scope name (Global, Template or Component). */
 		'switchTo'                => __( 'Switch to %s', 'daveden-builderius-enhancements' ),
 
