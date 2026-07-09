@@ -23,6 +23,7 @@ web-design community. Thank you:
 - **Inline rename** — Israel Reyes, Tim Gray
 - **Follow selection in the tree** — Israel Reyes
 - **HTML attribute helpers** — Tim Gray
+- **Detachable Navigator** — Tim Gray
 - **Density toggle (compact mode)** — Max Ziebell
 - **Light / dark / auto theme** — David McCan
 

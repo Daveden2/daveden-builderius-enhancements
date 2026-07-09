@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -21,12 +21,26 @@ community. Thank you:
 * Inline rename — Israel Reyes and Tim Gray
 * Follow selection in the tree — Israel Reyes
 * HTML attribute helpers — Tim Gray
+* Detachable Navigator — Tim Gray
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
 
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.7.1 =
+* Improved: the active class chip in the Styles editor now offers the same
+  right-click menu as the other class chips. Right-click it, or use its caret,
+  to copy the class name (with or without the leading dot), copy every class at
+  once, remove it from the element, or close it. Previously the active chip only
+  had a caret menu with a single "Close" item.
+* Improved: the detachable Navigator now shows a grabber bar across the top of
+  the floating panel, with a grab cursor and a "Drag to move" tooltip, so it is
+  clear where to grab it to reposition it.
+* Fixed: added a Plugin URI so a "Visit plugin site" link appears on the Plugins
+  screen where "View details" is not offered, such as a multisite sub-site,
+  where WordPress reserves plugin details for Super Admins in the Network Admin.
 
 = 1.7.0 =
 * New: Resizable side panels (Appearance). Each side panel gets a drag handle on
