@@ -182,28 +182,30 @@
 
 /* --- CSS vars rows ---
    Stock row is a GRID with fixed-width form labels (name 160px, value 60px)
-   sized for the native 600px panel — inside the clamp the value input is
-   unusable. Re-plot the grid: name + edit/delete actions on row one, the
-   value input full-width on row two, and release the labels' fixed widths. */
+   sized for the native 600px panel, so inside a narrow panel the value input is
+   unusable. Lay the fields out with flex-wrap instead (DOM order is name, value,
+   actions): now the panel is resizable, the name and value sit side by side when
+   there is room and wrap to stack when it is narrow. Each field grows to fill
+   (flex: 1) with a usable minimum, so no field is ever squeezed to nothing. */
 .uniVarsCss__item {
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    row-gap: 6px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    grid-template-columns: none !important;
 }
-.uniVarsCss__item .uniVarsCss__itemEditInput.input1 {
-    grid-row: 1 !important;
-    grid-column: 1 !important;
-    width: auto !important;
-    min-width: 0 !important;
+.uniVarsCss__item .uniVarsCss__itemEditInput.input1, /* name */
+.uniVarsCss__item .uniVarsCss__itemEditInput.input2 { /* value */
+    flex: 1 1 9rem !important;
+    min-inline-size: 8rem !important;
+    inline-size: auto !important;
+    grid-row: auto !important;
+    grid-column: auto !important;
 }
 .uniVarsCss__item .uniVarsCss__actions {
-    grid-row: 1 !important;
-    grid-column: 2 !important;
-}
-.uniVarsCss__item .uniVarsCss__itemEditInput.input2 {
-    grid-row: 2 !important;
-    grid-column: 1 / -1 !important;
-    width: auto !important;
-    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    grid-row: auto !important;
+    grid-column: auto !important;
 }
 .uniVarsCss__item .uniVarsCss__itemEditInput input {
     inline-size: 100% !important;

@@ -33,11 +33,14 @@
 
 /* --- Drag grips ---------------------------------------------------------------
    Same visual language as the canvas preview handles (74-preview-resize.css): a
-   24px pointer target (WCAG 2.5.8) straddling the panel's inner edge, with a
-   capsule + three grip dots that fill with the accent on hover/focus. */
+   24px-wide pointer target (WCAG 2.5.8) straddling the panel's inner edge, with a
+   capsule + three grip dots that fill with the accent on hover/focus. Anchored
+   near the TOP of the panel (level with the header) rather than running the full
+   height, so it sits out of the way of the panel content below. */
 .dbe-panel-handle {
     position: absolute !important;
-    inset-block: 0 !important;
+    inset-block-start: 6px !important;
+    block-size: 48px !important;
     inline-size: 24px !important;
     display: flex !important;
     align-items: center !important;
