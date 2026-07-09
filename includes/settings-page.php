@@ -104,7 +104,7 @@ function dbe_render_toggle( $id, $feature ) {
 	$experimental = ! empty( $feature['experimental'] );
 	$pro_locked   = $requires_pro && ! dbe_builderius_pro_active();
 	// The locked note is part of the field's accessible description.
-	$describedby  = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
+	$describedby = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
 	?>
 	<div class="dbe-field<?php echo $pro_locked ? ' dbe-field--pro-locked' : ''; ?>">
 		<div class="dbe-field__text">
@@ -226,9 +226,9 @@ function dbe_render_dashboard_panel() {
 				$enabled = 0;
 				foreach ( $features as $id => $feature ) {
 					if ( $feature['tab'] === $tab_slug ) {
-						$total++;
+						++$total;
 						if ( dbe_enabled( $id ) ) {
-							$enabled++;
+							++$enabled;
 						}
 					}
 				}

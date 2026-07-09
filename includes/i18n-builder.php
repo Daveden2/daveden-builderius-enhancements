@@ -2,7 +2,7 @@
 /**
  * Translatable strings for the builder UI.
  *
- * builder.js is printed inline (not enqueued), so wp_set_script_translations()
+ * Builder.js is printed inline (not enqueued), so wp_set_script_translations()
  * cannot reach it. Instead every user-facing string the script renders is
  * translated here and shipped on the config object as `i18n`; the script reads
  * them through its t()/fmt() helpers, keeping the English text as a fallback
@@ -24,7 +24,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * key => translated string, consumed by builder.js as CFG.i18n.
+ * Key => translated string, consumed by builder.js as CFG.i18n.
  *
  * @return array<string,string>
  */
@@ -182,6 +182,7 @@ function dbe_builder_strings() {
 		'contentTab'              => __( 'Content', 'daveden-builderius-enhancements' ),
 		'stylesTab'               => __( 'Styles', 'daveden-builderius-enhancements' ),
 		// CSS selector hint (css_hint_dialog). The body strings carry <code> markup.
+		// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment -- %local% and %selector% are literal Builderius tokens shown to the user, not printf placeholders.
 		'cssHintBanner'           => __( 'How %local%, %selector% & breakpoints work', 'daveden-builderius-enhancements' ),
 		'cssHintOpen'             => __( 'Selector and breakpoint help', 'daveden-builderius-enhancements' ),
 		'cssHintDismiss'          => __( 'Dismiss hint', 'daveden-builderius-enhancements' ),

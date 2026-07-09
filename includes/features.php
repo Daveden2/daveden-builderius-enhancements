@@ -196,6 +196,7 @@ function dbe_features() {
 			'css'         => array(),
 			'js'          => true,
 		),
+
 		/*
 		 * 'multi_select' is temporarily withdrawn (6 Jul 2026): the multi-row
 		 * drag never reliably carried the whole selection, so the option is
@@ -245,21 +246,22 @@ function dbe_features() {
 			'js'          => true,
 		),
 
-			'hide_minimap'        => array(
-				'title'        => __( 'Hide the code minimap', 'daveden-builderius-enhancements' ),
-				'description'  => __( 'Removes the minimap (the small code-overview strip on the right of the CSS code editor) and reclaims the width Monaco reserves for it, so long lines run to the edge of the panel. It switches the editor option off inside the builder\'s bundled Monaco; if a Builderius update ever changes that, it falls back to simply hiding the minimap from view.', 'daveden-builderius-enhancements' ),
-				'tab'          => 'styles',
-				'css'          => array( '42-minimap.css' ),
-				'js'           => true,
-				'experimental' => true,
-			),
-			'css_hint_dialog'     => array(
-				'title'       => __( 'Tidy selector hint', 'daveden-builderius-enhancements' ),
-				'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
-				'tab'         => 'styles',
-				'css'         => array( '44-css-hint.css' ),
-				'js'          => true,
-			),
+		'hide_minimap'        => array(
+			'title'        => __( 'Hide the code minimap', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Removes the minimap (the small code-overview strip on the right of the CSS code editor) and reclaims the width Monaco reserves for it, so long lines run to the edge of the panel. It switches the editor option off inside the builder\'s bundled Monaco; if a Builderius update ever changes that, it falls back to simply hiding the minimap from view.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'styles',
+			'css'          => array( '42-minimap.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
+		'css_hint_dialog'     => array(
+			'title'       => __( 'Tidy selector hint', 'daveden-builderius-enhancements' ),
+			// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment -- %local% and %selector% are literal Builderius tokens shown to the user, not printf placeholders.
+			'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
+			'tab'         => 'styles',
+			'css'         => array( '44-css-hint.css' ),
+			'js'          => true,
+		),
 
 		/* ------------------------------------------------------------ Workflow */
 		'tooltips'            => array(
