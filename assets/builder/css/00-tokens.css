@@ -1,67 +1,136 @@
 /* Design tokens — emitted whenever any feature is enabled (declarations only).
-   Every colour token is a light-dark() pair resolved by the document's
-   color-scheme, which html[data-dbe-theme] drives (set by the theme bootstrap
-   + the top-bar switcher). No attribute / theme switcher off = dark, exactly
-   the palette the prototype shipped. Derived tints use color-mix() so they
-   track whichever theme resolves. */
 
-:root { color-scheme: dark; }
-html[data-dbe-theme="light"] { color-scheme: light; }
-html[data-dbe-theme="auto"]  { color-scheme: light dark; }
+   Theming is done with [data-dbe-theme]-scoped custom properties rather than
+   light-dark(), so the whole plugin stays within Baseline widely-available CSS.
+   No attribute (or the switcher off) = dark, exactly the palette the prototype
+   shipped; data-dbe-theme="light" = light; "auto" follows the OS via
+   prefers-color-scheme. color-scheme is still set per theme so native controls
+   (scrollbars, form widgets) match. Derived tints use color-mix() so they track
+   whichever palette resolves. */
 
+:root                          { color-scheme: dark; }
+html[data-dbe-theme="dark"]    { color-scheme: dark; }
+html[data-dbe-theme="light"]   { color-scheme: light; }
+html[data-dbe-theme="auto"]    { color-scheme: light dark; }
+
+/* Theme-independent tokens + derived tints (the tints reference the palette
+   tokens below, so they resolve to whichever theme is active). */
 :root {
     --dbe-ui-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --dbe-mono: "SFMono-Regular", "Menlo", "Consolas", monospace;
 
-    /* Elevation — three stacked surfaces give the chrome real depth.
-       Dark values match the native Builderius chrome; light values rebuild
-       the same roles on white (all text pairs AA-audited). */
-    --dbe-l0: light-dark(#e3e5ea, #17181a);    /* deepest: top toolbar + footer bar */
-    --dbe-l1: light-dark(#f4f5f7, #202022);    /* panel surface (dark = native, matched) */
-    --dbe-l2: light-dark(#ffffff, #292a2d);    /* raised: cards, inputs, selects, code fields */
-    --dbe-l2-hi: light-dark(#edeff3, #33353a); /* raised + hover */
-
-    /* Hairlines */
-    --dbe-line: light-dark(#d3d6dd, #303236);
-    --dbe-line-hi: light-dark(#bec3cc, #3c3f45);
-
-    /* Text (dark values AA-verified on dark --dbe-l1; light values on #f4f5f7) */
-    --dbe-text: light-dark(#1c1e24, #e6e8ee);   /* primary — headings, values */
-    --dbe-text-2: light-dark(#3a3f47, #c2c6d0); /* body */
-    --dbe-muted: light-dark(#5b6170, #9aa0b0);  /* labels, inactive tabs, group headers */
-
-    /* Accent. Note the ROLE swap in light mode: lines/text/cues need the
-       darker blue on light surfaces, so --dbe-accent is the mid tone in dark
-       and the strong tone in light; --dbe-accent-strong is the only accent
-       that carries --dbe-on-accent-strong (white) text in BOTH themes. */
-    --dbe-accent: light-dark(#2a6ecb, #5ea0ed);
-    --dbe-accent-strong: light-dark(#1d5cb0, #2a6ecb);
-    --dbe-on-accent: light-dark(#ffffff, #14161a); /* text/icon on a solid accent chip */
-    --dbe-on-accent-strong: #ffffff;               /* text on --dbe-accent-strong (≥4.5:1 both themes) */
-    --dbe-focus: light-dark(#1d5cb0, #7cb4f2);     /* focus ring */
+    --dbe-on-accent-strong: #ffffff; /* text on --dbe-accent-strong (≥4.5:1 both themes) */
 
     /* Derived tints — track the resolved theme automatically. */
     --dbe-accent-tint: color-mix(in srgb, var(--dbe-accent) 12%, transparent);      /* hover wash on tree rows */
     --dbe-accent-tint-hi: color-mix(in srgb, var(--dbe-accent) 20%, var(--dbe-l1)); /* selected row / checked segment */
     --dbe-hover-wash: color-mix(in srgb, var(--dbe-text) 7%, transparent);          /* neutral hover on bars/buttons */
     --dbe-sep-line: color-mix(in srgb, var(--dbe-text) 10%, transparent);           /* separators inside menus */
-    --dbe-shadow: light-dark(rgb(16 24 40 / 0.16), rgb(0 0 0 / 0.45));              /* floating chrome shadow colour */
-
-    /* CSS scope levels (Styles editor scope bar + badges) */
-    --dbe-lvl-local: light-dark(#2a6ecb, #5ea0ed);    /* element-scoped (%local%) — the neutral accent */
-    --dbe-lvl-global: light-dark(#9a6b12, #e0a94a);   /* site-wide — amber = "affects every template" */
-    --dbe-lvl-template: light-dark(#0d7a5a, #4fb894); /* this template only — green */
     --dbe-warn-line: var(--dbe-lvl-global); /* attention hairline (tooltip chip) */
-
-    /* Component identity (Navigator labels; dark value = the native green) */
-    --dbe-component: light-dark(#067a57, #07cc91);
-
-    /* Floating menu/submenu card (dark = the native context-menu card colour) */
-    --dbe-menu-bg: light-dark(#ffffff, #171719);
 
     /* Radius — replaces the flat 3px throughout */
     --dbe-r-sm: 6px;   /* inputs, buttons, tabs, chips, tree rows */
     --dbe-r-md: 8px;   /* cards / tiles */
 
     --dbe-t: 120ms ease;
+}
+
+/* --- Dark palette (default: no attribute, or data-dbe-theme="dark") ---
+   Values match the native Builderius chrome. */
+:root,
+html[data-dbe-theme="dark"] {
+    /* Elevation */
+    --dbe-l0: #17181a;    /* deepest: top toolbar + footer bar */
+    --dbe-l1: #202022;    /* panel surface (native, matched) */
+    --dbe-l2: #292a2d;    /* raised: cards, inputs, selects, code fields */
+    --dbe-l2-hi: #33353a; /* raised + hover */
+
+    /* Hairlines */
+    --dbe-line: #303236;
+    --dbe-line-hi: #3c3f45;
+
+    /* Text (AA-verified on dark --dbe-l1) */
+    --dbe-text: #e6e8ee;   /* primary — headings, values */
+    --dbe-text-2: #c2c6d0; /* body */
+    --dbe-muted: #9aa0b0;  /* labels, inactive tabs, group headers */
+
+    /* Accent */
+    --dbe-accent: #5ea0ed;
+    --dbe-accent-strong: #2a6ecb;
+    --dbe-on-accent: #14161a; /* text/icon on a solid accent chip */
+    --dbe-focus: #7cb4f2;     /* focus ring */
+
+    --dbe-shadow: rgba(0, 0, 0, 0.45); /* floating chrome shadow colour */
+
+    /* CSS scope levels (Styles editor scope bar + badges) */
+    --dbe-lvl-local: #5ea0ed;    /* element-scoped (%local%) — the neutral accent */
+    --dbe-lvl-global: #e0a94a;   /* site-wide — amber = "affects every template" */
+    --dbe-lvl-template: #4fb894; /* this template only — green */
+
+    --dbe-component: #07cc91; /* Navigator labels (native green) */
+    --dbe-menu-bg: #171719;   /* floating menu/submenu card (native) */
+}
+
+/* --- Light palette (data-dbe-theme="light", and "auto" by default) ---
+   Rebuilds the same roles on white; all text pairs AA-audited on #f4f5f7. In
+   light mode the accent ROLE swaps: lines/text/cues need the darker blue on
+   light surfaces, so --dbe-accent is the strong tone here. */
+html[data-dbe-theme="light"],
+html[data-dbe-theme="auto"] {
+    --dbe-l0: #e3e5ea;
+    --dbe-l1: #f4f5f7;
+    --dbe-l2: #ffffff;
+    --dbe-l2-hi: #edeff3;
+
+    --dbe-line: #d3d6dd;
+    --dbe-line-hi: #bec3cc;
+
+    --dbe-text: #1c1e24;
+    --dbe-text-2: #3a3f47;
+    --dbe-muted: #5b6170;
+
+    --dbe-accent: #2a6ecb;
+    --dbe-accent-strong: #1d5cb0;
+    --dbe-on-accent: #ffffff;
+    --dbe-focus: #1d5cb0;
+
+    --dbe-shadow: rgba(16, 24, 40, 0.16);
+
+    --dbe-lvl-local: #2a6ecb;
+    --dbe-lvl-global: #9a6b12;
+    --dbe-lvl-template: #0d7a5a;
+
+    --dbe-component: #067a57;
+    --dbe-menu-bg: #ffffff;
+}
+
+/* "auto" resolves to the dark palette when the OS prefers dark. */
+@media (prefers-color-scheme: dark) {
+    html[data-dbe-theme="auto"] {
+        --dbe-l0: #17181a;
+        --dbe-l1: #202022;
+        --dbe-l2: #292a2d;
+        --dbe-l2-hi: #33353a;
+
+        --dbe-line: #303236;
+        --dbe-line-hi: #3c3f45;
+
+        --dbe-text: #e6e8ee;
+        --dbe-text-2: #c2c6d0;
+        --dbe-muted: #9aa0b0;
+
+        --dbe-accent: #5ea0ed;
+        --dbe-accent-strong: #2a6ecb;
+        --dbe-on-accent: #14161a;
+        --dbe-focus: #7cb4f2;
+
+        --dbe-shadow: rgba(0, 0, 0, 0.45);
+
+        --dbe-lvl-local: #5ea0ed;
+        --dbe-lvl-global: #e0a94a;
+        --dbe-lvl-template: #4fb894;
+
+        --dbe-component: #07cc91;
+        --dbe-menu-bg: #171719;
+    }
 }

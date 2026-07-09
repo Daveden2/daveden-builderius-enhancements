@@ -101,6 +101,7 @@ function dbe_render_toggle( $id, $feature ) {
 	$desc_id      = $field_id . '-desc';
 	$note_id      = $field_id . '-pronote';
 	$requires_pro = ! empty( $feature['requires_pro'] );
+	$experimental = ! empty( $feature['experimental'] );
 	$pro_locked   = $requires_pro && ! dbe_builderius_pro_active();
 	// The locked note is part of the field's accessible description.
 	$describedby  = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
@@ -111,6 +112,9 @@ function dbe_render_toggle( $id, $feature ) {
 				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
 				<?php if ( $requires_pro ) : ?>
 					<span class="dbe-badge dbe-badge--pro"><?php esc_html_e( 'Pro', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', requires Builderius Pro', 'daveden-builderius-enhancements' ); ?></span></span>
+				<?php endif; ?>
+				<?php if ( $experimental ) : ?>
+					<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
 				<?php endif; ?>
 			</span>
 			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( $feature['description'] ); ?></p>

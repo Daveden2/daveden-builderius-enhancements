@@ -132,6 +132,7 @@ function dbe_builder_strings() {
 		/* translators: 1: "Wrap in" or "Wrap N in", 2: wrapper type label. */
 		'wrapItemLabel'           => __( '%1$s %2$s', 'daveden-builderius-enhancements' ),
 		'divLabel'                => __( 'Div', 'daveden-builderius-enhancements' ),
+		'figureLabel'             => __( 'Figure', 'daveden-builderius-enhancements' ),
 		'templateLabel'           => __( 'Template', 'daveden-builderius-enhancements' ),
 		'collectionTemplateLabel' => __( 'Collection + template', 'daveden-builderius-enhancements' ),
 		'onlySiblingsWrapped'     => __( 'Only sibling elements can be wrapped together', 'daveden-builderius-enhancements' ),
@@ -142,11 +143,13 @@ function dbe_builder_strings() {
 		'collapseSubtreesTip'     => __( 'Collapse subtrees (keeps top-level elements open)', 'daveden-builderius-enhancements' ),
 		'expandAll'               => __( 'Expand all', 'daveden-builderius-enhancements' ),
 		'expandAllElements'       => __( 'Expand all elements', 'daveden-builderius-enhancements' ),
+		'detachPanel'             => __( 'Detach panel', 'daveden-builderius-enhancements' ),
+		'dockPanel'               => __( 'Dock panel', 'daveden-builderius-enhancements' ),
+		'resizePanel'             => __( 'Resize panel', 'daveden-builderius-enhancements' ),
 
 		// Icon tooltips.
 		'tipDynamicConditions'    => __( 'Dynamic data conditions', 'daveden-builderius-enhancements' ),
 		'tipToggleCssEditor'      => __( 'Toggle CSS code editor', 'daveden-builderius-enhancements' ),
-		'tipWidenPanelCss'        => __( 'Widen panel for the CSS editor', 'daveden-builderius-enhancements' ),
 		'tipBuilderiusMenu'       => __( 'Builderius menu', 'daveden-builderius-enhancements' ),
 		'tipBreakpointSettings'   => __( 'Breakpoint settings', 'daveden-builderius-enhancements' ),
 		'tipReloadPreview'        => __( 'Reload preview', 'daveden-builderius-enhancements' ),
@@ -177,8 +180,16 @@ function dbe_builder_strings() {
 		// Styles panel.
 		'contentTab'              => __( 'Content', 'daveden-builderius-enhancements' ),
 		'stylesTab'               => __( 'Styles', 'daveden-builderius-enhancements' ),
-		'widenSettingsPanel'      => __( 'Widen settings panel', 'daveden-builderius-enhancements' ),
-		'widenSettingsPanelTip'   => __( 'Widen settings panel for the CSS editor', 'daveden-builderius-enhancements' ),
+		// CSS selector hint (css_hint_dialog). The body strings carry <code> markup.
+		'cssHintBanner'           => __( 'How %local%, %selector% & breakpoints work', 'daveden-builderius-enhancements' ),
+		'cssHintOpen'             => __( 'Selector and breakpoint help', 'daveden-builderius-enhancements' ),
+		'cssHintDismiss'          => __( 'Dismiss hint', 'daveden-builderius-enhancements' ),
+		'cssHintClose'            => __( 'Close', 'daveden-builderius-enhancements' ),
+		'cssHintTitle'            => __( 'Selector tokens & breakpoints', 'daveden-builderius-enhancements' ),
+		'cssHintLocal'            => __( 'Targets this element only, through its automatic class. Use <code>%#local%</code> to target it by ID instead.', 'daveden-builderius-enhancements' ),
+		'cssHintSelector'         => __( 'Targets every element that uses the current class.', 'daveden-builderius-enhancements' ),
+		'cssHintBreakpointsTerm'  => __( 'Breakpoints', 'daveden-builderius-enhancements' ),
+		'cssHintBreakpoints'      => __( 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use the breakpoint variables <code>--desktop</code>, <code>--tablet</code> and <code>--mobile</code> as values.', 'daveden-builderius-enhancements' ),
 		'switchingScope'          => __( 'Switching scope…', 'daveden-builderius-enhancements' ),
 		'scopeBadgeTip'           => __( 'Scope controls where edits are SAVED. The editor shows the selector’s existing rules from both scopes, so a rule you see here may be stored in the other scope.', 'daveden-builderius-enhancements' ),
 		'cssScope'                => __( 'CSS scope', 'daveden-builderius-enhancements' ),
@@ -194,10 +205,14 @@ function dbe_builder_strings() {
 		'scopeNoRules'            => __( 'No %s rules', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the other scope's name. Follows the class name. */
 		'scopeAlsoIn'             => __( '· also in %s', 'daveden-builderius-enhancements' ),
-		/* translators: %s: active scope name. Precedes the class name (in a code chip). */
-		'scopeCoverPre'           => __( 'No %s rules for ', 'daveden-builderius-enhancements' ),
-		/* translators: %s: the scope that stores the rules. Follows the class name. */
-		'scopeCoverPost'          => __( '. Its rules live in %s.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the scope that stores the rules. Follows the class name in the warning. */
+		'scopeRulesIn'            => __( '· rules in %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: active scope name (Global, Template or Component). Button that seeds an empty rule so the class becomes editable in the active scope. */
+		'scopeAddHere'            => __( 'Add %s rules', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the scope that owns the rules. Editor-cover note explaining why editing is off. */
+		'scopeCoverWhy'           => __( 'Editing here would change %s rules', 'daveden-builderius-enhancements' ),
+		/* Status verb for the %local% one-off, which belongs to no class and no scope. */
+		'scopeLocalEditing'       => __( 'Editing element styles', 'daveden-builderius-enhancements' ),
 		/* translators: %s: scope name (Global, Template or Component). */
 		'switchTo'                => __( 'Switch to %s', 'daveden-builderius-enhancements' ),
 
@@ -240,6 +255,7 @@ function dbe_builder_strings() {
 
 		// Preview resize.
 		'resizePreview'           => __( 'Resize preview canvas', 'daveden-builderius-enhancements' ),
+		'resizePanels'            => __( 'Resize panels', 'daveden-builderius-enhancements' ),
 
 		// Favourites & component properties.
 		'rearrangeFavourites'     => __( 'Rearrange favourites', 'daveden-builderius-enhancements' ),

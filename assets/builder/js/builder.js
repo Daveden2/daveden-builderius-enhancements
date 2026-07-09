@@ -188,6 +188,9 @@
         if (type === 'div') {
             storeAddModule(sf, { id: newId, name: 'HtmlElement', label: 'Div',
                 settings: [{ name: 'tag', value: 'div' }] }, parentId, firstAt);
+        } else if (type === 'figure') {
+            storeAddModule(sf, { id: newId, name: 'HtmlElement', label: 'Figure',
+                settings: [{ name: 'tag', value: 'figure' }] }, parentId, firstAt);
         } else if (type === 'template') {
             storeAddModule(sf, { id: newId, name: 'Template', label: 'Template', settings: [] }, parentId, firstAt);
         } else if (type === 'collection') {
@@ -1810,6 +1813,7 @@
                         function () {
                             return [
                                 makeWrapItem('div', dbeT('divLabel', 'Div')),
+                                makeWrapItem('figure', dbeT('figureLabel', 'Figure')),
                                 makeWrapItem('template', dbeT('templateLabel', 'Template')),
                                 makeWrapItem('collection', dbeT('collectionTemplateLabel', 'Collection + template'))
                             ];
@@ -1845,6 +1849,7 @@
                 wrapParent = makeParent(multiIds ? dbeFmt(dbeT('wrapNInEllipsis', 'Wrap %s in…'), multiIds.length) : dbeT('wrapInEllipsis', 'Wrap in…'), false, function () {
                     return [
                         makeWrapItem('div', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('divLabel', 'Div'))),
+                        makeWrapItem('figure', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('figureLabel', 'Figure'))),
                         makeWrapItem('template', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('templateLabel', 'Template'))),
                         makeWrapItem('collection', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('collectionTemplateLabel', 'Collection + template')))
                     ];
@@ -1988,7 +1993,6 @@
         ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)')],
         ['.uniLeftPanel .uniIconConditionsMode', dbeT('tipDynamicConditions', 'Dynamic data conditions')],
         ['.uniLeftPanel .uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
-        ['.uniLeftPanel .dbe-expand-panel', dbeT('tipWidenPanelCss', 'Widen panel for the CSS editor')],
         ['.uniPanelButton--builderiusMenu', dbeT('tipBuilderiusMenu', 'Builderius menu')],
         ['.uniGlobalBreakpoints__modalIcon', dbeT('tipBreakpointSettings', 'Breakpoint settings')],
         ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],
@@ -2226,33 +2230,6 @@
         else { sp.insertBefore(strip, sp.firstChild); }
     }
 
-    /* Widen button in the settings-panel header: toggles body.dbe-css-wide, which
-       releases the compact width clamp (see CSS) so the code editor gets the full
-       native width. Hidden by CSS unless Monaco is present. */
-    var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-        '<path d="M2 7h10M4.4 4.6 2 7l2.4 2.4M9.6 4.6 12 7l-2.4 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
-        '</svg>';
-    function ensureExpandButton() {
-        var icons = document.querySelector('.uniLeftPanel .uniPanelHeader__icons');
-        if (!icons) { return; }
-        var btn = icons.querySelector('.dbe-expand-panel');
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-expand-panel';
-            btn.setAttribute('aria-label', dbeT('widenSettingsPanel', 'Widen settings panel'));
-            btn.title = dbeT('widenSettingsPanelTip', 'Widen settings panel for the CSS editor');
-            btn.innerHTML = '<span>' + EXPAND_SVG + '</span>';
-            btn.addEventListener('click', function () {
-                var wide = document.body.classList.toggle('dbe-css-wide');
-                btn.setAttribute('aria-pressed', wide ? 'true' : 'false');
-            });
-            icons.appendChild(btn);
-        }
-        // Keep the pressed state in sync with the body class (survives re-renders).
-        btn.setAttribute('aria-pressed', document.body.classList.contains('dbe-css-wide') ? 'true' : 'false');
-    }
-
     /* (g) CSS scope: surface the Global/Template switch at the Styles editor and
        indicate the current level. The scope lives in the builder store as the
        boolean `isGlobalScope` — the native Global/Template buttons' ENTIRE
@@ -2359,6 +2336,35 @@
                 value: css, selector: sel, breakpoint: bp, isGlobalScope: want
             });
         } catch (e) { /* store or hooks unavailable; leave the native toggle as-is */ }
+    }
+
+    /* Give a class that has rules only in the OTHER scope ("elsewhere") a real,
+       empty rule in the ACTIVE scope, so it becomes cleanly editable HERE.
+
+       Builderius mounts the per-selector code editor onto the scope where the
+       class physically has rules, ignoring the active scope — so a Global view of
+       a Template-only class shows (and would fork) Template's rules. Seeding an
+       empty `sel {}` into the active scope's stylesheet makes the class exist in
+       both scopes: Builderius re-mounts the editor onto the active scope's own
+       (empty) model, and edits then save to the active scope. Uses the public
+       modifyCssAll hook with plain CSS text, so it never touches Builderius'
+       internal rule-object shape. No-ops if the active scope already has the rule
+       (so it can't clobber real styles) — and modifyCssAll REPLACES the whole
+       stylesheet, so we read the current text fresh and only append. */
+    function seedActiveScope() {
+        try {
+            var sf = store();
+            var sel = sf.storeGet('activeSelector');
+            if (!sel || sel.charAt(0) !== '.') { return; }        // class selectors only
+            var isGlobal = sf.storeGet('isGlobalScope') === true;
+            var settings = isGlobal ? sf.storeGet('getGlobalSettings') : sf.storeGet('getEntitySettings');
+            var css = settings && typeof settings.css === 'string' ? settings.css : '';
+            if (selectorInScope(css, sel)) { return; }            // already editable here; nothing to seed
+            window.Builderius.API.hooks.doAction('builderius.cssSelector.modifyCssAll', {
+                value: css + '\n' + sel + ' {\n}\n',
+                scope: isGlobal ? 'global' : 'entity'
+            });
+        } catch (e) { /* store or hooks unavailable; leave the warning as-is */ }
     }
 
     /* Switch the CSS scope from the Styles editor.
@@ -2628,9 +2634,9 @@
         return false;
     }
 
-    /* Render the scope status line + editor cover for the active selector.
-       Idempotent and signature-guarded so an unchanged tick writes no DOM (the
-       panel MutationObserver re-runs schedule() on our own edits otherwise). */
+    /* Render the scope status line for the active selector. Idempotent and
+       signature-guarded so an unchanged tick writes no DOM (the panel
+       MutationObserver re-runs schedule() on our own edits otherwise). */
     function ensureScopeIsolation() {
         var lp = document.querySelector('.uniLeftPanel');
         if (!lp) { return; }
@@ -2650,16 +2656,34 @@
             bp = sf.storeGet('activeBreakpoint') || '';
             isGlobal = sf.storeGet('isGlobalScope') === true;
         } catch (e) { return teardown(); }
-        // Class selectors at the base breakpoint only — see the note above.
-        if (!sel || sel.charAt(0) !== '.' || bp !== '') { return teardown(); }
+        // Base breakpoint only — see the note above. The local (element) scope
+        // surfaces when NO class is selected: activeSelector is empty and
+        // Builderius targets the element's own autogenerated %local% class. Class
+        // selectors are compared across scopes; any other selector kind (id,
+        // element, …) gets no status.
+        if (bp !== '') { return teardown(); }
+        var isLocal = !sel || sel.charAt(0) === '%';         // no class selected, or the %local% / %#local% token
+        if (!isLocal && sel.charAt(0) !== '.') { return teardown(); }
 
-        var activeName = isGlobal ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
-        var otherName = isGlobal ? entityScopeLabel() : dbeT('scopeGlobal', 'Global');
-        var otherTarget = isGlobal ? 'template' : 'global';
-        var activeHas = selectorInScope(scopeCss(isGlobal ? 'global' : 'entity'), sel);
-        var otherHas = selectorInScope(scopeCss(isGlobal ? 'entity' : 'global'), sel);
-        var state = activeHas ? 'own' : (otherHas ? 'elsewhere' : 'new');
-        var sig = state + '|' + sel + '|' + activeName + '|' + otherName + '|' + (otherHas ? 1 : 0);
+        var displaySel = sel;
+        var activeName, otherName = '', otherTarget = '', activeHas = false, otherHas = false, state;
+        if (isLocal) {
+            // %local% is the element's own autogenerated class, derived from the
+            // element JSON. It belongs to no class and sits outside the
+            // Global/Template scopes, so there is nothing to compare across scopes
+            // and never anything to cover.
+            state = 'local';
+            activeName = dbeT('scopeLocal', 'Local');
+            displaySel = '%local%';
+        } else {
+            activeName = isGlobal ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
+            otherName = isGlobal ? entityScopeLabel() : dbeT('scopeGlobal', 'Global');
+            otherTarget = isGlobal ? 'template' : 'global';
+            activeHas = selectorInScope(scopeCss(isGlobal ? 'global' : 'entity'), sel);
+            otherHas = selectorInScope(scopeCss(isGlobal ? 'entity' : 'global'), sel);
+            state = activeHas ? 'own' : (otherHas ? 'elsewhere' : 'new');
+        }
+        var sig = state + '|' + displaySel + '|' + activeName + '|' + otherName + '|' + (otherHas ? 1 : 0);
 
         // Status line — always present, anchored under the scope bar.
         var status = lp.querySelector('.dbe-scope-status');
@@ -2679,13 +2703,14 @@
             status.setAttribute('data-dbe-state', state);
             var verb = state === 'own' ? dbeFmt(dbeT('scopeEditing', 'Editing %s rules'), activeName)
                 : state === 'new' ? dbeFmt(dbeT('scopeNewRule', 'New %s rule'), activeName)
-                    : dbeFmt(dbeT('scopeNoRules', 'No %s rules'), activeName);
+                    : state === 'local' ? dbeT('scopeLocalEditing', 'Editing element styles')
+                        : dbeFmt(dbeT('scopeNoRules', 'No %s rules'), activeName); // elsewhere
             status.innerHTML = '';
             var vspan = document.createElement('span');
             vspan.className = 'dbe-scope-status__verb';
             vspan.textContent = verb;
             var code = document.createElement('code');
-            code.textContent = sel;
+            code.textContent = displaySel;
             status.appendChild(vspan);
             status.appendChild(code);
             if (state === 'own' && otherHas) {
@@ -2693,42 +2718,58 @@
                 dup.className = 'dbe-scope-status__dup';
                 dup.textContent = ' ' + dbeFmt(dbeT('scopeAlsoIn', '· also in %s'), otherName);
                 status.appendChild(dup);
+            } else if (state === 'elsewhere') {
+                // Name where the rules currently live; the actions live in the
+                // editor cover below (built further down).
+                var where = document.createElement('span');
+                where.className = 'dbe-scope-status__dup';
+                where.textContent = ' ' + dbeFmt(dbeT('scopeRulesIn', '· rules in %s'), otherName);
+                status.appendChild(where);
             }
         }
 
-        // Cover the editor only when the visible rules belong to the other scope.
+        // In "elsewhere" the editor is showing the OTHER scope's rules (Builderius
+        // mounts the model where the rules physically live), so typing here would
+        // edit — and fork — those rules. Cover the editor with a light, inert
+        // scrim until the user picks an action: "Add <scope> rules" seeds an empty
+        // editable rule in THIS scope (via seedActiveScope), "Switch to <other>"
+        // jumps to where the rules live. Any other state clears the cover.
         if (state === 'elsewhere') {
             holder.classList.add('dbe-scope-hold');
             mon.classList.add('dbe-scope-covered');
-            mon.setAttribute('inert', ''); // keep Tab focus out of the hidden editor
+            mon.setAttribute('inert', '');                 // block accidental typing / tab-in
             var cover = holder.querySelector('.dbe-scope-cover');
             if (!cover) {
                 cover = document.createElement('div');
                 cover.className = 'dbe-scope-cover';
                 var note = document.createElement('p');
                 note.className = 'dbe-scope-cover__note';
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'dbe-scope-cover__switch';
-                btn.addEventListener('click', function () {
+                var actions = document.createElement('div');
+                actions.className = 'dbe-scope-cover__actions';
+                var addBtn = document.createElement('button');
+                addBtn.type = 'button';
+                addBtn.className = 'dbe-scope-status__btn dbe-scope-status__add';
+                addBtn.addEventListener('click', function () { seedActiveScope(); });
+                var swBtn = document.createElement('button');
+                swBtn.type = 'button';
+                swBtn.className = 'dbe-scope-status__btn dbe-scope-status__switch';
+                swBtn.addEventListener('click', function () {
                     var t = cover.getAttribute('data-dbe-target');
                     if (t) { try { setScope(t); } catch (e) {} }
                 });
+                actions.appendChild(addBtn);
+                actions.appendChild(swBtn);
                 cover.appendChild(note);
-                cover.appendChild(btn);
+                cover.appendChild(actions);
                 holder.appendChild(cover);
             }
             if (cover.getAttribute('data-dbe-sig') !== sig) {
                 cover.setAttribute('data-dbe-sig', sig);
                 cover.setAttribute('data-dbe-target', otherTarget);
-                var noteEl = cover.querySelector('.dbe-scope-cover__note');
-                noteEl.innerHTML = '';
-                var c2 = document.createElement('code');
-                c2.textContent = sel;
-                noteEl.appendChild(document.createTextNode(dbeFmt(dbeT('scopeCoverPre', 'No %s rules for '), activeName)));
-                noteEl.appendChild(c2);
-                noteEl.appendChild(document.createTextNode(dbeFmt(dbeT('scopeCoverPost', '. Its rules live in %s.'), otherName)));
-                cover.querySelector('.dbe-scope-cover__switch').textContent = dbeFmt(dbeT('switchTo', 'Switch to %s'), otherName);
+                cover.querySelector('.dbe-scope-cover__note').textContent =
+                    dbeFmt(dbeT('scopeCoverWhy', 'Editing here would change %s rules'), otherName);
+                cover.querySelector('.dbe-scope-status__add').textContent = dbeFmt(dbeT('scopeAddHere', 'Add %s rules'), activeName);
+                cover.querySelector('.dbe-scope-status__switch').textContent = dbeFmt(dbeT('switchTo', 'Switch to %s'), otherName);
             }
         } else {
             var existingCover = holder.querySelector('.dbe-scope-cover');
@@ -2740,8 +2781,8 @@
     }
 
     /* (i) Theme switcher: cycles light -> dark -> auto, persisted per browser.
-       html[data-dbe-theme] drives color-scheme (00-tokens.css), which resolves
-       every light-dark() token — no per-element JS repainting. Monaco has its
+       html[data-dbe-theme] selects the token palette (00-tokens.css) and sets
+       color-scheme for native controls — no per-element JS repainting. Monaco has its
        own theming: when the bundle exposes window.monaco we retheme it to
        match; otherwise the code editor stays a dark island (documented
        compromise — never touch its fonts or colours directly, see the
@@ -2784,6 +2825,62 @@
                 lastMonacoTheme = want;
             }
         } catch (e) {}
+    }
+
+    /* Turn off Monaco's minimap (the code-overview strip) on every builder editor.
+       43-scope-isolation.css hides the minimap PAINT, but Monaco still reserves
+       its width in the layout, so long lines clip ~77px short of the right edge.
+       The only real fix is the editor option — which needs the Monaco namespace.
+       It is not exposed as window.monaco here, so we pull it out of the builder's
+       webpack bundle once (chunk-push to grab __webpack_require__, then find the
+       module that exports `editor.getEditors`/`onDidCreateEditor`) and disable the
+       minimap on all current editors + every future one. Wrapped throughout: if
+       the bundle internals ever change we fail soft and the CSS hide still applies
+       (overview gone, width merely reserved). */
+    var dbeMonacoNs = null;      // resolved Monaco namespace, cached once found
+    var dbeWebpackReq = null;    // the builder bundle's __webpack_require__
+    var dbeProbeN = 0;           // unique id per chunk-push so the callback always fires
+    var dbeMinimapDone = false;  // current editors done + onDidCreateEditor hooked
+    function dbeGetMonaco() {
+        if (dbeMonacoNs) { return dbeMonacoNs; }
+        try {
+            if (!dbeWebpackReq) {
+                var chunk = window.webpackChunkbuilderius;
+                if (!chunk || typeof chunk.push !== 'function') { return null; }
+                var req = null;
+                chunk.push([['dbe-monaco-' + (dbeProbeN++)], {}, function (r) { req = r; }]);
+                if (typeof req === 'function' && req.m) { dbeWebpackReq = req; } else { return null; }
+            }
+            var m = dbeWebpackReq.m;
+            for (var id in m) {
+                var src;
+                try { src = m[id].toString(); } catch (e) { continue; }
+                if (src.indexOf('onDidCreateEditor') < 0 && src.indexOf('getEditors') < 0) { continue; }
+                var ex;
+                try { ex = dbeWebpackReq(id); } catch (e) { continue; }
+                if (ex && ex.editor && typeof ex.editor.getEditors === 'function'
+                    && typeof ex.editor.onDidCreateEditor === 'function') {
+                    dbeMonacoNs = ex;
+                    return ex;
+                }
+            }
+        } catch (e) { /* bundle internals changed — the CSS hide is the fallback */ }
+        return null;
+    }
+    function dbeDisableMinimap() {
+        if (dbeMinimapDone) { return; }
+        if (!document.querySelector('.monaco-editor')) { return; } // Monaco not loaded yet
+        var monaco = dbeGetMonaco();
+        if (!monaco) { return; }
+        try {
+            monaco.editor.getEditors().forEach(function (ed) {
+                try { ed.updateOptions({ minimap: { enabled: false } }); } catch (e) {}
+            });
+            monaco.editor.onDidCreateEditor(function (ed) {
+                try { ed.updateOptions({ minimap: { enabled: false } }); } catch (e) {}
+            });
+            dbeMinimapDone = true;
+        } catch (e) { /* fail soft */ }
     }
     function decorateThemeButton(btn) {
         var t = currentTheme();
@@ -3147,6 +3244,400 @@
         inner.appendChild(right);
         dbeSyncHandleAria(left);
         dbeSyncHandleAria(right);
+    }
+
+    /* Side-panel resize (panel_resize): drag the inner edge of either side panel
+       to set ONE shared width for both — the settings/styles panel (left) and the
+       Navigator (right) always match. The width is a single CSS custom property,
+       --dbe-panel-width on <body>, that every panel-width rule reads (see
+       75-panel-resize.css), so moving either handle moves both. The left panel is
+       a normal flex item (the canvas reflows on its own); the right panel is an
+       absolutely-positioned overlay whose reserved space lives in the iframe
+       panel's own margin — 75-panel-resize.css re-points both at the variable,
+       scoped to when the Navigator is actually mounted so a closed panel still
+       gives the space back. Width persists in localStorage and re-applies after
+       native re-renders. Keyboard: arrows nudge, Home/End jump to the clamp ends. */
+    var DBE_PANEL_KEY = 'dbeBuilderPanelWidth';
+    var DBE_PANEL_MIN = 260;
+    var DBE_PANEL_MAX = 600;
+    var DBE_PANEL_DEFAULT = 320;
+
+    function dbePanelWidth() {
+        var v = parseInt(getComputedStyle(document.body).getPropertyValue('--dbe-panel-width'), 10);
+        return isNaN(v) ? DBE_PANEL_DEFAULT : v;
+    }
+    function dbeSetPanelWidth(w) {
+        w = Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, Math.round(w)));
+        document.body.style.setProperty('--dbe-panel-width', w + 'px');
+        try { localStorage.setItem(DBE_PANEL_KEY, String(w)); } catch (e) {}
+        dbeSyncPanelHandlesAria();
+        return w;
+    }
+    function dbeSyncPanelHandlesAria() {
+        var w = dbePanelWidth();
+        document.querySelectorAll('.dbe-panel-handle').forEach(function (h) {
+            h.setAttribute('aria-valuemin', String(DBE_PANEL_MIN));
+            h.setAttribute('aria-valuemax', String(DBE_PANEL_MAX));
+            h.setAttribute('aria-valuenow', String(w));
+        });
+    }
+
+    function makePanelHandle(side) { // side: 'left' | 'right'
+        var h = document.createElement('button');
+        h.type = 'button';
+        h.className = 'dbe-panel-handle';
+        h.setAttribute('data-side', side);
+        h.setAttribute('role', 'separator');
+        h.setAttribute('aria-orientation', 'vertical');
+        h.setAttribute('aria-label', dbeT('resizePanels', 'Resize panels'));
+
+        var drag = null;
+        h.addEventListener('pointerdown', function (ev) {
+            ev.preventDefault();
+            drag = { raf: 0 };
+            try { h.setPointerCapture(ev.pointerId); } catch (e) {}
+            document.body.classList.add('dbe-panel-resizing');
+        });
+        h.addEventListener('pointermove', function (ev) {
+            if (!drag || drag.raf) { return; }
+            // Left panel's inner edge is measured from viewport x=0; the right
+            // panel sits flush to the viewport's right edge.
+            var vw = document.documentElement.clientWidth;
+            var w = side === 'left' ? ev.clientX : (vw - ev.clientX);
+            drag.raf = requestAnimationFrame(function () {
+                if (drag) { drag.raf = 0; }
+                dbeSetPanelWidth(w);
+            });
+        });
+        function endPanelDrag() {
+            if (!drag) { return; }
+            drag = null;
+            document.body.classList.remove('dbe-panel-resizing');
+        }
+        h.addEventListener('pointerup', endPanelDrag);
+        h.addEventListener('pointercancel', endPanelDrag);
+
+        h.addEventListener('keydown', function (ev) {
+            var step = ev.shiftKey ? 40 : 10;
+            var w = dbePanelWidth();
+            var next = null;
+            switch (ev.key) {
+                case 'ArrowRight':
+                case 'ArrowUp': next = w + step; break;
+                case 'ArrowLeft':
+                case 'ArrowDown': next = w - step; break;
+                case 'Home': next = DBE_PANEL_MIN; break;
+                case 'End': next = DBE_PANEL_MAX; break;
+                default: return;
+            }
+            // Keep arrows off the builder's global canvas-nudge shortcuts.
+            ev.preventDefault();
+            ev.stopPropagation();
+            dbeSetPanelWidth(next);
+        });
+        return h;
+    }
+
+    function ensurePanelHandles() {
+        // Left settings/inserter panel — grip on its inner (right) edge. The outer
+        // is made position:relative by 75-panel-resize.css so the absolute grip
+        // anchors to it without taking flex space.
+        var lpo = document.querySelector('.uniLeftPanelOuter');
+        if (lpo && !lpo.querySelector(':scope > .dbe-panel-handle')) {
+            lpo.appendChild(makePanelHandle('left'));
+        }
+        // Right Navigator panel — grip on its inner (left) edge, appended to the
+        // absolutely-positioned wrapper so panel overflow can't clip it.
+        var rp = document.querySelector('.uniRightPanel');
+        var rpWrap = rp && rp.parentElement;
+        if (rpWrap && !rpWrap.querySelector(':scope > .dbe-panel-handle')) {
+            rpWrap.appendChild(makePanelHandle('right'));
+        }
+        dbeSyncPanelHandlesAria();
+    }
+
+    /* Seed --dbe-panel-width from the stored value before the handles mount, so
+       the panels open at the remembered width (the CSS carries a 320px fallback
+       for the first-ever run). */
+    function applyStoredPanelWidth() {
+        var v;
+        try { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); } catch (e) {}
+        if (!isNaN(v)) {
+            document.body.style.setProperty('--dbe-panel-width',
+                Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, v)) + 'px');
+        }
+    }
+
+    /* CSS-panel hint (css_hint_dialog): Builderius prints a two-line
+       selector/breakpoint hint (.uniInlineTooltipMessage) under the CSS editor
+       that eats vertical space AND whose wording is inconsistent by scope — the
+       %local% variant lists the breakpoint VARIABLES (--desktop/--tablet/--mobile),
+       while the class/%selector% variant mentions only the breakpoints switcher.
+       We hide the native lines (44-css-hint.css) and replace them with one
+       compact, dismissable affordance whose dialog carries a SINGLE unified
+       explanation covering both tokens and both breakpoint facts. First run shows
+       a one-line banner with a close (×); dismissing it (remembered in
+       localStorage) collapses it to a small info button that always reopens the
+       dialog, so the help is reclaimed-but-recoverable. */
+    var DBE_HINT_KEY = 'dbeBuilderCssHintDismissed';
+
+    function cssHintDismissed() {
+        try { return localStorage.getItem(DBE_HINT_KEY) === '1'; } catch (e) { return false; }
+    }
+
+    function cssHintBodyHtml() {
+        // One consistent structure for both tokens, breakpoints stated once for
+        // both. The strings carry <code> markup for the tokens; they are our own
+        // trusted copy (i18n-builder.php).
+        return '<dl class="dbe-css-hint-dl">' +
+            '<dt><code>%local%</code></dt><dd>' +
+            dbeT('cssHintLocal', 'Targets this element only, through its automatic class. Use <code>%#local%</code> to target it by ID instead.') + '</dd>' +
+            '<dt><code>%selector%</code></dt><dd>' +
+            dbeT('cssHintSelector', 'Targets every element that uses the current class.') + '</dd>' +
+            '<dt>' + dbeT('cssHintBreakpointsTerm', 'Breakpoints') + '</dt><dd>' +
+            dbeT('cssHintBreakpoints', 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use the breakpoint variables <code>--desktop</code>, <code>--tablet</code> and <code>--mobile</code> as values.') + '</dd>' +
+            '</dl>';
+    }
+
+    function openCssHintDialog() {
+        var dlg = document.getElementById('dbe-css-hint-dialog');
+        if (!dlg) {
+            dlg = document.createElement('dialog');
+            dlg.id = 'dbe-css-hint-dialog';
+            dlg.className = 'dbe-css-hint-dialog';
+            dlg.innerHTML =
+                '<div class="dbe-css-hint-dialog__head">' +
+                    '<h2 class="dbe-css-hint-dialog__title">' + dbeT('cssHintTitle', 'Selector tokens & breakpoints') + '</h2>' +
+                    '<button type="button" class="dbe-css-hint-dialog__close" aria-label="' + dbeT('cssHintClose', 'Close') + '">×</button>' +
+                '</div>' +
+                '<div class="dbe-css-hint-dialog__body">' + cssHintBodyHtml() + '</div>';
+            dlg.querySelector('.dbe-css-hint-dialog__close').addEventListener('click', function () { dlg.close(); });
+            // Keep builder shortcuts from firing while the dialog has focus.
+            dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+            // Backdrop click closes (native <dialog> also gives Esc for free).
+            dlg.addEventListener('click', function (e) { if (e.target === dlg) { dlg.close(); } });
+            document.body.appendChild(dlg);
+        }
+        if (!dlg.open) { dlg.showModal(); }
+    }
+
+    function ensureCssHint() {
+        // Anchor to the native hint block so our affordance lands exactly where
+        // the help used to be. The native lines are hidden by CSS (still in the
+        // DOM), so their presence is a reliable "we're in the styles view" signal.
+        var firstMsg = document.querySelector('.uniLeftPanel .uniInlineTooltipMessage');
+        if (!firstMsg) {
+            var stale = document.querySelector('.dbe-css-hint');
+            if (stale) { stale.remove(); }
+            return;
+        }
+        var host = firstMsg.parentElement;
+        var dismissed = cssHintDismissed();
+        var existing = host.querySelector(':scope > .dbe-css-hint');
+        if (existing) {
+            existing.classList.toggle('is-collapsed', dismissed);
+            return;
+        }
+        var el = document.createElement('div');
+        el.className = 'dbe-css-hint' + (dismissed ? ' is-collapsed' : '');
+        el.innerHTML =
+            '<button type="button" class="dbe-css-hint-btn">' +
+                '<span class="dbe-css-hint-i" aria-hidden="true">i</span>' +
+                '<span class="dbe-css-hint-label">' + dbeT('cssHintBanner', 'How %local%, %selector% & breakpoints work') + '</span>' +
+            '</button>' +
+            '<button type="button" class="dbe-css-hint-dismiss" aria-label="' + dbeT('cssHintDismiss', 'Dismiss hint') + '">×</button>';
+        var btn = el.querySelector('.dbe-css-hint-btn');
+        btn.setAttribute('aria-label', dbeT('cssHintOpen', 'Selector and breakpoint help'));
+        btn.addEventListener('click', openCssHintDialog);
+        el.querySelector('.dbe-css-hint-dismiss').addEventListener('click', function () {
+            try { localStorage.setItem(DBE_HINT_KEY, '1'); } catch (e) {}
+            el.classList.add('is-collapsed');
+        });
+        host.insertBefore(el, firstMsg);
+    }
+
+    /* Detachable Navigator (panel_detach, experimental): float the Navigator free
+       of the docked layout so it can sit over the canvas. We do NOT move the
+       React-owned panel node (that would sever its store bindings) — instead we
+       switch its absolutely-positioned wrapper to position:fixed and drive its box
+       from CSS vars (--dbe-nav-x/y/w/h) that 76-panel-detach.css reads, and the
+       canvas reclaims the docked column via body.dbe-nav-detached. Drag by the
+       panel header, resize from the bottom-inline-end grip. The detached flag and
+       geometry persist in localStorage and re-apply idempotently after native
+       re-renders (CSS vars + a body class, never one-shot inline writes). */
+    var DBE_NAV_KEY = 'dbeBuilderNavFloat';
+    var DBE_NAV_MIN_W = 240;
+    var DBE_NAV_MIN_H = 200;
+    var dbeNavHeaderBound = false;
+
+    function navWrap() {
+        var rp = document.querySelector('.uniRightPanel');
+        return rp ? rp.parentElement : null;
+    }
+    function navFloatState() {
+        try { return JSON.parse(localStorage.getItem(DBE_NAV_KEY)) || null; } catch (e) { return null; }
+    }
+    function saveNavFloat(st) {
+        try { localStorage.setItem(DBE_NAV_KEY, JSON.stringify(st)); } catch (e) {}
+    }
+    /* Keep the floating panel inside the viewport (below the ~47px top bar), with
+       a sensible minimum size. */
+    function clampNav(st) {
+        var vw = document.documentElement.clientWidth;
+        var vh = document.documentElement.clientHeight;
+        st.w = Math.max(DBE_NAV_MIN_W, Math.min(st.w, vw));
+        st.h = Math.max(DBE_NAV_MIN_H, Math.min(st.h, vh - 47));
+        st.x = Math.max(0, Math.min(st.x, vw - 40));
+        st.y = Math.max(47, Math.min(st.y, vh - 40));
+        return st;
+    }
+    function applyNavFloatVars(st) {
+        var r = document.documentElement.style;
+        r.setProperty('--dbe-nav-x', st.x + 'px');
+        r.setProperty('--dbe-nav-y', st.y + 'px');
+        r.setProperty('--dbe-nav-w', st.w + 'px');
+        r.setProperty('--dbe-nav-h', st.h + 'px');
+    }
+
+    function detachNav() {
+        var wrap = navWrap();
+        if (!wrap) { return; }
+        var st = navFloatState();
+        if (!st || !st.detached) {
+            // Seed geometry from the panel's current docked box so it floats in place.
+            var r = wrap.getBoundingClientRect();
+            st = { detached: true, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+        } else {
+            st.detached = true;
+        }
+        clampNav(st);
+        applyNavFloatVars(st);
+        document.body.classList.add('dbe-nav-detached');
+        saveNavFloat(st);
+        syncDetachButton();
+    }
+    function dockNav() {
+        document.body.classList.remove('dbe-nav-detached');
+        var st = navFloatState() || {};
+        st.detached = false;
+        saveNavFloat(st);
+        syncDetachButton();
+    }
+    function toggleNav() {
+        if (document.body.classList.contains('dbe-nav-detached')) { dockNav(); } else { detachNav(); }
+    }
+
+    var DETACH_SVG = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+        '<path d="M8 1.5h4.5V6M12.5 1.5 7 7M6 2H2.5A1 1 0 0 0 1.5 3v8.5a1 1 0 0 0 1 1H11a1 1 0 0 0 1-1V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>';
+
+    function syncDetachButton() {
+        var btn = document.querySelector('.uniRightPanel .dbe-detach-btn');
+        if (!btn) { return; }
+        var floating = document.body.classList.contains('dbe-nav-detached');
+        btn.classList.toggle('is-detached', floating);
+        btn.setAttribute('aria-pressed', floating ? 'true' : 'false');
+        var label = floating ? dbeT('dockPanel', 'Dock panel') : dbeT('detachPanel', 'Detach panel');
+        btn.setAttribute('aria-label', label);
+        btn.title = label;
+    }
+
+    function ensureDetachButton() {
+        var icons = document.querySelector('.uniRightPanel .uniPanelHeader__icons');
+        if (!icons || icons.querySelector('.dbe-detach-btn')) { return; }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-detach-btn';
+        btn.innerHTML = '<span>' + DETACH_SVG + '</span>';
+        btn.addEventListener('click', toggleNav);
+        icons.appendChild(btn);
+        syncDetachButton();
+    }
+
+    function ensureNavResizeGrip() {
+        var wrap = navWrap();
+        if (!wrap || wrap.querySelector(':scope > .dbe-nav-resize')) { return; }
+        var grip = document.createElement('button');
+        grip.type = 'button';
+        grip.className = 'dbe-nav-resize';
+        grip.setAttribute('aria-label', dbeT('resizePanel', 'Resize panel'));
+        var drag = null;
+        grip.addEventListener('pointerdown', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var st = navFloatState() || {};
+            drag = { x: ev.clientX, y: ev.clientY, w: st.w, h: st.h, raf: 0 };
+            try { grip.setPointerCapture(ev.pointerId); } catch (e) {}
+            document.body.classList.add('dbe-nav-dragging');
+        });
+        grip.addEventListener('pointermove', function (ev) {
+            if (!drag || drag.raf) { return; }
+            drag.raf = requestAnimationFrame(function () {
+                drag.raf = 0;
+                var st = navFloatState() || {};
+                st.w = drag.w + (ev.clientX - drag.x);
+                st.h = drag.h + (ev.clientY - drag.y);
+                clampNav(st);
+                applyNavFloatVars(st);
+                saveNavFloat(st);
+            });
+        });
+        function end() { if (drag) { drag = null; document.body.classList.remove('dbe-nav-dragging'); } }
+        grip.addEventListener('pointerup', end);
+        grip.addEventListener('pointercancel', end);
+        wrap.appendChild(grip);
+    }
+
+    /* Drag the whole float by its header (delegated + bound once on document, so
+       it survives the header re-rendering). Ignores clicks on the header's own
+       buttons so the detach/collapse/expand icons still work. */
+    function bindNavHeaderDrag() {
+        if (dbeNavHeaderBound) { return; }
+        dbeNavHeaderBound = true;
+        var drag = null;
+        document.addEventListener('pointerdown', function (ev) {
+            if (!document.body.classList.contains('dbe-nav-detached')) { return; }
+            var header = ev.target.closest && ev.target.closest('.uniRightPanel .uniPanelHeader');
+            if (!header) { return; }
+            if (ev.target.closest('button, input, [contenteditable="true"]')) { return; }
+            var st = navFloatState();
+            if (!st) { return; }
+            ev.preventDefault();
+            drag = { px: ev.clientX, py: ev.clientY, x: st.x, y: st.y, raf: 0 };
+            document.body.classList.add('dbe-nav-dragging');
+        }, true);
+        document.addEventListener('pointermove', function (ev) {
+            if (!drag || drag.raf) { return; }
+            drag.raf = requestAnimationFrame(function () {
+                drag.raf = 0;
+                var st = navFloatState() || {};
+                st.x = drag.x + (ev.clientX - drag.px);
+                st.y = drag.y + (ev.clientY - drag.py);
+                clampNav(st);
+                applyNavFloatVars(st);
+                saveNavFloat(st);
+            });
+        }, true);
+        function end() { if (drag) { drag = null; document.body.classList.remove('dbe-nav-dragging'); } }
+        document.addEventListener('pointerup', end, true);
+        document.addEventListener('pointercancel', end, true);
+    }
+
+    /* Called from schedule(): keep the detach button + resize grip present, and
+       re-assert the floating state (body class + CSS vars) after re-renders. */
+    function ensureNavDetach() {
+        ensureDetachButton();
+        ensureNavResizeGrip();
+        bindNavHeaderDrag();
+        var st = navFloatState();
+        if (st && st.detached) {
+            clampNav(st);
+            applyNavFloatVars(st);
+            if (!document.body.classList.contains('dbe-nav-detached')) {
+                document.body.classList.add('dbe-nav-detached');
+            }
+        }
+        syncDetachButton();
     }
 
     /* Favourites bar reorder (favourites_reorder). The bar is the vertical
@@ -3856,7 +4347,7 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves');
 
     var scheduled = false;
@@ -3964,8 +4455,9 @@
             if (on('css_code_default')) {
                 try { ensureCssCodeDefault(); } catch (e) {}
                 try { ensureCodeModeTabs(); } catch (e) {}
-                try { ensureExpandButton(); } catch (e) {}
             }
+            if (on('css_hint_dialog')) { try { ensureCssHint(); } catch (e) {} }
+            if (on('hide_minimap')) { try { dbeDisableMinimap(); } catch (e) {} }
             if (on('scope_bar')) {
                 try { readScopeFromControl(); } catch (e) {}
                 try { ensureScopeBar(); } catch (e) {}
@@ -3983,6 +4475,8 @@
             }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
+            if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
+            if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
                 try { ensureFavouritesReorder(); } catch (e) {}
                 try { applyFavouritesOrder(); } catch (e) {}
@@ -3995,6 +4489,15 @@
     function boot() {
         var panel = document.querySelector('.uniRightPanel');
         if (!panel) { return void setTimeout(boot, 500); }
+        // Seed the shared panel width before the first paint of the handles.
+        if (on('panel_resize')) { try { applyStoredPanelWidth(); } catch (e) {} }
+        // Restore a detached Navigator before first paint (avoids a docked flash).
+        if (on('panel_detach')) {
+            try {
+                var navSt = navFloatState();
+                if (navSt && navSt.detached) { applyNavFloatVars(clampNav(navSt)); document.body.classList.add('dbe-nav-detached'); }
+            } catch (e) {}
+        }
         schedule();
 
         // Navigator (right panel) observer — tree decoration, header buttons,
@@ -4002,16 +4505,16 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
-        // Also watch the settings panel area (left) so the CSS-code default and
-        // the widen button react to element selection, tab switches, and the
-        // CSS-mode toggle. .uniMainPanel is a stable parent of both panels (and
-        // of the canvas wrappers the preview handles live in); the rAF debounce
-        // in schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('preview_resize')) {
+        // Also watch the settings panel area (left) so the CSS-code default
+        // reacts to element selection, tab switches, and the CSS-mode toggle.
+        // .uniMainPanel is a stable parent of both panels (and of the canvas
+        // wrappers the preview + panel handles live in); the rAF debounce in
+        // schedule() coalesces the busier stream of mutations.
+        if (NEED_LEFT_PANEL || on('tooltips') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });

@@ -35,7 +35,7 @@
     outline: none !important;
     box-shadow: inset 0 0 0 2px var(--dbe-focus) !important;
     border-radius: 4px !important;
-    color: light-dark(#1c1e24, #ffffff) !important;
+    color: var(--dbe-text) !important; /* matches the hover treatment */
 }
 
 /* Items that act on a single element are disabled while a multi-selection is

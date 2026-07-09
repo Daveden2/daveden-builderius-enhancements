@@ -1,0 +1,113 @@
+/* Side-panel resize (panel_resize): one shared width for both side panels, held
+   in --dbe-panel-width on <body> (seeded from localStorage by builder.js, with a
+   320px first-run fallback here). Dragging either grip rewrites the variable, so
+   the settings/styles panel (left) and the Navigator (right) always match.
+
+   Left panel is a normal flex item, so setting its width reflows the canvas on
+   its own. The right panel is an absolutely-positioned overlay inside
+   .uniIframePanel and the canvas reserves its space through the iframe panel's
+   OWN inline margin-right/width — both are re-pointed at the variable below,
+   scoped with :has(.uniRightPanel) so a closed Navigator hands the space back to
+   the native layout. Stylesheet !important beats Builderius' inline styles. */
+
+:root { --dbe-panel-width: 320px; }
+
+/* Left settings/inserter panel. */
+.uniLeftPanelOuter {
+    position: relative !important; /* anchor for the absolute grip */
+    inline-size: var(--dbe-panel-width) !important;
+    min-inline-size: var(--dbe-panel-width) !important;
+    max-inline-size: var(--dbe-panel-width) !important;
+}
+
+/* Right Navigator panel + the canvas space it reserves. */
+.uniIframePanel:has(.uniRightPanel) {
+    margin-inline-end: var(--dbe-panel-width) !important;
+    inline-size: calc(100% - var(--dbe-panel-width)) !important;
+}
+.uniMainPanel div:has(> .uniRightPanel) {
+    inline-size: var(--dbe-panel-width) !important;
+    min-inline-size: var(--dbe-panel-width) !important;
+    max-inline-size: var(--dbe-panel-width) !important;
+}
+
+/* --- Drag grips ---------------------------------------------------------------
+   Same visual language as the canvas preview handles (74-preview-resize.css): a
+   24px-wide pointer target (WCAG 2.5.8) straddling the panel's inner edge, with a
+   capsule + three grip dots that fill with the accent on hover/focus. Anchored
+   near the TOP of the panel (level with the header) rather than running the full
+   height, so it sits out of the way of the panel content below. */
+.dbe-panel-handle {
+    position: absolute !important;
+    inset-block-start: 6px !important;
+    block-size: 48px !important;
+    inline-size: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: col-resize !important;
+    touch-action: none !important;
+    z-index: 40 !important;
+}
+/* Grips sit on each panel's INNER edge (the one facing the canvas). */
+.dbe-panel-handle[data-side="left"] { inset-inline-end: -12px !important; }
+.dbe-panel-handle[data-side="right"] { inset-inline-start: -12px !important; }
+
+.dbe-panel-handle::before {
+    content: "" !important;
+    position: absolute !important;
+    inset-block-start: 50% !important;
+    transform: translateY(-50%) !important;
+    inline-size: 6px !important;
+    block-size: 44px !important;
+    border-radius: 999px !important;
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    box-shadow: 0 1px 3px var(--dbe-shadow) !important;
+    transition: background var(--dbe-t), border-color var(--dbe-t) !important;
+}
+.dbe-panel-handle::after {
+    content: "" !important;
+    position: absolute !important;
+    inset-block-start: 50% !important;
+    inset-inline-start: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    inline-size: 2px !important;
+    block-size: 2px !important;
+    border-radius: 50% !important;
+    background: var(--dbe-muted) !important;
+    box-shadow: 0 -5px 0 var(--dbe-muted), 0 5px 0 var(--dbe-muted) !important;
+    transition: background var(--dbe-t), box-shadow var(--dbe-t) !important;
+}
+.dbe-panel-handle:hover::before,
+.dbe-panel-handle:focus-visible::before {
+    background: var(--dbe-accent) !important;
+    border-color: var(--dbe-accent) !important;
+}
+.dbe-panel-handle:hover::after,
+.dbe-panel-handle:focus-visible::after {
+    background: var(--dbe-on-accent-strong) !important;
+    box-shadow: 0 -5px 0 var(--dbe-on-accent-strong), 0 5px 0 var(--dbe-on-accent-strong) !important;
+}
+.dbe-panel-handle:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}
+
+/* While dragging: kill the panel's 0.25s width transition so it tracks the
+   pointer, stop the canvas iframe swallowing pointer events, and suppress
+   text selection. */
+body.dbe-panel-resizing .uniMainPanel div:has(> .uniRightPanel),
+body.dbe-panel-resizing .uniIframePanel {
+    transition: none !important;
+}
+body.dbe-panel-resizing #builderInner,
+body.dbe-panel-resizing .uniIframePanel__inner {
+    pointer-events: none !important;
+}
+body.dbe-panel-resizing { user-select: none !important; }

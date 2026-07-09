@@ -15,6 +15,24 @@
     color: var(--dbe-text) !important; font-weight: 600 !important;
 }
 
+/* Untruncate the tab labels ("Elements" / "Selectors" / "CSS vars"). Stock sizes
+   the tabs to a fixed share of the strip and clips the overflow, so in a narrow
+   right panel the labels get cut off — a cut-off label is unreadable (mystery
+   meat). Let each tab size to its own label and let the strip wrap to a second
+   line rather than clip. Trim the horizontal padding slightly to buy width first. */
+.uniPanelTabs { flex-wrap: wrap !important; }
+.uniPanelTabs__tab {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding-inline: 10px !important;
+}
+.uniPanelTabs__tab, .uniPanelTabs__tab span {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+}
+
 /* --- Entity tabs (open templates/pages above the canvas) --- */
 /* Stock: flat black strip; the active tab's only cue is a slightly lighter bg,
    and the hover style is IDENTICAL to the active style — while hovering you
@@ -153,39 +171,41 @@
    clamp squeezed the value input to ~12px — unusable. The physical
    margin-right override mirrors the physical inline style Builderius sets. */
 .uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
-    min-width: 380px !important;
-    width: 380px !important;
-    max-width: 420px !important;
+    min-width: var(--dbe-panel-width, 380px) !important;
+    width: var(--dbe-panel-width, 380px) !important;
+    max-width: var(--dbe-panel-width, 420px) !important;
 }
 .uniMainPanel:has(.uniVarsCss) .uniIframePanel {
-    margin-right: 380px !important;
-    width: calc(100% - 380px) !important;
+    margin-right: var(--dbe-panel-width, 380px) !important;
+    width: calc(100% - var(--dbe-panel-width, 380px)) !important;
 }
 
 /* --- CSS vars rows ---
    Stock row is a GRID with fixed-width form labels (name 160px, value 60px)
-   sized for the native 600px panel — inside the clamp the value input is
-   unusable. Re-plot the grid: name + edit/delete actions on row one, the
-   value input full-width on row two, and release the labels' fixed widths. */
+   sized for the native 600px panel, so inside a narrow panel the value input is
+   unusable. Lay the fields out with flex-wrap instead (DOM order is name, value,
+   actions): now the panel is resizable, the name and value sit side by side when
+   there is room and wrap to stack when it is narrow. Each field grows to fill
+   (flex: 1) with a usable minimum, so no field is ever squeezed to nothing. */
 .uniVarsCss__item {
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    row-gap: 6px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    grid-template-columns: none !important;
 }
-.uniVarsCss__item .uniVarsCss__itemEditInput.input1 {
-    grid-row: 1 !important;
-    grid-column: 1 !important;
-    width: auto !important;
-    min-width: 0 !important;
+.uniVarsCss__item .uniVarsCss__itemEditInput.input1, /* name */
+.uniVarsCss__item .uniVarsCss__itemEditInput.input2 { /* value */
+    flex: 1 1 9rem !important;
+    min-inline-size: 8rem !important;
+    inline-size: auto !important;
+    grid-row: auto !important;
+    grid-column: auto !important;
 }
 .uniVarsCss__item .uniVarsCss__actions {
-    grid-row: 1 !important;
-    grid-column: 2 !important;
-}
-.uniVarsCss__item .uniVarsCss__itemEditInput.input2 {
-    grid-row: 2 !important;
-    grid-column: 1 / -1 !important;
-    width: auto !important;
-    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    grid-row: auto !important;
+    grid-column: auto !important;
 }
 .uniVarsCss__item .uniVarsCss__itemEditInput input {
     inline-size: 100% !important;
