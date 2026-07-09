@@ -35,18 +35,45 @@ body.dbe-nav-detached .uniIframePanel:has(.uniRightPanel) {
 }
 
 /* The header is the drag grip while floating; the docked-width handle is
-   meaningless for a float, so hide it. */
+   meaningless for a float, so hide it. `grab`/`grabbing` reads as "pick this up"
+   more clearly than the older four-way `move`. */
 body.dbe-nav-detached .uniRightPanel .uniPanelHeader {
-    cursor: move !important;
+    cursor: grab !important;
     user-select: none !important;
 }
 body.dbe-nav-detached .dbe-panel-handle[data-side="right"] {
     display: none !important;
 }
 
+/* Drag handle: a centred horizontal grabber bar across the top of the floating
+   panel, shown only while detached. The bottom-sheet grabber shape makes the move
+   handle discoverable instead of a hidden hover-cursor surprise. */
+.dbe-nav-grip {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    block-size: 14px;
+    margin-block: 1px 3px;
+    cursor: grab;
+}
+body.dbe-nav-detached .dbe-nav-grip { display: flex; }
+.dbe-nav-grip::after {
+    content: "";
+    inline-size: 34px;
+    block-size: 4px;
+    border-radius: 999px;
+    background: var(--dbe-line-hi);
+    transition: background-color var(--dbe-speed, .15s) ease;
+}
+body.dbe-nav-detached .uniRightPanel .uniPanelHeader:hover .dbe-nav-grip::after {
+    background: var(--dbe-muted);
+}
+
 /* Suppress transitions / selection and free the canvas iframe while dragging. */
 body.dbe-nav-dragging { user-select: none !important; }
 body.dbe-nav-dragging #builderInner { pointer-events: none !important; }
+body.dbe-nav-dragging .uniRightPanel .uniPanelHeader,
+body.dbe-nav-dragging .dbe-nav-grip { cursor: grabbing !important; }
 
 /* --- Resize grip (bottom inline-end corner of the float) --- */
 .dbe-nav-resize {

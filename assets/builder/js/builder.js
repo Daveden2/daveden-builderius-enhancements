@@ -3531,6 +3531,7 @@
         '<path d="M8 1.5h4.5V6M12.5 1.5 7 7M6 2H2.5A1 1 0 0 0 1.5 3v8.5a1 1 0 0 0 1 1H11a1 1 0 0 0 1-1V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
         '</svg>';
 
+
     function syncDetachButton() {
         var btn = document.querySelector('.uniRightPanel .dbe-detach-btn');
         if (!btn) { return; }
@@ -3552,6 +3553,23 @@
         btn.addEventListener('click', toggleNav);
         icons.appendChild(btn);
         syncDetachButton();
+    }
+
+    /* Inject a visible drag handle at the top of the header. The header itself is
+       the drag surface (bindNavHeaderDrag), but nothing told users so; this marks
+       where to grab. A centred horizontal bar (styled in 76-panel-detach.css) reads
+       as "drag to move" the way a bottom-sheet grabber does. A decorative <span>
+       (not a button) so the delegated header-drag handler — which ignores
+       buttons/inputs — still fires on it. Re-added each schedule() tick, so it
+       survives the header re-rendering. */
+    function ensureNavGrip() {
+        var header = document.querySelector('.uniRightPanel .uniPanelHeader');
+        if (!header || header.querySelector(':scope > .dbe-nav-grip')) { return; }
+        var grip = document.createElement('span');
+        grip.className = 'dbe-nav-grip';
+        grip.setAttribute('aria-hidden', 'true');
+        grip.title = dbeT('dragToMove', 'Drag to move');
+        header.insertBefore(grip, header.firstChild);
     }
 
     function ensureNavResizeGrip() {
@@ -3627,6 +3645,7 @@
        re-assert the floating state (body class + CSS vars) after re-renders. */
     function ensureNavDetach() {
         ensureDetachButton();
+        ensureNavGrip();
         ensureNavResizeGrip();
         bindNavHeaderDrag();
         var st = navFloatState();
@@ -4233,17 +4252,13 @@
         fallback();
     }
 
-    function openChipMenu(chipLi, x, y) {
+    /* Shared renderer for both class-chip menus (the applied-class list chips and
+       the active-selector chip). items: [{label, fn, first?}] — `first` draws the
+       group separator (30-context-menu.css). focusReturn takes focus back on
+       Escape. Same card chain as the flyouts so the framework CSS styles it. */
+    function renderChipCard(focusReturn, x, y, items) {
         closeChipMenu();
-        var nameEl = chipLi.querySelector('span') || chipLi;
-        var name = (nameEl.textContent || '').trim();
-        if (!name) { return; }
-        var bare = name.replace(/^[.#]/, '');
-        var all = [].slice.call(document.querySelectorAll('.uniModuleCssClassesSelect__list li > span'))
-            .map(function (s) { return (s.textContent || '').trim(); })
-            .filter(Boolean);
-
-        // Same card chain as the flyouts so 30-context-menu.css styles it.
+        if (!items || !items.length) { return; }
         var card = document.createElement('div');
         card.className = 'uniBuilderContextMenu dbe-ctx-submenu dbe-chip-menu';
         var inner = document.createElement('div');
@@ -4252,54 +4267,36 @@
         menu.className = 'uniContextMenu';
         menu.setAttribute('role', 'menu');
         var ul = document.createElement('ul');
-        function mkItem(label, fn) {
+        items.forEach(function (item) {
             var li = document.createElement('li');
-            li.className = 'uniContextMenu__item';
+            li.className = 'uniContextMenu__item' + (item.first ? ' dbe-ctx-item--first' : '');
             li.setAttribute('role', 'menuitem');
             li.tabIndex = -1;
-            li.textContent = label;
-            function act(ev) { ev.preventDefault(); ev.stopPropagation(); closeChipMenu(); fn(); }
+            li.textContent = item.label;
+            function act(ev) { ev.preventDefault(); ev.stopPropagation(); closeChipMenu(); item.fn(); }
             li.addEventListener('mousedown', act);
             li.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter' || ev.key === ' ') { act(ev); }
             });
-            return li;
-        }
-        ul.appendChild(mkItem(dbeFmt(dbeT('copyName', 'Copy %s'), name), function () { dbeCopyText(name); }));
-        if (bare !== name) {
-            ul.appendChild(mkItem(dbeFmt(dbeT('copyNoDot', 'Copy %s (no dot)'), bare), function () { dbeCopyText(bare); }));
-        }
-        if (all.length > 1) {
-            ul.appendChild(mkItem(dbeFmt(dbeT('copyAllClasses', 'Copy all classes (%s)'), all.length), function () {
-                dbeCopyText(all.map(function (n) { return n.replace(/^\./, ''); }).join(' '));
-            }));
-        }
-        var actions = chipLi.querySelector('.actions');
-        if (actions) {
-            var rm = mkItem(dbeFmt(dbeT('removeFromElement', 'Remove %s from element'), name), function () {
-                actions.click();
-                undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name));
-            });
-            rm.classList.add('dbe-ctx-item--first');
-            ul.appendChild(rm);
-        }
+            ul.appendChild(li);
+        });
         menu.appendChild(ul);
         inner.appendChild(menu);
         card.appendChild(inner);
 
         // Keyboard: arrows move, Escape closes and returns focus to the chip.
         card.addEventListener('keydown', function (ev) {
-            var items = [].slice.call(card.querySelectorAll('li'));
-            var idx = items.indexOf(document.activeElement);
+            var lis = [].slice.call(card.querySelectorAll('li'));
+            var idx = lis.indexOf(document.activeElement);
             if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
                 ev.preventDefault();
                 ev.stopPropagation();
-                items[(idx + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+                lis[(idx + (ev.key === 'ArrowDown' ? 1 : lis.length - 1)) % lis.length].focus();
             } else if (ev.key === 'Escape') {
                 ev.preventDefault();
                 ev.stopPropagation();
                 closeChipMenu();
-                try { chipLi.focus(); } catch (e) {}
+                if (focusReturn) { try { focusReturn.focus(); } catch (e) {} }
             }
         });
 
@@ -4313,10 +4310,117 @@
         if (first) { first.focus(); }
     }
 
+    /* The copy items shared by both menus. `name` is the dotted class ('.foo'),
+       `allClasses` the full applied set (dotted or bare — dots are stripped). */
+    function chipCopyItems(name, allClasses) {
+        var bare = name.replace(/^[.#]/, '');
+        var items = [{ label: dbeFmt(dbeT('copyName', 'Copy %s'), name), fn: function () { dbeCopyText(name); } }];
+        if (bare !== name) {
+            items.push({ label: dbeFmt(dbeT('copyNoDot', 'Copy %s (no dot)'), bare), fn: function () { dbeCopyText(bare); } });
+        }
+        if (allClasses && allClasses.length > 1) {
+            items.push({ label: dbeFmt(dbeT('copyAllClasses', 'Copy all classes (%s)'), allClasses.length), fn: function () {
+                dbeCopyText(allClasses.map(function (n) { return n.replace(/^\./, ''); }).join(' '));
+            } });
+        }
+        return items;
+    }
+
+    /* Every applied class name for the active module, read from the store so it
+       still works while a class is "active" and the DOM chip list is hidden. */
+    function activeModuleClasses() {
+        try {
+            var mods = modules(), id = activeId();
+            return (mods && mods[id]) ? moduleClasses(mods[id]).slice() : [];
+        } catch (e) { return []; }
+    }
+
+    // Applied-class list chip: copy the name(s), or remove it from the element
+    // (via the chip's own X, so the removal goes through the builder store).
+    function openChipMenu(chipLi, x, y) {
+        var nameEl = chipLi.querySelector('span') || chipLi;
+        var name = (nameEl.textContent || '').trim();
+        if (!name) { return; }
+        var all = [].slice.call(document.querySelectorAll('.uniModuleCssClassesSelect__list li > span'))
+            .map(function (s) { return (s.textContent || '').trim(); })
+            .filter(Boolean);
+        var items = chipCopyItems(name, all);
+        var actions = chipLi.querySelector('.actions');
+        if (actions) {
+            items.push({ first: true, label: dbeFmt(dbeT('removeFromElement', 'Remove %s from element'), name), fn: function () {
+                actions.click();
+                undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name));
+            } });
+        }
+        renderChipCard(chipLi, x, y, items);
+    }
+
+    /* Active-selector chip — the class currently being edited. Natively it offers
+       only a caret → "Close" (deselect) menu; this brings it to parity with the
+       list chips: copy the name / all classes, remove it from the element, plus
+       the native Close. Reachable by right-click AND the caret (whose native
+       "Close"-only menu is suppressed unless dbeSelCaretBypass lets a driver
+       through). */
+    var dbeSelCaretBypass = false;
+
+    function selCaretBtn() {
+        return document.querySelector('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected .actions button');
+    }
+
+    /* Drive the native caret → "Close" item to deselect the active class. done(ok). */
+    function driveSelectedClose(done) {
+        var btn = selCaretBtn();
+        if (!btn) { if (done) { done(false); } return; }
+        dbeSelCaretBypass = true;               // let this programmatic click reach the native menu
+        try { btn.click(); } catch (e) {}
+        dbeSelCaretBypass = false;
+        waitFor(function () {
+            var m = document.querySelector('.uniContextMenu[data-menu-id^="selected_selector_actions_"]');
+            if (!m) { return null; }
+            return [].slice.call(m.querySelectorAll('li[role="menuitem"]')).filter(function (l) {
+                return /^close$/i.test((l.textContent || '').trim());
+            })[0] || null;
+        }, function (li) {
+            if (li) { li.click(); if (done) { done(true); } }
+            else if (done) { done(false); }
+        });
+    }
+
+    /* Remove the active class from the element: deselect (Close) so the chip list
+       returns, then click the matching chip's remove control (store-backed). */
+    function removeSelectedClass(name, done) {
+        driveSelectedClose(function () {
+            waitFor(function () {
+                return [].slice.call(document.querySelectorAll('.uniModuleCssClassesSelect__list li')).filter(function (li) {
+                    var s = li.querySelector('span');
+                    return s && (s.textContent || '').trim() === name;
+                })[0] || null;
+            }, function (li) {
+                var actions = li && li.querySelector('.actions');
+                if (actions) { actions.click(); if (done) { done(true); } }
+                else if (done) { done(false); }
+            });
+        });
+    }
+
+    function openSelectedChipMenu(selChip, x, y) {
+        var nameEl = selChip.querySelector('span') || selChip;
+        var name = (nameEl.textContent || '').trim();
+        if (!name) { return; }
+        var items = chipCopyItems(name, activeModuleClasses());
+        items.push({ first: true, label: dbeFmt(dbeT('removeFromElement', 'Remove %s from element'), name), fn: function () {
+            removeSelectedClass(name, function (ok) {
+                if (ok) { undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name)); }
+            });
+        } });
+        items.push({ label: dbeT('close', 'Close'), fn: function () { driveSelectedClose(function () {}); } });
+        renderChipCard(selChip, x, y, items);
+    }
+
     /* Chips are plain li>span with no focus support; tabindex lets keyboard
        users reach them and open the copy menu with Shift+F10 / the Menu key. */
     function decorateClassChips() {
-        document.querySelectorAll('.uniModuleCssClassesSelect__list li').forEach(function (li) {
+        document.querySelectorAll('.uniModuleCssClassesSelect__list li, .uniSystemSelectClasses .uniModuleCssSelectorItemSelected').forEach(function (li) {
             if (li.dbeChipDecorated) { return; }
             li.dbeChipDecorated = true;
             li.tabIndex = 0;
@@ -4325,11 +4429,32 @@
 
     function bindChipMenu() {
         document.addEventListener('contextmenu', function (e) {
+            // Active-selector chip first (it is not inside the __list).
+            var sel = e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected');
+            if (sel) {
+                e.preventDefault();
+                e.stopPropagation();
+                var rs = sel.getBoundingClientRect();
+                openSelectedChipMenu(sel, e.clientX || rs.right, e.clientY || rs.top);
+                return;
+            }
             var li = e.target.closest && e.target.closest('.uniModuleCssClassesSelect__list li');
             if (!li) { return; }
             e.preventDefault();
             e.stopPropagation();
             openChipMenu(li, e.clientX || li.getBoundingClientRect().right, e.clientY || li.getBoundingClientRect().top);
+        }, true);
+        // Caret on the active-selector chip: open our enriched menu in place of the
+        // native "Close"-only one (bypassed while a driver reaches the native item).
+        document.addEventListener('click', function (e) {
+            if (dbeSelCaretBypass) { return; }
+            var btn = e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected .actions button');
+            if (!btn) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var sel = btn.closest('.uniModuleCssSelectorItemSelected');
+            var rb = btn.getBoundingClientRect();
+            openSelectedChipMenu(sel, rb.left, rb.bottom + 2);
         }, true);
         ['pointerdown', 'wheel'].forEach(function (t) {
             document.addEventListener(t, function (e) {

@@ -1,6 +1,7 @@
 <?php
 /**
  * Plugin Name:       Daveden Builder Enhancements
+ * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
  * Version:           1.7.0
  * Author:            Daveden Digital
