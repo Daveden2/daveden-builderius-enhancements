@@ -3,3 +3,9 @@ Thumbs.db
 *.log
 node_modules/
 dist/
+
+# PHP_CodeSniffer
+.phpcs.cache
+phpcs-report.xml
+# Local ruleset override (see phpcs.xml.dist)
+/phpcs.xml

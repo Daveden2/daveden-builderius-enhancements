@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<ruleset name="Daveden Builder Enhancements">
+	<description>
+		WordPress coding standards for Daveden Builder Enhancements.
+		Contributors: run `phpcs` from the plugin root (see CONTRIBUTING.md).
+		Copy this file to phpcs.xml to override it locally without touching the
+		committed defaults.
+	</description>
+
+	<!-- Scan the whole plugin from its root. -->
+	<file>.</file>
+
+	<!-- Only sniff PHP; the builder ships CSS/JS as-is. -->
+	<arg name="extensions" value="php"/>
+
+	<!-- Show sniff codes and progress; use colours and all cores. -->
+	<arg value="sp"/>
+	<arg name="colors"/>
+	<arg name="parallel" value="8"/>
+
+	<!-- Cache results between runs (ignored in git). -->
+	<arg name="cache" value=".phpcs.cache"/>
+
+	<!-- Third-party and generated code is not ours to lint. -->
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/dist/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/languages/*</exclude-pattern>
+
+	<!-- The full WordPress standard (WordPress-Core + -Extra + -Docs). -->
+	<rule ref="WordPress">
+		<!--
+			The plugin's established prefix is the three-character "dbe"
+			(dbe_ in PHP, .dbe- classes, dbe- custom properties, data-dbe-
+			attributes). WPCS 3.x hard-rejects any prefix shorter than four
+			characters, which makes this sniff unsatisfiable without renaming
+			every symbol across PHP, CSS and JS. We keep the convention and
+			disable the sniff. New global functions, constants and hooks must
+			still carry the dbe_ prefix.
+		-->
+		<exclude name="WordPress.NamingConventions.PrefixAllGlobals"/>
+	</rule>
+
+	<!-- Validate the text domain on every i18n call. -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="daveden-builderius-enhancements"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Minimum supported WordPress version (drives deprecation sniffs). -->
+	<config name="minimum_wp_version" value="6.4"/>
+
+	<!-- PHP cross-version compatibility down to the minimum we support. -->
+	<config name="testVersion" value="7.4-"/>
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>

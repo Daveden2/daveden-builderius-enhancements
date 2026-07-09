@@ -1,0 +1,69 @@
+name: PHPCS
+
+# Lints the plugin's PHP against the WordPress coding standards
+# (ruleset: phpcs.xml.dist). Runs on every push to develop and on every pull
+# request into develop or main, and annotates changed lines inline via cs2pr.
+#
+# Rollout: this check is currently INFORMATIONAL. It is not yet listed as a
+# required status check in branch protection, so a red run reports problems
+# without blocking a merge. Once the codebase is clean, add "phpcs" to the
+# required checks on main (and develop) to make it blocking.
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+# Only the newest run per branch/PR needs to finish.
+concurrency:
+  group: phpcs-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the job only reads the checked-out code. cs2pr writes its
+# annotations through workflow log commands, so no write scopes are needed.
+permissions:
+  contents: read
+
+jobs:
+  phpcs:
+    name: phpcs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer, cs2pr
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: phpcs-tools-${{ runner.os }}-wpcs3
+
+      - name: Install PHP_CodeSniffer and the WordPress standards
+        run: |
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --no-interaction --no-progress \
+            squizlabs/php_codesniffer:"^3.11" \
+            wp-coding-standards/wpcs:"^3.1" \
+            phpcompatibility/phpcompatibility-wp:"^2.1"
+          echo "$(composer global config bin-dir --absolute)" >> "$GITHUB_PATH"
+
+      - name: Show installed standards
+        run: phpcs -i
+
+      - name: Run PHPCS
+        # phpcs auto-discovers phpcs.xml.dist in the repo root. continue-on-error
+        # lets the checkstyle report reach cs2pr even when violations are found.
+        continue-on-error: true
+        run: phpcs --report-full --report-checkstyle=phpcs-report.xml
+
+      - name: Annotate the diff with PHPCS results
+        # Fails the job on errors (visible red X) but tolerates warnings.
+        run: cs2pr --graceful-warnings phpcs-report.xml

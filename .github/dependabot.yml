@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used by our workflows patched.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    target-branch: develop

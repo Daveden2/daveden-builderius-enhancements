@@ -68,10 +68,34 @@ assets are printed inline, so a plain reload of the builder picks up changes.
 - Indentation: tabs in PHP (WordPress coding standards), 4 spaces in the
   builder JS/CSS, 2 spaces in `assets/admin/`.
 
+## Coding standards
+
+PHP is checked against the **WordPress coding standards** (WPCS) via
+PHP_CodeSniffer. The ruleset lives in [`phpcs.xml.dist`](phpcs.xml.dist), and
+[a GitHub Action](.github/workflows/phpcs.yml) runs it on every push to
+`develop` and every pull request into `develop` or `main`.
+
+Run it locally before opening a pull request:
+
+```bash
+# One-off: install the standards globally (kept out of the plugin's vendor/).
+composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+composer global require \
+  squizlabs/php_codesniffer:"^3.11" \
+  wp-coding-standards/wpcs:"^3.1" \
+  phpcompatibility/phpcompatibility-wp:"^2.1"
+export PATH="$(composer global config bin-dir --absolute):$PATH"
+
+# From the plugin root — phpcs auto-discovers phpcs.xml.dist:
+phpcs            # report violations
+phpcbf           # auto-fix what it can
+```
+
 ## Pull requests
 
-1. Fork, branch from `main`, and keep the change focused — one tweak or fix
-   per pull request.
+1. Fork, branch from `develop`, and keep the change focused — one tweak or fix
+   per pull request. Pull requests target `develop`; the maintainer merges
+   `develop` into `main` for releases.
 2. New tweaks get a registry entry in `includes/features.php` (so they appear
    on the settings page with their own toggle and default to on) and must
    work correctly when toggled off.
