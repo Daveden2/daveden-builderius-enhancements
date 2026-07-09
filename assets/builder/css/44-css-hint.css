@@ -18,8 +18,10 @@
 }
 .dbe-css-hint-btn {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start; /* anchor the info dot to the first line when the label wraps */
     gap: 6px;
+    flex: 1 1 auto;
+    min-inline-size: 0; /* let the button shrink below content width so the label can wrap */
     min-block-size: 24px; /* WCAG 2.5.8 */
     padding-block: 2px;
     padding-inline: 4px;
@@ -55,9 +57,9 @@
 }
 .dbe-css-hint-label {
     font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.3;
+    min-inline-size: 0;
+    overflow-wrap: break-word; /* wrap onto a second line when the panel is narrow, rather than truncating */
 }
 .dbe-css-hint-dismiss {
     flex: 0 0 auto;
@@ -89,6 +91,7 @@
 
 /* --- Dialog ------------------------------------------------------------------ */
 .dbe-css-hint-dialog {
+    box-sizing: border-box;
     inline-size: min(30rem, calc(100vw - 2rem));
     max-block-size: min(28rem, calc(100vh - 2rem));
     padding: 0;
@@ -96,6 +99,7 @@
     border-radius: var(--dbe-r-md);
     background: var(--dbe-l1);
     color: var(--dbe-text);
+    font-family: var(--dbe-ui-font); /* modal dialogs inherit from <body>, not the chrome */
     box-shadow: 0 12px 40px var(--dbe-shadow);
 }
 .dbe-css-hint-dialog::backdrop {
@@ -154,7 +158,8 @@
     margin: 4px 0 0;
     color: var(--dbe-text-2);
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
+    overflow-wrap: break-word; /* long non-code words never overflow a narrow dialog */
 }
 .dbe-css-hint-dialog code {
     padding-inline: 4px;
@@ -163,4 +168,5 @@
     color: var(--dbe-text);
     font-family: var(--dbe-mono);
     font-size: 0.9em;
+    white-space: nowrap; /* keep each token (e.g. --mobile) whole; wrap as a unit */
 }

@@ -40,7 +40,8 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
   a dialog and is reworded so both tokens are described the same way and
   breakpoints are explained consistently for each. The stock wording only
   mentions the breakpoint variables for %local% and only the breakpoints switcher
-  for a class.
+  for a class. The hint wraps onto a second line when the panel is dragged narrow,
+  rather than truncating with an ellipsis.
 * New: Detachable Navigator (Navigator, experimental, off by default). A detach
   button in the Navigator header floats the panel over the canvas; drag it by its
   header, resize from the bottom corner, and dock it again with the same button.
