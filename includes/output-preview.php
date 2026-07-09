@@ -35,6 +35,6 @@ function dbe_print_preview_overlay_fix() {
 		return;
 	}
 
-	echo "\n" . '<script id="dbe-canvas-overlay-label-fix">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo "\n" . '<script id="dbe-canvas-overlay-label-fix">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Trusted inline JS from a bundled plugin file, not a remote URL.
 }
 add_action( 'wp_footer', 'dbe_print_preview_overlay_fix', 999 );

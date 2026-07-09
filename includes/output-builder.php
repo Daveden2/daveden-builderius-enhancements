@@ -122,6 +122,7 @@ function dbe_builder_css() {
 	foreach ( dbe_builder_css_files() as $file ) {
 		$path = DBE_DIR . 'assets/builder/css/' . $file;
 		if ( is_readable( $path ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a bundled plugin CSS file, not a remote URL.
 			$css .= "/* --- {$file} --- */\n" . file_get_contents( $path ) . "\n";
 		}
 	}
@@ -129,8 +130,8 @@ function dbe_builder_css() {
 }
 
 /**
- * wp_head: theme/density bootstrap (before the styles, so the first paint is
- * already in the right theme) followed by the concatenated chrome CSS.
+ * Theme/density bootstrap printed on wp_head (before the styles, so the first
+ * paint is already in the right theme), followed by the concatenated chrome CSS.
  */
 function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
@@ -165,7 +166,7 @@ function dbe_print_builder_head() {
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
 
 /**
- * wp_footer: the config object and the builder chrome script, printed inline
+ * Config object and the builder chrome script printed inline on wp_footer
  * (same rationale as the CSS; enqueue behaviour under `?builderius` is unproven).
  */
 function dbe_print_builder_footer() {
@@ -195,6 +196,6 @@ function dbe_print_builder_footer() {
 	);
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '<script id="dbe-builder-enhancements-js">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<script id="dbe-builder-enhancements-js">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Trusted inline JS from a bundled plugin file, not a remote URL.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );
