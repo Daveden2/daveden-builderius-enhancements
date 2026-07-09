@@ -56,6 +56,7 @@ $dbe_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdat
  * details modal). Served from the installed plugin's own assets, so it
  * always matches the running version.
  */
+
 /*
  * Prefer the clean zip attached to each release (built by bin/build-zip.sh,
  * unpacks to daveden-builderius-enhancements/) over GitHub's auto-generated
