@@ -1,22 +1,23 @@
-/* Search affordance: a magnifier glyph inside every chrome search field.
-   The icon is a mask (not a background image) so it recolours with the
-   theme tokens for free — muted at rest, accent while the field has focus.
+/* Search affordance: a magnifier glyph inside chrome search fields that ship
+   without one. The icon is a mask (not a background image) so it recolours with
+   the theme tokens for free — muted at rest, accent while the field has focus.
    Hosts get position:relative + a ::before; their input gets start padding
    to clear the glyph. Wrappers covered:
    - .dbe-tree-search              (our Navigator filter, 70-tree-search.css)
    - .uniVarsCss .scoped.rounded   (CSS vars tab "Search for variables")
-   - .uniPanelHeader__searchInputWrapper (native panel-header search, e.g.
-     the Inserter; mounts on demand) */
+
+   NOT the panel-header search (.uniPanelHeader__searchInputWrapper, e.g. the
+   Inserter's "Search for element"): current Builderius ships that field with
+   its own native magnifier (.uniPanelHeader__searchInputIcon), so adding ours
+   on top produced two icons. Native icon left to stand alone. */
 
 .dbe-tree-search,
-.uniVarsCss .uniSearchSelectors > .scoped.rounded,
-.uniPanelHeader__searchInputWrapper {
+.uniVarsCss .uniSearchSelectors > .scoped.rounded {
     position: relative !important;
 }
 
 .dbe-tree-search::before,
-.uniVarsCss .uniSearchSelectors > .scoped.rounded::before,
-.uniPanelHeader__searchInputWrapper::before {
+.uniVarsCss .uniSearchSelectors > .scoped.rounded::before {
     content: "" !important;
     position: absolute !important;
     inset-block-start: 50% !important;
@@ -31,8 +32,7 @@
 
 /* Live affordance: glyph picks up the accent while the field is in use. */
 .dbe-tree-search:focus-within::before,
-.uniVarsCss .uniSearchSelectors > .scoped.rounded:focus-within::before,
-.uniPanelHeader__searchInputWrapper:focus-within::before {
+.uniVarsCss .uniSearchSelectors > .scoped.rounded:focus-within::before {
     background-color: var(--dbe-accent) !important;
 }
 
@@ -48,13 +48,11 @@
 }
 .dbe-tree-search input { padding-inline-start: 30px !important; }
 
-.uniVarsCss .uniSearchSelectors > .scoped.rounded::before,
-.uniPanelHeader__searchInputWrapper::before {
+.uniVarsCss .uniSearchSelectors > .scoped.rounded::before {
     inset-inline-start: 9px !important;
     transform: translateY(-50%) !important;
 }
-.uniVarsCss .uniSearchSelectors > .scoped.rounded input,
-.uniPanelHeader__searchInputWrapper input {
+.uniVarsCss .uniSearchSelectors > .scoped.rounded input {
     padding-inline-start: 28px !important;
     box-sizing: border-box !important;
 }

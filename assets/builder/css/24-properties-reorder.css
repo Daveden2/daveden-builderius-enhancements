@@ -68,16 +68,5 @@
     font-size: 0.8125rem !important;
 }
 
-/* Screen-reader-only live region for move announcements (defined here too so it
-   works when favourites_reorder is off). */
-.dbe-visually-hidden {
-    position: absolute !important;
-    inline-size: 1px !important;
-    block-size: 1px !important;
-    margin: -1px !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    clip-path: inset(50%) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-}
+/* Screen-reader-only live region for move announcements uses the shared
+   .dbe-visually-hidden utility from 00-tokens.css. */

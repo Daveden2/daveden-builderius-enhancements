@@ -161,6 +161,8 @@ function dbe_builder_strings() {
 		'tipAddBreakpoint'        => __( 'Add breakpoint', 'daveden-builderius-enhancements' ),
 		'tipDeleteBreakpoint'     => __( 'Delete breakpoint', 'daveden-builderius-enhancements' ),
 		'tipInsertDynamicData'    => __( 'Insert dynamic data', 'daveden-builderius-enhancements' ),
+		'tipCanvasWidth'          => __( 'Canvas width in pixels', 'daveden-builderius-enhancements' ),
+		'tipCanvasZoom'           => __( 'Canvas zoom, percent', 'daveden-builderius-enhancements' ),
 		/* translators: 1: breakpoint label, 2: maximum width in pixels. */
 		'bpMax'                   => __( '%1$s (max %2$spx)', 'daveden-builderius-enhancements' ),
 		/* translators: %s: breakpoint label. */
@@ -224,10 +226,26 @@ function dbe_builder_strings() {
 		'themeLight'              => __( 'light', 'daveden-builderius-enhancements' ),
 		'themeDark'               => __( 'dark', 'daveden-builderius-enhancements' ),
 		'themeAuto'               => __( 'auto', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the theme just switched to (light / dark / auto). Announced to screen readers. */
+		'themeAnnounce'           => __( 'Theme set to %s', 'daveden-builderius-enhancements' ),
 		/* translators: 1: current density, 2: next density. */
 		'densityTip'              => __( 'Density: %1$s (switch to %2$s)', 'daveden-builderius-enhancements' ),
 		'densityComfortable'      => __( 'comfortable', 'daveden-builderius-enhancements' ),
 		'densityCompact'          => __( 'compact', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the density just switched to (comfortable / compact). Announced to screen readers. */
+		'densityAnnounce'         => __( 'Density set to %s', 'daveden-builderius-enhancements' ),
+		'toolbarBreakpoints'      => __( 'Breakpoints', 'daveden-builderius-enhancements' ),
+		'groupCanvasSize'         => __( 'Canvas size', 'daveden-builderius-enhancements' ),
+		'toolbarFooterTools'      => __( 'Editor tools', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the tool name (e.g. Custom CSS). Marks a locked/Pro tool for screen readers. */
+		'footerLocked'            => __( '%s (locked)', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the name of the open tool (e.g. Dynamic Data). Names the editor panel region. */
+		'footerPanelNamed'        => __( '%s panel', 'daveden-builderius-enhancements' ),
+		'footerToolsPanel'        => __( 'Editor tools panel', 'daveden-builderius-enhancements' ),
+		'comboboxFilter'          => __( 'Filter options', 'daveden-builderius-enhancements' ),
+		'comboboxListbox'         => __( 'Options', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the currently selected value. Names the select trigger for screen readers. */
+		'comboboxTrigger'         => __( 'Selection: %s', 'daveden-builderius-enhancements' ),
 
 		// Navigator search.
 		'filterElements'          => __( 'Filter elements…', 'daveden-builderius-enhancements' ),

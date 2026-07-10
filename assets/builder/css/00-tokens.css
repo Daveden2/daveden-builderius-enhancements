@@ -134,3 +134,20 @@ html[data-dbe-theme="auto"] {
         --dbe-menu-bg: #171719;
     }
 }
+
+/* Shared screen-reader-only utility. Used by every live region the plugin
+   creates (move/reorder announcements, the theme/density mode toggles). Lives
+   here because 00-tokens.css loads whenever any feature is on, so the class is
+   available to any feature that needs to announce without pulling in an
+   unrelated feature's CSS. */
+.dbe-visually-hidden {
+    position: absolute !important;
+    inline-size: 1px !important;
+    block-size: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}

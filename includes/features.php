@@ -60,7 +60,7 @@ function dbe_features() {
 		),
 		'search_affordance'   => array(
 			'title'       => __( 'Search field icons', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds a magnifying-glass icon to every search field in the builder (the Navigator filter, the CSS vars search and the panel-header search) so each one reads as a search box at a glance.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds a magnifying-glass icon to the builder search fields that lack one (the Navigator filter and the CSS vars search) so each reads as a search box at a glance. The Inserter search keeps its own built-in icon.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '73-search-affordance.css' ),
 			'js'          => false,
@@ -98,6 +98,27 @@ function dbe_features() {
 			'description' => __( 'Adds a top-bar button that switches panel and Navigator spacing between comfortable and compact.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '62-density.css' ),
+			'js'          => true,
+		),
+		'topbar_toolbar'      => array(
+			'title'       => __( 'Top-bar keyboard groups', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), and the canvas width and zoom fields are grouped and labelled.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'appearance',
+			'css'         => false,
+			'js'          => true,
+		),
+		'footer_toolbar'      => array(
+			'title'       => __( 'Bottom-bar keyboard toolbar', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => false,
+			'js'          => true,
+		),
+		'select_combobox'     => array(
+			'title'       => __( 'Accessible select comboboxes', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the builder\'s custom select popovers (the preview picker, the responsive-strategy select, the element HTML-tag select and others) usable with a screen reader and the keyboard: proper combobox / listbox / option roles, one Tab stop, and arrow keys to move through the options with Enter to choose. Purely additive — typing to filter and clicking to choose are left to Builderius.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '77-select-combobox.css' ),
 			'js'          => true,
 		),
 

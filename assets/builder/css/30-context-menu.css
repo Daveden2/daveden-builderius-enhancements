@@ -54,3 +54,17 @@ li.dbe-ctx-heading {
     color: var(--dbe-muted) !important;
     cursor: default !important;
 }
+
+/* "Coming soon" markers (.proBadge, e.g. in the Save to… flyout: "Save Custom
+   Element", "Save to Layouts Library") ship native as position:absolute; right:0,
+   so they reserve no space in our flex flyout rows and sit on top of the label.
+   Inside our flyouts, return the badge to normal flow at the row end so flex
+   keeps space for it and the label stays legible; keep each row on one line so
+   the flyout widens to fit rather than wrapping the text around the badge. */
+.dbe-ctx-submenu li { white-space: nowrap !important; }
+.dbe-ctx-submenu .proBadge {
+    position: static !important;
+    inset: auto !important;
+    margin-inline-start: auto !important;
+    flex: none !important;
+}
