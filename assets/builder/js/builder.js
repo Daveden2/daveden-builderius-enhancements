@@ -3027,8 +3027,9 @@
        aria-checked itself, so a stale mirrored value (left on the old breakpoint
        after a resize moves `active` elsewhere) would otherwise be read as current
        and re-affirmed every tick, never catching up. */
-    function dbeGroupActive(items) {
-        var byClass = items.filter(function (el) { return el.classList.contains('active'); })[0];
+    function dbeGroupActive(items, activeClass) {
+        var cls = activeClass || 'active';
+        var byClass = items.filter(function (el) { return el.classList.contains(cls); })[0];
         if (byClass) { return byClass; }
         return items.filter(function (el) {
             return el.getAttribute('aria-checked') === 'true'
@@ -3046,7 +3047,7 @@
         opts = opts || {};
         var items = dbeRovingItems(container, sel);
         if (!items.length) { return; }
-        var active = dbeGroupActive(items);
+        var active = dbeGroupActive(items, opts.activeClass);
         if (opts.selectAttr) {
             items.forEach(function (el) { el.setAttribute(opts.selectAttr, el === active ? 'true' : 'false'); });
         }
@@ -3063,6 +3064,9 @@
          selectOnMove activate the item the arrows land on — the conforming radio
                       behaviour (arrows move AND select). Toolbars leave this off,
                       so arrows only move focus.
+         activeClass  class token that marks the current item when Builderius uses
+                      something other than a bare 'active' (e.g. a BEM modifier like
+                      'uniAiChat__terminalTab--active'). Defaults to 'active'.
        Re-runs each schedule() tick (roles + state stay in sync through React
        re-renders); the keydown handler binds once per container. */
     function dbeEnsureGroup(container, label, sel, opts) {
@@ -3109,7 +3113,7 @@
                 requestAnimationFrame(function () {
                     var scope = container.isConnected ? container : document;
                     var again = dbeRovingItems(scope, sel);
-                    var target = dbeGroupActive(again) || again[Math.min(next, again.length - 1)];
+                    var target = dbeGroupActive(again, opts.activeClass) || again[Math.min(next, again.length - 1)];
                     if (target && document.activeElement !== target) {
                         target.setAttribute('tabindex', '0');
                         target.focus();
@@ -3340,6 +3344,167 @@
             if (search.getAttribute('aria-autocomplete') !== 'list') { search.setAttribute('aria-autocomplete', 'list'); }
             if (!search.getAttribute('aria-label')) { search.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
         }
+    }
+
+    /* (at) Sense AI terminal tabs. When a remote agent (Claude Code, Gemini CLI…)
+       is connected, the Sense AI panel shows a strip of session tabs above the
+       terminal. Natively they are bare <button>s with no tab semantics, so a
+       screen reader cannot tell which session is active, the set has no
+       single-tab-stop keyboard model, and the "new session" button carries only a
+       "+" glyph as its name. This wires the strip as an APG tab list:
+         - the list = role="tablist" with roving arrow-key navigation;
+         - each tab = role="tab" + aria-selected (mirrored from the native
+           --active class) + aria-controls on the terminal panel; arrows move and
+           switch the session (native owns the switch, driven by selectOnMove's
+           click on the tab the arrows land on);
+         - the terminal = role="tabpanel", named by the active tab;
+         - the "+" button gets a real accessible name and, with its agent picker,
+           becomes a menu button (aria-haspopup/expanded, role=menu/menuitem,
+           focus moves in on open, arrow/Home/End roam, Escape/Tab close it).
+       The strip lives in the footer, which the main panel observers do not watch
+       (like footer_toolbar), and native re-renders it on every switch. Two cheap
+       observers keep it in sync: one on the always-present footer bar (fires when
+       Sense AI is opened) and one on the .uniAiChat panel (fires on connect and on
+       every tab switch). Neither spans a Monaco editor, so subtree is safe here;
+       schedule()'s rAF debounce coalesces the rest. The "+" sits inside the list
+       as a labelled button (as a browser tab strip's does); it is not a tab, so
+       the roving set (matched on .uniAiChat__terminalTab) skips it. */
+    var dbeTermBarObserved = false;
+    var dbeTermAiNode = null;
+    var dbeTermAiObs = null;
+    function dbeObserveTerminalBar() {
+        if (dbeTermBarObserved || !window.MutationObserver) { return; }
+        var bar = document.querySelector('.uniFooterPanelBar');
+        if (!bar) { return; }
+        dbeTermBarObserved = true;
+        try {
+            new MutationObserver(schedule).observe(bar, {
+                childList: true, subtree: true, attributes: true, attributeFilter: ['class']
+            });
+        } catch (e) { dbeTermBarObserved = false; }
+    }
+    function dbeObserveTerminalPanel(ai) {
+        if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
+        if (dbeTermAiObs) { try { dbeTermAiObs.disconnect(); } catch (e) {} }
+        dbeTermAiNode = ai;
+        try {
+            dbeTermAiObs = new MutationObserver(schedule);
+            dbeTermAiObs.observe(ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        } catch (e) { dbeTermAiNode = null; dbeTermAiObs = null; }
+    }
+    var DBE_AI_MENU_ID = 'dbe-ai-agent-menu';
+    var dbeAgentMenuWasOpen = false;
+    var dbeAgentKeysBound = false;
+    function dbeAgentMenuItems() {
+        var m = document.querySelector('.uniAiChat__agentPicker');
+        return m ? [].slice.call(m.querySelectorAll('.uniAiChat__agentPickerItem')).filter(function (el) { return el.offsetParent !== null; }) : [];
+    }
+    /* The picker is a toggle: clicking the "+" while it is open closes it. */
+    function dbeCloseAgentMenu(add) {
+        if (document.querySelector('.uniAiChat__agentPicker') && add) { try { add.click(); } catch (e) {} }
+        if (add) { add.focus(); }
+    }
+    /* Wire the "+" as a menu button and the picker it opens as a role="menu".
+       Natively the picker is a bare div of <button>s with no roles, no focus
+       management and no Escape — reachable but not a menu. Add the menu-button
+       semantics and, when it opens from the button, move focus to the first item. */
+    function dbeEnsureAgentPicker(add) {
+        if (!add) { return; }
+        if (add.getAttribute('aria-haspopup') !== 'menu') { add.setAttribute('aria-haspopup', 'menu'); }
+        var menu = document.querySelector('.uniAiChat__agentPicker');
+        var open = !!menu;
+        if (add.getAttribute('aria-expanded') !== String(open)) { add.setAttribute('aria-expanded', String(open)); }
+        if (open) {
+            if (!menu.id) { menu.id = DBE_AI_MENU_ID; }
+            if (add.getAttribute('aria-controls') !== menu.id) { add.setAttribute('aria-controls', menu.id); }
+            if (menu.getAttribute('role') !== 'menu') { menu.setAttribute('role', 'menu'); }
+            if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('terminalAgentMenu', 'Choose an agent')); }
+            [].slice.call(menu.querySelectorAll('.uniAiChat__agentPickerItem')).forEach(function (it) {
+                if (it.getAttribute('role') !== 'menuitem') { it.setAttribute('role', 'menuitem'); }
+                if (it.getAttribute('tabindex') !== '-1') { it.setAttribute('tabindex', '-1'); }
+            });
+            // Just opened from the "+" (keyboard, or a click that focused it): move
+            // focus to the first item, the menu-button convention.
+            if (!dbeAgentMenuWasOpen && document.activeElement === add) {
+                var first = dbeAgentMenuItems()[0];
+                if (first) { first.focus(); }
+            }
+        } else if (add.getAttribute('aria-controls')) {
+            add.removeAttribute('aria-controls');
+        }
+        dbeAgentMenuWasOpen = open;
+    }
+    /* Keyboard model for the "+" menu button and its menu (bound once). Down/Up on
+       the button opens the menu and dives to the first/last item; inside the menu,
+       Up/Down/Home/End roam (wrapping) and Escape/Tab close it and return focus to
+       the button. Enter/Space on an item is left to the native <button>. */
+    function dbeBindAgentPickerKeys() {
+        if (dbeAgentKeysBound) { return; }
+        dbeAgentKeysBound = true;
+        document.addEventListener('keydown', function (e) {
+            var addBtn = e.target && e.target.closest ? e.target.closest('.uniAiChat__terminalAddTabBtn') : null;
+            if (addBtn) {
+                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') { return; }
+                e.preventDefault();
+                var last = e.key === 'ArrowUp';
+                if (!document.querySelector('.uniAiChat__agentPicker')) { try { addBtn.click(); } catch (err) {} }
+                var tries = 0;
+                (function focusItem() {
+                    var opts = dbeAgentMenuItems();
+                    if (opts.length) { (last ? opts[opts.length - 1] : opts[0]).focus(); }
+                    else if (tries++ < 10) { setTimeout(focusItem, 20); }
+                })();
+                return;
+            }
+            var inMenu = e.target && e.target.closest ? e.target.closest('.uniAiChat__agentPicker') : null;
+            if (!inMenu) { return; }
+            var items = dbeAgentMenuItems();
+            if (!items.length) { return; }
+            var add = document.querySelector('.uniAiChat__terminalAddTabBtn');
+            var i = items.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') { e.preventDefault(); items[i < 0 ? 0 : (i + 1) % items.length].focus(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); items[i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length].focus(); }
+            else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+            else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+            else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); dbeCloseAgentMenu(add); }
+        });
+    }
+    var DBE_AI_PANEL_ID = 'dbe-ai-terminal-panel';
+    function ensureTerminalTabs() {
+        dbeObserveTerminalBar();
+        dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
+        var list = document.querySelector('.uniAiChat__terminalTabList');
+        if (!list) { return; }
+        var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
+        if (panel) {
+            if (!panel.id) { panel.id = DBE_AI_PANEL_ID; }
+            if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
+            if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
+        }
+        var active = null;
+        [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
+            if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
+            if (panel && t.getAttribute('aria-controls') !== panel.id) { t.setAttribute('aria-controls', panel.id); }
+            if (t.classList.contains('uniAiChat__terminalTab--active')) { active = t; }
+        });
+        // Name the panel after whichever session is showing.
+        if (panel && active && panel.getAttribute('aria-labelledby') !== active.id) {
+            panel.setAttribute('aria-labelledby', active.id);
+        }
+        // The "+" button's only content is a "+", so give it a real name, and wire
+        // it + its agent picker as a proper menu button (roles, focus, Escape).
+        var add = list.querySelector('.uniAiChat__terminalAddTabBtn');
+        if (add) {
+            var al = dbeT('terminalNewTab', 'New chat session');
+            if (add.getAttribute('aria-label') !== al) { add.setAttribute('aria-label', al); }
+        }
+        dbeEnsureAgentPicker(add);
+        dbeBindAgentPickerKeys();
+        // Tab-list semantics + roving arrow-key navigation.
+        dbeEnsureGroup(list, dbeT('terminalTablist', 'AI chat sessions'), '.uniAiChat__terminalTab', {
+            role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
+            selectOnMove: true, activeClass: 'uniAiChat__terminalTab--active'
+        });
     }
     function dbeSSActiveIndex(items, id) {
         for (var i = 0; i < items.length; i++) { if (items[i].id === id) { return i; } }
@@ -5208,6 +5373,7 @@
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
+            if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
@@ -5288,6 +5454,17 @@
                 if (dbeFooterObserved || n <= 0) { return; }
                 schedule();
                 setTimeout(function () { footerBoot(n - 1); }, 500);
+            })(30);
+        }
+
+        // The Sense AI session tabs live in that same footer. Nudge schedule()
+        // until ensureTerminalTabs() has wired its own observer to the footer bar,
+        // so the tabs are reachable even when this is the only feature enabled.
+        if (on('ai_terminal_tabs')) {
+            (function terminalBoot(n) {
+                if (dbeTermBarObserved || n <= 0) { return; }
+                schedule();
+                setTimeout(function () { terminalBoot(n - 1); }, 500);
             })(30);
         }
 

@@ -121,6 +121,13 @@ function dbe_features() {
 			'css'         => array( '77-select-combobox.css' ),
 			'js'          => true,
 		),
+		'ai_terminal_tabs'    => array(
+			'title'       => __( 'Accessible AI session tabs', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the Sense AI terminal session tabs (Claude Code, Gemini CLI and so on) as a proper tab list for screen readers and the keyboard: the tabs announce which session is active, arrow keys move between them and switch with one Tab stop, the terminal below is exposed as their tab panel, and the "new session" button gets a clear name in place of its bare plus sign, plus a proper pop-up menu (arrow keys to choose an agent, Escape to close). Purely additive: clicking to switch is left to Builderius.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => false,
+			'js'          => true,
+		),
 
 		/* ----------------------------------------------------------- Navigator */
 		'tag_badges'          => array(

@@ -246,6 +246,9 @@ function dbe_builder_strings() {
 		'comboboxListbox'         => __( 'Options', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the currently selected value. Names the select trigger for screen readers. */
 		'comboboxTrigger'         => __( 'Selection: %s', 'daveden-builderius-enhancements' ),
+		'terminalTablist'         => __( 'AI chat sessions', 'daveden-builderius-enhancements' ),
+		'terminalNewTab'          => __( 'New chat session', 'daveden-builderius-enhancements' ),
+		'terminalAgentMenu'       => __( 'Choose an agent', 'daveden-builderius-enhancements' ),
 
 		// Navigator search.
 		'filterElements'          => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
