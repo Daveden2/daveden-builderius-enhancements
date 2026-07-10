@@ -97,7 +97,7 @@ function dbe_builder_strings() {
 		/* translators: %s: number of elements removed. */
 		'removedElementsMany'     => __( 'Removed %s elements (Cmd+Z restores one at a time)', 'daveden-builderius-enhancements' ),
 
-		// Undo / redo delete.
+		// Undo / redo element adds & deletes.
 		'nothingToUndo'           => __( 'Nothing to undo', 'daveden-builderius-enhancements' ),
 		'nothingToRedo'           => __( 'Nothing to redo', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
@@ -105,10 +105,10 @@ function dbe_builder_strings() {
 		/* translators: %s: element label. */
 		'restored'                => __( 'Restored “%s”', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
-		'cannotRedoGone'          => __( 'Cannot redo: “%s” no longer exists', 'daveden-builderius-enhancements' ),
+		'removed'                 => __( 'Removed “%s”', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
-		'deletedAgain'            => __( 'Deleted “%s” again', 'daveden-builderius-enhancements' ),
-		'redoFailed'              => __( 'Redo failed', 'daveden-builderius-enhancements' ),
+		'cannotRemoveGone'        => __( 'Cannot undo: “%s” is no longer here', 'daveden-builderius-enhancements' ),
+		'undoFailedRemove'        => __( 'Undo failed: could not remove the element', 'daveden-builderius-enhancements' ),
 		'undoFailedPaste'         => __( 'Undo failed: could not reach Paste', 'daveden-builderius-enhancements' ),
 		'undoFailedNotRestored'   => __( 'Undo failed: element not restored', 'daveden-builderius-enhancements' ),
 		'undoFailedClipboard'     => __( 'Undo failed: clipboard blocked', 'daveden-builderius-enhancements' ),

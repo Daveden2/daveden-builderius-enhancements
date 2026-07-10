@@ -1085,30 +1085,28 @@
         }, true);
     }
 
-    /* (d3) Undo/redo last delete — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z.
-       Builderius already RECORDS history (storeGet('history') = [{timestamp,
-       snapshot:{modules}}], a full pre-op snapshot per module operation) but
-       nothing consumes it and Cmd+Z is unbound. A raw storeSet restore neither
-       repaints nor persists (see the file-header channel note), so undo instead
-       re-adds the deleted subtree through the builder's own paste controller,
-       which repaints tree + canvas natively:
-       - native Copy writes JSON to the SYSTEM clipboard: {modules, indexes,
-         template, version, source:"builderiusCopiedElements"} — a payload we
-         can forge from the history snapshot of the deleted subtree;
-       - Paste inserts the clipboard subtree as the LAST CHILD of the ACTIVE
-         (selected) module — right-click alone doesn't set selection — or at
-         root when nothing is selected;
-       so: capture deletes via builderius.Module.deleted, and on undo select the
-       former parent, forge the clipboard, drive Paste via a hidden auto-opened
-       context menu. Restored elements get a new id (paste regenerates ids) and
-       are appended last among their siblings — original position is not
-       restored. Redo re-deletes via the same menu channel, which re-captures it
-       for undo. The user's clipboard is saved/restored around the forgery where
-       the browser allows reading it. */
+    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element ADDS and
+       DELETES. Builderius records history but consumes none of it, and a raw
+       storeSet neither repaints nor persists, so we reverse each change through
+       the builder's own controllers, which repaint tree + canvas natively:
+       - a DELETE is reversed by re-adding the subtree: native Copy writes
+         {modules, indexes, template, version, source:"builderiusCopiedElements"}
+         to the clipboard, which we forge from the deleted subtree, then drive
+         native Paste (inserts as the LAST CHILD of the selected module, or root);
+       - an ADD is reversed by removing the element: drive native Remove.
+       Records are symmetric: `op` is what reverses the user's action ('restore' a
+       removed subtree, or 'remove' an added element), and running one pushes the
+       inverse onto the other stack, so redo is just the mirror. Module.added and
+       Module.deleted feed the two directions; our OWN paste/remove during an
+       undo/redo are skipped via dbeUndoBusy so they do not re-enter the stacks.
+       Restored elements get a new id (paste regenerates them) and are appended
+       last, so position is not preserved and a re-add whose parent was itself
+       restored can fail. Moves and property edits are not covered (no repaint
+       channel for them). The user's clipboard is saved/restored around the
+       forgery where the browser allows reading it. */
     var undoStack = [];
     var redoStack = [];
     var dbeUndoBusy = false;
-    var dbeRedoDeleting = false;
     var toastTimer = null;
 
     function undoToast(msg) {
@@ -1125,38 +1123,61 @@
         toastTimer = setTimeout(function () { t.classList.remove('is-visible'); }, 2600);
     }
 
-    function hookDeleteCapture() {
+    // Collect the subtree rooted at id from a modules map, reparenting the root
+    // to '' (the shape native Paste expects in the forged clipboard).
+    function dbeCollectSubtree(mods, id) {
+        var subtree = {};
+        (function collect(x) {
+            subtree[x] = JSON.parse(JSON.stringify(mods[x]));
+            Object.keys(mods).forEach(function (k) { if (mods[k].parent === x) { collect(k); } });
+        })(id);
+        subtree[id].parent = '';
+        return subtree;
+    }
+
+    // Push a user action onto the undo stack; a fresh action invalidates redo.
+    function dbeHistoryPush(rec) {
+        undoStack.push(rec);
+        if (undoStack.length > 10) { undoStack.shift(); }
+        redoStack = [];
+    }
+
+    function hookHistoryCapture() {
         try {
-            window.Builderius.API.hooks.addAction('builderius.Module.deleted', 'dbeUndoCapture', function (p) {
-                if (!p || !p.id) { return; }
-                var sf = store();
+            var api = window.Builderius.API.hooks;
+            // DELETE: the element is already gone from the live store, so rebuild
+            // its subtree from the most recent history snapshot that still holds
+            // it. Undo re-adds it, hence op:'restore'.
+            api.addAction('builderius.Module.deleted', 'dbeUndoCaptureDel', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
                 var hist;
-                try { hist = sf.storeGet('history') || []; } catch (e) { return; }
-                // Most recent snapshot that still contains the deleted module
+                try { hist = store().storeGet('history') || []; } catch (e) { return; }
                 var snapMods = null;
                 for (var i = hist.length - 1; i >= 0; i--) {
                     var sm = hist[i].snapshot && hist[i].snapshot.modules;
                     if (sm && sm[p.id]) { snapMods = sm; break; }
                 }
                 if (!snapMods) { return; }
-                var subtree = {};
-                (function collect(id) {
-                    subtree[id] = JSON.parse(JSON.stringify(snapMods[id]));
-                    Object.keys(snapMods).forEach(function (k) {
-                        if (snapMods[k].parent === id) { collect(k); }
-                    });
-                })(p.id);
-                subtree[p.id].parent = '';
-                undoStack.push({
+                dbeHistoryPush({
+                    op: 'restore',
                     id: p.id,
                     label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
-                    parentId: snapMods[p.id].parent || '', // '' = root
-                    subtree: subtree
+                    parentId: snapMods[p.id].parent || '',
+                    subtree: dbeCollectSubtree(snapMods, p.id)
                 });
-                if (undoStack.length > 10) { undoStack.shift(); }
-                // A fresh manual delete invalidates the redo chain; a redo's own
-                // delete must not (it is the redo chain).
-                if (!dbeRedoDeleting) { redoStack = []; }
+            });
+            // ADD: undo removes it, hence op:'remove'. The subtree needed to
+            // re-add it on redo is snapshotted from the live store at undo time
+            // (the element still exists then), so only the id + label are stored.
+            api.addAction('builderius.Module.added', 'dbeUndoCaptureAdd', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
+                var m = (modules() || {})[p.id];
+                dbeHistoryPush({
+                    op: 'remove',
+                    id: p.id,
+                    label: (m && (m.label || m.name)) || dbeT('element', 'element'),
+                    parentId: (m && m.parent) || ''
+                });
             });
         } catch (e) {}
     }
@@ -1189,15 +1210,9 @@
         });
     }
 
-    function performUndo() {
-        if (dbeUndoBusy) { return; }
-        var rec = undoStack.pop();
-        if (!rec) { undoToast(dbeT('nothingToUndo', 'Nothing to undo')); return; }
-        if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
-            undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
-            return;
-        }
-        dbeUndoBusy = true;
+    /* Re-add rec.subtree under rec.parentId via forged clipboard + native Paste.
+       cb(newId) on success, cb(null, message) on failure. */
+    function dbeRestoreOp(rec, cb) {
         var beforeIds = Object.keys(modules() || {});
         // Forged clipboard payload matching what native Copy writes. The version
         // block matched 1.3.5-beta when verified; paste keys off `source`.
@@ -1208,11 +1223,6 @@
             version: { 'builderius': '1.3.5-beta', 'builderius-pro': '1.3.5-beta' },
             source: 'builderiusCopiedElements'
         });
-        var fail = function (msg) {
-            dbeUndoBusy = false;
-            undoStack.push(rec); // keep it available for another try
-            undoToast(msg);
-        };
         var paste = function (menuRowId) {
             var prevClip = null;
             navigator.clipboard.readText()
@@ -1221,7 +1231,7 @@
                 .then(function () { return navigator.clipboard.writeText(payload); })
                 .then(function () {
                     driveContextMenuItem(menuRowId, 'Paste', function (ok) {
-                        if (!ok) { fail(dbeT('undoFailedPaste', 'Undo failed: could not reach Paste')); return; }
+                        if (!ok) { cb(null, dbeT('undoFailedPaste', 'Undo failed: could not reach Paste')); return; }
                         waitFor(function () {
                             var mods = modules() || {};
                             return Object.keys(mods).find(function (id) {
@@ -1229,14 +1239,11 @@
                             }) || null;
                         }, function (newId) {
                             if (prevClip !== null) { navigator.clipboard.writeText(prevClip).catch(function () {}); }
-                            if (!newId) { fail(dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
-                            dbeUndoBusy = false;
-                            redoStack.push({ id: newId, label: rec.label });
-                            undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
+                            cb(newId || null, newId ? null : dbeT('undoFailedNotRestored', 'Undo failed: element not restored'));
                         });
                     });
                 })
-                .catch(function () { fail(dbeT('undoFailedClipboard', 'Undo failed: clipboard blocked')); });
+                .catch(function () { cb(null, dbeT('undoFailedClipboard', 'Undo failed: clipboard blocked')); });
         };
         if (rec.parentId) {
             // Real selection: paste inserts into the ACTIVE module. The tree is
@@ -1250,7 +1257,7 @@
                 waitFor(function () { return activeId() === rec.parentId || null; }, function (ok) {
                     if (ok) { paste(rec.parentId); }
                     else if (++attempts < 4) { selectParent(); }
-                    else { fail(dbeT('undoFailedSelectParent', 'Undo failed: could not select the parent')); }
+                    else { cb(null, dbeT('undoFailedSelectParent', 'Undo failed: could not select the parent')); }
                 }, 20); // 4 tries x ~500ms instead of one 1.5s wait
             })();
         } else {
@@ -1258,31 +1265,54 @@
             try { store().storeSet('activeModule', ''); } catch (e) {}
             var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
             var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
-            if (!m) { fail(dbeT('undoFailedNoRows', 'Undo failed: no tree rows')); return; }
+            if (!m) { cb(null, dbeT('undoFailedNoRows', 'Undo failed: no tree rows')); return; }
             paste(m[1]);
         }
     }
 
-    function performRedo() {
+    /* Pop a record off `from`, run its op (restore a removed subtree, or remove
+       an added element), and push the inverse op onto `to`. Undo and redo are the
+       same routine run over opposite stacks. */
+    function dbeRunHistory(from, to, emptyKey, emptyDef) {
         if (dbeUndoBusy) { return; }
-        var rec = redoStack.pop();
-        if (!rec) { undoToast(dbeT('nothingToRedo', 'Nothing to redo')); return; }
-        if (!document.querySelector('.uniRightPanel .uni-tree-node-' + rec.id)) {
-            redoStack = [];
-            undoToast(dbeFmt(dbeT('cannotRedoGone', 'Cannot redo: “%s” no longer exists'), rec.label));
-            return;
-        }
-        dbeUndoBusy = true;
-        dbeRedoDeleting = true;
-        driveContextMenuItem(rec.id, 'Remove', function (ok) {
-            setTimeout(function () {
-                dbeRedoDeleting = false;
+        var rec = from.pop();
+        if (!rec) { undoToast(dbeT(emptyKey, emptyDef)); return; }
+        if (rec.op === 'restore') {
+            if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
+                return;
+            }
+            dbeUndoBusy = true;
+            dbeRestoreOp(rec, function (newId, msg) {
                 dbeUndoBusy = false;
-                if (ok) { undoToast(dbeFmt(dbeT('deletedAgain', 'Deleted “%s” again'), rec.label)); }
-                else { redoStack.push(rec); undoToast(dbeT('redoFailed', 'Redo failed')); }
-            }, 300);
-        });
+                if (!newId) { from.push(rec); undoToast(msg || dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
+                to.push({ op: 'remove', id: newId, label: rec.label, parentId: rec.parentId, subtree: rec.subtree });
+                undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
+            });
+        } else { // 'remove'
+            var mods = modules() || {};
+            if (!mods[rec.id] || !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.id)) {
+                undoToast(dbeFmt(dbeT('cannotRemoveGone', 'Cannot undo: “%s” is no longer here'), rec.label));
+                return;
+            }
+            // Snapshot the live subtree first so the inverse can re-add it.
+            var subtree = dbeCollectSubtree(mods, rec.id);
+            var parentId = mods[rec.id].parent || '';
+            dbeUndoBusy = true;
+            driveContextMenuItem(rec.id, 'Remove', function (ok) {
+                setTimeout(function () {
+                    dbeUndoBusy = false;
+                    if (!ok) { from.push(rec); undoToast(dbeT('undoFailedRemove', 'Undo failed: could not remove the element')); return; }
+                    to.push({ op: 'restore', id: rec.id, label: rec.label, parentId: parentId, subtree: subtree });
+                    undoToast(dbeFmt(dbeT('removed', 'Removed “%s”'), rec.label));
+                }, 300);
+            });
+        }
     }
+
+    function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo'); }
+    function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo'); }
 
     function bindUndoKeys() {
         document.addEventListener('keydown', function (e) {
@@ -5501,9 +5531,9 @@
         // stay parked below for when the drag is fixed.
         if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
 
-        // Undo/redo last delete (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
+        // Undo/redo element adds & deletes (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
         if (on('undo_delete')) {
-            hookDeleteCapture();
+            hookHistoryCapture();
             bindUndoKeys();
         }
 

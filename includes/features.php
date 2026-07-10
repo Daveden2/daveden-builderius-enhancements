@@ -218,8 +218,8 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'undo_delete'         => array(
-			'title'       => __( 'Undo / redo delete', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Press Cmd/Ctrl+Z to restore the last deleted element, and add Shift to redo the deletion. A brief message confirms each step.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Undo / redo add & delete', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,
