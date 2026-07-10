@@ -2002,7 +2002,12 @@
         ['.uniFooterPanelBar .collapsePanelIcon', dbeT('tipCollapseBottomPanel', 'Collapse bottom panel')],
         ['.uniBreakpointsTable__addNew', dbeT('tipAddBreakpoint', 'Add breakpoint')],
         ['.uniBreakpointsTable__delete', dbeT('tipDeleteBreakpoint', 'Delete breakpoint')],
-        ['.uniFormField__ddTagsBtn', dbeT('tipInsertDynamicData', 'Insert dynamic data')]
+        ['.uniFormField__ddTagsBtn', dbeT('tipInsertDynamicData', 'Insert dynamic data')],
+        // Top-bar canvas-size fields ship with no label at all (bare inputs); a
+        // screen reader announces them as unnamed edit boxes. Give each an
+        // accessible name (3.3.2 / 4.1.2) plus a matching hover tooltip.
+        ['.uniTopPanel input[name="width"]', dbeT('tipCanvasWidth', 'Canvas width in pixels')],
+        ['.uniTopPanel input[name="zoom"]', dbeT('tipCanvasZoom', 'Canvas zoom, percent')]
     ];
 
     /* Fallback breakpoint labels, used only when dbeBreakpoints() can't read
@@ -2807,6 +2812,26 @@
         }[mode] || mode;
     }
 
+    /* Shared live region for the top-bar mode toggles (theme, density). The
+       toggles rewrite their own aria-label on each click, but a focused button
+       whose label changes silently is NOT re-announced by NVDA/VoiceOver, so
+       the switch was inaudible. A role="status" region carries the result
+       instead — the joshwcomeau pattern. Created eagerly when a toggle mounts
+       (dbeEnsureModeStatus) so it is present in the DOM before the first update;
+       a live region added and written in the same tick is unreliable. */
+    var dbeModeStatus = null;
+    function dbeEnsureModeStatus() {
+        if (dbeModeStatus && document.body.contains(dbeModeStatus)) { return dbeModeStatus; }
+        dbeModeStatus = document.createElement('div');
+        dbeModeStatus.className = 'dbe-visually-hidden';
+        dbeModeStatus.setAttribute('role', 'status');
+        document.body.appendChild(dbeModeStatus);
+        return dbeModeStatus;
+    }
+    function dbeModeAnnounce(msg) {
+        dbeEnsureModeStatus().textContent = msg;
+    }
+
     function currentTheme() {
         var t = document.documentElement.dataset.dbeTheme;
         return THEME_ORDER.indexOf(t) !== -1 ? t : ((CFG.theme && CFG.theme.default) || 'auto');
@@ -2888,14 +2913,21 @@
         btn.querySelector('span').innerHTML =
             '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             THEME_ICONS[t] + '</svg>';
-        setTip(btn, dbeFmt(dbeT('themeTip', 'Theme: %1$s (switch to %2$s)'), dbeModeName(t), dbeModeName(next)));
+        var tip = dbeFmt(dbeT('themeTip', 'Theme: %1$s (switch to %2$s)'), dbeModeName(t), dbeModeName(next));
+        setTip(btn, tip);
+        // setTip only sets aria-label when absent (it must not clobber static
+        // controls an observer re-decorates); this label is dynamic, so keep the
+        // accessible name in sync with the current state on every toggle.
+        btn.setAttribute('aria-label', tip);
     }
-    function setTheme(t) {
+    function setTheme(t, announce) {
         document.documentElement.dataset.dbeTheme = t;
         try { localStorage.setItem('dbeBuilderTheme', t); } catch (e) {}
         applyMonacoTheme();
         var btn = document.querySelector('.dbe-theme-btn');
         if (btn) { decorateThemeButton(btn); }
+        // Only speak on a user switch, never on the initial restore.
+        if (announce) { dbeModeAnnounce(dbeFmt(dbeT('themeAnnounce', 'Theme set to %s'), dbeModeName(t))); }
     }
     function ensureThemeButton() {
         var col = document.querySelector('.uniTopPanel__rightCol');
@@ -2905,9 +2937,10 @@
         btn.className = 'uniPanelButton dbe-theme-btn';
         btn.appendChild(document.createElement('span'));
         btn.addEventListener('click', function () {
-            setTheme(THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length]);
+            setTheme(THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length], true);
         });
         decorateThemeButton(btn);
+        dbeEnsureModeStatus(); // present before the first click so the switch is announced
         col.insertBefore(btn, col.firstChild);
         // Auto mode: retheme Monaco when the OS scheme flips (CSS tracks itself).
         try {
@@ -2931,7 +2964,11 @@
         btn.querySelector('span').innerHTML =
             '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             DENSITY_ICONS[d] + '</svg>';
-        setTip(btn, dbeFmt(dbeT('densityTip', 'Density: %1$s (switch to %2$s)'), dbeModeName(d), dbeModeName(next)));
+        var tip = dbeFmt(dbeT('densityTip', 'Density: %1$s (switch to %2$s)'), dbeModeName(d), dbeModeName(next));
+        setTip(btn, tip);
+        // Dynamic label — set explicitly so the accessible name tracks each toggle
+        // (setTip won't overwrite an existing aria-label).
+        btn.setAttribute('aria-label', tip);
     }
     function ensureDensityButton() {
         var col = document.querySelector('.uniTopPanel__rightCol');
@@ -2945,11 +2982,405 @@
             document.documentElement.dataset.dbeDensity = next;
             try { localStorage.setItem('dbeBuilderDensity', next); } catch (e) {}
             decorateDensityButton(btn);
+            dbeModeAnnounce(dbeFmt(dbeT('densityAnnounce', 'Density set to %s'), dbeModeName(next)));
         });
         decorateDensityButton(btn);
+        dbeEnsureModeStatus(); // present before the first click so the switch is announced
         // Sit next to the theme button when both are on.
         var themeBtn = col.querySelector('.dbe-theme-btn');
         col.insertBefore(btn, themeBtn ? themeBtn.nextSibling : col.firstChild);
+    }
+
+    /* (tb) Top-bar keyboard groups (topbar_toolbar). Give the top-bar control
+       clusters correct grouping semantics for screen readers and keyboard users:
+
+       - The breakpoint switcher becomes a radio group (one of base/desktop/
+         tablet/mobile) — it announces which breakpoint is current and how many
+         there are, and the arrow keys move and select the way radios do, with a
+         single Tab stop into the group.
+       - The canvas width + zoom fields become a labelled role="group". They are
+         NOT a roving toolbar: those are text inputs whose own arrow keys move the
+         caret / change the value, so a group that captured the arrows would break
+         them.
+
+       (The theme and density buttons are deliberately left as two separate,
+       individually-labelled buttons — with only two of them, a toolbar wrapper
+       adds keyboard indirection for no real gain.)
+
+       Everything re-runs on the schedule() tick, so it re-applies after React
+       re-renders the top bar; syncing tabindex/state is idempotent and the
+       keydown handler binds once per container (guarded by a flag). The generic
+       dbeEnsureGroup helper also supports a plain role="toolbar" (focus-only
+       arrows) for future all-button clusters. */
+
+    function dbeRovingItems(container, sel) {
+        return [].slice.call(container.querySelectorAll(sel)).filter(function (el) {
+            return el.offsetParent !== null && !el.disabled; // visible + enabled
+        });
+    }
+
+    /* The selected item in a group: Builderius marks the current breakpoint with
+       an `active` class; fall back to the ARIA single-select states. */
+    function dbeGroupActive(items) {
+        return items.filter(function (el) {
+            return el.classList.contains('active')
+                || el.getAttribute('aria-checked') === 'true'
+                || el.getAttribute('aria-pressed') === 'true'
+                || el.getAttribute('aria-selected') === 'true';
+        })[0] || null;
+    }
+
+    /* Keep exactly one item in the tab order (tabindex=0), the rest at -1, and —
+       for a single-select group (opts.selectAttr, e.g. 'aria-checked') — mirror
+       the selected state onto every item. For the tab stop, prefer the item that
+       already holds it (so a keyboard user's position survives a re-render), then
+       the selected/active one, then the first. */
+    function dbeSyncRoving(container, sel, opts) {
+        opts = opts || {};
+        var items = dbeRovingItems(container, sel);
+        if (!items.length) { return; }
+        var active = dbeGroupActive(items);
+        if (opts.selectAttr) {
+            items.forEach(function (el) { el.setAttribute(opts.selectAttr, el === active ? 'true' : 'false'); });
+        }
+        var current = items.filter(function (el) { return el.getAttribute('tabindex') === '0'; })[0];
+        var keep = current || active || items[0];
+        items.forEach(function (el) { el.setAttribute('tabindex', el === keep ? '0' : '-1'); });
+    }
+
+    /* Generic keyboard single-tab-stop group. opts:
+         role         container role ('toolbar' default, 'radiogroup' for a
+                      mutually-exclusive selector)
+         itemRole     role stamped on each item (e.g. 'radio')
+         selectAttr   single-select state attribute to mirror ('aria-checked')
+         selectOnMove activate the item the arrows land on — the conforming radio
+                      behaviour (arrows move AND select). Toolbars leave this off,
+                      so arrows only move focus.
+       Re-runs each schedule() tick (roles + state stay in sync through React
+       re-renders); the keydown handler binds once per container. */
+    function dbeEnsureGroup(container, label, sel, opts) {
+        if (!container) { return; }
+        opts = opts || {};
+        var role = opts.role || 'toolbar';
+        if (container.getAttribute('role') !== role) { container.setAttribute('role', role); }
+        if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+        if (opts.itemRole) {
+            dbeRovingItems(container, sel).forEach(function (el) {
+                if (el.getAttribute('role') !== opts.itemRole) { el.setAttribute('role', opts.itemRole); }
+            });
+        }
+        dbeSyncRoving(container, sel, opts);
+        if (container.dbeGroupBound) { return; }
+        container.dbeGroupBound = true;
+        container.addEventListener('keydown', function (e) {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+            var items = dbeRovingItems(container, sel);
+            if (!items.length) { return; }
+            var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
+            var i = items.indexOf(focused);
+            if (i === -1) { return; }
+            var next = i;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (i + 1) % items.length; }
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+            else if (e.key === 'Home') { next = 0; }
+            else if (e.key === 'End') { next = items.length - 1; }
+            e.preventDefault();
+            e.stopPropagation();
+            items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
+            if (opts.selectAttr) {
+                items.forEach(function (el, k) { el.setAttribute(opts.selectAttr, k === next ? 'true' : 'false'); });
+            }
+            items[next].focus();
+            // Radio semantics: moving the selection also makes it take effect.
+            // Builderius switches the active breakpoint on click; the class it sets
+            // is re-mirrored to aria-checked on the next schedule() tick.
+            if (opts.selectOnMove && next !== i) {
+                try { items[next].click(); } catch (err) {}
+                // The switch re-renders the breakpoint row and drops focus; restore
+                // it next frame to the (possibly rebuilt) selected radio so keyboard
+                // users are not stranded. Re-query in case the nodes were replaced.
+                requestAnimationFrame(function () {
+                    var scope = container.isConnected ? container : document;
+                    var again = dbeRovingItems(scope, sel);
+                    var target = dbeGroupActive(again) || again[Math.min(next, again.length - 1)];
+                    if (target && document.activeElement !== target) {
+                        target.setAttribute('tabindex', '0');
+                        target.focus();
+                    }
+                });
+            }
+        });
+    }
+
+    function ensureTopbarToolbars() {
+        // Breakpoint buttons carry no text, so a radio with no name is useless.
+        // The tooltips feature labels them (setTip), but topbar_toolbar must not
+        // depend on it being on: name any still-unnamed button from the real
+        // breakpoints. Only fills a missing aria-label, so it never fights setTip.
+        var bps = dbeBreakpoints();
+        document.querySelectorAll('.uniPanelButtonBreakpoint').forEach(function (b, i) {
+            if (b.getAttribute('aria-label')) { return; }
+            var bp = bps && bps[i];
+            b.setAttribute('aria-label', bp
+                ? (bp.width
+                    ? dbeFmt(dbeT('bpMax', '%1$s (max %2$spx)'), bp.label, bp.width)
+                    : dbeFmt(dbeT('bpBase', '%s (base styles, full width)'), bp.label))
+                : (DBE_BP_LABELS[i] || dbeT('breakpoint', 'Breakpoint')));
+        });
+        // Breakpoint switcher — pick exactly one of base/desktop/tablet/mobile.
+        // A radio group, not a toolbar: it conveys the mutually-exclusive choice
+        // and which breakpoint is current (aria-checked), and arrow keys move and
+        // select the way radios do.
+        dbeEnsureGroup(
+            document.querySelector('.uniGlobalBreakpoints__list'),
+            dbeT('toolbarBreakpoints', 'Breakpoints'),
+            '.uniPanelButtonBreakpoint',
+            { role: 'radiogroup', itemRole: 'radio', selectAttr: 'aria-checked', selectOnMove: true }
+        );
+        // Canvas width + zoom — a labelled group, not a roving toolbar (the fields
+        // own their arrow keys). The fields themselves are labelled in DBE_TIPS.
+        var canvas = document.querySelector('.uniGlobalBreakpoints__canvasControl');
+        if (canvas) {
+            if (canvas.getAttribute('role') !== 'group') { canvas.setAttribute('role', 'group'); }
+            var cl = dbeT('groupCanvasSize', 'Canvas size');
+            if (canvas.getAttribute('aria-label') !== cl) { canvas.setAttribute('aria-label', cl); }
+        }
+    }
+
+    /* (tf) Bottom-bar editor tools (footer_toolbar). The footer is a row of
+       buttons (Custom CSS, JavaScript, Dynamic Data, Sense AI, …) that reveal a
+       shared panel one at a time. It is NOT a tablist: several items are locked
+       (Pro), the panel can be collapsed to nothing, and a tab must own a panel
+       with one always selected — none of which holds. It is a toolbar of
+       disclosure buttons:
+         - bar = role="toolbar" with roving arrow-key navigation over the tools;
+         - each functional button = aria-expanded (true only when its panel is the
+           open one) + aria-controls on the shared panel region;
+         - locked buttons = aria-disabled with "(locked)" in the accessible name;
+         - the shared panel = a labelled role="region", named after the open tool.
+       The footer lives outside the panels the other observers watch, so it wires
+       its own (attached once, lazily, when the bar first appears). */
+    var dbeFooterObserved = false;
+    function dbeObserveFooter(bar) {
+        if (dbeFooterObserved) { return; }
+        dbeFooterObserved = true;
+        try {
+            // Bar: button active/locked class + add/remove (small subtree).
+            new MutationObserver(schedule).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            // Panel: open/collapse (content mounts/unmounts, height/style change).
+            // Shallow — no subtree — so the Monaco editors inside do not spam it.
+            var fp = document.querySelector('.uniFooterPanel');
+            if (fp) { new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] }); }
+        } catch (e) { dbeFooterObserved = false; }
+    }
+    function ensureFooterToolbar() {
+        var bar = document.querySelector('.uniFooterPanelBar');
+        if (!bar) { return; }
+        dbeObserveFooter(bar);
+        var tools = [].slice.call(bar.querySelectorAll('button.uniPanelIconButton--footer'));
+        if (!tools.length) { return; }
+
+        var region = document.querySelector('.uniFooterPanelContent');
+        var regionId = 'dbe-footer-panel';
+        if (region) {
+            if (!region.id) { region.id = regionId; }
+            if (region.getAttribute('role') !== 'region') { region.setAttribute('role', 'region'); }
+        }
+        // The panel has no open/closed class; a visible content region means open.
+        var open = !!region && region.offsetHeight > 8;
+        var activeTool = tools.filter(function (b) { return b.classList.contains('uniPanelIconButton--active'); })[0];
+
+        tools.forEach(function (b) {
+            var base = (b.textContent || '').trim(); // aria-label never changes textContent
+            if (b.classList.contains('locked')) {
+                b.setAttribute('aria-disabled', 'true');
+                b.removeAttribute('aria-expanded');
+                b.removeAttribute('aria-controls');
+                var want = dbeFmt(dbeT('footerLocked', '%s (locked)'), base);
+                if (b.getAttribute('aria-label') !== want) { b.setAttribute('aria-label', want); }
+            } else {
+                b.removeAttribute('aria-disabled');
+                if (b.getAttribute('aria-label')) { b.removeAttribute('aria-label'); } // fall back to the text name
+                if (region && b.getAttribute('aria-controls') !== regionId) { b.setAttribute('aria-controls', regionId); }
+                var expanded = (open && b === activeTool) ? 'true' : 'false';
+                if (b.getAttribute('aria-expanded') !== expanded) { b.setAttribute('aria-expanded', expanded); }
+            }
+        });
+
+        if (region) {
+            var rl = (open && activeTool)
+                ? dbeFmt(dbeT('footerPanelNamed', '%s panel'), (activeTool.textContent || '').trim())
+                : dbeT('footerToolsPanel', 'Editor tools panel');
+            if (region.getAttribute('aria-label') !== rl) { region.setAttribute('aria-label', rl); }
+        }
+
+        // Toolbar semantics + roving arrow navigation over the tool buttons. Locked
+        // buttons stay in the roving set (focusable, aria-disabled) so a keyboard
+        // user can discover them and hear that they are locked.
+        dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
+    }
+
+    /* (sc) Accessible select comboboxes (select_combobox). Builderius's reused
+       custom select popover (.uniSystemSelect — the preview picker, the
+       responsive-strategy select, …) is a searchable list with no ARIA and no
+       keyboard way to pick an option: you can type to filter but Arrow keys do
+       nothing, so a keyboard user is stuck. This wires it as an ARIA 1.2 editable
+       combobox WITHOUT touching Builderius's own search/select code:
+
+         - roles only describe what is already there (combobox / listbox / option)
+           — they change nothing behavioural;
+         - the ONLY keys intercepted are ArrowDown/ArrowUp (which the native
+           single-line search input ignores) to move aria-activedescendant, and
+           Enter — but Enter is handled ONLY when one of our options is highlighted,
+           otherwise it passes straight through to native. Home/End, typing and
+           click-to-select are left entirely to Builderius.
+         - selection reuses the native path: we click the highlighted option, which
+           is exactly what a mouse user does.
+
+       Re-applied each tick (React rebuilds the filtered list); the key handler
+       binds once. If any of this fought the native widget it would degrade to
+       "roles present, arrows do nothing", never a broken search. */
+    var SSCOMBO_LIST_ID = 'dbe-sscombo-list';
+    function dbeSSItems(dd) {
+        return [].slice.call(dd.querySelectorAll('.uniSystemSelect__item')).filter(function (it) {
+            return it.offsetParent !== null;
+        });
+    }
+    function dbeSSOpenDropdown() {
+        var dd = document.querySelector('.uniSystemSelect__dropdown');
+        return (dd && dd.offsetParent !== null) ? dd : null;
+    }
+    function ensureSelectComboboxes() {
+        // Closed triggers: drop the invisible hidden field out of the tab order
+        // (it is an 8px opacity:0 input that makes the control a double Tab stop)
+        // and name the caret by the current value — it otherwise inherits the
+        // generic "Save options" tooltip label from the .caretIcon selector.
+        document.querySelectorAll('.uniSystemSelect').forEach(function (sel) {
+            var hidden = sel.querySelector('.uniSystemSelect__hiddenField');
+            if (hidden && hidden.getAttribute('tabindex') !== '-1') { hidden.setAttribute('tabindex', '-1'); }
+            var caret = sel.querySelector('.uniIconButton.caretIcon');
+            var val = ((sel.querySelector('.uniSystemSelect__valueInner') || {}).textContent || '').trim();
+            if (caret) {
+                if (caret.getAttribute('aria-haspopup') !== 'listbox') { caret.setAttribute('aria-haspopup', 'listbox'); }
+                var want = val ? dbeFmt(dbeT('comboboxTrigger', 'Selection: %s'), val) : '';
+                if (want && caret.getAttribute('aria-label') !== want) { caret.setAttribute('aria-label', want); }
+            }
+        });
+
+        // HTML-tag select (.uniSystemSelectModuleTags — the element "HTML" field).
+        // A sibling component that moves REAL focus onto each option as you arrow,
+        // so it already has keyboard navigation — it only lacks the ARIA roles.
+        // Roles only here: no key handler (native owns the arrows) and no tabindex
+        // changes (native owns focus). The `expanded` class drives aria-expanded.
+        var MTAGS_LIST_ID = 'dbe-mtags-list';
+        document.querySelectorAll('.uniSystemSelectModuleTags').forEach(function (mt) {
+            var results = mt.querySelector('.uniSystemSelectModuleTags__resultsWrapper');
+            if (results) {
+                if (results.getAttribute('role') !== 'listbox') { results.setAttribute('role', 'listbox'); }
+                if (results.id !== MTAGS_LIST_ID) { results.id = MTAGS_LIST_ID; }
+                if (!results.getAttribute('aria-label')) { results.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
+            }
+            var curVal = ((mt.querySelector('.uniSystemSelectModuleTags__placeholder') || {}).textContent || '').trim();
+            mt.querySelectorAll('.uniSystemSelectModuleTags__item').forEach(function (it) {
+                if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
+                var isSel = (curVal && (it.textContent || '').trim() === curVal) ? 'true' : 'false';
+                if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
+            });
+            var msearch = mt.querySelector('.uniSystemSelectModuleTags__search');
+            if (msearch) {
+                if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
+                var exp = mt.classList.contains('expanded') ? 'true' : 'false';
+                if (msearch.getAttribute('aria-expanded') !== exp) { msearch.setAttribute('aria-expanded', exp); }
+                if (results && msearch.getAttribute('aria-controls') !== MTAGS_LIST_ID) { msearch.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                if (msearch.getAttribute('aria-autocomplete') !== 'list') { msearch.setAttribute('aria-autocomplete', 'list'); }
+                if (!msearch.getAttribute('aria-label')) { msearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
+            }
+        });
+
+        var dd = dbeSSOpenDropdown();
+        if (!dd) { return; }
+        var search = dd.querySelector('.uniSystemSelect__search input') || dd.querySelector('input');
+        var items = dbeSSItems(dd);
+        var listContainer = items.length ? items[0].parentElement : null;
+        if (listContainer) {
+            if (listContainer.getAttribute('role') !== 'listbox') { listContainer.setAttribute('role', 'listbox'); }
+            if (listContainer.id !== SSCOMBO_LIST_ID) { listContainer.id = SSCOMBO_LIST_ID; }
+            if (!listContainer.getAttribute('aria-label')) { listContainer.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
+        }
+        // Category headings are not options; keep them out of the listbox structure.
+        [].slice.call(dd.querySelectorAll('.uniSystemSelect__cat')).forEach(function (c) {
+            if (c.getAttribute('role') !== 'presentation') { c.setAttribute('role', 'presentation'); }
+        });
+        // The current value has no native marker, so match option text against the
+        // open control's shown value to flag aria-selected.
+        var vals = [];
+        document.querySelectorAll('.uniSystemSelect__valueInner').forEach(function (v) {
+            var t = (v.textContent || '').trim();
+            if (t) { vals.push(t); }
+        });
+        items.forEach(function (it, i) {
+            if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
+            var id = SSCOMBO_LIST_ID + '-opt-' + i;
+            if (it.id !== id) { it.id = id; }
+            if (it.getAttribute('tabindex') !== '-1') { it.setAttribute('tabindex', '-1'); }
+            var isSel = vals.indexOf((it.textContent || '').trim()) !== -1 ? 'true' : 'false';
+            if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
+        });
+        if (search) {
+            if (search.getAttribute('role') !== 'combobox') { search.setAttribute('role', 'combobox'); }
+            if (search.getAttribute('aria-expanded') !== 'true') { search.setAttribute('aria-expanded', 'true'); }
+            if (search.getAttribute('aria-controls') !== SSCOMBO_LIST_ID) { search.setAttribute('aria-controls', SSCOMBO_LIST_ID); }
+            if (search.getAttribute('aria-autocomplete') !== 'list') { search.setAttribute('aria-autocomplete', 'list'); }
+            if (!search.getAttribute('aria-label')) { search.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
+        }
+    }
+    function dbeSSActiveIndex(items, id) {
+        for (var i = 0; i < items.length; i++) { if (items[i].id === id) { return i; } }
+        return -1;
+    }
+    function dbeSSHighlight(search, items, idx) {
+        items.forEach(function (it) { it.classList.remove('dbe-sscombo-active'); });
+        var t = items[idx];
+        if (!t) { return; }
+        t.classList.add('dbe-sscombo-active');
+        search.setAttribute('aria-activedescendant', t.id);
+        try { t.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+    function bindSelectCombobox() {
+        // Arrow nav + Enter-when-highlighted, additive over the native search.
+        document.addEventListener('keydown', function (e) {
+            var search = e.target;
+            if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') { return; }
+            var dd = dbeSSOpenDropdown();
+            if (!dd) { return; }
+            var items = dbeSSItems(dd);
+            if (!items.length) { return; }
+            var idx = dbeSSActiveIndex(items, search.getAttribute('aria-activedescendant'));
+            if (e.key === 'Enter') {
+                // Only take Enter when WE have a highlighted option; otherwise leave
+                // it for Builderius (e.g. its own submit/first-match behaviour).
+                if (idx < 0) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                items[idx].click(); // native selection path (same as a mouse click)
+                return;
+            }
+            // ArrowDown / ArrowUp — native single-line input ignores these.
+            e.preventDefault();
+            var next = e.key === 'ArrowDown'
+                ? (idx < 0 ? 0 : (idx + 1) % items.length)
+                : (idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length);
+            dbeSSHighlight(search, items, next);
+        }, true);
+        // Typing re-filters (native): the old highlight is stale, so drop it and
+        // let schedule() re-apply roles/ids to the rebuilt list.
+        document.addEventListener('input', function (e) {
+            var search = e.target;
+            if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
+            search.removeAttribute('aria-activedescendant');
+            schedule();
+        }, true);
     }
 
     /* (j) Navigator search: filter box above the tree. Non-matching rows dim
@@ -4444,16 +4875,38 @@
             e.stopPropagation();
             openChipMenu(li, e.clientX || li.getBoundingClientRect().right, e.clientY || li.getBoundingClientRect().top);
         }, true);
-        // Caret on the active-selector chip: open our enriched menu in place of the
-        // native "Close"-only one (bypassed while a driver reaches the native item).
+        // Caret on the active-selector chip: open our enriched menu in place of
+        // the native "Close"-only one. Match the whole .actions area, not just
+        // the ~8px caret button — Builderius's native handler sits on a wider
+        // target, so a click landing in .actions but off the button used to fall
+        // through to the native menu. That was the "sometimes only Close, other
+        // times the full menu" inconsistency: which menu you got depended on
+        // whether the pointer hit the tiny button exactly.
+        //
+        // The pointerdown/mousedown swallow blocks the native menu whichever of
+        // those events it opens on; click then opens ours. All three are bypassed
+        // while driveSelectedClose() deliberately reaches the native Close item —
+        // that drives the caret with .click(), which fires no pointerdown/
+        // mousedown, so the swallow never touches it. preventDefault is NOT called
+        // on the down events, so the caret button still takes focus.
+        function selCaretActions(e) {
+            return (e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected .actions')) || null;
+        }
+        ['pointerdown', 'mousedown'].forEach(function (t) {
+            document.addEventListener(t, function (e) {
+                if (dbeSelCaretBypass) { return; }
+                if (selCaretActions(e)) { e.stopPropagation(); }
+            }, true);
+        });
         document.addEventListener('click', function (e) {
             if (dbeSelCaretBypass) { return; }
-            var btn = e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected .actions button');
-            if (!btn) { return; }
+            var actions = selCaretActions(e);
+            if (!actions) { return; }
             e.preventDefault();
             e.stopPropagation();
-            var sel = btn.closest('.uniModuleCssSelectorItemSelected');
-            var rb = btn.getBoundingClientRect();
+            var sel = actions.closest('.uniModuleCssSelectorItemSelected');
+            var anchor = actions.querySelector('button') || actions;
+            var rb = anchor.getBoundingClientRect();
             openSelectedChipMenu(sel, rb.left, rb.bottom + 2);
         }, true);
         ['pointerdown', 'wheel'].forEach(function (t) {
@@ -4594,6 +5047,9 @@
                 try { applyMonacoTheme(); } catch (e) {}
             }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
+            if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
+            if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
+            if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
@@ -4649,13 +5105,33 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; labelChromeIcons(), the theme/density buttons and the save
         // cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue')) {
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
             }
         }
         if (on('tooltips')) { bindTooltips(); }
+
+        // Select comboboxes: bind the additive arrow/Enter handling, and watch
+        // <body> (where the popover portals) so roles are applied when it opens.
+        if (on('select_combobox')) {
+            bindSelectCombobox();
+            try { new MutationObserver(schedule).observe(document.body, { childList: true }); } catch (e) {}
+        }
+
+        // The bottom-bar tools live outside every panel observed above, and
+        // ensureFooterToolbar() wires the footer's own observers the first time it
+        // sees the bar. Nudge schedule() until that happens, so footer_toolbar
+        // works even when it is the only feature enabled (nothing else would be
+        // keeping schedule() running). Bounded; stops as soon as the bar is found.
+        if (on('footer_toolbar')) {
+            (function footerBoot(n) {
+                if (dbeFooterObserved || n <= 0) { return; }
+                schedule();
+                setTimeout(function () { footerBoot(n - 1); }, 500);
+            })(30);
+        }
 
         // Remember which row was right-clicked (target for wrap/rename/expand).
         // Right-clicking OUTSIDE the multi-selection resets it to a single-row

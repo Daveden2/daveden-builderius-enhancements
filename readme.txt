@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.7.1
+Stable tag: 1.8.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -28,6 +28,51 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.8.0 =
+* New: "Top-bar keyboard groups". The breakpoint switcher becomes a proper radio
+  group: a screen reader announces which breakpoint is current and how many there
+  are, and the arrow keys move between and select them from a single Tab stop.
+  The canvas width and zoom fields are grouped and labelled.
+* New: "Bottom-bar keyboard toolbar". The bar of editor tools (Custom CSS,
+  JavaScript, Dynamic Data, Sense AI and so on) becomes a keyboard toolbar: one
+  Tab stop with arrow-key navigation, each tool tells a screen reader whether its
+  panel is open, the shared panel is a labelled region, and locked (Pro) tools
+  are announced as locked rather than being silent, dead buttons.
+* New: "Accessible select comboboxes". The builder's custom select popovers (the
+  top-bar preview picker, the responsive-strategy select, the element HTML-tag
+  select and others) are now proper ARIA comboboxes: combobox / listbox / option
+  roles with the current value announced, a single Tab stop, and arrow keys to
+  move through the options with Enter to choose. It is purely additive — typing
+  to filter and clicking to choose are still handled entirely by Builderius.
+* Fixed: in light mode, the option you arrow to in the element HTML-tag select
+  kept the native dark highlight behind dark text (dark-on-dark). The focused and
+  hovered option now follow the theme, meeting WCAG AA contrast in both themes.
+* Fixed: the settings-page toggle switches now show a tick (on) or a dash (off)
+  inside the knob, so their state no longer relies on the knob position and track
+  colour alone (WCAG 1.4.1). The glyph is decorative; the checkbox itself still
+  conveys the state to assistive tech.
+* Improved: the theme switcher now announces the new mode ("Theme set to dark")
+  through a live region on each switch, so screen reader users hear the change.
+  The density toggle does the same. Both buttons also keep their accessible name
+  in step with their current state.
+* Improved: the top-bar canvas width and zoom fields now have accessible names
+  (previously they were announced as unlabelled edit boxes).
+* Fixed: the active class chip's caret menu is now consistent. It previously
+  opened the native "Close"-only menu instead of the full copy/remove menu when
+  the click landed just off the small caret; the whole caret area now opens the
+  enriched menu every time.
+* Fixed: the "Search for element" field no longer shows two magnifier icons. It
+  ships its own icon in current Builderius, so the plugin no longer adds a second.
+* Fixed: the "coming soon" badges in the element context menu's Save to submenu
+  no longer overlap the item text.
+* Fixed: in light mode, the reused select popover (the top-bar "Property: …"
+  preview picker and others) floated its options on a dark fill with black text,
+  leaving them unreadable (black-on-black). The dropdown, its options and its
+  search field now follow the theme, meeting WCAG AA contrast.
+* Changed: the plugin now requires Builderius to be active. Activation is blocked
+  with a clear message if Builderius is not present, and the builder enhancements
+  stay dormant (with an admin notice) if Builderius is later deactivated.
 
 = 1.7.1 =
 * Improved: the active class chip in the Styles editor now offers the same

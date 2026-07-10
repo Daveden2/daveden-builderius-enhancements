@@ -3,7 +3,7 @@
  * Plugin Name:       Daveden Builder Enhancements
  * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           1.7.1
+ * Version:           1.8.0
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
@@ -11,6 +11,13 @@
  * Domain Path:       /languages
  * Requires at least: 6.4
  * Requires PHP:      7.4
+ * Requires Plugins:  builderius
+ *
+ * Builderius (the free wordpress.org plugin, slug "builderius") is a hard
+ * dependency. On WordPress 6.5+ the Requires Plugins header above enforces it
+ * natively — blocking activation until Builderius is active and offering to
+ * install/activate it. On 6.4 the header is ignored, so the dbe_activate()
+ * guard and the runtime dbe_builderius_is_active() check below still apply.
  *
  * Targets Builderius 1.3.5-beta. Every selector, store access
  * (window.__builderiusStoreFns) and hook (Builderius.API.hooks) the builder
@@ -32,7 +39,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '1.7.1' );
+define( 'DBE_VERSION', '1.8.0' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -77,14 +84,58 @@ $dbe_update_checker->addResultFilter(
 	}
 );
 
+/**
+ * Is Builderius active?
+ *
+ * DBE is a companion to Builderius and has nothing to enhance without it.
+ * We detect the parent by a function Builderius declares unconditionally at
+ * the top of its main file, rather than a hard-coded plugin path — that keeps
+ * the check working if Builderius is ever installed under a different folder
+ * and needs no wp-admin/includes/plugin.php include on the front end.
+ * Builderius sorts before daveden-builderius-enhancements, so it has already
+ * loaded by the time this runs (both at activation and on every request).
+ *
+ * @return bool
+ */
+function dbe_builderius_is_active() {
+	return function_exists( 'builderius_get_version' );
+}
+
 require_once DBE_DIR . 'includes/update-info-fallback.php';
 require_once DBE_DIR . 'includes/features.php';
 require_once DBE_DIR . 'includes/i18n-builder.php';
 require_once DBE_DIR . 'includes/options.php';
 require_once DBE_DIR . 'includes/settings-page.php';
-require_once DBE_DIR . 'includes/output-builder.php';
-require_once DBE_DIR . 'includes/output-preview.php';
-require_once DBE_DIR . 'includes/admin-bar.php';
+
+/*
+ * Builder-facing output only makes sense when Builderius is running. If the
+ * parent plugin is inactive, skip these features (they hook wp_head/wp_footer/
+ * admin_bar to enhance the builder) and surface an admin notice instead. The
+ * settings screen above still loads so toggles remain reachable.
+ */
+if ( dbe_builderius_is_active() ) {
+	require_once DBE_DIR . 'includes/output-builder.php';
+	require_once DBE_DIR . 'includes/output-preview.php';
+	require_once DBE_DIR . 'includes/admin-bar.php';
+} else {
+	add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
+}
+
+/**
+ * Warn that Builderius is required when the parent plugin is not active.
+ */
+function dbe_builderius_missing_notice() {
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+	printf(
+		'<div class="notice notice-warning"><p>%s</p></div>',
+		esc_html__(
+			'Daveden Builder Enhancements is a companion to Builderius and stays dormant until Builderius is active. Please activate Builderius to use its enhancements.',
+			'daveden-builderius-enhancements'
+		)
+	);
+}
 
 /**
  * Load bundled translations from /languages. WordPress loads community
@@ -99,8 +150,23 @@ add_action( 'init', 'dbe_load_textdomain' );
 register_activation_hook( __FILE__, 'dbe_activate' );
 
 /**
- * Seed the options row on activation so every toggle exists explicitly.
+ * Refuse activation without Builderius, then seed the options row so every
+ * toggle exists explicitly. Builderius is a hard dependency: there is nothing
+ * to enhance without it, so we block activation with a friendly message rather
+ * than let the plugin activate into a no-op state.
  */
 function dbe_activate() {
+	if ( ! dbe_builderius_is_active() ) {
+		deactivate_plugins( plugin_basename( __FILE__ ) );
+		wp_die(
+			esc_html__(
+				'Daveden Builder Enhancements requires the Builderius plugin. Please install and activate Builderius first, then activate this plugin.',
+				'daveden-builderius-enhancements'
+			),
+			esc_html__( 'Builderius required', 'daveden-builderius-enhancements' ),
+			array( 'back_link' => true )
+		);
+	}
+
 	add_option( 'daveden_builder_enhancements', dbe_default_options(), '', true );
 }

@@ -1,0 +1,12 @@
+/* Accessible select comboboxes (select_combobox): the keyboard-highlighted
+   option during arrow-key navigation. Mirrors the native hover treatment so
+   mouse hover and keyboard highlight look the same, and adds an inset ring for
+   a clear, theme-independent focus cue (the roving highlight is carried by
+   aria-activedescendant, so the option never takes real focus/:focus-visible).
+   Falls back to plain values where the theme tokens are not loaded. */
+.uniSystemSelect__item.dbe-sscombo-active {
+    background: var(--dbe-hover-wash, rgba(127, 127, 127, 0.18)) !important;
+    color: var(--dbe-text, inherit) !important;
+    box-shadow: inset 0 0 0 2px var(--dbe-focus, #2a6ecb) !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}

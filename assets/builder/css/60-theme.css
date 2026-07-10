@@ -191,6 +191,44 @@ li.isComponent > .uniModTree__itemWrapper .uniModTree__item span:not(.dbe-tag-ba
     background: var(--dbe-hover-wash) !important;
     color: var(--dbe-text) !important;
 }
+/* Preview/property selector dropdown (.uniSystemSelect__dropdown) — the reused
+   uniSystemSelect popover (the top-bar "Property: …" preview picker, the
+   breakpoints modal's responsive-strategy select, …). It portals to <body>, so
+   it escapes the panel-scoped remap: native floats the list on the dark menu
+   fill (#171719) with black item text, leaving the options invisible in light
+   mode (black-on-black). Re-surface it and its search with theme tokens.
+   --dbe-menu-bg resolves to that same #171719 in dark mode, so dark is unchanged. */
+.uniSystemSelect__dropdown {
+    background: var(--dbe-menu-bg) !important;
+    border-color: var(--dbe-line) !important;
+}
+.uniSystemSelect__item {
+    color: var(--dbe-text-2) !important;
+}
+.uniSystemSelect__item:hover,
+.uniSystemSelect__item:focus-visible {
+    background: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
+.uniSystemSelect__search input,
+.uniSystemSelect__searchInner {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text-2) !important;
+    border-color: var(--dbe-line) !important;
+}
+/* HTML-tag select (.uniSystemSelectModuleTags — the element "HTML" field). Same
+   family as the preview select but a separate component that moves real focus
+   onto each option as you arrow. Its dropdown is already light, but the
+   focused/hovered option keeps the native dark highlight fill (#2E2F32) under
+   dark text, so the arrowed-to option is dark-on-dark in light mode. Theme the
+   focus/hover state; --dbe-l2-hi's dark value (#33353a) tracks the native
+   highlight, so dark mode is ~unchanged. */
+.uniSystemSelectModuleTags__item:hover,
+.uniSystemSelectModuleTags__item:focus,
+.uniSystemSelectModuleTags__item:focus-visible {
+    background: var(--dbe-l2-hi) !important;
+    color: var(--dbe-text) !important;
+}
 .uniInlineTooltipMessage {
     background: var(--dbe-l2) !important;
     color: var(--dbe-muted) !important;

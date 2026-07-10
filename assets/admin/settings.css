@@ -251,7 +251,12 @@ input[type="checkbox"].dbe-switch:checked::before {
   block-size: 18px;
   margin: 0;
   border-radius: 50%;
-  background: #fff;
+  /* OFF state carries a dash inside the knob, so the on/off state does not rely
+     on the knob position or the track colour alone (WCAG 1.4.1). The glyph is a
+     background-image, so it is decorative to assistive tech — the underlying
+     checkbox already announces checked/unchecked. Swapped for a tick when
+     checked (see :checked::before below). */
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%23646970" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat, #fff;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
   transition: translate 120ms ease;
 }
@@ -263,6 +268,9 @@ input[type="checkbox"].dbe-switch:checked {
 
 input[type="checkbox"].dbe-switch:checked::before {
   translate: 20px 0;
+  /* ON state: a tick replaces the dash (a distinct shape, not just a colour or
+     position change). Darker blue than the track for contrast on the white knob. */
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%23135e96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 11px 11px no-repeat, #fff;
 }
 
 input[type="checkbox"].dbe-switch:focus-visible {
