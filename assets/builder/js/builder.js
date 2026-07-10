@@ -1085,30 +1085,28 @@
         }, true);
     }
 
-    /* (d3) Undo/redo last delete — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z.
-       Builderius already RECORDS history (storeGet('history') = [{timestamp,
-       snapshot:{modules}}], a full pre-op snapshot per module operation) but
-       nothing consumes it and Cmd+Z is unbound. A raw storeSet restore neither
-       repaints nor persists (see the file-header channel note), so undo instead
-       re-adds the deleted subtree through the builder's own paste controller,
-       which repaints tree + canvas natively:
-       - native Copy writes JSON to the SYSTEM clipboard: {modules, indexes,
-         template, version, source:"builderiusCopiedElements"} — a payload we
-         can forge from the history snapshot of the deleted subtree;
-       - Paste inserts the clipboard subtree as the LAST CHILD of the ACTIVE
-         (selected) module — right-click alone doesn't set selection — or at
-         root when nothing is selected;
-       so: capture deletes via builderius.Module.deleted, and on undo select the
-       former parent, forge the clipboard, drive Paste via a hidden auto-opened
-       context menu. Restored elements get a new id (paste regenerates ids) and
-       are appended last among their siblings — original position is not
-       restored. Redo re-deletes via the same menu channel, which re-captures it
-       for undo. The user's clipboard is saved/restored around the forgery where
-       the browser allows reading it. */
+    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element ADDS and
+       DELETES. Builderius records history but consumes none of it, and a raw
+       storeSet neither repaints nor persists, so we reverse each change through
+       the builder's own controllers, which repaint tree + canvas natively:
+       - a DELETE is reversed by re-adding the subtree: native Copy writes
+         {modules, indexes, template, version, source:"builderiusCopiedElements"}
+         to the clipboard, which we forge from the deleted subtree, then drive
+         native Paste (inserts as the LAST CHILD of the selected module, or root);
+       - an ADD is reversed by removing the element: drive native Remove.
+       Records are symmetric: `op` is what reverses the user's action ('restore' a
+       removed subtree, or 'remove' an added element), and running one pushes the
+       inverse onto the other stack, so redo is just the mirror. Module.added and
+       Module.deleted feed the two directions; our OWN paste/remove during an
+       undo/redo are skipped via dbeUndoBusy so they do not re-enter the stacks.
+       Restored elements get a new id (paste regenerates them) and are appended
+       last, so position is not preserved and a re-add whose parent was itself
+       restored can fail. Moves and property edits are not covered (no repaint
+       channel for them). The user's clipboard is saved/restored around the
+       forgery where the browser allows reading it. */
     var undoStack = [];
     var redoStack = [];
     var dbeUndoBusy = false;
-    var dbeRedoDeleting = false;
     var toastTimer = null;
 
     function undoToast(msg) {
@@ -1125,38 +1123,61 @@
         toastTimer = setTimeout(function () { t.classList.remove('is-visible'); }, 2600);
     }
 
-    function hookDeleteCapture() {
+    // Collect the subtree rooted at id from a modules map, reparenting the root
+    // to '' (the shape native Paste expects in the forged clipboard).
+    function dbeCollectSubtree(mods, id) {
+        var subtree = {};
+        (function collect(x) {
+            subtree[x] = JSON.parse(JSON.stringify(mods[x]));
+            Object.keys(mods).forEach(function (k) { if (mods[k].parent === x) { collect(k); } });
+        })(id);
+        subtree[id].parent = '';
+        return subtree;
+    }
+
+    // Push a user action onto the undo stack; a fresh action invalidates redo.
+    function dbeHistoryPush(rec) {
+        undoStack.push(rec);
+        if (undoStack.length > 10) { undoStack.shift(); }
+        redoStack = [];
+    }
+
+    function hookHistoryCapture() {
         try {
-            window.Builderius.API.hooks.addAction('builderius.Module.deleted', 'dbeUndoCapture', function (p) {
-                if (!p || !p.id) { return; }
-                var sf = store();
+            var api = window.Builderius.API.hooks;
+            // DELETE: the element is already gone from the live store, so rebuild
+            // its subtree from the most recent history snapshot that still holds
+            // it. Undo re-adds it, hence op:'restore'.
+            api.addAction('builderius.Module.deleted', 'dbeUndoCaptureDel', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
                 var hist;
-                try { hist = sf.storeGet('history') || []; } catch (e) { return; }
-                // Most recent snapshot that still contains the deleted module
+                try { hist = store().storeGet('history') || []; } catch (e) { return; }
                 var snapMods = null;
                 for (var i = hist.length - 1; i >= 0; i--) {
                     var sm = hist[i].snapshot && hist[i].snapshot.modules;
                     if (sm && sm[p.id]) { snapMods = sm; break; }
                 }
                 if (!snapMods) { return; }
-                var subtree = {};
-                (function collect(id) {
-                    subtree[id] = JSON.parse(JSON.stringify(snapMods[id]));
-                    Object.keys(snapMods).forEach(function (k) {
-                        if (snapMods[k].parent === id) { collect(k); }
-                    });
-                })(p.id);
-                subtree[p.id].parent = '';
-                undoStack.push({
+                dbeHistoryPush({
+                    op: 'restore',
                     id: p.id,
                     label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
-                    parentId: snapMods[p.id].parent || '', // '' = root
-                    subtree: subtree
+                    parentId: snapMods[p.id].parent || '',
+                    subtree: dbeCollectSubtree(snapMods, p.id)
                 });
-                if (undoStack.length > 10) { undoStack.shift(); }
-                // A fresh manual delete invalidates the redo chain; a redo's own
-                // delete must not (it is the redo chain).
-                if (!dbeRedoDeleting) { redoStack = []; }
+            });
+            // ADD: undo removes it, hence op:'remove'. The subtree needed to
+            // re-add it on redo is snapshotted from the live store at undo time
+            // (the element still exists then), so only the id + label are stored.
+            api.addAction('builderius.Module.added', 'dbeUndoCaptureAdd', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
+                var m = (modules() || {})[p.id];
+                dbeHistoryPush({
+                    op: 'remove',
+                    id: p.id,
+                    label: (m && (m.label || m.name)) || dbeT('element', 'element'),
+                    parentId: (m && m.parent) || ''
+                });
             });
         } catch (e) {}
     }
@@ -1189,15 +1210,9 @@
         });
     }
 
-    function performUndo() {
-        if (dbeUndoBusy) { return; }
-        var rec = undoStack.pop();
-        if (!rec) { undoToast(dbeT('nothingToUndo', 'Nothing to undo')); return; }
-        if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
-            undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
-            return;
-        }
-        dbeUndoBusy = true;
+    /* Re-add rec.subtree under rec.parentId via forged clipboard + native Paste.
+       cb(newId) on success, cb(null, message) on failure. */
+    function dbeRestoreOp(rec, cb) {
         var beforeIds = Object.keys(modules() || {});
         // Forged clipboard payload matching what native Copy writes. The version
         // block matched 1.3.5-beta when verified; paste keys off `source`.
@@ -1208,11 +1223,6 @@
             version: { 'builderius': '1.3.5-beta', 'builderius-pro': '1.3.5-beta' },
             source: 'builderiusCopiedElements'
         });
-        var fail = function (msg) {
-            dbeUndoBusy = false;
-            undoStack.push(rec); // keep it available for another try
-            undoToast(msg);
-        };
         var paste = function (menuRowId) {
             var prevClip = null;
             navigator.clipboard.readText()
@@ -1221,7 +1231,7 @@
                 .then(function () { return navigator.clipboard.writeText(payload); })
                 .then(function () {
                     driveContextMenuItem(menuRowId, 'Paste', function (ok) {
-                        if (!ok) { fail(dbeT('undoFailedPaste', 'Undo failed: could not reach Paste')); return; }
+                        if (!ok) { cb(null, dbeT('undoFailedPaste', 'Undo failed: could not reach Paste')); return; }
                         waitFor(function () {
                             var mods = modules() || {};
                             return Object.keys(mods).find(function (id) {
@@ -1229,14 +1239,11 @@
                             }) || null;
                         }, function (newId) {
                             if (prevClip !== null) { navigator.clipboard.writeText(prevClip).catch(function () {}); }
-                            if (!newId) { fail(dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
-                            dbeUndoBusy = false;
-                            redoStack.push({ id: newId, label: rec.label });
-                            undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
+                            cb(newId || null, newId ? null : dbeT('undoFailedNotRestored', 'Undo failed: element not restored'));
                         });
                     });
                 })
-                .catch(function () { fail(dbeT('undoFailedClipboard', 'Undo failed: clipboard blocked')); });
+                .catch(function () { cb(null, dbeT('undoFailedClipboard', 'Undo failed: clipboard blocked')); });
         };
         if (rec.parentId) {
             // Real selection: paste inserts into the ACTIVE module. The tree is
@@ -1250,7 +1257,7 @@
                 waitFor(function () { return activeId() === rec.parentId || null; }, function (ok) {
                     if (ok) { paste(rec.parentId); }
                     else if (++attempts < 4) { selectParent(); }
-                    else { fail(dbeT('undoFailedSelectParent', 'Undo failed: could not select the parent')); }
+                    else { cb(null, dbeT('undoFailedSelectParent', 'Undo failed: could not select the parent')); }
                 }, 20); // 4 tries x ~500ms instead of one 1.5s wait
             })();
         } else {
@@ -1258,31 +1265,54 @@
             try { store().storeSet('activeModule', ''); } catch (e) {}
             var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
             var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
-            if (!m) { fail(dbeT('undoFailedNoRows', 'Undo failed: no tree rows')); return; }
+            if (!m) { cb(null, dbeT('undoFailedNoRows', 'Undo failed: no tree rows')); return; }
             paste(m[1]);
         }
     }
 
-    function performRedo() {
+    /* Pop a record off `from`, run its op (restore a removed subtree, or remove
+       an added element), and push the inverse op onto `to`. Undo and redo are the
+       same routine run over opposite stacks. */
+    function dbeRunHistory(from, to, emptyKey, emptyDef) {
         if (dbeUndoBusy) { return; }
-        var rec = redoStack.pop();
-        if (!rec) { undoToast(dbeT('nothingToRedo', 'Nothing to redo')); return; }
-        if (!document.querySelector('.uniRightPanel .uni-tree-node-' + rec.id)) {
-            redoStack = [];
-            undoToast(dbeFmt(dbeT('cannotRedoGone', 'Cannot redo: “%s” no longer exists'), rec.label));
-            return;
-        }
-        dbeUndoBusy = true;
-        dbeRedoDeleting = true;
-        driveContextMenuItem(rec.id, 'Remove', function (ok) {
-            setTimeout(function () {
-                dbeRedoDeleting = false;
+        var rec = from.pop();
+        if (!rec) { undoToast(dbeT(emptyKey, emptyDef)); return; }
+        if (rec.op === 'restore') {
+            if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
+                return;
+            }
+            dbeUndoBusy = true;
+            dbeRestoreOp(rec, function (newId, msg) {
                 dbeUndoBusy = false;
-                if (ok) { undoToast(dbeFmt(dbeT('deletedAgain', 'Deleted “%s” again'), rec.label)); }
-                else { redoStack.push(rec); undoToast(dbeT('redoFailed', 'Redo failed')); }
-            }, 300);
-        });
+                if (!newId) { from.push(rec); undoToast(msg || dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
+                to.push({ op: 'remove', id: newId, label: rec.label, parentId: rec.parentId, subtree: rec.subtree });
+                undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
+            });
+        } else { // 'remove'
+            var mods = modules() || {};
+            if (!mods[rec.id] || !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.id)) {
+                undoToast(dbeFmt(dbeT('cannotRemoveGone', 'Cannot undo: “%s” is no longer here'), rec.label));
+                return;
+            }
+            // Snapshot the live subtree first so the inverse can re-add it.
+            var subtree = dbeCollectSubtree(mods, rec.id);
+            var parentId = mods[rec.id].parent || '';
+            dbeUndoBusy = true;
+            driveContextMenuItem(rec.id, 'Remove', function (ok) {
+                setTimeout(function () {
+                    dbeUndoBusy = false;
+                    if (!ok) { from.push(rec); undoToast(dbeT('undoFailedRemove', 'Undo failed: could not remove the element')); return; }
+                    to.push({ op: 'restore', id: rec.id, label: rec.label, parentId: parentId, subtree: subtree });
+                    undoToast(dbeFmt(dbeT('removed', 'Removed “%s”'), rec.label));
+                }, 300);
+            });
+        }
     }
+
+    function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo'); }
+    function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo'); }
 
     function bindUndoKeys() {
         document.addEventListener('keydown', function (e) {
@@ -3027,8 +3057,9 @@
        aria-checked itself, so a stale mirrored value (left on the old breakpoint
        after a resize moves `active` elsewhere) would otherwise be read as current
        and re-affirmed every tick, never catching up. */
-    function dbeGroupActive(items) {
-        var byClass = items.filter(function (el) { return el.classList.contains('active'); })[0];
+    function dbeGroupActive(items, activeClass) {
+        var cls = activeClass || 'active';
+        var byClass = items.filter(function (el) { return el.classList.contains(cls); })[0];
         if (byClass) { return byClass; }
         return items.filter(function (el) {
             return el.getAttribute('aria-checked') === 'true'
@@ -3046,7 +3077,7 @@
         opts = opts || {};
         var items = dbeRovingItems(container, sel);
         if (!items.length) { return; }
-        var active = dbeGroupActive(items);
+        var active = dbeGroupActive(items, opts.activeClass);
         if (opts.selectAttr) {
             items.forEach(function (el) { el.setAttribute(opts.selectAttr, el === active ? 'true' : 'false'); });
         }
@@ -3063,6 +3094,9 @@
          selectOnMove activate the item the arrows land on — the conforming radio
                       behaviour (arrows move AND select). Toolbars leave this off,
                       so arrows only move focus.
+         activeClass  class token that marks the current item when Builderius uses
+                      something other than a bare 'active' (e.g. a BEM modifier like
+                      'uniAiChat__terminalTab--active'). Defaults to 'active'.
        Re-runs each schedule() tick (roles + state stay in sync through React
        re-renders); the keydown handler binds once per container. */
     function dbeEnsureGroup(container, label, sel, opts) {
@@ -3109,7 +3143,7 @@
                 requestAnimationFrame(function () {
                     var scope = container.isConnected ? container : document;
                     var again = dbeRovingItems(scope, sel);
-                    var target = dbeGroupActive(again) || again[Math.min(next, again.length - 1)];
+                    var target = dbeGroupActive(again, opts.activeClass) || again[Math.min(next, again.length - 1)];
                     if (target && document.activeElement !== target) {
                         target.setAttribute('tabindex', '0');
                         target.focus();
@@ -3340,6 +3374,167 @@
             if (search.getAttribute('aria-autocomplete') !== 'list') { search.setAttribute('aria-autocomplete', 'list'); }
             if (!search.getAttribute('aria-label')) { search.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
         }
+    }
+
+    /* (at) Sense AI terminal tabs. When a remote agent (Claude Code, Gemini CLI…)
+       is connected, the Sense AI panel shows a strip of session tabs above the
+       terminal. Natively they are bare <button>s with no tab semantics, so a
+       screen reader cannot tell which session is active, the set has no
+       single-tab-stop keyboard model, and the "new session" button carries only a
+       "+" glyph as its name. This wires the strip as an APG tab list:
+         - the list = role="tablist" with roving arrow-key navigation;
+         - each tab = role="tab" + aria-selected (mirrored from the native
+           --active class) + aria-controls on the terminal panel; arrows move and
+           switch the session (native owns the switch, driven by selectOnMove's
+           click on the tab the arrows land on);
+         - the terminal = role="tabpanel", named by the active tab;
+         - the "+" button gets a real accessible name and, with its agent picker,
+           becomes a menu button (aria-haspopup/expanded, role=menu/menuitem,
+           focus moves in on open, arrow/Home/End roam, Escape/Tab close it).
+       The strip lives in the footer, which the main panel observers do not watch
+       (like footer_toolbar), and native re-renders it on every switch. Two cheap
+       observers keep it in sync: one on the always-present footer bar (fires when
+       Sense AI is opened) and one on the .uniAiChat panel (fires on connect and on
+       every tab switch). Neither spans a Monaco editor, so subtree is safe here;
+       schedule()'s rAF debounce coalesces the rest. The "+" sits inside the list
+       as a labelled button (as a browser tab strip's does); it is not a tab, so
+       the roving set (matched on .uniAiChat__terminalTab) skips it. */
+    var dbeTermBarObserved = false;
+    var dbeTermAiNode = null;
+    var dbeTermAiObs = null;
+    function dbeObserveTerminalBar() {
+        if (dbeTermBarObserved || !window.MutationObserver) { return; }
+        var bar = document.querySelector('.uniFooterPanelBar');
+        if (!bar) { return; }
+        dbeTermBarObserved = true;
+        try {
+            new MutationObserver(schedule).observe(bar, {
+                childList: true, subtree: true, attributes: true, attributeFilter: ['class']
+            });
+        } catch (e) { dbeTermBarObserved = false; }
+    }
+    function dbeObserveTerminalPanel(ai) {
+        if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
+        if (dbeTermAiObs) { try { dbeTermAiObs.disconnect(); } catch (e) {} }
+        dbeTermAiNode = ai;
+        try {
+            dbeTermAiObs = new MutationObserver(schedule);
+            dbeTermAiObs.observe(ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        } catch (e) { dbeTermAiNode = null; dbeTermAiObs = null; }
+    }
+    var DBE_AI_MENU_ID = 'dbe-ai-agent-menu';
+    var dbeAgentMenuWasOpen = false;
+    var dbeAgentKeysBound = false;
+    function dbeAgentMenuItems() {
+        var m = document.querySelector('.uniAiChat__agentPicker');
+        return m ? [].slice.call(m.querySelectorAll('.uniAiChat__agentPickerItem')).filter(function (el) { return el.offsetParent !== null; }) : [];
+    }
+    /* The picker is a toggle: clicking the "+" while it is open closes it. */
+    function dbeCloseAgentMenu(add) {
+        if (document.querySelector('.uniAiChat__agentPicker') && add) { try { add.click(); } catch (e) {} }
+        if (add) { add.focus(); }
+    }
+    /* Wire the "+" as a menu button and the picker it opens as a role="menu".
+       Natively the picker is a bare div of <button>s with no roles, no focus
+       management and no Escape — reachable but not a menu. Add the menu-button
+       semantics and, when it opens from the button, move focus to the first item. */
+    function dbeEnsureAgentPicker(add) {
+        if (!add) { return; }
+        if (add.getAttribute('aria-haspopup') !== 'menu') { add.setAttribute('aria-haspopup', 'menu'); }
+        var menu = document.querySelector('.uniAiChat__agentPicker');
+        var open = !!menu;
+        if (add.getAttribute('aria-expanded') !== String(open)) { add.setAttribute('aria-expanded', String(open)); }
+        if (open) {
+            if (!menu.id) { menu.id = DBE_AI_MENU_ID; }
+            if (add.getAttribute('aria-controls') !== menu.id) { add.setAttribute('aria-controls', menu.id); }
+            if (menu.getAttribute('role') !== 'menu') { menu.setAttribute('role', 'menu'); }
+            if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('terminalAgentMenu', 'Choose an agent')); }
+            [].slice.call(menu.querySelectorAll('.uniAiChat__agentPickerItem')).forEach(function (it) {
+                if (it.getAttribute('role') !== 'menuitem') { it.setAttribute('role', 'menuitem'); }
+                if (it.getAttribute('tabindex') !== '-1') { it.setAttribute('tabindex', '-1'); }
+            });
+            // Just opened from the "+" (keyboard, or a click that focused it): move
+            // focus to the first item, the menu-button convention.
+            if (!dbeAgentMenuWasOpen && document.activeElement === add) {
+                var first = dbeAgentMenuItems()[0];
+                if (first) { first.focus(); }
+            }
+        } else if (add.getAttribute('aria-controls')) {
+            add.removeAttribute('aria-controls');
+        }
+        dbeAgentMenuWasOpen = open;
+    }
+    /* Keyboard model for the "+" menu button and its menu (bound once). Down/Up on
+       the button opens the menu and dives to the first/last item; inside the menu,
+       Up/Down/Home/End roam (wrapping) and Escape/Tab close it and return focus to
+       the button. Enter/Space on an item is left to the native <button>. */
+    function dbeBindAgentPickerKeys() {
+        if (dbeAgentKeysBound) { return; }
+        dbeAgentKeysBound = true;
+        document.addEventListener('keydown', function (e) {
+            var addBtn = e.target && e.target.closest ? e.target.closest('.uniAiChat__terminalAddTabBtn') : null;
+            if (addBtn) {
+                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') { return; }
+                e.preventDefault();
+                var last = e.key === 'ArrowUp';
+                if (!document.querySelector('.uniAiChat__agentPicker')) { try { addBtn.click(); } catch (err) {} }
+                var tries = 0;
+                (function focusItem() {
+                    var opts = dbeAgentMenuItems();
+                    if (opts.length) { (last ? opts[opts.length - 1] : opts[0]).focus(); }
+                    else if (tries++ < 10) { setTimeout(focusItem, 20); }
+                })();
+                return;
+            }
+            var inMenu = e.target && e.target.closest ? e.target.closest('.uniAiChat__agentPicker') : null;
+            if (!inMenu) { return; }
+            var items = dbeAgentMenuItems();
+            if (!items.length) { return; }
+            var add = document.querySelector('.uniAiChat__terminalAddTabBtn');
+            var i = items.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') { e.preventDefault(); items[i < 0 ? 0 : (i + 1) % items.length].focus(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); items[i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length].focus(); }
+            else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+            else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+            else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); dbeCloseAgentMenu(add); }
+        });
+    }
+    var DBE_AI_PANEL_ID = 'dbe-ai-terminal-panel';
+    function ensureTerminalTabs() {
+        dbeObserveTerminalBar();
+        dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
+        var list = document.querySelector('.uniAiChat__terminalTabList');
+        if (!list) { return; }
+        var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
+        if (panel) {
+            if (!panel.id) { panel.id = DBE_AI_PANEL_ID; }
+            if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
+            if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
+        }
+        var active = null;
+        [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
+            if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
+            if (panel && t.getAttribute('aria-controls') !== panel.id) { t.setAttribute('aria-controls', panel.id); }
+            if (t.classList.contains('uniAiChat__terminalTab--active')) { active = t; }
+        });
+        // Name the panel after whichever session is showing.
+        if (panel && active && panel.getAttribute('aria-labelledby') !== active.id) {
+            panel.setAttribute('aria-labelledby', active.id);
+        }
+        // The "+" button's only content is a "+", so give it a real name, and wire
+        // it + its agent picker as a proper menu button (roles, focus, Escape).
+        var add = list.querySelector('.uniAiChat__terminalAddTabBtn');
+        if (add) {
+            var al = dbeT('terminalNewTab', 'New chat session');
+            if (add.getAttribute('aria-label') !== al) { add.setAttribute('aria-label', al); }
+        }
+        dbeEnsureAgentPicker(add);
+        dbeBindAgentPickerKeys();
+        // Tab-list semantics + roving arrow-key navigation.
+        dbeEnsureGroup(list, dbeT('terminalTablist', 'AI chat sessions'), '.uniAiChat__terminalTab', {
+            role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
+            selectOnMove: true, activeClass: 'uniAiChat__terminalTab--active'
+        });
     }
     function dbeSSActiveIndex(items, id) {
         for (var i = 0; i < items.length; i++) { if (items[i].id === id) { return i; } }
@@ -5208,6 +5403,7 @@
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
+            if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
@@ -5291,6 +5487,17 @@
             })(30);
         }
 
+        // The Sense AI session tabs live in that same footer. Nudge schedule()
+        // until ensureTerminalTabs() has wired its own observer to the footer bar,
+        // so the tabs are reachable even when this is the only feature enabled.
+        if (on('ai_terminal_tabs')) {
+            (function terminalBoot(n) {
+                if (dbeTermBarObserved || n <= 0) { return; }
+                schedule();
+                setTimeout(function () { terminalBoot(n - 1); }, 500);
+            })(30);
+        }
+
         // Remember which row was right-clicked (target for wrap/rename/expand).
         // Right-clicking OUTSIDE the multi-selection resets it to a single-row
         // menu (the convention in comparable tools); auto-driven menus are exempt.
@@ -5324,9 +5531,9 @@
         // stay parked below for when the drag is fixed.
         if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
 
-        // Undo/redo last delete (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
+        // Undo/redo element adds & deletes (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
         if (on('undo_delete')) {
-            hookDeleteCapture();
+            hookHistoryCapture();
             bindUndoKeys();
         }
 

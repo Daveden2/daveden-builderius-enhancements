@@ -106,6 +106,7 @@ phpcbf           # auto-fix what it can
 5. Add yourself to [CONTRIBUTORS.md](CONTRIBUTORS.md) in the same pull
    request.
 
-Versioning and releases are handled by the maintainer: version bump in the
-main plugin file and `readme.txt`, tag `vX.Y.Z`, then a GitHub release (the
-bundled update checker serves updates from releases).
+Versioning and releases are handled by the maintainer through a
+`develop → main` pull request, merged with a merge commit, then a tag and a
+GitHub release (the bundled update checker serves updates from releases). See
+[RELEASING.md](RELEASING.md) for the full checklist.

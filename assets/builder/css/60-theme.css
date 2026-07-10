@@ -538,3 +538,97 @@ html[data-dbe-theme="auto"]  .uniSettingComponentProperties__itemTitle {
 }
 html[data-dbe-theme="light"] .uniSettingComponentProperties .uniFormField__hr,
 html[data-dbe-theme="auto"]  .uniSettingComponentProperties .uniFormField__hr { background: var(--dbe-line) !important; }
+
+/* --- Leak audit pass 12: Sense AI terminal tab bar --- */
+/* Once a remote terminal (Claude Code) is connected, the Sense AI panel swaps
+   the pre-connect screen (pass 8) for a tab strip + toolbar above the xterm
+   view. That chrome paints on the native dark scale: the tab bar and toolbar
+   on var(--primary-1), the active/hovered tab and the +-button hover on
+   var(--primary-2), and the tab/toolbar dividers on var(--primary-1)/--primary-2.
+   The foreground tokens theme via the palette remap (idle tabs --primary-4 →
+   --dbe-muted, the active label --base-2 → --dbe-text-2), but the surfaces
+   stayed dark — so the active "Claude Code" tab was a dark label on a dark tab,
+   unreadable. Repaint the strip's surfaces + dividers as a light tab bar; the
+   xterm frame below keeps its own dark theme (as in pass 8). */
+html[data-dbe-theme="light"] .uniAiChat__terminalTabBar,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalTabBar,
+html[data-dbe-theme="light"] .uniAiChat__terminalToolbar,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalToolbar {
+    background: var(--dbe-l1) !important;
+    border-bottom-color: var(--dbe-line) !important;
+}
+/* Tab + add-button vertical dividers (native --primary-1 / --primary-2: a dark
+   line on the light bar). */
+html[data-dbe-theme="light"] .uniAiChat__terminalTab,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalTab,
+html[data-dbe-theme="light"] .uniAiChat__terminalAddTabBtn,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalAddTabBtn { border-right-color: var(--dbe-line) !important; }
+html[data-dbe-theme="light"] .uniAiChat__terminalToolbarActions,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalToolbarActions { border-color: var(--dbe-line) !important; }
+/* Idle hover / focus (and the +-button hover): the builder's standard accent
+   wash + accent text (the same cue the Navigator rows, accordions and context
+   menu use), so a tab reads as interactive and shares the active tab's accent
+   hue rather than competing with it (a neutral grey wash read as pressed, and
+   clashed with a focused active tab's ring). */
+html[data-dbe-theme="light"] .uniAiChat__terminalTab:hover:not(.uniAiChat__terminalTab--active),
+html[data-dbe-theme="auto"]  .uniAiChat__terminalTab:hover:not(.uniAiChat__terminalTab--active),
+html[data-dbe-theme="light"] .uniAiChat__terminalTab:focus-visible:not(.uniAiChat__terminalTab--active),
+html[data-dbe-theme="auto"]  .uniAiChat__terminalTab:focus-visible:not(.uniAiChat__terminalTab--active),
+html[data-dbe-theme="light"] .uniAiChat__terminalAddTabBtn:hover,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalAddTabBtn:hover {
+    background: var(--dbe-accent-tint) !important;
+    color: var(--dbe-accent) !important;
+}
+/* Active / current session: three redundant cues so which chat is live is
+   unmistakable (WCAG 1.4.1, not colour alone): a raised white tab, a strong
+   near-black label, and an accent underline anchoring it to the terminal below.
+   The underline is an inset shadow so switching tabs never shifts their height. */
+html[data-dbe-theme="light"] .uniAiChat__terminalTab--active,
+html[data-dbe-theme="auto"]  .uniAiChat__terminalTab--active {
+    background: var(--dbe-l2) !important;
+    box-shadow: inset 0 -2px 0 0 var(--dbe-accent) !important;
+    color: var(--dbe-text) !important;
+}
+/* Toolbar buttons hover to --accent-normal (#5EA0ED), which only reaches
+   ~2.5:1 on the light bar — pin to the theme accent like pass 7. The --stop
+   button is excluded so it keeps its native warning hue. */
+html[data-dbe-theme="light"] .uniAiChat__terminalToolbarBtn:hover:not(:disabled):not(.uniAiChat__terminalToolbarBtn--stop),
+html[data-dbe-theme="auto"]  .uniAiChat__terminalToolbarBtn:hover:not(:disabled):not(.uniAiChat__terminalToolbarBtn--stop) {
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+
+/* --- Leak audit pass 13: Sense AI terminal agent picker (+ menu) --- */
+/* The +-button opens .uniAiChat__agentPicker (choose Claude Code / Gemini CLI…),
+   a small floating menu on var(--primary-2) with var(--base-2) item labels and a
+   var(--primary-3) hover — same dark-on-dark as the tab bar once --base-2 is
+   remapped. It portals inside #builderiusPanel, so only the surface needs help:
+   repaint it as a light menu card like the other floating pickers (--dbe-menu-bg,
+   whose dark value is native-adjacent so dark mode is left alone). */
+html[data-dbe-theme="light"] .uniAiChat__agentPicker,
+html[data-dbe-theme="auto"]  .uniAiChat__agentPicker {
+    background: var(--dbe-menu-bg) !important;
+    border-color: var(--dbe-line) !important;
+    box-shadow: 0 4px 12px var(--dbe-shadow) !important;
+}
+html[data-dbe-theme="light"] .uniAiChat__agentPickerItem,
+html[data-dbe-theme="auto"]  .uniAiChat__agentPickerItem { color: var(--dbe-text-2) !important; }
+html[data-dbe-theme="light"] .uniAiChat__agentPickerItem:hover,
+html[data-dbe-theme="auto"]  .uniAiChat__agentPickerItem:hover {
+    background: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
+
+/* --- Leak audit pass 14: input text selection --- */
+/* Native input/textarea::selection hard-codes white text on a 10%-white wash.
+   That renders white-on-white (invisible, ~1:1) on the light theme's white
+   fields, and in the dark theme it is a barely-there highlight you can hardly
+   locate. Replace it in every theme with a solid accent selection (white on
+   --dbe-accent-strong, AA in both), matching the rename field's selection, so
+   selected text is legible and the highlight is actually visible. Only emitted
+   with the theme switcher on, so a stock install keeps the native selection. */
+input::selection,
+textarea::selection {
+    background: var(--dbe-accent-strong) !important;
+    color: var(--dbe-on-accent-strong) !important;
+}
