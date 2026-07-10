@@ -3019,12 +3019,19 @@
         });
     }
 
-    /* The selected item in a group: Builderius marks the current breakpoint with
-       an `active` class; fall back to the ARIA single-select states. */
+    /* The selected item in a group. Builderius marks the current breakpoint with
+       an `active` class — the source of truth — so prefer it whenever any item
+       carries it. Only fall back to the ARIA single-select states when nothing is
+       `active`. Crucially this must NOT read `aria-checked` back as a truth signal
+       while an `active` item exists: dbeSyncRoving mirrors the active state onto
+       aria-checked itself, so a stale mirrored value (left on the old breakpoint
+       after a resize moves `active` elsewhere) would otherwise be read as current
+       and re-affirmed every tick, never catching up. */
     function dbeGroupActive(items) {
+        var byClass = items.filter(function (el) { return el.classList.contains('active'); })[0];
+        if (byClass) { return byClass; }
         return items.filter(function (el) {
-            return el.classList.contains('active')
-                || el.getAttribute('aria-checked') === 'true'
+            return el.getAttribute('aria-checked') === 'true'
                 || el.getAttribute('aria-pressed') === 'true'
                 || el.getAttribute('aria-selected') === 'true';
         })[0] || null;
