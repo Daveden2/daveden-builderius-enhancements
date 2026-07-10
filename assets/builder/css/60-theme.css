@@ -618,3 +618,19 @@ html[data-dbe-theme="auto"]  .uniAiChat__agentPickerItem:hover {
     background: var(--dbe-hover-wash) !important;
     color: var(--dbe-text) !important;
 }
+
+/* --- Leak audit pass 14: input text selection --- */
+/* Native input/textarea::selection hard-codes white text on a 10%-white wash,
+   sized for the dark chrome. In the light theme those fields are white
+   (--dbe-l2), so the selection paints white-on-white and the selected text (the
+   canvas width / zoom values, and every other builder input) disappears at about
+   1:1 contrast. Repaint the selection with the theme accent so selected text
+   stays legible (white on --dbe-accent-strong, AA). Dark keeps the native
+   selection, which reads fine on the dark fields. */
+html[data-dbe-theme="light"] input::selection,
+html[data-dbe-theme="auto"]  input::selection,
+html[data-dbe-theme="light"] textarea::selection,
+html[data-dbe-theme="auto"]  textarea::selection {
+    background: var(--dbe-accent-strong) !important;
+    color: var(--dbe-on-accent-strong) !important;
+}
