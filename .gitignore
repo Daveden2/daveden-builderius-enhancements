@@ -4,6 +4,11 @@ Thumbs.db
 node_modules/
 dist/
 
+# Composer dev tooling. plugin-update-checker under vendor/ is vendored by hand
+# and committed; everything else Composer installs (PHPCS, WPCS) is dev-only.
+/vendor/*
+!/vendor/plugin-update-checker/
+
 # PHP_CodeSniffer
 .phpcs.cache
 phpcs-report.xml

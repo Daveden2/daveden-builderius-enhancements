@@ -3019,12 +3019,19 @@
         });
     }
 
-    /* The selected item in a group: Builderius marks the current breakpoint with
-       an `active` class; fall back to the ARIA single-select states. */
+    /* The selected item in a group. Builderius marks the current breakpoint with
+       an `active` class — the source of truth — so prefer it whenever any item
+       carries it. Only fall back to the ARIA single-select states when nothing is
+       `active`. Crucially this must NOT read `aria-checked` back as a truth signal
+       while an `active` item exists: dbeSyncRoving mirrors the active state onto
+       aria-checked itself, so a stale mirrored value (left on the old breakpoint
+       after a resize moves `active` elsewhere) would otherwise be read as current
+       and re-affirmed every tick, never catching up. */
     function dbeGroupActive(items) {
+        var byClass = items.filter(function (el) { return el.classList.contains('active'); })[0];
+        if (byClass) { return byClass; }
         return items.filter(function (el) {
-            return el.classList.contains('active')
-                || el.getAttribute('aria-checked') === 'true'
+            return el.getAttribute('aria-checked') === 'true'
                 || el.getAttribute('aria-pressed') === 'true'
                 || el.getAttribute('aria-selected') === 'true';
         })[0] || null;
@@ -3564,8 +3571,10 @@
        (.uniGlobalBreakpoints__canvasControl input[name=width]): driving it
        with the native value setter + an input event makes React resize the
        canvas, keep the readout in sync AND highlight the breakpoint whose
-       range the width falls into — identical to typing in the field. Clicking
-       a breakpoint button snaps back natively, so no reset code is needed. */
+       range the width falls into — identical to typing in the field. The one
+       width that has no numeric equivalent is the base/"All" state (see
+       dbeApplyPreviewWidth): a full-open drag selects it by clicking the base
+       button rather than writing a width that would land on Desktop/Tablet. */
     var DBE_PREVIEW_MIN = 240;
 
     function dbeSetCanvasWidth(w) {
@@ -3585,6 +3594,150 @@
     function dbeCanvasMax() {
         var outer = document.querySelector('.uniIframePanel__outer');
         return outer ? Math.round(outer.getBoundingClientRect().width) : window.innerWidth;
+    }
+
+    /* Widest breakpoint max (Desktop's "max 1279px" → 1279), 0 if unknown. */
+    function dbeLargestBpMax() {
+        var bps = dbeBreakpoints();
+        var m = 0;
+        if (bps) { bps.forEach(function (bp) { if (bp.width && bp.width > m) { m = bp.width; } }); }
+        return m;
+    }
+
+    /* The base/"All" (full-width, no media query) breakpoint button. It carries
+       no width in the breakpoint list; in the top-bar row it sits first. */
+    function dbeAllBreakpointBtn() {
+        var btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
+        if (!btns.length) { return null; }
+        var bps = dbeBreakpoints();
+        if (bps && bps.length === btns.length) {
+            for (var i = 0; i < bps.length; i++) {
+                if (!bps[i].width) { return btns[i]; }
+            }
+        }
+        return btns[0];
+    }
+
+    /* --- Preview width channel ------------------------------------------------
+       The builder couples canvas SIZE and breakpoint CONTEXT through one width
+       input, and above the widest breakpoint it has no canvas size of its own: any
+       width there is "All", which it renders at full width — the readout keeps
+       your number but the canvas is pinned to full. To let the drag rest at any
+       width past the widest breakpoint (previewing base styles wider than Desktop,
+       what the container-query workflow wants), split the two sides of that
+       boundary:
+
+         - At/below the widest breakpoint — native drives both: dbeSetCanvasWidth
+           sizes the canvas AND lights the Mobile/Tablet/Desktop band.
+         - Between the widest breakpoint and full — keep the base/"All" context (one
+           click as we cross in) but OWN the canvas width: write it as a plain inline
+           width on the sized element, and set the readout value directly (no input
+           event — an input event would send us back through the native path that
+           pins to full). React leaves the inline width alone until something
+           re-renders that element (picking a breakpoint does, and its write then
+           replaces ours — which is why plain, not !important: an !important would
+           survive and override those later clicks).
+         - At full — the true native "All", no override, so the state stays clean. */
+
+    function dbePreviewSetReadout(w) {
+        var input = document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]');
+        if (!input) { return; }
+        try {
+            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            setter.call(input, String(Math.round(w)));
+        } catch (e) {}
+    }
+
+    var dbePreviewOverriding = false;
+    var dbePreviewWantW = 0;
+    var dbePreviewGuardObserver = null;
+    var dbePreviewGuardTimer = 0;
+    var dbePreviewGuardRaf = 0;
+
+    /* Hold the canvas at our width across React's re-render when we flip to the
+       base/"All" context. Clicking that button makes React reset the sized element
+       to full width, and its timing (a synchronous flush or a later effect) is not
+       guaranteed — a plain re-apply can land a paint late and flash. Two channels:
+       - a MutationObserver re-applies our inline width in the same microtask as
+         React's reset, before the browser paints, so the canvas never flashes wide;
+       - a rAF loop re-pins the readout INPUT, which React reverts too but via its
+         value property (not an attribute), so the observer can't see it.
+       Needed only around the context flip, so it self-stops shortly after the last
+       override tick (and outright when the drag ends or leaves the zone) — which
+       keeps it from ever fighting a later breakpoint click or a manual width entry. */
+    function dbePreviewGuard(wantW) {
+        dbePreviewWantW = wantW;
+        var inner = dbeCanvasInner();
+        if (inner && !dbePreviewGuardObserver && window.MutationObserver) {
+            dbePreviewGuardObserver = new MutationObserver(function () {
+                if (!dbePreviewOverriding) { return; }
+                var el = dbeCanvasInner();
+                if (el && el.style.width !== dbePreviewWantW + 'px') {
+                    el.style.width = dbePreviewWantW + 'px';
+                }
+            });
+            dbePreviewGuardObserver.observe(inner, { attributes: true, attributeFilter: ['style'] });
+            dbePreviewGuardRaf = requestAnimationFrame(function tick() {
+                if (!dbePreviewGuardObserver) { return; }
+                if (dbePreviewOverriding) { dbePreviewSetReadout(dbePreviewWantW); }
+                dbePreviewGuardRaf = requestAnimationFrame(tick);
+            });
+        }
+        if (dbePreviewGuardTimer) { clearTimeout(dbePreviewGuardTimer); }
+        dbePreviewGuardTimer = setTimeout(dbePreviewGuardStop, 300);
+    }
+    function dbePreviewGuardStop() {
+        if (dbePreviewGuardTimer) { clearTimeout(dbePreviewGuardTimer); dbePreviewGuardTimer = 0; }
+        if (dbePreviewGuardRaf) { cancelAnimationFrame(dbePreviewGuardRaf); dbePreviewGuardRaf = 0; }
+        if (dbePreviewGuardObserver) { dbePreviewGuardObserver.disconnect(); dbePreviewGuardObserver = null; }
+    }
+
+    function dbePreviewClearOverride() {
+        dbePreviewGuardStop();
+        if (!dbePreviewOverriding) { return; }
+        var inner = dbeCanvasInner();
+        if (inner) { inner.style.removeProperty('width'); }
+        dbePreviewOverriding = false;
+    }
+
+    function dbeApplyPreviewWidth(w, max) {
+        w = Math.round(w);
+        var bpMax = dbeLargestBpMax();
+        var inner = dbeCanvasInner();
+
+        // Custom width strictly between the widest breakpoint and full: base/"All"
+        // context, canvas sized by us.
+        if (bpMax && inner && w > bpMax && w < max) {
+            var all = dbeAllBreakpointBtn();
+            if (all && !all.classList.contains('active')) {
+                try { all.click(); } catch (e) {}
+            }
+            inner.style.width = w + 'px';
+            dbePreviewOverriding = true;
+            dbePreviewSetReadout(w);
+            dbePreviewGuard(w); // re-apply across React's post-click reset (no flash)
+            return;
+        }
+
+        // Fully open: native full-width "All". Set the sized element to full
+        // explicitly — when All was already active (we came from a custom width)
+        // native won't reassert its 100% on its own, so just clearing our width
+        // would collapse the canvas to nothing.
+        if (w >= max) {
+            dbePreviewGuardStop();
+            var allBtn = dbeAllBreakpointBtn();
+            if (allBtn && !allBtn.classList.contains('active')) {
+                try { allBtn.click(); } catch (e) {}
+            }
+            if (inner) { inner.style.width = '100%'; }
+            dbePreviewOverriding = false;
+            dbePreviewSetReadout(dbeCanvasMax());
+            return;
+        }
+
+        // At/below the widest breakpoint: native owns size + band.
+        dbePreviewClearOverride();
+        dbeSetCanvasWidth(w);
     }
 
     function dbeSyncHandleAria(handle) {
@@ -3609,6 +3762,8 @@
             var inner = dbeCanvasInner();
             if (!inner) { return; }
             ev.preventDefault();
+            // Drag spans the whole available canvas: the widest breakpoint is a
+            // boundary within it (dbeApplyPreviewWidth), not a ceiling.
             drag = { x: ev.clientX, w: inner.getBoundingClientRect().width, max: dbeCanvasMax(), raf: 0 };
             try { h.setPointerCapture(ev.pointerId); } catch (e) {}
             var panel = document.querySelector('.uniIframePanel');
@@ -3622,7 +3777,7 @@
             var w = Math.max(DBE_PREVIEW_MIN, Math.min(drag.max, drag.w + delta));
             drag.raf = requestAnimationFrame(function () {
                 if (drag) { drag.raf = 0; }
-                dbeSetCanvasWidth(w);
+                dbeApplyPreviewWidth(w, drag.max);
                 dbeSyncHandleAria(h);
             });
         });
@@ -3631,6 +3786,9 @@
             drag = null;
             var panel = document.querySelector('.uniIframePanel');
             if (panel) { panel.classList.remove('dbe-preview-resizing'); }
+            // Release the guard now the drag is over, so it can never fight a
+            // breakpoint click; the custom width stays as a plain inline value.
+            dbePreviewGuardStop();
         }
         h.addEventListener('pointerup', endPreviewDrag);
         h.addEventListener('pointercancel', endPreviewDrag);
@@ -3638,9 +3796,9 @@
         h.addEventListener('keydown', function (ev) {
             var inner = dbeCanvasInner();
             if (!inner) { return; }
+            var max = dbeCanvasMax();
             var w = inner.getBoundingClientRect().width;
             var step = ev.shiftKey ? 50 : 10;
-            var max = dbeCanvasMax();
             var next = null;
             switch (ev.key) {
                 case 'ArrowRight':
@@ -3657,7 +3815,7 @@
             // (arrows move the canvas selection).
             ev.preventDefault();
             ev.stopPropagation();
-            dbeSetCanvasWidth(Math.max(DBE_PREVIEW_MIN, Math.min(max, next)));
+            dbeApplyPreviewWidth(Math.max(DBE_PREVIEW_MIN, Math.min(max, next)), max);
             dbeSyncHandleAria(h);
         });
         return h;

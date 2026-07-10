@@ -3,7 +3,7 @@ Contributors: davedendigital
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.8.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -28,6 +28,27 @@ community. Thank you:
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
+
+= 1.8.1 =
+* Fixed: the preview resize handles could not return to the "All" (full-width)
+  breakpoint. Dragging fully open landed one band short (Desktop, or Tablet on a
+  narrower canvas) because the base state has no numeric width to drag to. The
+  handle now reaches it, and dragging spans the whole available width.
+* Fixed: on a canvas wider than your widest breakpoint, dragging past that
+  breakpoint jumped the preview to full width and the readout jittered. The drag
+  is now smooth across the whole range with the true width shown throughout.
+* Fixed: a brief flicker to full width the first time a drag crossed the widest
+  breakpoint.
+* Changed: "Preview resize handles" is now experimental and off by default on new
+  installs. Above your widest breakpoint the builder has no canvas size of its
+  own, so the handle sizes the preview itself; a Builderius update could affect
+  that. Existing installs keep their current setting.
+* Fixed: the resizable side-panel grip clashed with Builderius' own left-panel
+  resize bar, which sat under the grip and swallowed the drag. The native bar is
+  now set aside while the panel-resize feature is on.
+* Fixed: the breakpoint radio group could announce the wrong current breakpoint
+  to a screen reader after a resize. Its checked state now tracks the active
+  breakpoint at every step.
 
 = 1.8.0 =
 * New: "Top-bar keyboard groups". The breakpoint switcher becomes a proper radio

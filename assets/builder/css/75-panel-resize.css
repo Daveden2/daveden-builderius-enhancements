@@ -12,6 +12,16 @@
 
 :root { --dbe-panel-width: 320px; }
 
+/* Neutralise Builderius' own left-panel resize bar. panel_resize takes over panel
+   sizing with one shared width (--dbe-panel-width, forced above), so the native
+   bar can no longer resize anything — but it straddles our grip, swallows the
+   pointer, and shows a misleading ew-resize cursor down the whole edge. Drop it
+   from the pointer flow so our grip owns the edge. Gated with the stylesheet: this
+   rule only loads while panel_resize is on, so the native bar returns if it's off. */
+.ResizeBarHorizontal {
+    pointer-events: none !important;
+}
+
 /* Left settings/inserter panel. */
 .uniLeftPanelOuter {
     position: relative !important; /* anchor for the absolute grip */

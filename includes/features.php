@@ -314,11 +314,12 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'preview_resize'      => array(
-			'title'       => __( 'Preview resize handles', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout in the top bar updates as you drag, and clicking a breakpoint button snaps the preview back to that size.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'workflow',
-			'css'         => array( '74-preview-resize.css' ),
-			'js'          => true,
+			'title'        => __( 'Preview resize handles', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Experimental: above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself — a Builderius update could affect that.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'workflow',
+			'css'          => array( '74-preview-resize.css' ),
+			'js'           => true,
+			'experimental' => true,
 		),
 		'panel_resize'        => array(
 			'title'       => __( 'Resizable side panels', 'daveden-builderius-enhancements' ),
