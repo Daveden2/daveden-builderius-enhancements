@@ -1,0 +1,30 @@
+{
+    "name": "daveden/daveden-builderius-enhancements",
+    "description": "Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://github.com/Daveden2/daveden-builderius-enhancements",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^3.11",
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcompatibility/phpcompatibility-wp": "^2.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "phpcs": "phpcs",
+        "phpcbf": "phpcbf",
+        "lint": "phpcs"
+    },
+    "scripts-descriptions": {
+        "phpcs": "Check PHP against the WordPress coding standards (phpcs.xml.dist).",
+        "phpcbf": "Auto-fix the fixable coding-standards violations.",
+        "lint": "Alias for phpcs."
+    }
+}
