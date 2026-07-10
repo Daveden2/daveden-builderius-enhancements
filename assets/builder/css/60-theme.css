@@ -620,17 +620,15 @@ html[data-dbe-theme="auto"]  .uniAiChat__agentPickerItem:hover {
 }
 
 /* --- Leak audit pass 14: input text selection --- */
-/* Native input/textarea::selection hard-codes white text on a 10%-white wash,
-   sized for the dark chrome. In the light theme those fields are white
-   (--dbe-l2), so the selection paints white-on-white and the selected text (the
-   canvas width / zoom values, and every other builder input) disappears at about
-   1:1 contrast. Repaint the selection with the theme accent so selected text
-   stays legible (white on --dbe-accent-strong, AA). Dark keeps the native
-   selection, which reads fine on the dark fields. */
-html[data-dbe-theme="light"] input::selection,
-html[data-dbe-theme="auto"]  input::selection,
-html[data-dbe-theme="light"] textarea::selection,
-html[data-dbe-theme="auto"]  textarea::selection {
+/* Native input/textarea::selection hard-codes white text on a 10%-white wash.
+   That renders white-on-white (invisible, ~1:1) on the light theme's white
+   fields, and in the dark theme it is a barely-there highlight you can hardly
+   locate. Replace it in every theme with a solid accent selection (white on
+   --dbe-accent-strong, AA in both), matching the rename field's selection, so
+   selected text is legible and the highlight is actually visible. Only emitted
+   with the theme switcher on, so a stock install keeps the native selection. */
+input::selection,
+textarea::selection {
     background: var(--dbe-accent-strong) !important;
     color: var(--dbe-on-accent-strong) !important;
 }
