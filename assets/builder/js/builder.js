@@ -3159,6 +3159,13 @@
         if (!container) { return; }
         opts = opts || {};
         var role = opts.role || 'toolbar';
+        // APG: a horizontal tablist or toolbar navigates with Left/Right only —
+        // Up/Down belong to a vertical orientation and must pass through. A radio
+        // group navigates with both axes (Right/Down next, Left/Up previous).
+        // Default from the role; override with opts.orientation.
+        var orientation = opts.orientation || (role === 'radiogroup' ? 'both' : 'horizontal');
+        var useHoriz = orientation !== 'vertical';
+        var useVert = orientation === 'vertical' || orientation === 'both';
         if (container.getAttribute('role') !== role) { container.setAttribute('role', role); }
         if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
         if (opts.itemRole) {
@@ -3170,15 +3177,17 @@
         if (container.dbeGroupBound) { return; }
         container.dbeGroupBound = true;
         container.addEventListener('keydown', function (e) {
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+            var moveNext = (useHoriz && e.key === 'ArrowRight') || (useVert && e.key === 'ArrowDown');
+            var movePrev = (useHoriz && e.key === 'ArrowLeft') || (useVert && e.key === 'ArrowUp');
+            if (!moveNext && !movePrev && e.key !== 'Home' && e.key !== 'End') { return; }
             var items = dbeRovingItems(container, sel);
             if (!items.length) { return; }
             var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
             var i = items.indexOf(focused);
             if (i === -1) { return; }
             var next = i;
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (i + 1) % items.length; }
-            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+            if (moveNext) { next = (i + 1) % items.length; }
+            else if (movePrev) { next = (i - 1 + items.length) % items.length; }
             else if (e.key === 'Home') { next = 0; }
             else if (e.key === 'End') { next = items.length - 1; }
             e.preventDefault();
@@ -3305,7 +3314,9 @@
             if (strip.dbePanelTabsBound) { return; }
             strip.dbePanelTabsBound = true;
             strip.addEventListener('keydown', function (e) {
-                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                // Horizontal tablist (APG): Left/Right move between tabs; Up/Down
+                // belong to a vertical tablist and are left to pass through.
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
                 var items = dbeRovingItems(strip, sel);
                 var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
                 var i = items.indexOf(focused);
@@ -3313,8 +3324,8 @@
                 e.preventDefault();
                 e.stopPropagation();
                 var next = i;
-                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (i + 1) % items.length; }
-                else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+                if (e.key === 'ArrowRight') { next = (i + 1) % items.length; }
+                else if (e.key === 'ArrowLeft') { next = (i - 1 + items.length) % items.length; }
                 else if (e.key === 'Home') { next = 0; }
                 else if (e.key === 'End') { next = items.length - 1; }
                 if (next === i) { return; }
