@@ -1,0 +1,9 @@
+/* Accessible Builderius menu (builderius_menu).
+
+   The menu items carry a roving tabindex and receive real focus as the arrow
+   keys move through the menu, so the keyboard cursor must always be visible —
+   even when the separate "Focus visibility" feature is off. */
+.uniLeftPanel .uniNavigatorItems__item:focus-visible {
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: -2px !important;
+}

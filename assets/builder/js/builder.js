@@ -3504,6 +3504,128 @@
         }
     }
 
+    /* (bm) Accessible Builderius menu (builderius_menu). The menu button in the
+       top bar (.uniPanelButton--builderiusMenu) opens a left-panel sidebar
+       (.uniNavigator) of templates, pages, components and admin links — but with
+       no menu semantics, no focus management (focus stayed on the page) and no
+       keyboard model. Wire it as an APG menu button + menu:
+         - the button gets aria-haspopup=menu + aria-expanded + aria-controls;
+         - the items list (.uniNavigatorItems) becomes role=menu; each category
+           (.uniNavigatorItems__catWrapper) a role=group labelled by its heading,
+           with the intervening wrapper made presentational so the group owns its
+           menuitems directly; each item a role=menuitem on one roving tab stop;
+         - focus moves to the first item when the menu opens (tracked by the
+           open transition), Up/Down/Home/End move between items, and Escape
+           closes the menu (through the same click the button toggles it with)
+           and returns focus to the button.
+       Activation stays native — the items are real buttons. */
+    var DBE_MENU_ID = 'dbe-builderius-menu';
+    var dbeMenuWasOpen = false;
+    var dbeMenuKeyBound = false;
+
+    function dbeMenuTrigger() { return document.querySelector('.uniPanelButton--builderiusMenu'); }
+    function dbeMenuList() { return document.querySelector('.uniLeftPanel .uniNavigatorItems'); }
+    function dbeMenuItems() {
+        var list = dbeMenuList();
+        if (!list) { return []; }
+        return [].slice.call(list.querySelectorAll('.uniNavigatorItems__item')).filter(function (b) {
+            return b.offsetParent !== null && !b.disabled;
+        });
+    }
+
+    function ensureBuilderiusMenu() {
+        var trigger = dbeMenuTrigger();
+        if (!trigger) { return; }
+        var open = trigger.classList.contains('active');
+        var list = open ? dbeMenuList() : null;
+
+        // Menu-button semantics on the trigger.
+        if (trigger.getAttribute('aria-haspopup') !== 'menu') { trigger.setAttribute('aria-haspopup', 'menu'); }
+        var exp = open ? 'true' : 'false';
+        if (trigger.getAttribute('aria-expanded') !== exp) { trigger.setAttribute('aria-expanded', exp); }
+        if (open && list) {
+            if (!list.id) { list.id = DBE_MENU_ID; }
+            if (trigger.getAttribute('aria-controls') !== list.id) { trigger.setAttribute('aria-controls', list.id); }
+        } else if (trigger.hasAttribute('aria-controls')) {
+            trigger.removeAttribute('aria-controls');
+        }
+
+        if (!open || !list) { dbeMenuWasOpen = false; return; }
+
+        if (list.getAttribute('role') !== 'menu') { list.setAttribute('role', 'menu'); }
+        var label = dbeT('builderiusMenu', 'Builderius menu');
+        if (list.getAttribute('aria-label') !== label) { list.setAttribute('aria-label', label); }
+
+        // Categories → groups labelled by their heading; the items wrapper between
+        // the group and its items is presentational so the group owns the
+        // menuitems directly (the heading is hidden as a standalone node — it is
+        // reused as the group's label).
+        [].slice.call(list.querySelectorAll('.uniNavigatorItems__catWrapper')).forEach(function (cat, ci) {
+            if (cat.getAttribute('role') !== 'group') { cat.setAttribute('role', 'group'); }
+            var title = cat.querySelector('.uniCatTitle');
+            if (title) {
+                if (!title.id) { title.id = 'dbe-menu-cat-' + ci; }
+                if (title.getAttribute('aria-hidden') !== 'true') { title.setAttribute('aria-hidden', 'true'); }
+                if (cat.getAttribute('aria-labelledby') !== title.id) { cat.setAttribute('aria-labelledby', title.id); }
+            }
+            var wrap = cat.querySelector('.uniNavigatorItems__items');
+            if (wrap && wrap.getAttribute('role') !== 'none') { wrap.setAttribute('role', 'none'); }
+        });
+
+        var items = dbeMenuItems();
+        items.forEach(function (b) {
+            if (b.getAttribute('role') !== 'menuitem') { b.setAttribute('role', 'menuitem'); }
+        });
+        // One roving tab stop: keep the current one, else the first.
+        var current = items.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
+        var keep = current || items[0];
+        items.forEach(function (b) {
+            var t = b === keep ? '0' : '-1';
+            if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+        });
+
+        // Move focus into the menu on the open transition (it stayed on the page
+        // before). Only once per open, and only if focus is not already inside.
+        if (!dbeMenuWasOpen) {
+            dbeMenuWasOpen = true;
+            if (items[0] && !list.contains(document.activeElement)) {
+                items.forEach(function (b, k) { b.setAttribute('tabindex', k === 0 ? '0' : '-1'); });
+                try { items[0].focus(); } catch (e) {}
+            }
+        }
+    }
+
+    function dbeMenuKeydown(e) {
+        if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape'].indexOf(e.key) === -1) { return; }
+        var item = e.target && e.target.closest ? e.target.closest('.uniNavigatorItems__item') : null;
+        var list = dbeMenuList();
+        if (e.key === 'Escape') {
+            // Close only when focus is within the open menu; otherwise let Escape
+            // fall through (it may close a dialog or clear a selection elsewhere).
+            if (!list || !list.contains(document.activeElement)) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var trigger = dbeMenuTrigger();
+            if (trigger) { clickSeq(trigger); trigger.focus(); }
+            dbeMenuWasOpen = false;
+            return;
+        }
+        if (!item || !list || !list.contains(item)) { return; }
+        var items = dbeMenuItems();
+        var i = items.indexOf(item);
+        if (i === -1) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        var next = i;
+        if (e.key === 'ArrowDown') { next = (i + 1) % items.length; }
+        else if (e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+        else if (e.key === 'Home') { next = 0; }
+        else if (e.key === 'End') { next = items.length - 1; }
+        if (next === i) { return; }
+        items.forEach(function (b, k) { b.setAttribute('tabindex', k === next ? '0' : '-1'); });
+        items[next].focus();
+    }
+
     /* (sc) Accessible select comboboxes (select_combobox). Builderius's reused
        custom select popover (.uniSystemSelect — the preview picker, the
        responsive-strategy select, …) is a searchable list with no ARIA and no
@@ -6092,6 +6214,7 @@
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
+            if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
@@ -6140,7 +6263,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -6150,7 +6273,7 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; labelChromeIcons(), the theme/density buttons and the save
         // cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar')) {
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
@@ -6246,6 +6369,13 @@
 
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
+
+        // Builderius menu: arrow/Home/End/Escape while focus is inside the menu.
+        // Bound on document (capture) so it survives the menu mounting/unmounting.
+        if (on('builderius_menu') && !dbeMenuKeyBound) {
+            dbeMenuKeyBound = true;
+            document.addEventListener('keydown', dbeMenuKeydown, true);
+        }
     }
 
     /* Presence heartbeat for the admin-bar "Edit template" link (see
