@@ -29,8 +29,16 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 == Changelog ==
 
+= 1.10.0 =
+* New: "Navigator keyboard tree". The Navigator now works like the WordPress list
+  view: the arrow keys move through the elements (the canvas selection follows), the
+  right arrow opens a branch and steps into it, the left arrow closes it and steps out
+  to the parent, and Home and End jump to the first and last. It is also exposed to
+  screen readers as a proper tree, so each element announces its level, whether it is
+  expanded, and its position.
+
 = 1.9.0 =
-* New: "Accessible AI session tabs". The tabs for the Sense AI chats have gotten some 
+* New: "Accessible AI session tabs". The tabs for the Sense AI chats have gotten some
   accessibility improvements
 * Improved: in light and auto themes, the Sense AI terminal session strip now matches 
   the rest of the builder. The terminal itself keeps its own dark theme.

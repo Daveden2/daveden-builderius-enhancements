@@ -254,6 +254,13 @@ function dbe_builder_strings() {
 		'filterElements'          => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
 		'filterElementsAria'      => __( 'Filter elements by label or tag', 'daveden-builderius-enhancements' ),
 
+		// Navigator keyboard tree.
+		'elementsTree'            => __( 'Elements', 'daveden-builderius-enhancements' ),
+		'scTreeMove'              => __( 'Move between elements (selection follows)', 'daveden-builderius-enhancements' ),
+		'scTreeExpand'            => __( 'Open a branch, then step into its first child', 'daveden-builderius-enhancements' ),
+		'scTreeCollapse'          => __( 'Close a branch, then step out to the parent', 'daveden-builderius-enhancements' ),
+		'scTreeFirstLast'         => __( 'First / last element', 'daveden-builderius-enhancements' ),
+
 		// Save cue.
 		'unsaved'                 => __( 'Unsaved', 'daveden-builderius-enhancements' ),
 

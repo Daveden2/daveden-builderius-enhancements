@@ -179,6 +179,13 @@ function dbe_features() {
 			'css'         => array(),
 			'js'          => true,
 		),
+		'navigator_keyboard'  => array(
+			'title'       => __( 'Navigator keyboard tree', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'navigator',
+			'css'         => array( '79-navigator-keyboard.css' ),
+			'js'          => true,
+		),
 		'panel_detach'        => array(
 			'title'        => __( 'Detachable Navigator', 'daveden-builderius-enhancements' ),
 			'description'  => __( 'Adds a detach button to the Navigator header so you can float the panel over the canvas. Drag it by its header, resize it from the bottom corner, and dock it again with the same button. Its position is remembered. Experimental: it floats the panel over the builder chrome, so a Builderius update could shift it.', 'daveden-builderius-enhancements' ),

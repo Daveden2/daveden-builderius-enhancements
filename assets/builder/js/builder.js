@@ -4022,13 +4022,21 @@
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ]],
-        [dbeT('scGroupNavigator', 'Navigator'), [
-            ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
-            ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
-            ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
-            ['Shift+click', dbeT('scRange', 'Select a range of rows')],
-            ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
-        ]],
+        [dbeT('scGroupNavigator', 'Navigator'), [].concat(
+            on('navigator_keyboard') ? [
+                ['↑ ↓', dbeT('scTreeMove', 'Move between elements (selection follows)')],
+                ['→', dbeT('scTreeExpand', 'Open a branch, then step into its first child')],
+                ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
+                ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
+            ] : [],
+            [
+                ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
+                ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
+                ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
+                ['Shift+click', dbeT('scRange', 'Select a range of rows')],
+                ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
+            ]
+        )],
         [dbeT('scGroupContextMenu', 'Context menu'), [
             ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
             ['Home · End', dbeT('scFirstLast', 'First / last item')],
@@ -5731,6 +5739,217 @@
         }, 200);
     }
 
+    /* (nk) Navigator keyboard tree (navigator_keyboard). The element Navigator is
+       a nested <ul>/<li> of plain <button> rows: every one of the 100+ rows is a
+       tab stop, there is no arrow-key model, and a screen reader hears "button",
+       not "level 2, expanded". Wire it as an APG tree with the WordPress
+       list-view keys — Up/Down move (and select, so the canvas follows), Right
+       opens a branch then steps into its first child, Left closes it then steps
+       out to the parent, Home/End jump to the ends.
+
+       A row's child <ul> is a SIBLING of its button, not a descendant, so DOM
+       nesting cannot express treeitem ownership; the flat aria-level form is used
+       (level + setsize + posinset on each row) with the intervening wrappers
+       marked presentational so the tree owns every treeitem directly. Selection
+       and expand/collapse go through the proven channels: clickSeq(button)
+       selects, clickSeq(chevron <i>) toggles — both async re-renders, so focus is
+       re-asserted by node id afterwards. */
+    var NAV_TREE_SEL = '.uniRightPanel .uniModTree .uniModTree__list';
+    var NAV_ROW_SEL = 'button.uniModTree__item';
+    var dbeNavKeyBound = false;
+
+    function navRootList() {
+        // Outermost element list — querySelector returns the first in document
+        // order (favourites live in a separate list, the footer outside it).
+        return document.querySelector(NAV_TREE_SEL);
+    }
+    function navRowId(btn) {
+        var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
+        return m ? m[1] : null;
+    }
+    function navRowById(id) {
+        return id ? document.querySelector('.uniRightPanel .uni-tree-node-' + id) : null;
+    }
+    function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
+    function navRowExpandable(btn) { return !!btn.querySelector('i'); }
+    function navRowExpanded(btn) { return btn.classList.contains('expanded'); }
+    function navRowLevel(btn) {
+        var n = 0, li = navRowLi(btn);
+        while (li) { n += 1; li = li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag'); }
+        return n || 1;
+    }
+    function navParentRow(btn) {
+        var li = navRowLi(btn);
+        var pli = li && li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag');
+        // The parent li's OWN row is the first tree button inside it (its content
+        // wrapper precedes the nested child <ul>).
+        return pli ? pli.querySelector(NAV_ROW_SEL) : null;
+    }
+    // Rows currently on screen — a collapsed branch's <ul> is display:none, so its
+    // rows have no offsetParent and drop out of the flattened visible order.
+    function navVisibleRows(root) {
+        root = root || navRootList();
+        if (!root) { return []; }
+        return [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).filter(function (b) {
+            return b.offsetParent !== null;
+        });
+    }
+
+    // Move the single tab stop onto `target`, focus it, scroll it into view.
+    function navFocus(target) {
+        if (!target) { return; }
+        var root = navRootList();
+        if (root) {
+            [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).forEach(function (b) {
+                var t = b === target ? '0' : '-1';
+                if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+            });
+        }
+        target.focus();
+        try { scrollRowIntoTree(target); } catch (e) {}
+    }
+
+    // Select the row's element (canvas + settings follow), then re-assert focus on
+    // it after the async re-render — re-queried by id in case the node moved.
+    function navSelect(target) {
+        var id = navRowId(target);
+        navFocus(target);
+        if (!id) { return; }
+        clickSeq(target);
+        requestAnimationFrame(function () {
+            var row = navRowById(id);
+            if (row && document.activeElement !== row) { navFocus(row); }
+        });
+    }
+
+    // Expand/collapse a branch without changing the selection (chevron channel).
+    function navToggleExpand(btn) {
+        var chev = btn.querySelector('i');
+        if (chev) { clickSeq(chev); }
+    }
+
+    /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
+       so it is cheap to re-run every schedule() tick, keeping level/expanded/
+       selected/roving in sync through Builderius' React re-renders. */
+    function navSyncAria() {
+        var root = navRootList();
+        if (!root) { return; }
+        if (root.getAttribute('role') !== 'tree') { root.setAttribute('role', 'tree'); }
+        var label = dbeT('elementsTree', 'Elements');
+        if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
+
+        var sel = activeId();
+        var rows = [].slice.call(root.querySelectorAll(NAV_ROW_SEL));
+        rows.forEach(function (btn) {
+            if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
+
+            var lvl = String(navRowLevel(btn));
+            if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
+
+            var li = navRowLi(btn);
+            var ul = li && li.parentElement;
+            if (ul) {
+                var sibs = [].slice.call(ul.children).filter(function (el) {
+                    return el.matches && el.matches('li.uniModTree__itemDrag');
+                });
+                var pos = String(sibs.indexOf(li) + 1), size = String(sibs.length);
+                if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
+                if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
+            }
+
+            if (navRowExpandable(btn)) {
+                var ex = navRowExpanded(btn) ? 'true' : 'false';
+                if (btn.getAttribute('aria-expanded') !== ex) { btn.setAttribute('aria-expanded', ex); }
+            } else if (btn.hasAttribute('aria-expanded')) {
+                btn.removeAttribute('aria-expanded');
+            }
+
+            var s = (sel && navRowId(btn) === sel) ? 'true' : 'false';
+            if (btn.getAttribute('aria-selected') !== s) { btn.setAttribute('aria-selected', s); }
+
+            // Flatten ownership: the <li>, its wrappers and any nested <ul> between
+            // this button and the tree become presentational, so the tree owns
+            // every treeitem directly (the level attributes carry the hierarchy).
+            var node = btn.parentElement;
+            while (node && node !== root) {
+                if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
+                node = node.parentElement;
+            }
+        });
+
+        // Roving tab stop: keep the row that already holds it (so a keyboard
+        // user's position survives a re-render), else the selected row, else the
+        // first visible one.
+        var vis = rows.filter(function (b) { return b.offsetParent !== null; });
+        if (!vis.length) { return; }
+        var current = vis.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
+        var selRow = sel ? vis.filter(function (b) { return navRowId(b) === sel; })[0] : null;
+        var keep = current || selRow || vis[0];
+        rows.forEach(function (b) {
+            var t = b === keep ? '0' : '-1';
+            if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+        });
+    }
+
+    function navOnKeydown(e) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave modified combos to the builder
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        var root = navRootList();
+        if (!btn || !root || !root.contains(btn)) { return; }
+        var rows = navVisibleRows(root);
+        var i = rows.indexOf(btn);
+        if (i === -1) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+
+        switch (e.key) {
+            case 'ArrowDown':
+                if (i < rows.length - 1) { navSelect(rows[i + 1]); }
+                break;
+            case 'ArrowUp':
+                if (i > 0) { navSelect(rows[i - 1]); }
+                break;
+            case 'Home':
+                navSelect(rows[0]);
+                break;
+            case 'End':
+                navSelect(rows[rows.length - 1]);
+                break;
+            case 'ArrowRight':
+                if (navRowExpandable(btn) && !navRowExpanded(btn)) {
+                    navToggleExpand(btn); // open the branch in place
+                } else if (navRowExpandable(btn) && navRowExpanded(btn)) {
+                    // Already open: the next visible row is this branch's first
+                    // child (guard that it really is a descendant).
+                    var child = rows[i + 1];
+                    if (child && navRowLi(btn).contains(child)) { navSelect(child); }
+                }
+                break;
+            case 'ArrowLeft':
+                if (navRowExpandable(btn) && navRowExpanded(btn)) {
+                    navToggleExpand(btn); // close the branch in place
+                } else {
+                    var parent = navParentRow(btn);
+                    if (parent) { navSelect(parent); }
+                }
+                break;
+        }
+    }
+
+    function ensureNavKeyboard() {
+        var root = navRootList();
+        if (!root) { return; }
+        navSyncAria();
+        if (dbeNavKeyBound) { return; }
+        var panel = document.querySelector('.uniRightPanel');
+        if (!panel) { return; }
+        // Bound on the stable panel (the tree lists are replaced on re-render), so
+        // one binding survives every repaint of the tree below it.
+        panel.addEventListener('keydown', navOnKeydown);
+        dbeNavKeyBound = true;
+    }
+
     function schedule() {
         if (scheduled) { return; }
         scheduled = true;
@@ -5769,6 +5988,7 @@
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
             }
+            if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
@@ -5801,7 +6021,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
