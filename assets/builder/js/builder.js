@@ -3407,6 +3407,15 @@
         var dd = document.querySelector('.uniSystemSelect__dropdown');
         return (dd && dd.offsetParent !== null) ? dd : null;
     }
+    var dbeSSId = 0;
+    /* The field's visible title, used to name the combobox (aria-labelledby, so
+       both the label and the shown value are announced). */
+    function dbeSSLabelEl(sel) {
+        var field = sel.closest('.uniFormField') || sel;
+        var c = field.parentElement;
+        var el = c ? c.querySelector('[class*="settingLabel"], [class*="settingTitle"], [class*="__label"], [class*="__title"], label') : null;
+        return (el && !sel.contains(el)) ? el : null;
+    }
     function ensureSelectComboboxes() {
         // Closed triggers: drop the invisible hidden field out of the tab order
         // (it is an 8px opacity:0 input that makes the control a double Tab stop)
@@ -3415,12 +3424,40 @@
         document.querySelectorAll('.uniSystemSelect').forEach(function (sel) {
             var hidden = sel.querySelector('.uniSystemSelect__hiddenField');
             if (hidden && hidden.getAttribute('tabindex') !== '-1') { hidden.setAttribute('tabindex', '-1'); }
+            // Fold the caret into the trigger: one Tab stop, out of the a11y tree,
+            // so the whole control reads and behaves as a single combobox.
             var caret = sel.querySelector('.uniIconButton.caretIcon');
-            var val = ((sel.querySelector('.uniSystemSelect__valueInner') || {}).textContent || '').trim();
             if (caret) {
-                if (caret.getAttribute('aria-haspopup') !== 'listbox') { caret.setAttribute('aria-haspopup', 'listbox'); }
+                if (caret.getAttribute('tabindex') !== '-1') { caret.setAttribute('tabindex', '-1'); }
+                if (caret.getAttribute('aria-hidden') !== 'true') { caret.setAttribute('aria-hidden', 'true'); }
+            }
+            // The focusable trigger IS the combobox (APG select-only pattern):
+            // haspopup + an expanded state that controls the listbox when open.
+            if (sel.getAttribute('role') !== 'combobox') { sel.setAttribute('role', 'combobox'); }
+            if (sel.getAttribute('aria-haspopup') !== 'listbox') { sel.setAttribute('aria-haspopup', 'listbox'); }
+            var open = sel.classList.contains('expanded');
+            var exp = open ? 'true' : 'false';
+            if (sel.getAttribute('aria-expanded') !== exp) { sel.setAttribute('aria-expanded', exp); }
+            if (open) {
+                if (sel.getAttribute('aria-controls') !== SSCOMBO_LIST_ID) { sel.setAttribute('aria-controls', SSCOMBO_LIST_ID); }
+            } else if (sel.hasAttribute('aria-controls')) {
+                sel.removeAttribute('aria-controls');
+                sel.removeAttribute('aria-activedescendant');
+            }
+            // Name it from its field title + shown value via aria-labelledby, so
+            // both are announced without duplicating the trigger's own text.
+            var titleEl = dbeSSLabelEl(sel);
+            var valueEl = sel.querySelector('.uniSystemSelect__value') || sel.querySelector('.uniSystemSelect__valueInner');
+            var ref = [];
+            if (titleEl) { if (!titleEl.id) { titleEl.id = 'dbe-ss-lbl-' + (++dbeSSId); } ref.push(titleEl.id); }
+            if (valueEl) { if (!valueEl.id) { valueEl.id = 'dbe-ss-val-' + (++dbeSSId); } ref.push(valueEl.id); }
+            if (ref.length) {
+                var lb = ref.join(' ');
+                if (sel.getAttribute('aria-labelledby') !== lb) { sel.setAttribute('aria-labelledby', lb); }
+            } else {
+                var val = ((valueEl || {}).textContent || '').trim();
                 var want = val ? dbeFmt(dbeT('comboboxTrigger', 'Selection: %s'), val) : '';
-                if (want && caret.getAttribute('aria-label') !== want) { caret.setAttribute('aria-label', want); }
+                if (want && sel.getAttribute('aria-label') !== want) { sel.setAttribute('aria-label', want); }
             }
         });
 
@@ -3443,11 +3480,30 @@
                 var isSel = (curVal && (it.textContent || '').trim() === curVal) ? 'true' : 'false';
                 if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
             });
+            var mexp = mt.classList.contains('expanded');
+            // Closed trigger (the fake input focused before you type/open): give
+            // it combobox semantics so a screen reader announces it as one, with
+            // the current tag as its value. Focus moves to the real search on open.
+            var mfake = mt.querySelector('.uniSystemSelectModuleTags__fakeInput');
+            if (mfake) {
+                if (mfake.getAttribute('role') !== 'combobox') { mfake.setAttribute('role', 'combobox'); }
+                if (mfake.getAttribute('aria-haspopup') !== 'listbox') { mfake.setAttribute('aria-haspopup', 'listbox'); }
+                var fexp = mexp ? 'true' : 'false';
+                if (mfake.getAttribute('aria-expanded') !== fexp) { mfake.setAttribute('aria-expanded', fexp); }
+                if (results && mexp) {
+                    if (mfake.getAttribute('aria-controls') !== MTAGS_LIST_ID) { mfake.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                } else if (mfake.hasAttribute('aria-controls')) { mfake.removeAttribute('aria-controls'); }
+                var mTitle = dbeSSLabelEl(mt);
+                var mRef = [];
+                if (mTitle) { if (!mTitle.id) { mTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } mRef.push(mTitle.id); }
+                var mPlaceholder = mt.querySelector('.uniSystemSelectModuleTags__placeholder');
+                if (mPlaceholder) { if (!mPlaceholder.id) { mPlaceholder.id = 'dbe-ss-val-' + (++dbeSSId); } mRef.push(mPlaceholder.id); }
+                if (mRef.length && mfake.getAttribute('aria-labelledby') !== mRef.join(' ')) { mfake.setAttribute('aria-labelledby', mRef.join(' ')); }
+            }
             var msearch = mt.querySelector('.uniSystemSelectModuleTags__search');
             if (msearch) {
                 if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
-                var exp = mt.classList.contains('expanded') ? 'true' : 'false';
-                if (msearch.getAttribute('aria-expanded') !== exp) { msearch.setAttribute('aria-expanded', exp); }
+                if (msearch.getAttribute('aria-expanded') !== (mexp ? 'true' : 'false')) { msearch.setAttribute('aria-expanded', mexp ? 'true' : 'false'); }
                 if (results && msearch.getAttribute('aria-controls') !== MTAGS_LIST_ID) { msearch.setAttribute('aria-controls', MTAGS_LIST_ID); }
                 if (msearch.getAttribute('aria-autocomplete') !== 'list') { msearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!msearch.getAttribute('aria-label')) { msearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
@@ -3484,10 +3540,14 @@
             if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
         });
         if (search) {
-            if (search.getAttribute('role') !== 'combobox') { search.setAttribute('role', 'combobox'); }
-            if (search.getAttribute('aria-expanded') !== 'true') { search.setAttribute('aria-expanded', 'true'); }
-            if (search.getAttribute('aria-controls') !== SSCOMBO_LIST_ID) { search.setAttribute('aria-controls', SSCOMBO_LIST_ID); }
-            if (search.getAttribute('aria-autocomplete') !== 'list') { search.setAttribute('aria-autocomplete', 'list'); }
+            // The trigger owns combobox semantics now; the in-popup search is a
+            // plain filter. Keep it out of the Tab order (keyboard drives from the
+            // trigger via aria-activedescendant) but leave it clickable/typeable
+            // for mouse users. Drop the combobox role it used to carry.
+            if (search.getAttribute('tabindex') !== '-1') { search.setAttribute('tabindex', '-1'); }
+            if (search.getAttribute('role') === 'combobox') { search.removeAttribute('role'); }
+            if (search.hasAttribute('aria-expanded')) { search.removeAttribute('aria-expanded'); }
+            if (search.getAttribute('aria-controls') === SSCOMBO_LIST_ID) { search.removeAttribute('aria-controls'); }
             if (!search.getAttribute('aria-label')) { search.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
         }
     }
@@ -3669,12 +3729,24 @@
         document.addEventListener('keydown', function (e) {
             var search = e.target;
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') { return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Escape') { return; }
             var dd = dbeSSOpenDropdown();
             if (!dd) { return; }
             var items = dbeSSItems(dd);
             if (!items.length) { return; }
             var idx = dbeSSActiveIndex(items, search.getAttribute('aria-activedescendant'));
+            if (e.key === 'Escape') {
+                // Close without changing the value (re-select the current option),
+                // and return focus to the trigger. Native has no Escape-to-close;
+                // stopPropagation so it does not also close an enclosing dialog.
+                e.preventDefault();
+                e.stopPropagation();
+                var trig = document.querySelector('.uniSystemSelect.expanded');
+                var cur = items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0];
+                if (cur) { cur.click(); }
+                if (trig) { trig.focus(); }
+                return;
+            }
             if (e.key === 'Enter') {
                 // Only take Enter when WE have a highlighted option; otherwise leave
                 // it for Builderius (e.g. its own submit/first-match behaviour).
@@ -3698,6 +3770,50 @@
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
             search.removeAttribute('aria-activedescendant');
             schedule();
+        }, true);
+
+        // Trigger keyboard support (select-only combobox). The native widget is
+        // mouse-only — no keyboard open, and Escape does not close it — so drive
+        // it with the same clicks a mouse makes: focus stays on the trigger,
+        // arrows move aria-activedescendant, and selecting an option is the native
+        // close+commit path. Escape/Tab close by re-selecting the current value
+        // (a no-op that leaves it unchanged). Runs only when the trigger itself
+        // holds focus, so it never clashes with the in-popup search handler above.
+        document.addEventListener('keydown', function (e) {
+            var trigger = e.target;
+            if (!trigger || !trigger.classList || !trigger.classList.contains('uniSystemSelect')) { return; }
+            var open = trigger.classList.contains('expanded');
+            // preventDefault + stopPropagation on every key we handle, so it never
+            // also reaches the builder or the dialog (e.g. Enter re-triggering the
+            // widget or submitting the modal, Escape closing the modal, arrows
+            // scrolling). Tab is the exception — it must fall through to move focus.
+            var take = function () { e.preventDefault(); e.stopPropagation(); };
+            if (!open) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    take();
+                    clickSeq(trigger.querySelector('.uniSystemSelect__valueWrapper') || trigger);
+                    setTimeout(function () {
+                        try { ensureSelectComboboxes(); } catch (err) {}   // stamp option ids/roles
+                        var dd = dbeSSOpenDropdown(); if (!dd) { return; }
+                        var items = dbeSSItems(dd);
+                        var si = items.map(function (it) { return it.getAttribute('aria-selected') === 'true'; }).indexOf(true);
+                        dbeSSHighlight(trigger, items, si >= 0 ? si : 0);
+                    }, 60);
+                }
+                return;
+            }
+            var dd = dbeSSOpenDropdown();
+            var items = dd ? dbeSSItems(dd) : [];
+            var idx = dbeSSActiveIndex(items, trigger.getAttribute('aria-activedescendant'));
+            var current = function () { return items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0]; };
+            var closeVia = function (opt) { if (opt) { opt.click(); } trigger.removeAttribute('aria-activedescendant'); };
+            if (e.key === 'ArrowDown') { take(); if (items.length) { dbeSSHighlight(trigger, items, idx < 0 ? 0 : (idx + 1) % items.length); } }
+            else if (e.key === 'ArrowUp') { take(); if (items.length) { dbeSSHighlight(trigger, items, idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length); } }
+            else if (e.key === 'Home') { take(); if (items.length) { dbeSSHighlight(trigger, items, 0); } }
+            else if (e.key === 'End') { take(); if (items.length) { dbeSSHighlight(trigger, items, items.length - 1); } }
+            else if (e.key === 'Enter' || e.key === ' ') { take(); closeVia(idx >= 0 ? items[idx] : current()); trigger.focus(); }
+            else if (e.key === 'Escape') { take(); closeVia(current()); trigger.focus(); }   // keep value; don't also close the dialog
+            else if (e.key === 'Tab') { closeVia(current()); }                               // close, let focus move on
         }, true);
     }
 
