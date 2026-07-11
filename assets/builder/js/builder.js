@@ -2172,6 +2172,17 @@
         var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
         return [clampX(x), clampY(r.top + r.height / 2 - h / 2)];
     }
+    /* Where to mount the chip. A chip on <body> renders BEHIND a showModal()
+       dialog (down in its blurred backdrop), so when the trigger sits inside an
+       open modal <dialog> — the breakpoints modal, our own Auto-BEM dialog —
+       host it in that dialog instead, joining its top layer so it paints above
+       the backdrop. These dialogs carry no transform/filter, so the chip's
+       position:fixed viewport coordinates still hold. Everything else uses body. */
+    function tipHost(target) {
+        var dlg = target.closest && target.closest('dialog');
+        if (dlg) { try { if (dlg.matches(':modal')) { return dlg; } } catch (e) {} }
+        return document.body;
+    }
     function showTip(target, instant) {
         var label = target.getAttribute('data-dbe-tip');
         if (!label) { return; }
@@ -2183,8 +2194,9 @@
                 tipEl = document.createElement('div');
                 tipEl.className = 'dbe-tooltip';
                 tipEl.setAttribute('aria-hidden', 'true');
-                document.body.appendChild(tipEl);
             }
+            var host = tipHost(target);
+            if (tipEl.parentNode !== host) { host.appendChild(tipEl); }
             tipEl.textContent = label;
             var r = target.getBoundingClientRect();
             tipEl.style.left = '0px'; tipEl.style.top = '0px';
