@@ -27,22 +27,27 @@ html[data-dbe-theme="auto"] #builderiusPanel {
     --primary-4: var(--dbe-muted); /* muted labels / footer-bar tabs (#8D92A1) */
 }
 
+/* Native react-tooltip chip — the few native tooltips DBE doesn't take over
+   (the breakpoints-settings modal, some panel fields). Brand it to match our own
+   .dbe-tooltip in EVERY theme: raised l2 surface, primary text, gold hairline,
+   layered shadow. The tokens resolve per theme, so one unscoped rule covers
+   light, dark and auto — unlike the light-only remap exceptions below. */
+.builderiusTooltip.react-tooltip {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+    border: 1px solid var(--dbe-warn-line) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    box-shadow: 0 6px 20px var(--dbe-shadow), 0 2px 6px var(--dbe-shadow) !important;
+}
+.builderiusTooltip.react-tooltip .react-tooltip-arrow { background: var(--dbe-l2) !important; }
+
 /* --- Palette-remap background exceptions ---
    --base-2 and --primary-4 are overwhelmingly foreground tokens, but a handful
    of native rules use them the other way — as a LIGHT control surface with dark
    text on top (in dark mode #C5C5C5 / #8D92A1 read as light chips). The remap
    above darkens those, turning the control black-on-black. Restore a light
    surface for exactly those spots so the dark text stays legible. */
-/* --base-2 as a surface: native tooltip chip, switch tracks, quaternary button */
-html[data-dbe-theme="light"] .builderiusTooltip.react-tooltip,
-html[data-dbe-theme="auto"]  .builderiusTooltip.react-tooltip {
-    background: var(--dbe-l0) !important;
-    color: var(--dbe-text-2) !important;
-    border: 1px solid var(--dbe-warn-line) !important;
-    box-shadow: 0 4px 14px var(--dbe-shadow) !important;
-}
-html[data-dbe-theme="light"] .builderiusTooltip.react-tooltip .react-tooltip-arrow,
-html[data-dbe-theme="auto"]  .builderiusTooltip.react-tooltip .react-tooltip-arrow { background: var(--dbe-l0) !important; }
+/* --base-2 as a surface: switch tracks, quaternary button */
 html[data-dbe-theme="light"] .uniFormField .builderiusSwitch [role="switch"],
 html[data-dbe-theme="auto"]  .uniFormField .builderiusSwitch [role="switch"],
 html[data-dbe-theme="light"] .uniPanelField__switch,
