@@ -1,5 +1,5 @@
 === Daveden Builder Enhancements ===
-Contributors: davedendigital
+Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
@@ -8,14 +8,14 @@ License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
 builder UI, each behind its own toggle (admin menu: Builderius → Builder
-Enhance; a top-level menu when Builderius is inactive).
+Enhance).
 
 Targets Builderius 1.3.5-beta. The plugin directory name must contain
 "builderius" — see the header docblock in daveden-builderius-enhancements.php.
 
 == Credits ==
 
-Several features were suggested by the Builderius and wider web-design
+Several features were suggested by the Builderius and the wider web design
 community. Thank you:
 
 * Inline rename — Israel Reyes and Tim Gray
@@ -30,28 +30,16 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 == Changelog ==
 
 = 1.9.0 =
-* New: "Accessible AI session tabs". When you connect a remote agent (Claude
-  Code, Gemini CLI and so on) in the Sense AI panel, its row of session tabs
-  becomes a proper tab list for screen readers and the keyboard: each tab
-  announces which session is active, a single Tab stop with arrow keys moves
-  between and switches sessions, and the terminal below is exposed as the tabs'
-  panel. The "new session" button gets a real name in place of its bare plus
-  sign, and its agent picker becomes a proper pop-up menu you can open, arrow
-  through and close with Escape. Purely additive: clicking to switch is still
-  handled by Builderius.
-* Improved: in light and auto themes, the Sense AI terminal session strip now
-  matches the rest of the builder. Its tab bar, active tab and agent picker kept
-  the native dark colours before, leaving dark text on a dark background; the
-  active session now reads clearly with an accent underline and the picker is a
-  light menu. The terminal itself keeps its own dark theme.
-* Improved: "Undo / redo delete" is now "Undo / redo add & delete". Cmd/Ctrl+Z
-  now also undoes adding an element (removing it), and Shift redoes it, alongside
-  the existing restore of a deleted element. Moving elements and changing their
-  settings are still not covered.
-* Fixed: selecting text in a builder field (such as the top-bar canvas width or
-  zoom) was hard to see: white on a near-white highlight in light and auto themes
-  (invisible), and a barely-there wash in dark. Selected text now uses a clear
-  accent highlight at a legible contrast in every theme.
+* New: "Accessible AI session tabs". The tabs for the Sense AI chats have gotten some 
+  accessibility improvements
+* Improved: in light and auto themes, the Sense AI terminal session strip now matches 
+  the rest of the builder. The terminal itself keeps its own dark theme.
+* Improved: "Undo / redo delete" is now "Undo / redo add & delete". Cmd/Ctrl+Z now also 
+  undoes adding an element (removing it), and Shift redoes it, alongside the existing 
+  restore of a deleted element. Moving elements and changing their settings 
+  are still not covered.
+* Improved: Selected text now uses a clear accent highlight at a legible contrast 
+  in every theme.
 
 = 1.8.1 =
 * Fixed: the preview resize handles could not return to the "All" (full-width)
