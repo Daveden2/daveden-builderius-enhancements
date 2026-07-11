@@ -675,9 +675,19 @@
         dlg.appendChild(foot);
         refreshApplyCount();
 
-        // Keys inside the dialog must not reach the builder (Delete removes the
-        // selected element!); Escape keeps its native close behaviour.
+        // Isolate the dialog from the builder's global handlers. Keys must not
+        // reach it (Delete removes the selected element!); Escape keeps its native
+        // close behaviour. Pointer events must not either: Builderius has a
+        // document-level click handler that preventDefault()s clicks landing
+        // outside its React root (our dialog is appended to <body>), which
+        // reverted the row checkboxes' native toggle — they looked un-checkable.
+        // Stopping propagation at the dialog leaves the inner controls' own
+        // target-phase handlers (Apply/Cancel, the checkboxes) working while the
+        // builder never sees the event.
         dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
         dlg.addEventListener('close', function () { dlg.remove(); });
         document.body.appendChild(dlg);
         dlg.showModal();
