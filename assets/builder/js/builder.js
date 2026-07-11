@@ -3269,6 +3269,62 @@
         });
     }
 
+    /* (pt) Panel tabs (panel_tabs). The settings panel's Content / Styles strip
+       and the Navigator's Elements / Selectors / CSS vars strip are rows of
+       <button>s with no tab semantics: a screen reader cannot tell they are tabs
+       or which is current, and there is no single-Tab-stop arrow-key model. Wire
+       each strip as an APG tab list — role=tablist, each tab role=tab +
+       aria-selected mirrored from the native `active` class, one Tab stop where
+       arrows move focus and Enter/Space activates (the tabs are native buttons,
+       so activation is their own click). MANUAL activation, not automatic:
+       switching to Styles mounts the CSS editor, which grabs focus, and the
+       settings strip is replaced by our code-mode replica — so auto-switching on
+       arrow would fight the editor for focus and disorient. Arrows therefore only
+       move the roving focus between tabs; the user presses Enter/Space when ready
+       to switch. aria-selected tracks the native `active` class, so it stays on
+       the shown tab until one is actually activated. Not dbeEnsureGroup: its
+       selectOnMove refocus is document-wide, and the shared .uniPanelTabs__tab
+       selector would let it land on the other panel's tablist. */
+    function ensurePanelTabs() {
+        ['.uniLeftPanel', '.uniRightPanel'].forEach(function (panelSel) {
+            var panel = document.querySelector(panelSel);
+            var strip = panel && panel.querySelector('.uniPanelTabs');
+            if (!strip || !strip.querySelector('.uniPanelTabs__tab')) { return; }
+            var sel = '.uniPanelTabs__tab';
+            var label = panelSel === '.uniRightPanel'
+                ? dbeT('navigatorTabs', 'Navigator views')
+                : dbeT('settingsTabs', 'Element settings');
+            if (strip.getAttribute('role') !== 'tablist') { strip.setAttribute('role', 'tablist'); }
+            if (strip.getAttribute('aria-label') !== label) { strip.setAttribute('aria-label', label); }
+            dbeRovingItems(strip, sel).forEach(function (t) {
+                if (t.getAttribute('role') !== 'tab') { t.setAttribute('role', 'tab'); }
+                var on = t.classList.contains('active') ? 'true' : 'false';
+                if (t.getAttribute('aria-selected') !== on) { t.setAttribute('aria-selected', on); }
+            });
+            dbeSyncRoving(strip, sel, { activeClass: 'active' });
+            if (strip.dbePanelTabsBound) { return; }
+            strip.dbePanelTabsBound = true;
+            strip.addEventListener('keydown', function (e) {
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                var items = dbeRovingItems(strip, sel);
+                var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
+                var i = items.indexOf(focused);
+                if (i === -1 || !items.length) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var next = i;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (i + 1) % items.length; }
+                else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+                else if (e.key === 'Home') { next = 0; }
+                else if (e.key === 'End') { next = items.length - 1; }
+                if (next === i) { return; }
+                // Move the roving focus only; Enter/Space (native button) switches.
+                items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
+                items[next].focus();
+            });
+        });
+    }
+
     function ensureTopbarToolbars() {
         // Breakpoint buttons carry no text, so a radio with no name is useless.
         // The tooltips feature labels them (setTip), but topbar_toolbar must not
@@ -5705,6 +5761,7 @@
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
+            if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
@@ -5744,7 +5801,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
@@ -5753,7 +5810,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });

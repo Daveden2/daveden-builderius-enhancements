@@ -128,6 +128,13 @@ function dbe_features() {
 			'css'         => false,
 			'js'          => true,
 		),
+		'panel_tabs'          => array(
+			'title'       => __( 'Accessible panel tabs', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last).', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => false,
+			'js'          => true,
+		),
 
 		/* ----------------------------------------------------------- Navigator */
 		'tag_badges'          => array(
