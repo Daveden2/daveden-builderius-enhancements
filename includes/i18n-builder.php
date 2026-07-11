@@ -242,6 +242,7 @@ function dbe_builder_strings() {
 		/* translators: %s: the name of the open tool (e.g. Dynamic Data). Names the editor panel region. */
 		'footerPanelNamed'        => __( '%s panel', 'daveden-builderius-enhancements' ),
 		'footerToolsPanel'        => __( 'Editor tools panel', 'daveden-builderius-enhancements' ),
+		'footerScopeTabs'         => __( 'Scope', 'daveden-builderius-enhancements' ),
 		'comboboxFilter'          => __( 'Filter options', 'daveden-builderius-enhancements' ),
 		'comboboxListbox'         => __( 'Options', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the currently selected value. Names the select trigger for screen readers. */

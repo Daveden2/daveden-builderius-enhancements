@@ -3168,6 +3168,10 @@
         var useVert = orientation === 'vertical' || orientation === 'both';
         if (container.getAttribute('role') !== role) { container.setAttribute('role', role); }
         if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+        // A vertical group announces its orientation; horizontal is the default.
+        if (orientation === 'vertical' && container.getAttribute('aria-orientation') !== 'vertical') {
+            container.setAttribute('aria-orientation', 'vertical');
+        }
         if (opts.itemRole) {
             dbeRovingItems(container, sel).forEach(function (el) {
                 if (el.getAttribute('role') !== opts.itemRole) { el.setAttribute('role', opts.itemRole); }
@@ -3193,7 +3197,10 @@
             e.preventDefault();
             e.stopPropagation();
             items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
-            if (opts.selectAttr) {
+            // Only an automatic (selectOnMove) group selects on move. A manually
+            // activated tablist leaves aria-selected on the active tab (mirrored
+            // from its class by dbeSyncRoving) until the user presses Enter/Space.
+            if (opts.selectAttr && opts.selectOnMove) {
                 items.forEach(function (el, k) { el.setAttribute(opts.selectAttr, k === next ? 'true' : 'false'); });
             }
             items[next].focus();
@@ -3385,6 +3392,7 @@
        The footer lives outside the panels the other observers watch, so it wires
        its own (attached once, lazily, when the bar first appears). */
     var dbeFooterObserved = false;
+    var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
         if (dbeFooterObserved) { return; }
         dbeFooterObserved = true;
@@ -3442,6 +3450,52 @@
         // buttons stay in the roving set (focusable, aria-disabled) so a keyboard
         // user can discover them and hear that they are locked.
         dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
+
+        dbeEnsureFooterScopeTabs();
+    }
+
+    /* (tf2) Global / Template scope tabs inside the JavaScript and Dynamic Data
+       footer tools (.uniFooterTabScopes). Two stacked buttons that switch the
+       editor beside them (.uniFooterTabScopeContent) between the global and the
+       template scope — a VERTICAL tablist, but with no tab semantics or keyboard
+       model. Wire it as an APG vertical tablist: role=tablist + aria-orientation,
+       each button role=tab controlling the content panel, one roving tab stop
+       with Up/Down moving between them. Activation is MANUAL (Enter/Space on the
+       native button switches, mounting the other scope's editor), so the arrows
+       only move focus; aria-selected tracks the native `active` class. Its own
+       observer keeps that in sync — the shared footer observer is shallow and
+       would miss the deep class toggle on switch. */
+    function dbeEnsureFooterScopeTabs() {
+        var scope = document.querySelector('.uniFooterTabScopes');
+        if (!scope) { return; }
+        var content = document.querySelector('.uniFooterTabScopeContent');
+        if (content) {
+            if (!content.id) { content.id = DBE_FOOTER_SCOPE_PANEL_ID; }
+            if (content.getAttribute('role') !== 'tabpanel') { content.setAttribute('role', 'tabpanel'); }
+            if (content.getAttribute('tabindex') !== '0') { content.setAttribute('tabindex', '0'); }
+        }
+        var active = null;
+        [].slice.call(scope.querySelectorAll('button')).forEach(function (t, i) {
+            if (!t.id) { t.id = 'dbe-footer-scope-tab-' + i; }
+            if (content && t.getAttribute('aria-controls') !== content.id) { t.setAttribute('aria-controls', content.id); }
+            if (t.classList.contains('active')) { active = t; }
+        });
+        if (content && active && content.getAttribute('aria-labelledby') !== active.id) {
+            content.setAttribute('aria-labelledby', active.id);
+        }
+        dbeEnsureGroup(scope, dbeT('footerScopeTabs', 'Scope'), 'button', {
+            role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
+            orientation: 'vertical', activeClass: 'active'
+        });
+        // Switching scope toggles the `active` class deep inside the footer panel,
+        // which the shallow footer observer misses; watch it here so aria-selected
+        // and the panel's aria-labelledby follow the switch.
+        if (!scope.dbeScopeObserved) {
+            scope.dbeScopeObserved = true;
+            try {
+                new MutationObserver(schedule).observe(scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
+            } catch (e) { scope.dbeScopeObserved = false; }
+        }
     }
 
     /* (sc) Accessible select comboboxes (select_combobox). Builderius's reused
