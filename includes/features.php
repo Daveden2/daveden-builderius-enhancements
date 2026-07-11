@@ -271,7 +271,7 @@ function dbe_features() {
 		),
 		'builderius_menu'     => array(
 			'title'       => __( 'Accessible Builderius menu', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader: the menu button announces that it opens a menu, focus moves into the menu when it opens, the arrow keys move between items (Home and End jump to the first and last), each item announces its category, and Escape closes the menu and returns focus to the button.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '80-builderius-menu.css' ),
 			'js'          => true,

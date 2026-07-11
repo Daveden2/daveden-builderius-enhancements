@@ -1,9 +1,20 @@
 /* Accessible Builderius menu (builderius_menu).
 
-   The menu items carry a roving tabindex and receive real focus as the arrow
-   keys move through the menu, so the keyboard cursor must always be visible —
-   even when the separate "Focus visibility" feature is off. */
-.uniLeftPanel .uniNavigatorItems__item:focus-visible {
+   The rows (category headers and items) carry a roving tabindex and receive real
+   focus as the arrow keys move through the menu — and focus is moved in
+   programmatically when the menu opens, which does not trigger :focus-visible.
+   Use :focus so the keyboard cursor is always visible, whichever way the menu
+   was opened, and even when the separate "Focus visibility" feature is off. */
+.uniLeftPanel .uniNavigatorItems__item:focus,
+.uniLeftPanel .uniNavigatorItems .uniCatTitle:focus {
 	outline: 2px solid var(--dbe-focus) !important;
 	outline-offset: -2px !important;
+}
+.uniLeftPanel .uniNavigatorItems .uniCatTitle:focus { cursor: pointer !important; }
+
+/* The Builderius logo path ships a hard near-black fill, so it disappears
+   against the dark builder chrome once the menu button is active. Paint it in
+   the button's own text colour so it stays visible in both themes. */
+.uniPanelButton--builderiusMenu.active svg path {
+	fill: var(--dbe-text) !important;
 }

@@ -3507,30 +3507,47 @@
     /* (bm) Accessible Builderius menu (builderius_menu). The menu button in the
        top bar (.uniPanelButton--builderiusMenu) opens a left-panel sidebar
        (.uniNavigator) of templates, pages, components and admin links — but with
-       no menu semantics, no focus management (focus stayed on the page) and no
-       keyboard model. Wire it as an APG menu button + menu:
-         - the button gets aria-haspopup=menu + aria-expanded + aria-controls;
-         - the items list (.uniNavigatorItems) becomes role=menu; each category
-           (.uniNavigatorItems__catWrapper) a role=group labelled by its heading,
-           with the intervening wrapper made presentational so the group owns its
-           menuitems directly; each item a role=menuitem on one roving tab stop;
-         - focus moves to the first item when the menu opens (tracked by the
-           open transition), Up/Down/Home/End move between items, and Escape
-           closes the menu (through the same click the button toggles it with)
-           and returns focus to the button.
-       Activation stays native — the items are real buttons. */
+       no semantics, no focus management (focus stayed on the page) and no keyboard
+       model. It is not a flat list: the category headers (.uniCatTitle) are
+       collapsible sections, so it is wired as an APG tree.
+         - The button gets aria-haspopup=tree + aria-expanded + aria-controls.
+         - The items list (.uniNavigatorItems) becomes role=tree; each category
+           heading a level-1 role=treeitem carrying aria-expanded and controlling
+           its role=group of level-2 item treeitems.
+         - Focus moves to the first row when the menu opens; Up/Down move between
+           the visible rows (headers + items), Right opens a collapsed section then
+           steps into it, Left collapses it then steps out to the header, Home/End
+           jump to the ends. Enter/Space toggles a header (a plain <div>, so the
+           click is synthesised) and activates an item (native button).
+         - Escape closes the menu and returns focus to the button; so does the
+           panel's own Close button (focus is re-homed when the menu closes).
+       Collapse leaves no state class, so expanded state is read from whether a
+       section's items are on screen. */
     var DBE_MENU_ID = 'dbe-builderius-menu';
     var dbeMenuWasOpen = false;
     var dbeMenuKeyBound = false;
+    var DBE_MENU_ROW_SEL = '.uniCatTitle, .uniNavigatorItems__item';
 
     function dbeMenuTrigger() { return document.querySelector('.uniPanelButton--builderiusMenu'); }
     function dbeMenuList() { return document.querySelector('.uniLeftPanel .uniNavigatorItems'); }
-    function dbeMenuItems() {
+    function dbeMenuIsHeader(el) { return !!(el && el.classList && el.classList.contains('uniCatTitle')); }
+    function dbeMenuCatExpanded(header) {
+        var cat = header.closest('.uniNavigatorItems__catWrapper');
+        var wrap = cat && cat.querySelector('.uniNavigatorItems__items');
+        return !!(wrap && wrap.offsetHeight > 0);
+    }
+    // Navigable rows in DOM order: every category header, plus the items of the
+    // expanded sections (a collapsed section's items have no offsetParent).
+    function dbeMenuRows() {
         var list = dbeMenuList();
         if (!list) { return []; }
-        return [].slice.call(list.querySelectorAll('.uniNavigatorItems__item')).filter(function (b) {
-            return b.offsetParent !== null && !b.disabled;
+        return [].slice.call(list.querySelectorAll(DBE_MENU_ROW_SEL)).filter(function (el) {
+            return el.offsetParent !== null && !el.disabled;
         });
+    }
+    function dbeMenuFocus(rows, idx) {
+        rows.forEach(function (el, k) { el.setAttribute('tabindex', k === idx ? '0' : '-1'); });
+        try { rows[idx].focus(); } catch (e) {}
     }
 
     function ensureBuilderiusMenu() {
@@ -3539,8 +3556,8 @@
         var open = trigger.classList.contains('active');
         var list = open ? dbeMenuList() : null;
 
-        // Menu-button semantics on the trigger.
-        if (trigger.getAttribute('aria-haspopup') !== 'menu') { trigger.setAttribute('aria-haspopup', 'menu'); }
+        // Disclosure semantics on the trigger.
+        if (trigger.getAttribute('aria-haspopup') !== 'tree') { trigger.setAttribute('aria-haspopup', 'tree'); }
         var exp = open ? 'true' : 'false';
         if (trigger.getAttribute('aria-expanded') !== exp) { trigger.setAttribute('aria-expanded', exp); }
         if (open && list) {
@@ -3550,54 +3567,65 @@
             trigger.removeAttribute('aria-controls');
         }
 
-        if (!open || !list) { dbeMenuWasOpen = false; return; }
+        if (!open || !list) {
+            // The menu just closed. If the close stranded focus (e.g. the panel's
+            // Close button, which leaves focus on <body>), return it to the button.
+            if (dbeMenuWasOpen) {
+                dbeMenuWasOpen = false;
+                var ae = document.activeElement;
+                if (!ae || ae === document.body) { try { trigger.focus(); } catch (e) {} }
+            }
+            return;
+        }
 
-        if (list.getAttribute('role') !== 'menu') { list.setAttribute('role', 'menu'); }
+        if (list.getAttribute('role') !== 'tree') { list.setAttribute('role', 'tree'); }
         var label = dbeT('builderiusMenu', 'Builderius menu');
         if (list.getAttribute('aria-label') !== label) { list.setAttribute('aria-label', label); }
 
-        // Categories → groups labelled by their heading; the items wrapper between
-        // the group and its items is presentational so the group owns the
-        // menuitems directly (the heading is hidden as a standalone node — it is
-        // reused as the group's label).
+        // Category headings = level-1 expandable treeitems controlling their group.
         [].slice.call(list.querySelectorAll('.uniNavigatorItems__catWrapper')).forEach(function (cat, ci) {
-            if (cat.getAttribute('role') !== 'group') { cat.setAttribute('role', 'group'); }
             var title = cat.querySelector('.uniCatTitle');
-            if (title) {
-                if (!title.id) { title.id = 'dbe-menu-cat-' + ci; }
-                if (title.getAttribute('aria-hidden') !== 'true') { title.setAttribute('aria-hidden', 'true'); }
-                if (cat.getAttribute('aria-labelledby') !== title.id) { cat.setAttribute('aria-labelledby', title.id); }
-            }
             var wrap = cat.querySelector('.uniNavigatorItems__items');
-            if (wrap && wrap.getAttribute('role') !== 'none') { wrap.setAttribute('role', 'none'); }
+            if (title) {
+                if (title.getAttribute('role') !== 'treeitem') { title.setAttribute('role', 'treeitem'); }
+                if (title.getAttribute('aria-level') !== '1') { title.setAttribute('aria-level', '1'); }
+                if (title.hasAttribute('aria-hidden')) { title.removeAttribute('aria-hidden'); }
+                var ex = dbeMenuCatExpanded(title) ? 'true' : 'false';
+                if (title.getAttribute('aria-expanded') !== ex) { title.setAttribute('aria-expanded', ex); }
+                if (wrap) {
+                    if (!wrap.id) { wrap.id = 'dbe-menu-grp-' + ci; }
+                    if (title.getAttribute('aria-controls') !== wrap.id) { title.setAttribute('aria-controls', wrap.id); }
+                }
+            }
+            if (wrap && wrap.getAttribute('role') !== 'group') { wrap.setAttribute('role', 'group'); }
+        });
+        // Items = level-2 treeitems.
+        [].slice.call(list.querySelectorAll('.uniNavigatorItems__item')).forEach(function (b) {
+            if (b.getAttribute('role') !== 'treeitem') { b.setAttribute('role', 'treeitem'); }
+            if (b.getAttribute('aria-level') !== '2') { b.setAttribute('aria-level', '2'); }
         });
 
-        var items = dbeMenuItems();
-        items.forEach(function (b) {
-            if (b.getAttribute('role') !== 'menuitem') { b.setAttribute('role', 'menuitem'); }
-        });
-        // One roving tab stop: keep the current one, else the first.
-        var current = items.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
-        var keep = current || items[0];
-        items.forEach(function (b) {
-            var t = b === keep ? '0' : '-1';
-            if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+        // One roving tab stop across every header + item (keep the current one,
+        // else the first visible row).
+        var rows = dbeMenuRows();
+        var all = [].slice.call(list.querySelectorAll(DBE_MENU_ROW_SEL));
+        var current = all.filter(function (el) { return el.getAttribute('tabindex') === '0' && el.offsetParent !== null; })[0];
+        var keep = current || rows[0];
+        all.forEach(function (el) {
+            var t = el === keep ? '0' : '-1';
+            if (el.getAttribute('tabindex') !== t) { el.setAttribute('tabindex', t); }
         });
 
-        // Move focus into the menu on the open transition (it stayed on the page
-        // before). Only once per open, and only if focus is not already inside.
+        // Move focus into the tree on the open transition (it stayed on the page
+        // before). Once per open, and only if focus is not already inside.
         if (!dbeMenuWasOpen) {
             dbeMenuWasOpen = true;
-            if (items[0] && !list.contains(document.activeElement)) {
-                items.forEach(function (b, k) { b.setAttribute('tabindex', k === 0 ? '0' : '-1'); });
-                try { items[0].focus(); } catch (e) {}
-            }
+            if (rows[0] && !list.contains(document.activeElement)) { dbeMenuFocus(rows, 0); }
         }
     }
 
     function dbeMenuKeydown(e) {
-        if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape'].indexOf(e.key) === -1) { return; }
-        var item = e.target && e.target.closest ? e.target.closest('.uniNavigatorItems__item') : null;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape', 'Enter', ' '].indexOf(e.key) === -1) { return; }
         var list = dbeMenuList();
         if (e.key === 'Escape') {
             // Close only when focus is within the open menu; otherwise let Escape
@@ -3610,20 +3638,45 @@
             dbeMenuWasOpen = false;
             return;
         }
-        if (!item || !list || !list.contains(item)) { return; }
-        var items = dbeMenuItems();
-        var i = items.indexOf(item);
+        var row = e.target && e.target.closest ? e.target.closest(DBE_MENU_ROW_SEL) : null;
+        if (!row || !list || !list.contains(row)) { return; }
+        var header = dbeMenuIsHeader(row);
+
+        // Enter/Space: toggle a header (a <div>, so synthesise the click), or let
+        // an item's native button activation run.
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (header) { e.preventDefault(); e.stopPropagation(); clickSeq(row); }
+            return;
+        }
+
+        var rows = dbeMenuRows();
+        var i = rows.indexOf(row);
         if (i === -1) { return; }
         e.preventDefault();
         e.stopPropagation();
+
+        if (e.key === 'ArrowRight') {
+            if (header && !dbeMenuCatExpanded(row)) { clickSeq(row); }          // open the section
+            else if (header && rows[i + 1] && !dbeMenuIsHeader(rows[i + 1])) { dbeMenuFocus(rows, i + 1); } // step into it
+            return;
+        }
+        if (e.key === 'ArrowLeft') {
+            if (header && dbeMenuCatExpanded(row)) { clickSeq(row); }            // collapse the section
+            else if (!header) {                                                 // step out to the header
+                var cat = row.closest('.uniNavigatorItems__catWrapper');
+                var hdr = cat && cat.querySelector('.uniCatTitle');
+                var hi = rows.indexOf(hdr);
+                if (hi !== -1) { dbeMenuFocus(rows, hi); }
+            }
+            return;
+        }
         var next = i;
-        if (e.key === 'ArrowDown') { next = (i + 1) % items.length; }
-        else if (e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+        if (e.key === 'ArrowDown') { next = (i + 1) % rows.length; }
+        else if (e.key === 'ArrowUp') { next = (i - 1 + rows.length) % rows.length; }
         else if (e.key === 'Home') { next = 0; }
-        else if (e.key === 'End') { next = items.length - 1; }
+        else if (e.key === 'End') { next = rows.length - 1; }
         if (next === i) { return; }
-        items.forEach(function (b, k) { b.setAttribute('tabindex', k === next ? '0' : '-1'); });
-        items[next].focus();
+        dbeMenuFocus(rows, next);
     }
 
     /* (sc) Accessible select comboboxes (select_combobox). Builderius's reused
