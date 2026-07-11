@@ -3510,6 +3510,59 @@
             }
         });
 
+        // Class selector (.uniSystemSelectClasses — the Styles "Add an ID or
+        // classes" field). Same fake-input pattern as the HTML-tag field, and
+        // native owns open/type/navigate/select; it only lacks ARIA. It is
+        // MULTI-select (you add several classes), so the listbox is
+        // aria-multiselectable and each already-applied item is aria-selected.
+        // Roles only — no key handler and no store writes — so it never disturbs
+        // Auto-BEM, which drives the same search input.
+        var CSCLASSES_LIST_ID = 'dbe-csclasses-list';
+        document.querySelectorAll('.uniSystemSelectClasses').forEach(function (cs) {
+            var csExp = cs.classList.contains('expanded');
+            var csFake = cs.querySelector('.uniSystemSelectClasses__fakeInput');
+            if (csFake) {
+                if (csFake.getAttribute('role') !== 'combobox') { csFake.setAttribute('role', 'combobox'); }
+                if (csFake.getAttribute('aria-haspopup') !== 'listbox') { csFake.setAttribute('aria-haspopup', 'listbox'); }
+                var ce = csExp ? 'true' : 'false';
+                if (csFake.getAttribute('aria-expanded') !== ce) { csFake.setAttribute('aria-expanded', ce); }
+                if (csExp) {
+                    if (csFake.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csFake.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                } else if (csFake.hasAttribute('aria-controls')) { csFake.removeAttribute('aria-controls'); }
+                var csTitle = dbeSSLabelEl(cs);
+                if (csTitle) {
+                    if (!csTitle.id) { csTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); }
+                    if (csFake.getAttribute('aria-labelledby') !== csTitle.id) { csFake.setAttribute('aria-labelledby', csTitle.id); }
+                } else {
+                    var ph = ((cs.querySelector('.uniSystemSelectClasses__placeholder') || {}).textContent || '').trim();
+                    var cname = ph || dbeT('addClass', 'Add an ID or classes');
+                    if (csFake.getAttribute('aria-label') !== cname) { csFake.setAttribute('aria-label', cname); }
+                }
+            }
+            if (!csExp) { return; }
+            var csItems = [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; });
+            var csList = csItems.length ? csItems[0].parentElement : null;
+            if (csList) {
+                if (csList.getAttribute('role') !== 'listbox') { csList.setAttribute('role', 'listbox'); }
+                if (csList.id !== CSCLASSES_LIST_ID) { csList.id = CSCLASSES_LIST_ID; }
+                if (csList.getAttribute('aria-multiselectable') !== 'true') { csList.setAttribute('aria-multiselectable', 'true'); }
+                if (!csList.getAttribute('aria-label')) { csList.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
+            }
+            csItems.forEach(function (it) {
+                if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
+                var on = it.classList.contains('assigned') ? 'true' : 'false';
+                if (it.getAttribute('aria-selected') !== on) { it.setAttribute('aria-selected', on); }
+            });
+            var csSearch = cs.querySelector('.uniSystemSelectClasses__search');
+            if (csSearch) {
+                if (csSearch.getAttribute('role') !== 'combobox') { csSearch.setAttribute('role', 'combobox'); }
+                if (csSearch.getAttribute('aria-expanded') !== 'true') { csSearch.setAttribute('aria-expanded', 'true'); }
+                if (csList && csSearch.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csSearch.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csSearch.getAttribute('aria-autocomplete') !== 'list') { csSearch.setAttribute('aria-autocomplete', 'list'); }
+                if (!csSearch.getAttribute('aria-label')) { csSearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
+            }
+        });
+
         var dd = dbeSSOpenDropdown();
         if (!dd) { return; }
         var search = dd.querySelector('.uniSystemSelect__search input') || dd.querySelector('input');
