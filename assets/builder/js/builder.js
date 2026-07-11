@@ -2652,11 +2652,17 @@
             else { picker.parentNode.appendChild(bar); }
         }
         var entLabel = entityScopeLabel();
-        bar.querySelector('.dbe-scope-badge').textContent =
-            level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
+        // Only write when the text actually changes: this runs every schedule()
+        // tick, and rewriting textContent replaces the text node even when the
+        // value is identical — a childList mutation the left-panel observer would
+        // catch, re-scheduling us into a self-sustaining loop (the label visibly
+        // flickered in the DOM).
+        var badgeText = level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
+        var badge = bar.querySelector('.dbe-scope-badge');
+        if (badge.textContent !== badgeText) { badge.textContent = badgeText; }
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             var sc = b.getAttribute('data-scope');
-            if (sc === 'template') { b.textContent = entLabel; } // keep the label in sync after an entity switch
+            if (sc === 'template' && b.textContent !== entLabel) { b.textContent = entLabel; } // keep in sync after an entity switch
             b.classList.toggle('is-active', sc === dbeScope);
         });
     }
