@@ -3838,12 +3838,24 @@
         document.addEventListener('keydown', function (e) {
             var search = e.target;
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Escape') { return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Tab') { return; }
             var dd = dbeSSOpenDropdown();
             if (!dd) { return; }
             var items = dbeSSItems(dd);
             if (!items.length) { return; }
             var idx = dbeSSActiveIndex(items, search.getAttribute('aria-activedescendant'));
+            if (e.key === 'Tab') {
+                // Focus is leaving the open popup. Opening the picker moves real
+                // focus into this in-popup search, so Tab/Shift+Tab walks focus out
+                // of it — but native never closes the popup, leaving it open behind
+                // the trigger (confusing for keyboard users). Close it by re-selecting
+                // the current option (value unchanged) and let the browser move focus
+                // naturally: Shift+Tab lands back on the trigger, Tab moves on to the
+                // next control. No preventDefault — the focus move must proceed.
+                var curTab = items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0];
+                if (curTab) { curTab.click(); }
+                return;
+            }
             if (e.key === 'Escape') {
                 // Close without changing the value (re-select the current option),
                 // and return focus to the trigger. Native has no Escape-to-close;
@@ -3923,6 +3935,33 @@
             else if (e.key === 'Enter' || e.key === ' ') { take(); closeVia(idx >= 0 ? items[idx] : current()); trigger.focus(); }
             else if (e.key === 'Escape') { take(); closeVia(current()); trigger.focus(); }   // keep value; don't also close the dialog
             else if (e.key === 'Tab') { closeVia(current()); }                               // close, let focus move on
+        }, true);
+
+        // The native fake-input selects — the element HTML-tag field
+        // (.uniSystemSelectModuleTags) and the Styles "Add an ID or classes" field
+        // (.uniSystemSelectClasses) — move real focus into an in-popup search on
+        // open, but never close when focus tabs back out, so the dropdown lingers
+        // open behind the field (the confusion reported for both). Close it on
+        // focusout: once focus has settled on a real element OUTSIDE the widget,
+        // dispatch the widget's own close.
+        //
+        // Two details matter. (1) The native close is an Escape handler that checks
+        // keyCode === 27, so the synthetic event must carry keyCode/which — a plain
+        // {key:'Escape'} is silently ignored. (2) Closing while focus is still
+        // inside the widget drops focus to <body>, from where the CSS editor's
+        // Monaco grabs it; closing only AFTER focus has moved elsewhere leaves it
+        // where the user tabbed. So we act only when relatedTarget is a real
+        // element outside the widget (a null relatedTarget is an outside click,
+        // which the widget already closes itself). Neither close commits (verified)
+        // — the class field is multi-select, so re-committing would be especially
+        // wrong.
+        document.addEventListener('focusout', function (e) {
+            var w = e.target && e.target.closest && e.target.closest('.uniSystemSelectModuleTags, .uniSystemSelectClasses');
+            if (!w || !w.classList.contains('expanded')) { return; }
+            var to = e.relatedTarget;
+            if (!to || w.contains(to)) { return; }
+            var esc = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+            (w.querySelector('input[class*="__search"]') || w).dispatchEvent(esc);
         }, true);
     }
 
