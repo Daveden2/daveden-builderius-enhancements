@@ -109,7 +109,7 @@ function dbe_features() {
 		),
 		'footer_toolbar'      => array(
 			'title'       => __( 'Bottom-bar keyboard toolbar', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -177,6 +177,13 @@ function dbe_features() {
 			'description' => __( 'When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array(),
+			'js'          => true,
+		),
+		'navigator_keyboard'  => array(
+			'title'       => __( 'Navigator keyboard tree', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'navigator',
+			'css'         => array( '79-navigator-keyboard.css' ),
 			'js'          => true,
 		),
 		'panel_detach'        => array(
@@ -260,6 +267,13 @@ function dbe_features() {
 			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '78-inserter-keyboard.css' ),
+			'js'          => true,
+		),
+		'builderius_menu'     => array(
+			'title'       => __( 'Accessible Builderius menu', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '80-builderius-menu.css' ),
 			'js'          => true,
 		),
 

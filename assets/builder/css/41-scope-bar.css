@@ -48,6 +48,12 @@
     color: var(--dbe-text) !important;
     font-weight: 600 !important;
 }
+/* Inset focus ring: the switch clips its rounded corners with overflow:hidden,
+   which would also clip an outset outline, so draw it inside the button. */
+.dbe-scope-switch button:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+}
 
 /* Scope-switch mask: an opaque, panel-coloured cover placed over each side panel
    while the multi-step switch churns, then faded out to reveal the settled result.
