@@ -4991,9 +4991,17 @@
         attrRows(list).forEach(function (row) {
             var nameInput = attrNameInput(row);
             // React may drop an unmanaged attribute on re-render — re-apply each tick.
-            if (nameInput && nameInput.getAttribute('list') !== 'dbe-attr-names') {
-                nameInput.setAttribute('list', 'dbe-attr-names');
+            if (nameInput) {
+                if (nameInput.getAttribute('list') !== 'dbe-attr-names') { nameInput.setAttribute('list', 'dbe-attr-names'); }
+                // The inputs carry only a "name"/"value" placeholder, which is not
+                // an accessible name — give each a real label for screen readers.
+                if (!nameInput.getAttribute('aria-label')) { nameInput.setAttribute('aria-label', dbeT('attrNameLabel', 'Attribute name')); }
             }
+            [].slice.call(row.querySelectorAll('input')).forEach(function (inp) {
+                if (inp !== nameInput && !inp.getAttribute('aria-label')) {
+                    inp.setAttribute('aria-label', dbeT('attrValueLabel', 'Attribute value'));
+                }
+            });
         });
     }
 
