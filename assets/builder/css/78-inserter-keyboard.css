@@ -1,0 +1,12 @@
+/* Inserter keyboard navigation (inserter_keyboard).
+
+   Each category's element grid is wired as one Tab stop with roving tabindex and
+   grid-aware arrow keys in builder.js; the roles/tabindex are applied there. All
+   this file adds is a clear focus ring on the element buttons, so the roving
+   focus is always visible (WCAG 2.4.7) whether or not the Focus visibility
+   feature is on. Scoped to the Inserter items only. */
+.uniModItems__item:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 2px !important;
+    border-radius: var(--dbe-r-sm);
+}

@@ -9,14 +9,20 @@
     position: fixed !important;
     z-index: 2147483000 !important;
     max-width: 260px !important;
-    padding: 5px 9px !important;
-    background: var(--dbe-l0) !important;
-    color: var(--dbe-text-2) !important;      /* 9.5:1 on --dbe-l0 — AA */
-    /* Attention hairline (same hue as the scope bar's "global" badge) so the
-       chip pops from the dark panels — the grey --dbe-line one melted into them. */
+    padding: 6px 10px !important;
+    /* Raised surface (l2), deliberately NOT l0: the top toolbar and footer bar
+       are themselves l0, so an l0 chip melted into whichever bar it sat beside.
+       l2 lifts the chip clear of both bars, and — with the chip now dropping
+       BELOW top-bar controls onto the canvas (see placeTip) — the layered shadow
+       plus the gold hairline keep it legible over an arbitrary canvas background
+       such as a property photo. */
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;        /* primary text — ~11:1 on --dbe-l2 */
+    /* Attention hairline (same hue as the scope bar's "global" badge) — a brand
+       gold edge that separates the chip from any surface behind it. */
     border: 1px solid var(--dbe-warn-line) !important;
     border-radius: var(--dbe-r-sm) !important;
-    box-shadow: 0 4px 14px var(--dbe-shadow) !important;
+    box-shadow: 0 6px 20px var(--dbe-shadow), 0 2px 6px var(--dbe-shadow) !important;
     font: 500 12px/1.35 var(--dbe-ui-font) !important;
     pointer-events: none !important;
     opacity: 0;

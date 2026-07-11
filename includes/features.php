@@ -248,6 +248,13 @@ function dbe_features() {
 			'css'         => array( '34-attr-helpers.css' ),
 			'js'          => true,
 		),
+		'inserter_keyboard'   => array(
+			'title'       => __( 'Inserter keyboard navigation', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '78-inserter-keyboard.css' ),
+			'js'          => true,
+		),
 
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(

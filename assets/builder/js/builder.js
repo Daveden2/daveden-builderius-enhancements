@@ -2003,19 +2003,49 @@
         icons.insertBefore(btn, icons.querySelector('.dbe-collapse-subtrees') || icons.firstChild);
     }
 
-    /* (h) Tooltips + accessible names for icon-only chrome buttons. Builderius
-       wraps a few controls (favourites bar, footer overlay toggle) in a
-       react-tooltip .tooltipItem; everything else — Navigator header icons, the
-       settings-header conditions/CSS-mode icons, the top-bar breakpoint and
-       reload buttons, the tree-footer delete — has neither a tooltip nor an
-       accessible name. setTip() gives each an aria-label (4.1.2) and a
-       data-dbe-tip driving the shared .dbe-tooltip chip; any title attribute is
-       dropped so native and custom tooltips never double up. */
+    /* (h) Tooltips + accessible names for icon-only chrome buttons. setTip()
+       gives each control — Navigator header icons, the settings-header
+       conditions/CSS-mode icons, the top-bar breakpoint and reload buttons, the
+       tree-footer delete — an aria-label (4.1.2) and a data-dbe-tip driving the
+       shared .dbe-tooltip chip. Controls that ship their own native tooltip
+       (the favourites bar and footer bar) are brought into the same chip by
+       adoptNativeTips(), so the whole chrome speaks through one tooltip.
+
+       Any native tooltip on a control we label is a duplicate, so setTip strips
+       it: the title attribute, and — Builderius labels many icons with a
+       react-tooltip anchor (.tooltipItem[data-tooltip-content], one shared
+       floating chip keyed off the hovered anchor's content) — the
+       data-tooltip-content, both on el itself (footer items carry it directly)
+       and on any inner wrapper (the breakpoint/reload icons wrap it a level
+       down). Dropping the content leaves the native chip nothing to show, so
+       only our .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it
+       self-heals after a React re-render re-adds the attribute. */
     function setTip(el, label) {
         if (!el) { return; }
         if (el.getAttribute('data-dbe-tip') !== label) { el.setAttribute('data-dbe-tip', label); }
         if (!el.getAttribute('aria-label')) { el.setAttribute('aria-label', label); }
         if (el.hasAttribute('title')) { el.removeAttribute('title'); }
+        if (el.hasAttribute('data-tooltip-content')) { el.removeAttribute('data-tooltip-content'); }
+        el.querySelectorAll('[data-tooltip-content]').forEach(function (a) {
+            a.removeAttribute('data-tooltip-content');
+        });
+    }
+
+    /* Adopt Builderius' own tooltips on the favourites bar and the footer bar
+       into our chip. Those controls carry a native react-tooltip
+       (.tooltipItem[data-tooltip-content]) and no chip of ours; rather than
+       leave a second, differently-styled system, take their text over so the
+       whole chrome speaks through one .dbe-tooltip. Reusing Builderius' copy
+       keeps the labels correct with nothing to maintain (incl. the footer's
+       "Soon: …" strings). setTip() then drops the native content, so only our
+       chip shows. Re-runs each pass, self-healing on re-render. */
+    function adoptNativeTips() {
+        document.querySelectorAll(
+            '.uniModTree__favouritesList [data-tooltip-content], .uniFooterPanelBar [data-tooltip-content]'
+        ).forEach(function (a) {
+            var label = (a.getAttribute('data-tooltip-content') || '').trim();
+            if (label) { setTip(a, label); }
+        });
     }
 
     var DBE_TIPS = [
@@ -2054,6 +2084,7 @@
         DBE_TIPS.forEach(function (pair) {
             document.querySelectorAll(pair[0]).forEach(function (el) { setTip(el, pair[1]); });
         });
+        adoptNativeTips();
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
         // base first, then large-to-small), falling back to the static list.
@@ -2106,27 +2137,30 @@
 
     /* Shared tooltip chip. Shown after a short hover delay (instantly on
        keyboard focus), hidden on leave/blur/Escape/pointerdown/scroll.
-       Placement prefers ABOVE the trigger (never sits under the pointer),
-       then the side with the most room, and only then below — so the top-bar
-       icons get a side chip and everything else gets an above chip. Anchored
-       to the element, not the cursor, so keyboard focus behaves identically. */
+       Placement prefers ABOVE the trigger (never sits under the pointer), then
+       BELOW, and only then beside. Top-bar controls (breakpoints, save, the
+       canvas-size fields) sit flush to the top edge, so they fall to BELOW —
+       matching the native tooltip and dropping the chip into the open canvas,
+       clear of the busy toolbar row rather than overlapping a neighbour beside
+       it. Anchored to the element, not the cursor, so keyboard focus behaves
+       identically. */
     var tipEl = null, tipTimer = null, tipTarget = null;
     function placeTip(r, w, h) {
         var M = 4, G = 8;
         var clampX = function (x) { return Math.min(Math.max(M, x), window.innerWidth - w - M); };
         var clampY = function (y) { return Math.min(Math.max(M, y), window.innerHeight - h - M); };
-        // 1. Above, centred.
+        // 1. Above, centred — anything with headroom.
         if (r.top - h - G >= M) {
             return [clampX(r.left + r.width / 2 - w / 2), r.top - h - G];
         }
-        // 2. Beside, vertically centred — whichever side has more room.
-        var spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
-        if (spaceRight >= w + G + M || spaceLeft >= w + G + M) {
-            var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
-            return [x, clampY(r.top + r.height / 2 - h / 2)];
+        // 2. Below, centred — top-edge controls land here (over the canvas).
+        if (r.bottom + h + G <= window.innerHeight - M) {
+            return [clampX(r.left + r.width / 2 - w / 2), r.bottom + G];
         }
-        // 3. Below, centred (last resort).
-        return [clampX(r.left + r.width / 2 - w / 2), clampY(r.bottom + G)];
+        // 3. Beside, vertically centred — last resort (no room above or below).
+        var spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
+        var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
+        return [clampX(x), clampY(r.top + r.height / 2 - h / 2)];
     }
     function showTip(target, instant) {
         var label = target.getAttribute('data-dbe-tip');
@@ -3150,6 +3184,66 @@
                     }
                 });
             }
+        });
+    }
+
+    /* Inserter keyboard navigation (inserter_keyboard). The element Inserter
+       (left panel) lists ~60 add-element buttons across categories. They are
+       native <button>s, so every one is a tab stop — reaching a lower category
+       means tabbing past everything above it. Wire each category's grid as a
+       single tab stop with roving tabindex and grid-aware arrow keys, mirroring
+       the WordPress block inserter: Tab moves category-to-category, arrows move
+       within a category (Left/Right along a row, Up/Down between rows), Home/End
+       jump to the first/last, and Enter/Space still inserts (native button). The
+       category grid gets role="group" + the category name — the honest semantics
+       for a set of action buttons, without overstating them as a selectable
+       listbox. Re-runs each schedule() tick (roving stays synced through the
+       search filter's re-renders); the keydown handler binds once per grid. */
+    function dbeInserterCols(items) {
+        // Column count = how many leading items share the first item's row (same
+        // top). Read from layout each keypress so it survives a panel resize.
+        if (!items.length) { return 1; }
+        var top0 = items[0].getBoundingClientRect().top;
+        var cols = 0;
+        for (var k = 0; k < items.length; k++) {
+            if (Math.abs(items[k].getBoundingClientRect().top - top0) <= 1) { cols++; } else { break; }
+        }
+        return cols || 1;
+    }
+
+    function ensureInserterKeyboard() {
+        var sel = '.uniModItems__item';
+        document.querySelectorAll('.uniModItems__catWrapper').forEach(function (cw) {
+            var container = cw.querySelector('.uniModItems__items');
+            if (!container) { return; }
+            var titleEl = cw.querySelector('.uniCatTitle');
+            var label = titleEl ? (titleEl.textContent || '').trim() : '';
+            if (container.getAttribute('role') !== 'group') { container.setAttribute('role', 'group'); }
+            if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+            dbeSyncRoving(container, sel);
+            if (container.dbeInserterBound) { return; }
+            container.dbeInserterBound = true;
+            container.addEventListener('keydown', function (e) {
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                var items = dbeRovingItems(container, sel);
+                if (!items.length) { return; }
+                var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
+                var i = items.indexOf(focused);
+                if (i === -1) { return; }
+                var cols = dbeInserterCols(items);
+                var next = i;
+                if (e.key === 'ArrowRight') { next = Math.min(i + 1, items.length - 1); }
+                else if (e.key === 'ArrowLeft') { next = Math.max(i - 1, 0); }
+                else if (e.key === 'ArrowDown') { next = (i + cols < items.length) ? i + cols : i; }
+                else if (e.key === 'ArrowUp') { next = (i - cols >= 0) ? i - cols : i; }
+                else if (e.key === 'Home') { next = 0; }
+                else if (e.key === 'End') { next = items.length - 1; }
+                e.preventDefault();
+                e.stopPropagation();
+                if (next === i) { return; }
+                items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
+                items[next].focus();
+            });
         });
     }
 
@@ -4324,7 +4418,17 @@
         btn.setAttribute('aria-pressed', floating ? 'true' : 'false');
         var label = floating ? dbeT('dockPanel', 'Dock panel') : dbeT('detachPanel', 'Detach panel');
         btn.setAttribute('aria-label', label);
-        btn.title = label;
+        // Prefer our branded chip. The label is dynamic (Detach ↔ Dock), so this
+        // button can't ride the static DBE_TIPS list like the other header icons
+        // — set data-dbe-tip here and drop the native title so the two never
+        // double up. With the tooltips feature off, fall back to the title.
+        if (on('tooltips')) {
+            btn.setAttribute('data-dbe-tip', label);
+            btn.removeAttribute('title');
+        } else {
+            btn.title = label;
+            btn.removeAttribute('data-dbe-tip');
+        }
     }
 
     function ensureDetachButton() {
@@ -5401,6 +5505,7 @@
             }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
+            if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
@@ -5449,7 +5554,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -5463,6 +5568,16 @@
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
+            }
+        }
+        // Footer bar sits outside uniMainPanel/uniTopPanel, so it needs its own
+        // watch for adoptNativeTips() to re-take the footer tooltips if the bar
+        // re-renders. childList only (no attributes) so our own data-dbe-tip /
+        // aria-label edits don't retrigger it.
+        if (on('tooltips')) {
+            var footer = document.querySelector('.uniFooterPanel');
+            if (footer) {
+                new MutationObserver(schedule).observe(footer, { childList: true, subtree: true });
             }
         }
         if (on('tooltips')) { bindTooltips(); }
