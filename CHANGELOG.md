@@ -49,6 +49,12 @@ the CSS code editor, and a new "All CSS" jump in the scope bar.
   fill; the editor's light theme then inverts its pixels, turning that fill
   near-black. Monaco's own inputs are now left to Monaco's chrome, so the field
   inverts in step with the rest of the widget (and stays correct in dark mode).
+* Fixed: the canvas preview took the builder's colour scheme. `color-scheme` is
+  set per theme (in 00-tokens.css) for native controls, but it inherits — so it
+  reached the preview `<iframe>` element, and a page with a transparent
+  background then painted on the dark UA backdrop in the dark theme, unlike the
+  front end. Reset to `color-scheme: normal` on `.uniIframePanel iframe` so the
+  previewed page renders in its own scheme, matching the published site.
 
 ## 1.10.1
 A packaging fix. Three commits landed on `main` immediately after the `v1.10.0`

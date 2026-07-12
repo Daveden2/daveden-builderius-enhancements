@@ -47,6 +47,9 @@ new "All CSS" jump in the scope bar.
   narrow Styles panel; it now uses the panel's full width, and grows when widened.
 * Fixed: the find widget's search field showed as a dark box in the light theme;
   it now matches the rest of the editor.
+* Fixed: the canvas preview took on the builder's colour scheme (e.g. a dark
+  background in the dark theme); it now renders in the page's own scheme, matching
+  the front end.
 
 = 1.10.1 =
 Ships the finishing work that was completed just after 1.10.0 was tagged and so
