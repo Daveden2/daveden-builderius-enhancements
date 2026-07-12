@@ -271,6 +271,9 @@ function dbe_builder_strings() {
 		// Save shortcut.
 		'scSave'                  => __( 'Save the template', 'daveden-builderius-enhancements' ),
 
+		// Save split-button menu.
+		'scSaveMenu'              => __( 'Open the Save options menu (on the Save button)', 'daveden-builderius-enhancements' ),
+
 		// Class-chip menu.
 		/* translators: %s: CSS class name */
 		'chipMenuFor'             => __( 'Actions for %s', 'daveden-builderius-enhancements' ),

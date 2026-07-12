@@ -4833,6 +4833,9 @@
             // "Unsaved" forever after the first save.
             document.addEventListener('click', function (e) {
                 if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
+                // The caret strip inside the button opens the Save menu without
+                // saving — opening it must not rebaseline the Unsaved cue.
+                if (e.target.closest('.saveBtn .actions')) { return; }
                 // Give the save request a beat, then treat the current state as
                 // clean. Optimistic: a save that fails re-flags only on the next
                 // history-growing edit — the native beforeunload warning remains
@@ -4882,6 +4885,136 @@
         }, true);
     }
 
+    /* (k3) Save split-button menu (topbar_toolbar). The Save button is a
+       native combo — <button.saveBtn.comboBtn><span>Save</span> plus a
+       <div class="actions"> caret strip — and clicking .actions opens a small
+       native menu dialog (Save to Development / Publish to Live). A div
+       inside a button is unreachable by keyboard, so this wires the APG
+       button-with-menu shape: ArrowDown on the focused Save button opens the
+       menu with focus on its first enabled item (Enter/Space keep saving
+       natively); inside, arrows move with wrap, Home/End jump, Enter/Space
+       activate, and Escape stays native — the dialog's own cancel closes it
+       and restores focus by itself. The dialog already ships role=menu and
+       role=menuitem; what it lacks is focusability, state and a name. */
+    var dbeSaveMenuEl = null;
+
+    function dbeSaveBtn() { return document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn'); }
+
+    function dbeSaveMenuOpenEl() {
+        return (dbeSaveMenuEl && dbeSaveMenuEl.isConnected && dbeSaveMenuEl.offsetParent !== null) ? dbeSaveMenuEl : null;
+    }
+
+    function dbeSaveMenuItems(menu) {
+        return [].slice.call(menu.querySelectorAll('li.uniContextMenu__item'));
+    }
+
+    function dbeStampSaveMenu(menu) {
+        dbeSaveMenuEl = menu;
+        if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('tipSaveOptions', 'Save options')); }
+        dbeSaveMenuItems(menu).forEach(function (li) {
+            if (li.getAttribute('role') !== 'menuitem') { li.setAttribute('role', 'menuitem'); }
+            if (!li.hasAttribute('tabindex')) { li.setAttribute('tabindex', '-1'); }
+            // Disabled items stay focusable (aria-disabled) so a keyboard user
+            // can discover them and hear why — same convention as the footer
+            // toolbar's locked tools.
+            if (li.classList.contains('disabled')) {
+                if (li.getAttribute('aria-disabled') !== 'true') { li.setAttribute('aria-disabled', 'true'); }
+            } else if (li.hasAttribute('aria-disabled')) {
+                li.removeAttribute('aria-disabled');
+            }
+        });
+        var dlg = menu.closest('dialog');
+        if (dlg) { dlg.addEventListener('close', function () { dbeSaveMenuEl = null; ensureSaveMenuButton(); }, { once: true }); }
+        ensureSaveMenuButton(); // aria-expanded reflects the open menu at once
+    }
+
+    /* The menu mounts as a fresh <dialog> per open with a per-button
+       data-menu-id — nothing stable to select on. Both open paths (mouse and
+       the ArrowDown below) run through an .actions click, so catch it there:
+       the first visible dialog menu right after that click is this menu. */
+    function dbeWatchSaveMenuOpen(focusFirst) {
+        waitFor(function () {
+            var menus = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu'));
+            return menus.filter(function (m) { return m.offsetParent !== null; })[0] || null;
+        }, function (menu) {
+            if (!menu) { return; }
+            dbeStampSaveMenu(menu);
+            if (focusFirst) {
+                var items = dbeSaveMenuItems(menu);
+                var first = items.filter(function (li) { return !li.classList.contains('disabled'); })[0] || items[0];
+                if (first) { first.focus(); }
+            }
+        }, 40);
+    }
+
+    function bindSaveMenuKeys() {
+        // Mouse open: stamp focusability/state as the menu appears.
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('.uniTopPanel .saveBtn .actions')) {
+                dbeWatchSaveMenuOpen(false);
+            }
+        }, true);
+
+        document.addEventListener('keydown', function (e) {
+            var menu = dbeSaveMenuOpenEl();
+            if (menu) {
+                var items = dbeSaveMenuItems(menu);
+                if (!items.length) { return; }
+                var idx = items.indexOf(document.activeElement);
+                var next = -1;
+                if (e.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % items.length; }
+                else if (e.key === 'ArrowUp') { next = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length; }
+                else if (e.key === 'Home') { next = 0; }
+                else if (e.key === 'End') { next = items.length - 1; }
+                else if ((e.key === 'Enter' || e.key === ' ') && idx > -1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (items[idx].getAttribute('aria-disabled') !== 'true') { items[idx].click(); }
+                    return;
+                } else {
+                    return; // Escape and everything else stay native
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                items[next].focus();
+                return;
+            }
+            // ArrowDown on the focused Save button opens the menu.
+            if (e.key !== 'ArrowDown' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; }
+            var save = dbeSaveBtn();
+            if (!save || document.activeElement !== save) { return; }
+            var actions = save.querySelector('.actions');
+            if (!actions) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            actions.click();
+            dbeWatchSaveMenuOpen(true);
+        }, true);
+    }
+
+    /* Per-tick state on the Save button itself: haspopup + expanded, the
+       caret strip hidden from the accessibility tree (it is reachable only
+       through the button), and the open gesture documented. */
+    function ensureSaveMenuButton() {
+        var save = dbeSaveBtn();
+        if (!save) { return; }
+        var actions = save.querySelector('.actions');
+        if (!actions) {
+            // No caret strip mounted (no publish flow) — clear stale state.
+            if (save.hasAttribute('aria-haspopup')) {
+                save.removeAttribute('aria-haspopup');
+                save.removeAttribute('aria-expanded');
+                save.removeAttribute('aria-keyshortcuts');
+            }
+            return;
+        }
+        if (actions.getAttribute('aria-hidden') !== 'true') { actions.setAttribute('aria-hidden', 'true'); }
+        if (save.getAttribute('aria-haspopup') !== 'menu') { save.setAttribute('aria-haspopup', 'menu'); }
+        if (save.getAttribute('aria-keyshortcuts') !== 'ArrowDown') { save.setAttribute('aria-keyshortcuts', 'ArrowDown'); }
+        var exp = dbeSaveMenuOpenEl() ? 'true' : 'false';
+        if (save.getAttribute('aria-expanded') !== exp) { save.setAttribute('aria-expanded', exp); }
+    }
+
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
@@ -4891,6 +5024,8 @@
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ].concat(on('save_shortcut') ? [
             ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
+        ] : []).concat(on('topbar_toolbar') ? [
+            ['↓', dbeT('scSaveMenu', 'Open the Save options menu (on the Save button)')]
         ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
@@ -7413,7 +7548,10 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
+            if (on('topbar_toolbar')) {
+                try { ensureTopbarToolbars(); } catch (e) {}
+                try { ensureSaveMenuButton(); } catch (e) {}
+            }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
@@ -7566,6 +7704,9 @@
 
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }
+
+        // Save split-button menu: ArrowDown opens, arrows/Enter drive it.
+        if (on('topbar_toolbar')) { bindSaveMenuKeys(); }
 
         // Keyboard shortcuts overlay (?).
         if (on('shortcuts_overlay')) { bindShortcutsKey(); }
