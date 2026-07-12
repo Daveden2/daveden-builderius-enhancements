@@ -4734,7 +4734,10 @@
     }
     var dbeSaveClickBound = false;
     function ensureSaveCue() {
-        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary');
+        // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal mounts
+        // its own (disabled) primary Save earlier in document order, and the bare
+        // class would anchor the cue to — and rebaseline on — that dead button.
+        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
         if (!save) { return; }
         if (!dbeSaveClickBound) {
             dbeSaveClickBound = true;
@@ -4743,7 +4746,7 @@
             // again — the baseline would stop resetting and the cue would read
             // "Unsaved" forever after the first save.
             document.addEventListener('click', function (e) {
-                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary'))) { return; }
+                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
                 // Give the save request a beat, then treat the current state as
                 // clean. Optimistic: a save that fails re-flags only on the next
                 // history-growing edit — the native beforeunload warning remains
@@ -4782,8 +4785,11 @@
             if (e.repeat || (e.key || '').toLowerCase() !== 's') { return; }
             var mod = dbeIsMac ? (e.metaKey && !e.ctrlKey) : e.ctrlKey;
             if (!mod || e.shiftKey || e.altKey) { return; }
-            var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary');
-            if (!save) { return; } // nothing to drive — leave the browser default alone
+            // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal
+            // mounts its own (disabled) primary Save earlier in document order,
+            // and querySelector on the bare class lands on that dead button.
+            var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
+            if (!save || save.disabled) { return; } // nothing to drive — leave the browser default alone
             e.preventDefault();
             e.stopPropagation();
             clickSeq(save);
