@@ -3,9 +3,9 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
-## 1.10.2
-Light-theme polish across the Navigator and Styles panel, find-widget fixes in
-the CSS code editor, and a new "All CSS" jump in the scope bar.
+## 1.11.0
+A new "All CSS" jump in the CSS scope bar, plus light-theme polish across the
+Navigator and Styles panel and find-widget fixes in the CSS code editor.
 
 * New (scope_bar): an "All CSS" button beside the Global/Template switch opens the
   full stylesheet for the active scope — the same view as the Navigator's
