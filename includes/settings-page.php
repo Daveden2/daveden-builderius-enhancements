@@ -100,9 +100,15 @@ function dbe_render_toggle( $id, $feature ) {
 	$field_id     = 'dbe-f-' . $id;
 	$desc_id      = $field_id . '-desc';
 	$note_id      = $field_id . '-pronote';
+	$more_id      = $field_id . '-more';
 	$requires_pro = ! empty( $feature['requires_pro'] );
 	$experimental = ! empty( $feature['experimental'] );
 	$pro_locked   = $requires_pro && ! dbe_builderius_pro_active();
+	$summary      = isset( $feature['summary'] ) ? $feature['summary'] : '';
+	// One concise line under the title; the full description sits behind the
+	// info disclosure (visible without JavaScript — settings.js collapses it
+	// and reveals the button, the same progressive enhancement as the tabs).
+	$has_more = '' !== $summary && ! empty( $feature['description'] );
 	// The locked note is part of the field's accessible description.
 	$describedby = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
 	?>
@@ -116,8 +122,27 @@ function dbe_render_toggle( $id, $feature ) {
 				<?php if ( $experimental ) : ?>
 					<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
 				<?php endif; ?>
+				<?php if ( $has_more ) : ?>
+					<button type="button" class="dbe-info-btn" aria-expanded="true" aria-controls="<?php echo esc_attr( $more_id ); ?>" hidden>
+						<span aria-hidden="true">i</span>
+						<span class="screen-reader-text">
+							<?php
+							printf(
+								/* translators: %s: feature title. */
+								esc_html__( 'More about %s', 'daveden-builderius-enhancements' ),
+								esc_html( $feature['title'] )
+							);
+							?>
+						</span>
+					</button>
+				<?php endif; ?>
 			</span>
-			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( $feature['description'] ); ?></p>
+			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( '' !== $summary ? $summary : $feature['description'] ); ?></p>
+			<?php if ( $has_more ) : ?>
+				<div class="dbe-field__more" id="<?php echo esc_attr( $more_id ); ?>">
+					<p><?php echo esc_html( $feature['description'] ); ?></p>
+				</div>
+			<?php endif; ?>
 			<?php if ( $pro_locked ) : ?>
 				<p class="dbe-field__pro-note" id="<?php echo esc_attr( $note_id ); ?>">
 					<?php esc_html_e( 'Builderius Pro isn’t active, so this feature stays off. Activate Builderius Pro to use it.', 'daveden-builderius-enhancements' ); ?>
