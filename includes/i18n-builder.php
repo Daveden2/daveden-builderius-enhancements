@@ -351,5 +351,34 @@ function dbe_builder_strings() {
 		'scGotoSettings'          => __( 'Settings panel', 'daveden-builderius-enhancements' ),
 		'scGotoCanvas'            => __( 'Canvas / preview', 'daveden-builderius-enhancements' ),
 		'scGotoInserter'          => __( 'Insert elements', 'daveden-builderius-enhancements' ),
+
+		// Command palette.
+		'commandPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
+		'searchCommands'          => __( 'Search commands…', 'daveden-builderius-enhancements' ),
+		'paletteNoEl'             => __( 'No element selected — element commands are hidden', 'daveden-builderius-enhancements' ),
+		'paletteAddClass'         => __( 'Add class…', 'daveden-builderius-enhancements' ),
+		'paletteAddAttr'          => __( 'Add attribute…', 'daveden-builderius-enhancements' ),
+		'paletteAddEmmet'         => __( 'Add element (Emmet)…', 'daveden-builderius-enhancements' ),
+		'paletteRename'           => __( 'Rename…', 'daveden-builderius-enhancements' ),
+		'paletteDuplicate'        => __( 'Duplicate', 'daveden-builderius-enhancements' ),
+		'paletteCut'              => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'paletteDelete'           => __( 'Delete', 'daveden-builderius-enhancements' ),
+		'goToNavigator'           => __( 'Go to Navigator', 'daveden-builderius-enhancements' ),
+		'goToSettings'            => __( 'Go to settings', 'daveden-builderius-enhancements' ),
+		'goToCanvas'              => __( 'Go to canvas', 'daveden-builderius-enhancements' ),
+		'openInserterCmd'         => __( 'Open Inserter', 'daveden-builderius-enhancements' ),
+		'deletedElement'          => __( 'Deleted element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: attribute name. */
+		'addedAttribute'          => __( 'Added attribute %s', 'daveden-builderius-enhancements' ),
+		'attrNoPanel'             => __( 'Open the element settings to add an attribute', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the text that could not be parsed. */
+		'emmetInvalid'            => __( 'Could not parse: %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements added. */
+		'emmetAddedOne'           => __( 'Added %s element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements added. */
+		'emmetAddedMany'          => __( 'Added %s elements', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — command palette.
+		'scGroupPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
+		'scOpenPalette'           => __( 'Open the command palette (add class / attribute / element)', 'daveden-builderius-enhancements' ),
 	);
 }

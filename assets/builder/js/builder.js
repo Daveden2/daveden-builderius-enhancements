@@ -282,11 +282,97 @@
     function dbeElementModule(tag, opts) {
         opts = opts || {};
         var settings = [{ name: 'tag', value: tag }];
-        if (opts.classes && opts.classes.length) {
-            settings.push({ name: 'tagClass', value: opts.classes.slice() });
-        }
+        // Verified live: addModule renders text from a `content` setting, classes
+        // from `tagClass`, and the id/attributes from an `htmlAttribute` list — so a
+        // fully-formed element (Emmet included) inserts in one call, no native
+        // class/attr driving.
+        if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: opts.text }); }
+        if (opts.classes && opts.classes.length) { settings.push({ name: 'tagClass', value: opts.classes.slice() }); }
+        if (opts.id) { settings.push({ name: 'htmlAttribute', value: [{ name: 'id', value: opts.id }] }); }
         var label = tag.charAt(0).toUpperCase() + tag.slice(1);
         return { id: dbeMakeId(), name: 'HtmlElement', label: label, settings: settings };
+    }
+
+    /* Minimal Emmet parser (command_palette): tag, .class, #id, > child, + sibling,
+       * multiply, {text}. No grouping (), climb-up ^, numbering $ or [attr].
+       Returns an array of root nodes {tag,id,classes,text,count,children}; throws
+       (a plain value) on a parse error. */
+    function dbeEmmetParse(str) {
+        var s = (str || '').trim();
+        var i = 0;
+        function parseElement() {
+            var node = { tag: '', id: '', classes: [], text: null, count: 1, children: [] };
+            var tm = /^[A-Za-z][A-Za-z0-9]*/.exec(s.slice(i));
+            if (tm) { node.tag = tm[0]; i += tm[0].length; }
+            while (i < s.length) {
+                var c = s[i];
+                if (c === '#') {
+                    i++; var im = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!im) { throw 0; }
+                    node.id = im[0]; i += im[0].length;
+                } else if (c === '.') {
+                    i++; var cm = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!cm) { throw 0; }
+                    node.classes.push(cm[0]); i += cm[0].length;
+                } else if (c === '{') {
+                    var end = s.indexOf('}', i); if (end < 0) { throw 0; }
+                    node.text = s.slice(i + 1, end); i = end + 1;
+                } else { break; }
+            }
+            if (!node.tag && !node.classes.length && !node.id && node.text == null) { throw 0; }
+            if (s[i] === '*') {
+                i++; var nm = /^[0-9]+/.exec(s.slice(i)); if (!nm) { throw 0; }
+                node.count = Math.max(1, Math.min(50, parseInt(nm[0], 10))); i += nm[0].length;
+            }
+            return node;
+        }
+        var roots = [];
+        var cur = parseElement();
+        roots.push(cur);
+        var level = roots; // the array `cur` currently lives in (its sibling list)
+        while (i < s.length) {
+            var op = s[i];
+            if (op === '>') { i++; level = cur.children; var ch = parseElement(); level.push(ch); cur = ch; }
+            else if (op === '+') { i++; var sib = parseElement(); level.push(sib); cur = sib; }
+            else { throw 0; }
+        }
+        return roots;
+    }
+
+    function dbeEmmetNodeToModule(node) {
+        var tag = node.tag || ((node.text != null && !node.classes.length && !node.id) ? 'span' : 'div');
+        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text });
+    }
+
+    /* Insert a parsed Emmet tree relative to targetId: as its last children when it
+       can hold children, else as siblings after it. DFS with running per-level
+       indices; * multiplies a node into consecutive siblings. Returns the count. */
+    function dbeEmmetInsert(targetId, roots) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[targetId]) { return 0; }
+        var VOID = /^(img|input|br|hr|area|base|col|embed|link|meta|param|source|track|wbr)$/i;
+        var tag = ((mods[targetId].settings || []).filter(function (x) { return x.name === 'tag'; })[0] || {}).value || '';
+        var parentId, startIndex;
+        if (!VOID.test(tag)) {
+            parentId = targetId;
+            startIndex = (sf.storeGet('indexes')[targetId] || []).length;
+        } else {
+            parentId = mods[targetId].parent || '';
+            var sibs = [].concat(sf.storeGet('indexes')[parentId || 'root'] || []);
+            startIndex = sibs.indexOf(targetId) + 1;
+        }
+        var count = 0;
+        (function buildInto(nodeList, pId, startIdx) {
+            var idx = startIdx;
+            nodeList.forEach(function (node) {
+                for (var rep = 0; rep < (node.count || 1); rep++) {
+                    var mod = dbeEmmetNodeToModule(node);
+                    storeAddModule(sf, mod, pId, idx);
+                    idx += 1; count += 1;
+                    if (node.children && node.children.length) { buildInto(node.children, mod.id, 0); }
+                }
+            });
+        })(roots, parentId, startIndex);
+        return count;
     }
 
     /* Insert `module` as a sibling of targetId: dir < 0 = before, dir > 0 = after.
@@ -303,6 +389,32 @@
         if (at < 0) { at = sibs.length ? sibs.length - 1 : 0; }
         storeAddModule(sf, module, parent, dir > 0 ? at + 1 : at);
         return module.id;
+    }
+
+    /* Update an existing element's settings in place. Verified live: dispatching
+       `addModule` with an EXISTING id upserts the module (settings replaced, no
+       duplicate module or index entry) and repaints — so class/attribute edits on
+       an existing element need no native-control driving. `mutate` receives the
+       (cloned) settings array to modify. Returns false if the id is gone. */
+    function dbeUpdateModuleSettings(id, mutate) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[id]) { return false; }
+        var updated = JSON.parse(JSON.stringify(mods[id]));
+        updated.settings = updated.settings || [];
+        mutate(updated.settings);
+        sf.storeSet('addModule', { module: updated });
+        return true;
+    }
+
+    // Append class name(s) to an element's tagClass setting (deduped).
+    function dbeAddClasses(id, classes) {
+        return dbeUpdateModuleSettings(id, function (settings) {
+            var tc = settings.filter(function (s) { return s.name === 'tagClass'; })[0];
+            if (!tc) { tc = { name: 'tagClass', value: [] }; settings.push(tc); }
+            if (!Array.isArray(tc.value)) { tc.value = []; }
+            classes.forEach(function (c) { if (tc.value.indexOf(c) === -1) { tc.value.push(c); } });
+        });
     }
 
     /* (d1) Move the target element up or down among its siblings via the builder's
@@ -4393,6 +4505,10 @@
             ['Cmd/Ctrl+Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
             ['Cmd/Ctrl+Alt+N', dbeT('scGotoInserter', 'Insert elements')]
         ]]
+    ] : []).concat(on('command_palette') ? [
+        [dbeT('scGroupPalette', 'Command palette'), [
+            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add class / attribute / element)')]
+        ]]
     ] : []);
     function openShortcutsDialog() {
         var dlg = document.querySelector('dialog.dbe-shortcuts');
@@ -4644,6 +4760,185 @@
             e.preventDefault(); e.stopPropagation();
             openElementPicker(id, code === 'KeyY' ? 1 : -1);
         }
+    }
+
+    /* (cp) Command palette (command_palette). Cmd/Ctrl+Shift+K opens a searchable
+       command list (modelled on openAutoBemDialog's isolation contract). With an
+       element selected it offers add-class, add-attribute and add-element (minimal
+       Emmet), the element ops and the area jumps. Any command that drives the tree
+       or a native picker CLOSES the dialog first (showModal makes the page inert),
+       then runs. */
+    var dbePaletteKeyBound = false;
+
+    /* Add (or update) an HTML attribute on an existing element through the
+       settings upsert — no native-control driving. */
+    function dbeAddAttribute(id, name, value) {
+        var ok = dbeUpdateModuleSettings(id, function (settings) {
+            var ha = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+            if (!ha) { ha = { name: 'htmlAttribute', value: [] }; settings.push(ha); }
+            if (!Array.isArray(ha.value)) { ha.value = []; }
+            var existing = ha.value.filter(function (a) { return a.name === name; })[0];
+            if (existing) { existing.value = value; } else { ha.value.push({ name: name, value: value }); }
+        });
+        if (ok) { undoToast(dbeFmt(dbeT('addedAttribute', 'Added attribute %s'), name)); }
+    }
+
+    function openCommandPalette() {
+        var id = lastCtxId || activeId();
+        var hasEl = !!(id && (modules() || {})[id]);
+        var prior = document.querySelector('dialog.dbe-palette');
+        if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
+
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-palette';
+        dlg.setAttribute('aria-label', dbeT('commandPalette', 'Command palette'));
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'dbe-palette__input';
+        input.setAttribute('aria-label', dbeT('searchCommands', 'Search commands'));
+        input.placeholder = dbeT('searchCommands', 'Search commands…');
+        var listEl = document.createElement('ul');
+        listEl.className = 'dbe-palette__list';
+        listEl.setAttribute('role', 'listbox');
+        var hintEl = document.createElement('div');
+        hintEl.className = 'dbe-palette__hint';
+        dlg.appendChild(input);
+        dlg.appendChild(listEl);
+        dlg.appendChild(hintEl);
+        ['keydown', 'pointerdown', 'mousedown', 'click'].forEach(function (type) {
+            dlg.addEventListener(type, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        document.body.appendChild(dlg);
+
+        function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
+
+        var commands = [];
+        if (hasEl) {
+            commands.push(
+                { label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: '.class or class', run: function (v) {
+                    var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
+                    if (!cls.length) { return; }
+                    runClose(function () {
+                        if (dbeAddClasses(id, cls)) {
+                            undoToast(dbeFmt(dbeTn(cls.length, 'addedClassesOne', 'Added %s class', 'addedClassesMany', 'Added %s classes'), cls.length));
+                        }
+                    });
+                } },
+                { label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: 'name=value', run: function (v) {
+                    var eq = v.indexOf('='); var nm = (eq < 0 ? v : v.slice(0, eq)).trim(); var val = eq < 0 ? '' : v.slice(eq + 1).trim();
+                    if (!nm) { return; }
+                    runClose(function () { dbeAddAttribute(id, nm, val); });
+                } },
+                { label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                    var roots;
+                    try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
+                    runClose(function () {
+                        var n = dbeEmmetInsert(id, roots);
+                        undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
+                    });
+                } },
+                { label: dbeT('paletteRename', 'Rename…'), input: true, ph: 'New name', run: function (v) {
+                    if (!v.trim()) { return; }
+                    runClose(function () { commitRename(id, v.trim()); });
+                } },
+                { label: dbeT('paletteDuplicate', 'Duplicate'), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
+                { label: dbeT('paletteCut', 'Cut'), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
+                { label: dbeT('addBefore', 'Add element before'), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
+                { label: dbeT('addAfter', 'Add element after'), run: function () { runClose(function () { openElementPicker(id, 1); }); } },
+                { label: dbeT('paletteDelete', 'Delete'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } }
+            );
+        }
+        commands.push(
+            { label: dbeT('goToNavigator', 'Go to Navigator'), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
+            { label: dbeT('goToSettings', 'Go to settings'), run: function () { runClose(function () { dbeFocusArea('settings'); }); } },
+            { label: dbeT('goToCanvas', 'Go to canvas'), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
+            { label: dbeT('openInserterCmd', 'Open Inserter'), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
+            { label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), run: function () { runClose(openShortcutsDialog); } }
+        );
+
+        var mode = null; // null = list mode; else the active input command
+        var buttons = [];
+
+        function renderList() {
+            listEl.innerHTML = '';
+            buttons = commands.map(function (cmd) {
+                var li = document.createElement('li');
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dbe-palette__item';
+                btn.setAttribute('role', 'option');
+                btn.textContent = cmd.label;
+                btn.dbeCmd = cmd;
+                btn.addEventListener('click', function () { pick(cmd); });
+                li.appendChild(btn);
+                listEl.appendChild(li);
+                return btn;
+            });
+            hintEl.textContent = hasEl ? '' : dbeT('paletteNoEl', 'No element selected — element commands are hidden');
+        }
+        function visible() { return buttons.filter(function (b) { return !b.parentElement.hidden; }); }
+        function applyFilter() {
+            if (mode) { return; }
+            var q = input.value.trim().toLowerCase();
+            buttons.forEach(function (b) { b.parentElement.hidden = !!q && b.textContent.toLowerCase().indexOf(q) === -1; });
+        }
+        function pick(cmd) { if (cmd.input) { enterInput(cmd); } else { cmd.run(); } }
+        function enterInput(cmd) {
+            mode = cmd;
+            listEl.innerHTML = '';
+            input.value = '';
+            input.placeholder = cmd.ph || cmd.label;
+            hintEl.textContent = cmd.label;
+            input.focus();
+        }
+        function exitInput() {
+            mode = null;
+            input.value = '';
+            input.placeholder = dbeT('searchCommands', 'Search commands…');
+            renderList(); applyFilter();
+            input.focus();
+        }
+
+        input.addEventListener('input', applyFilter);
+        dlg.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (mode) { mode.run(input.value); return; }
+                var vis = visible();
+                var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
+                var pickBtn = cur || vis[0];
+                if (pickBtn) { pick(pickBtn.dbeCmd); }
+                return;
+            }
+            if (e.key === 'Escape') {
+                if (mode) { e.preventDefault(); exitInput(); } // list mode: native dialog Escape closes
+                return;
+            }
+            if (mode || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) { return; }
+            e.preventDefault();
+            var vis2 = visible();
+            if (!vis2.length) { return; }
+            var cur2 = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
+            var i = vis2.indexOf(cur2);
+            var next = e.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % vis2.length) : (i < 0 ? vis2.length - 1 : (i - 1 + vis2.length) % vis2.length);
+            vis2[next].focus();
+        });
+
+        renderList();
+        dlg.showModal();
+        input.focus();
+    }
+
+    function dbePaletteKeydown(e) {
+        if (e.code !== 'KeyK' || !e.shiftKey || e.altKey) { return; }
+        if (!(dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey))) { return; }
+        if (renameState) { return; }
+        var t = e.target;
+        if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
+        if (document.querySelector('dialog[open]')) { return; }
+        e.preventDefault(); e.stopPropagation();
+        openCommandPalette();
     }
 
     /* Preview resize handles (preview_resize): drag either edge of the canvas
@@ -6686,6 +6981,12 @@
         if (on('keyboard_shortcuts') && !dbeShortcutKeyBound) {
             dbeShortcutKeyBound = true;
             document.addEventListener('keydown', dbeElementShortcutsKeydown, true);
+        }
+
+        // Command palette (Cmd/Ctrl+Shift+K).
+        if (on('command_palette') && !dbePaletteKeyBound) {
+            dbePaletteKeyBound = true;
+            document.addEventListener('keydown', dbePaletteKeydown, true);
         }
     }
 

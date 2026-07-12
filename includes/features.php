@@ -284,6 +284,14 @@ function dbe_features() {
 			'js'           => true,
 			'experimental' => true,
 		),
+		'command_palette'     => array(
+			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '82-command-palette.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
 
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(

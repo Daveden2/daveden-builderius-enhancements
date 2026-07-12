@@ -80,7 +80,7 @@ function dbe_builder_css_files() {
 	// Toast + hidden auto context menu, shared by several features.
 	if ( dbe_enabled( 'wrap_in' ) || dbe_enabled( 'undo_delete' )
 		|| dbe_enabled( 'auto_bem' ) || dbe_enabled( 'inline_rename' )
-		|| dbe_enabled( 'keyboard_shortcuts' ) ) {
+		|| dbe_enabled( 'keyboard_shortcuts' ) || dbe_enabled( 'command_palette' ) ) {
 		$files[] = '01-infra.css';
 	}
 
@@ -103,7 +103,8 @@ function dbe_builder_css_files() {
 	// Injected context-menu items / flyout chrome, shared by several features.
 	if ( dbe_enabled( 'context_menu' ) || dbe_enabled( 'wrap_in' ) || dbe_enabled( 'inline_rename' )
 		|| dbe_enabled( 'collapse_expand_all' ) || dbe_enabled( 'scope_bar' )
-		|| dbe_enabled( 'auto_bem' ) || dbe_enabled( 'keyboard_shortcuts' ) ) {
+		|| dbe_enabled( 'auto_bem' ) || dbe_enabled( 'keyboard_shortcuts' )
+		|| dbe_enabled( 'command_palette' ) ) {
 		$files[] = '30-context-menu.css';
 	}
 
