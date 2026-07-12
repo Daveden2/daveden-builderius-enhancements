@@ -4386,6 +4386,12 @@
             ['Cmd/Ctrl+Alt+Y', dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
+        ]],
+        [dbeT('scGroupAreas', 'Move to area'), [
+            ['Cmd/Ctrl+Alt+O', dbeT('scGotoNavigator', 'Navigator')],
+            ['Cmd/Ctrl+Alt+S', dbeT('scGotoSettings', 'Settings panel')],
+            ['Cmd/Ctrl+Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
+            ['Cmd/Ctrl+Alt+N', dbeT('scGotoInserter', 'Insert elements')]
         ]]
     ] : []);
     function openShortcutsDialog() {
@@ -4571,6 +4577,33 @@
         filter.focus();
     }
 
+    /* Move keyboard focus to one of the builder's regions. Targets are chosen for
+       resilience: the Navigator hands off to navigator_keyboard's roving row; the
+       settings panel and the quick-insert bar fall back to their container (given
+       a -1 tabindex) when they have no focusable control mounted; the canvas is
+       the preview iframe itself. */
+    function dbeFocusArea(which) {
+        var el = null;
+        if (which === 'navigator') {
+            el = document.querySelector('.uniRightPanel .uni-tree-node-' + (activeId() || '\0'))
+                || document.querySelector('.uniRightPanel .uniModTree__list button.uniModTree__item');
+            if (el) { el.setAttribute('tabindex', '0'); }
+        } else if (which === 'settings') {
+            var left = document.querySelector('.uniLeftPanel');
+            el = (left && left.querySelector('button, input, select, textarea, a[href], [tabindex="0"]')) || left;
+            if (el === left && left && left.tabIndex < 0) { left.setAttribute('tabindex', '-1'); }
+        } else if (which === 'canvas') {
+            el = document.getElementById('builderInner');
+        } else if (which === 'inserter') {
+            el = document.querySelector('.uniModItems__item')
+                || document.querySelector('.uniModTree__favouritesListItem');
+            if (el && el.tabIndex < 0 && !/^(a|button|input)$/i.test(el.tagName)) { el.setAttribute('tabindex', '-1'); }
+        }
+        if (!el) { return; }
+        try { el.focus(); } catch (e) {}
+        try { el.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+
     var dbeShortcutKeyBound = false;
     function dbeElementShortcutsKeydown(e) {
         if (renameState) { return; }
@@ -4588,6 +4621,13 @@
         var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey);
         if (!mod) { return; }
         var code = e.code;
+        // Area jumps — Cmd/Ctrl+Alt+O/S/P/N. No selected element required.
+        var AREA = { KeyO: 'navigator', KeyS: 'settings', KeyP: 'canvas', KeyN: 'inserter' };
+        if (e.altKey && !e.shiftKey && AREA[code]) {
+            e.preventDefault(); e.stopPropagation();
+            dbeFocusArea(AREA[code]);
+            return;
+        }
         if (code === 'KeyD' && e.shiftKey && !e.altKey) {                       // Duplicate
             if (!id) { return; }
             e.preventDefault(); e.stopPropagation();

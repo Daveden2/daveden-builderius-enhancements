@@ -345,5 +345,11 @@ function dbe_builder_strings() {
 		'scAddAfter'              => __( 'Add an element after', 'daveden-builderius-enhancements' ),
 		'scRename'                => __( 'Rename', 'daveden-builderius-enhancements' ),
 		'scCopyPasteDelete'       => __( 'Copy / paste / delete the element (Builderius)', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — Move to area group.
+		'scGroupAreas'            => __( 'Move to area', 'daveden-builderius-enhancements' ),
+		'scGotoNavigator'         => __( 'Navigator', 'daveden-builderius-enhancements' ),
+		'scGotoSettings'          => __( 'Settings panel', 'daveden-builderius-enhancements' ),
+		'scGotoCanvas'            => __( 'Canvas / preview', 'daveden-builderius-enhancements' ),
+		'scGotoInserter'          => __( 'Insert elements', 'daveden-builderius-enhancements' ),
 	);
 }
