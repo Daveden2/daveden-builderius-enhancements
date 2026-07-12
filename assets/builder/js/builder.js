@@ -1052,6 +1052,24 @@
         (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
     );
 
+    /* Platform-formatted accelerator label for a shortcut hint. `o.cmd` is the
+       primary modifier (Cmd on Mac, Ctrl elsewhere); `o.alt`/`o.shift` the rest.
+       Mac uses the glyph stack in Apple's order (⌃⌥⇧⌘) with no separators; other
+       platforms use "Ctrl+Alt+Shift+Key". Purely presentational — the shortcuts
+       overlay remains the authoritative reference. */
+    function dbeAccel(key, o) {
+        o = o || {};
+        if (dbeIsMac) {
+            return (o.ctrl ? '⌃' : '') + (o.alt ? '⌥' : '') + (o.shift ? '⇧' : '') + (o.cmd ? '⌘' : '') + key;
+        }
+        var p = [];
+        if (o.cmd || o.ctrl) { p.push('Ctrl'); }
+        if (o.alt) { p.push('Alt'); }
+        if (o.shift) { p.push('Shift'); }
+        p.push(key);
+        return p.join('+');
+    }
+
     function clearMultiSel() {
         if (!dbeMultiSel.size) { return; }
         dbeMultiSel.clear();
@@ -1653,6 +1671,15 @@
         li.className = 'uniContextMenu__item dbe-ctx-item';
         li.setAttribute('role', 'menuitem');
         li.textContent = labelText;
+        if (opts.accel) {
+            // Right-aligned shortcut hint, mirroring the block editor's menu.
+            li.classList.add('dbe-ctx-item--accel');
+            var acc = document.createElement('span');
+            acc.className = 'dbe-ctx-accel';
+            acc.textContent = opts.accel;
+            acc.setAttribute('aria-hidden', 'true');
+            li.appendChild(acc);
+        }
         if (opts.disabled) {
             li.classList.add('disabled', 'dbe-ctx-disabled');
             li.setAttribute('aria-disabled', 'true');
@@ -1667,6 +1694,30 @@
             onActivate();
         });
         return li;
+    }
+
+    /* Append a right-aligned shortcut hint to the native menu rows that have one
+       (Duplicate is our shortcut; Copy/Paste/Remove are Builderius'), so they read
+       like the injected rows and the block editor's menu. Matched by the English
+       labels the plugin already drives the native menu by. Idempotent. */
+    function annotateNativeCtxAccels(container) {
+        var map = {
+            Duplicate: dbeAccel('D', { cmd: true, shift: true }),
+            Copy: dbeAccel('C', { cmd: true }),
+            Paste: dbeAccel('V', { cmd: true }),
+            Remove: dbeT('accelDelete', 'Del')
+        };
+        [].slice.call(container.querySelectorAll('.uniContextMenu__item')).forEach(function (li) {
+            if (li.querySelector('.dbe-ctx-accel')) { return; }
+            var accel = map[(li.textContent || '').trim()];
+            if (!accel) { return; }
+            li.classList.add('dbe-ctx-item--accel');
+            var s = document.createElement('span');
+            s.className = 'dbe-ctx-accel';
+            s.textContent = accel;
+            s.setAttribute('aria-hidden', 'true');
+            li.appendChild(s);
+        });
     }
 
     function makeWrapItem(type, labelText) {
@@ -1878,6 +1929,14 @@
                 renameLi.className = 'uniContextMenu__item dbe-ctx-item';
                 renameLi.setAttribute('role', 'menuitem');
                 renameLi.textContent = dbeT('rename', 'Rename');
+                if (on('keyboard_shortcuts')) { // F2 is only bound when that feature is on
+                    renameLi.classList.add('dbe-ctx-item--accel');
+                    var renameAcc = document.createElement('span');
+                    renameAcc.className = 'dbe-ctx-accel';
+                    renameAcc.textContent = 'F2';
+                    renameAcc.setAttribute('aria-hidden', 'true');
+                    renameLi.appendChild(renameAcc);
+                }
                 renameLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -2026,9 +2085,9 @@
                     driveContextMenuItem(ksId, 'Copy', function (ok) {
                         if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); }
                     });
-                });
-                addBeforeLi = makeCtxItem(dbeT('addBefore', 'Add element before'), function () { setTimeout(function () { openElementPicker(ksId, -1); }, 60); });
-                addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); });
+                }, { accel: dbeAccel('X', { cmd: true }) });
+                addBeforeLi = makeCtxItem(dbeT('addBefore', 'Add element before'), function () { setTimeout(function () { openElementPicker(ksId, -1); }, 60); }, { accel: dbeAccel('T', { cmd: true, alt: true }) });
+                addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
             }
 
             /* --- Flat layout (context_menu off): append injected items after the
@@ -2059,6 +2118,10 @@
                     if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
+                // After the rows are placed: append shortcut hints to the native
+                // rows. Done last so it never mutates the textContent the layout
+                // above matches native items by (Remove-last, cluster detection).
+                if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
                 fitContextMenu(ctxDialog);
                 return;
             }
@@ -2125,6 +2188,10 @@
                 seenCluster = true;
                 items.forEach(function (li) { container.appendChild(li); });
             });
+
+            // After clustering (which matches native rows by textContent): append
+            // the shortcut hints, so the hint text never corrupts those matches.
+            if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
 
             setupMenuKeyboard(container);
             fitContextMenu(ctxDialog);
@@ -4884,10 +4951,21 @@
 
         function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
 
+        // Commands carry a group key; renderList draws a labelled divider each
+        // time the group changes, so related commands read as a set. `accel` is a
+        // presentational shortcut hint shown right-aligned, mirroring the block
+        // editor's context menu.
+        var GROUP_LABELS = {
+            add: dbeT('paletteGroupAdd', 'Add to element'),
+            structure: dbeT('paletteGroupStructure', 'Structure'),
+            element: dbeT('paletteGroupElement', 'Element'),
+            goto: dbeT('paletteGroupGoto', 'Go to')
+        };
+
         var commands = [];
         if (hasEl) {
             commands.push(
-                { label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
                     var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
                     if (!cls.length) { return; }
                     runClose(function () {
@@ -4896,7 +4974,7 @@
                         }
                     });
                 } },
-                { label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
                     var pairs = dbeParseAttributes(v);
                     if (!pairs.length) { return; }
                     runClose(function () {
@@ -4905,51 +4983,101 @@
                         }
                     });
                 } },
-                { label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                { group: 'add', label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
                     try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
                     runClose(function () {
                         var n = dbeEmmetInsert(id, roots);
                         undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
                     });
-                } },
-                { label: dbeT('paletteRename', 'Rename…'), input: true, ph: 'New name', run: function (v) {
+                } }
+            );
+            commands.push(
+                { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
+                { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, 1); }); } }
+            );
+            if (on('wrap_in')) {
+                commands.push(
+                    { group: 'structure', label: dbeT('paletteWrapDiv', 'Wrap in div'), run: function () { runClose(function () { wrap('div', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapFigure', 'Wrap in figure'), run: function () { runClose(function () { wrap('figure', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapTemplate', 'Wrap in template'), run: function () { runClose(function () { wrap('template', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapCollection', 'Wrap in collection'), run: function () { runClose(function () { wrap('collection', [id]); }); } }
+                );
+            }
+            commands.push(
+                { group: 'element', label: dbeT('paletteRename', 'Rename…'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
                     if (!v.trim()) { return; }
                     runClose(function () { commitRename(id, v.trim()); });
-                } },
-                { label: dbeT('paletteDuplicate', 'Duplicate'), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
-                { label: dbeT('paletteCut', 'Cut'), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
-                { label: dbeT('addBefore', 'Add element before'), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
-                { label: dbeT('addAfter', 'Add element after'), run: function () { runClose(function () { openElementPicker(id, 1); }); } },
-                { label: dbeT('paletteDelete', 'Delete'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } },
+                } }
+            );
+            if (on('auto_bem')) {
+                commands.push(
+                    { group: 'element', label: dbeT('paletteAutoBem', 'Auto-BEM…'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
+                );
+            }
+            commands.push(
+                { group: 'element', label: dbeT('paletteDuplicate', 'Duplicate'), accel: dbeAccel('D', { cmd: true, shift: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
+                { group: 'element', label: dbeT('paletteCopy', 'Copy'), accel: dbeAccel('C', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { undoToast(dbeT('copiedElement', 'Copied element')); } }); }); } },
+                { group: 'element', label: dbeT('paletteCut', 'Cut'), accel: dbeAccel('X', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
+                { group: 'element', label: dbeT('paletteDelete', 'Delete'), accel: dbeT('accelDelete', 'Del'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } },
                 // Settings show the selected element's settings — only useful with one.
-                { label: dbeT('goToSettings', 'Go to settings'), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
+                { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
         commands.push(
-            { label: dbeT('goToNavigator', 'Go to Navigator'), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
-            { label: dbeT('goToCanvas', 'Go to canvas'), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
-            { label: dbeT('openInserterCmd', 'Open Inserter'), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
-            { label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), run: function () { runClose(openShortcutsDialog); } }
+            { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
+            { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
+            { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
+            { group: 'goto', label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), accel: '?', run: function () { runClose(openShortcutsDialog); } }
         );
 
         var mode = null; // null = list mode; else the active input command
         var buttons = [];
+        var groupHeads = []; // divider/heading <li>s, hidden when their group is fully filtered out
 
         function renderList() {
             listEl.innerHTML = '';
-            buttons = commands.map(function (cmd) {
+            buttons = [];
+            groupHeads = [];
+            var lastGroup = null;
+            commands.forEach(function (cmd) {
+                if (cmd.group && cmd.group !== lastGroup) {
+                    lastGroup = cmd.group;
+                    // A labelled divider row. role=presentation + aria-hidden: the
+                    // options are self-describing, so the grouping is a visual aid
+                    // and must not be read as a listbox child.
+                    var head = document.createElement('li');
+                    head.className = 'dbe-palette__group';
+                    head.setAttribute('role', 'presentation');
+                    head.setAttribute('aria-hidden', 'true');
+                    head.textContent = GROUP_LABELS[cmd.group] || '';
+                    head.dbeGroup = cmd.group;
+                    listEl.appendChild(head);
+                    groupHeads.push(head);
+                }
                 var li = document.createElement('li');
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'dbe-palette__item';
                 btn.setAttribute('role', 'option');
-                btn.textContent = cmd.label;
+                var lab = document.createElement('span');
+                lab.className = 'dbe-palette__label';
+                lab.textContent = cmd.label;
+                btn.appendChild(lab);
+                if (cmd.accel) {
+                    var acc = document.createElement('span');
+                    acc.className = 'dbe-palette__accel';
+                    acc.textContent = cmd.accel;
+                    acc.setAttribute('aria-hidden', 'true'); // decorative; the shortcuts overlay documents it
+                    btn.appendChild(acc);
+                }
                 btn.dbeCmd = cmd;
+                btn.dbeGroup = cmd.group;
+                btn.dbeLabel = cmd.label; // filter on the label only, not the accel glyphs
                 btn.addEventListener('click', function () { pick(cmd); });
                 li.appendChild(btn);
                 listEl.appendChild(li);
-                return btn;
+                buttons.push(btn);
             });
             hintEl.textContent = hasEl ? '' : dbeT('paletteNoEl', 'No element selected — element commands are hidden');
         }
@@ -4957,7 +5085,11 @@
         function applyFilter() {
             if (mode) { return; }
             var q = input.value.trim().toLowerCase();
-            buttons.forEach(function (b) { b.parentElement.hidden = !!q && b.textContent.toLowerCase().indexOf(q) === -1; });
+            buttons.forEach(function (b) { b.parentElement.hidden = !!q && (b.dbeLabel || b.textContent).toLowerCase().indexOf(q) === -1; });
+            // Hide a group's divider when the filter left it with no visible items.
+            groupHeads.forEach(function (h) {
+                h.hidden = !buttons.some(function (b) { return b.dbeGroup === h.dbeGroup && !b.parentElement.hidden; });
+            });
         }
         function pick(cmd) { if (cmd.input) { enterInput(cmd); } else { cmd.run(); } }
         function enterInput(cmd) {

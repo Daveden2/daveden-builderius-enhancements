@@ -39,11 +39,18 @@ keyboard-driven productivity features.
   (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The
   new actions also appear in the right-click menu, and there are shortcuts to move
   focus between the Navigator, settings panel, canvas and Inserter. Off by default
-  while Builderius adds its own shortcuts.
+  while Builderius adds its own shortcuts. The right-click menu now also shows each
+  action's shortcut right-aligned, like the block editor's menu, on the native rows
+  (Duplicate, Copy, Paste, Remove) as well as the injected ones (Cut, Rename, Add
+  before / after).
 * New: "Command palette" (experimental, off by default). Press Cmd/Ctrl+Shift+K for a
   searchable command palette. With an element selected it can add one or more classes,
   add HTML attributes and add child elements with a minimal Emmet syntax
-  (e.g. section.hero>h1{Title}+p{Lead}), and run the element actions.
+  (e.g. section.hero>h1{Title}+p{Lead}). It also runs the element actions — duplicate,
+  copy, cut, delete, rename, add before / after, wrap in a div / figure / template /
+  collection, and Auto-BEM — plus the move-to-area jumps. Commands are grouped under
+  labelled dividers (Add to element, Structure, Element, Go to) and each shows its
+  keyboard shortcut right-aligned, mirroring the block editor.
 * Improved: the Global / Template scope switch inside the JavaScript and Dynamic Data
   editor tools is now a proper vertical tab list, keyboard-operable and announced to
   screen readers.
