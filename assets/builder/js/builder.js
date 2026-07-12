@@ -4308,12 +4308,14 @@
         // so it already has keyboard navigation — it only lacks the ARIA roles.
         // Roles only here: no key handler (native owns the arrows) and no tabindex
         // changes (native owns focus). The `expanded` class drives aria-expanded.
-        var MTAGS_LIST_ID = 'dbe-mtags-list';
+        // Ids are minted PER WIDGET (dbeSSId counter, like dbe-ss-lbl-): a single
+        // shared id would be duplicated in the document if two tag selects were
+        // ever mounted at once, making every aria-controls ambiguous.
         document.querySelectorAll('.uniSystemSelectModuleTags').forEach(function (mt) {
             var results = mt.querySelector('.uniSystemSelectModuleTags__resultsWrapper');
             if (results) {
                 if (results.getAttribute('role') !== 'listbox') { results.setAttribute('role', 'listbox'); }
-                if (results.id !== MTAGS_LIST_ID) { results.id = MTAGS_LIST_ID; }
+                if (!results.id || results.id.indexOf('dbe-mtags-list') !== 0) { results.id = 'dbe-mtags-list-' + (++dbeSSId); }
                 if (!results.getAttribute('aria-label')) { results.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
             var curVal = ((mt.querySelector('.uniSystemSelectModuleTags__placeholder') || {}).textContent || '').trim();
@@ -4333,7 +4335,7 @@
                 var fexp = mexp ? 'true' : 'false';
                 if (mfake.getAttribute('aria-expanded') !== fexp) { mfake.setAttribute('aria-expanded', fexp); }
                 if (results && mexp) {
-                    if (mfake.getAttribute('aria-controls') !== MTAGS_LIST_ID) { mfake.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                    if (mfake.getAttribute('aria-controls') !== results.id) { mfake.setAttribute('aria-controls', results.id); }
                 } else if (mfake.hasAttribute('aria-controls')) { mfake.removeAttribute('aria-controls'); }
                 var mTitle = dbeSSLabelEl(mt);
                 var mRef = [];
@@ -4346,7 +4348,7 @@
             if (msearch) {
                 if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
                 if (msearch.getAttribute('aria-expanded') !== (mexp ? 'true' : 'false')) { msearch.setAttribute('aria-expanded', mexp ? 'true' : 'false'); }
-                if (results && msearch.getAttribute('aria-controls') !== MTAGS_LIST_ID) { msearch.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                if (results && msearch.getAttribute('aria-controls') !== results.id) { msearch.setAttribute('aria-controls', results.id); }
                 if (msearch.getAttribute('aria-autocomplete') !== 'list') { msearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!msearch.getAttribute('aria-label')) { msearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
             }
@@ -4359,17 +4361,23 @@
         // aria-multiselectable and each already-applied item is aria-selected.
         // Roles only — no key handler and no store writes — so it never disturbs
         // Auto-BEM, which drives the same search input.
-        var CSCLASSES_LIST_ID = 'dbe-csclasses-list';
         document.querySelectorAll('.uniSystemSelectClasses').forEach(function (cs) {
             var csExp = cs.classList.contains('expanded');
+            // Resolve the list (and mint its per-widget id) up front so the fake
+            // input's aria-controls can reference it in the same pass.
+            var csItems = csExp
+                ? [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; })
+                : [];
+            var csList = csItems.length ? csItems[0].parentElement : null;
+            if (csList && (!csList.id || csList.id.indexOf('dbe-csclasses-list') !== 0)) { csList.id = 'dbe-csclasses-list-' + (++dbeSSId); }
             var csFake = cs.querySelector('.uniSystemSelectClasses__fakeInput');
             if (csFake) {
                 if (csFake.getAttribute('role') !== 'combobox') { csFake.setAttribute('role', 'combobox'); }
                 if (csFake.getAttribute('aria-haspopup') !== 'listbox') { csFake.setAttribute('aria-haspopup', 'listbox'); }
                 var ce = csExp ? 'true' : 'false';
                 if (csFake.getAttribute('aria-expanded') !== ce) { csFake.setAttribute('aria-expanded', ce); }
-                if (csExp) {
-                    if (csFake.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csFake.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csExp && csList) {
+                    if (csFake.getAttribute('aria-controls') !== csList.id) { csFake.setAttribute('aria-controls', csList.id); }
                 } else if (csFake.hasAttribute('aria-controls')) { csFake.removeAttribute('aria-controls'); }
                 var csTitle = dbeSSLabelEl(cs);
                 if (csTitle) {
@@ -4382,11 +4390,8 @@
                 }
             }
             if (!csExp) { return; }
-            var csItems = [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; });
-            var csList = csItems.length ? csItems[0].parentElement : null;
             if (csList) {
                 if (csList.getAttribute('role') !== 'listbox') { csList.setAttribute('role', 'listbox'); }
-                if (csList.id !== CSCLASSES_LIST_ID) { csList.id = CSCLASSES_LIST_ID; }
                 if (csList.getAttribute('aria-multiselectable') !== 'true') { csList.setAttribute('aria-multiselectable', 'true'); }
                 if (!csList.getAttribute('aria-label')) { csList.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
@@ -4399,7 +4404,7 @@
             if (csSearch) {
                 if (csSearch.getAttribute('role') !== 'combobox') { csSearch.setAttribute('role', 'combobox'); }
                 if (csSearch.getAttribute('aria-expanded') !== 'true') { csSearch.setAttribute('aria-expanded', 'true'); }
-                if (csList && csSearch.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csSearch.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csList && csSearch.getAttribute('aria-controls') !== csList.id) { csSearch.setAttribute('aria-controls', csList.id); }
                 if (csSearch.getAttribute('aria-autocomplete') !== 'list') { csSearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!csSearch.getAttribute('aria-label')) { csSearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
             }
@@ -5048,6 +5053,10 @@
         listEl.setAttribute('role', 'listbox');
         var buttons = DBE_PICKER_ELEMENTS.map(function (tag) {
             var li = document.createElement('li');
+            // The option role sits on the button, so the wrapper <li> must be
+            // presentational or it breaks the listbox→option ownership chain
+            // (screen readers then misreport option counts and positions).
+            li.setAttribute('role', 'presentation');
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'dbe-el-picker__item';
@@ -5361,6 +5370,10 @@
                     groupHeads.push(head);
                 }
                 var li = document.createElement('li');
+                // The option role sits on the button; the wrapper <li> must be
+                // presentational (like the group heads above) or it breaks the
+                // listbox→option ownership chain for screen readers.
+                li.setAttribute('role', 'presentation');
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'dbe-palette__item';
@@ -6800,7 +6813,7 @@
        the active-selector chip). items: [{label, fn, first?}] — `first` draws the
        group separator (30-context-menu.css). focusReturn takes focus back on
        Escape. Same card chain as the flyouts so the framework CSS styles it. */
-    function renderChipCard(focusReturn, x, y, items) {
+    function renderChipCard(focusReturn, x, y, items, label) {
         closeChipMenu();
         if (!items || !items.length) { return; }
         var card = document.createElement('div');
@@ -6810,6 +6823,9 @@
         var menu = document.createElement('div');
         menu.className = 'uniContextMenu';
         menu.setAttribute('role', 'menu');
+        // A menu needs an accessible name or screen readers announce a bare
+        // "menu" with no hint of what it acts on.
+        if (label) { menu.setAttribute('aria-label', label); }
         var ul = document.createElement('ul');
         items.forEach(function (item) {
             var li = document.createElement('li');
@@ -6818,7 +6834,11 @@
             li.tabIndex = -1;
             li.textContent = item.label;
             function act(ev) { ev.preventDefault(); ev.stopPropagation(); closeChipMenu(); item.fn(); }
-            li.addEventListener('mousedown', act);
+            // Activate on click, not mousedown: pressing and dragging away must
+            // cancel, and a screen reader's simulated click must not double-fire
+            // against the keydown path. mousedown only suppresses the focus jump.
+            li.addEventListener('mousedown', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+            li.addEventListener('click', act);
             li.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter' || ev.key === ' ') { act(ev); }
             });
@@ -6828,15 +6848,23 @@
         inner.appendChild(menu);
         card.appendChild(inner);
 
-        // Keyboard: arrows move, Escape closes and returns focus to the chip.
+        // Keyboard: arrows move (wrapping), Home/End jump, Escape closes and
+        // returns focus to the chip.
         card.addEventListener('keydown', function (ev) {
             var lis = [].slice.call(card.querySelectorAll('li'));
             var idx = lis.indexOf(document.activeElement);
-            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            var next = -1;
+            if (ev.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % lis.length; }
+            else if (ev.key === 'ArrowUp') { next = idx < 0 ? lis.length - 1 : (idx - 1 + lis.length) % lis.length; }
+            else if (ev.key === 'Home') { next = 0; }
+            else if (ev.key === 'End') { next = lis.length - 1; }
+            if (next > -1) {
                 ev.preventDefault();
                 ev.stopPropagation();
-                lis[(idx + (ev.key === 'ArrowDown' ? 1 : lis.length - 1)) % lis.length].focus();
-            } else if (ev.key === 'Escape') {
+                lis[next].focus();
+                return;
+            }
+            if (ev.key === 'Escape') {
                 ev.preventDefault();
                 ev.stopPropagation();
                 closeChipMenu();
@@ -6896,7 +6924,7 @@
                 undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name));
             } });
         }
-        renderChipCard(chipLi, x, y, items);
+        renderChipCard(chipLi, x, y, items, dbeFmt(dbeT('chipMenuFor', 'Actions for %s'), name));
     }
 
     /* Active-selector chip — the class currently being edited. Natively it offers
@@ -6958,7 +6986,7 @@
             });
         } });
         items.push({ label: dbeT('close', 'Close'), fn: function () { driveSelectedClose(function () {}); } });
-        renderChipCard(selChip, x, y, items);
+        renderChipCard(selChip, x, y, items, dbeFmt(dbeT('chipMenuFor', 'Actions for %s'), name));
     }
 
     /* Chips are plain li>span with no focus support; tabindex lets keyboard

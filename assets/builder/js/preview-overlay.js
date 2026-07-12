@@ -54,7 +54,14 @@
 		new MutationObserver(function (muts) {
 			muts.forEach(function (m) {
 				if (m.type === 'attributes') { return void patch(m.target); }
-				m.addedNodes.forEach(function (n) { patch(n); });
+				m.addedNodes.forEach(function (n) {
+					patch(n);
+					// An overlay inserted INSIDE an added wrapper is not itself in
+					// addedNodes — sweep the subtree too (cheap: overlays are rare).
+					if (n.nodeType === 1 && n.querySelectorAll) {
+						n.querySelectorAll('builder-overlay-handles').forEach(patch);
+					}
+				});
 			});
 		}).observe(document.documentElement, {
 			childList: true, subtree: true,
