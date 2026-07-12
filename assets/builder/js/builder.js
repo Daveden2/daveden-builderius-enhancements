@@ -223,7 +223,6 @@
         waitFor(function () {
             return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;
         }, function (row) { if (row) { clickSeq(row); } });
-        console.log('[DBE] Wrapped ' + order.join(', ') + ' in ' + type + ' (' + newId + ') via store actions.');
     }
 
     /* Add a module through the builder's OWN add action (mirrors the sense
