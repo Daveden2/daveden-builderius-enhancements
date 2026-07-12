@@ -35,8 +35,11 @@ function dbe_tabs() {
  * - title/description: settings-page copy.
  * - tab:  settings-page tab slug (see dbe_tabs()).
  * - css:  builder CSS files (assets/builder/css/) emitted when enabled.
- *         Shared/infrastructure files (00-tokens, 01-infra, 30-context-menu)
- *         are OR-gated in dbe_builder_css_files(), not listed per feature.
+ * - shared_css: infrastructure files this feature also needs (01-infra's
+ *         toast + hidden auto menu, 02-nav-layout's Navigator flex layout,
+ *         30-context-menu's injected item / flyout chrome). Shared files are
+ *         deduplicated across features by dbe_builder_css_files(); 00-tokens
+ *         is emitted whenever anything at all is on and is not listed here.
  * - js:   whether the toggle is exposed to builder.js via the config object.
  *
  * @return array<string,array<string,mixed>>
@@ -156,6 +159,7 @@ function dbe_features() {
 			'description' => __( 'Adds two buttons to the Navigator header: one expands every row, the other collapses the tree down to its top-level sections.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '22-nav-header.css' ),
+			'shared_css'  => array( '02-nav-layout.css', '30-context-menu.css' ),
 			'js'          => true,
 		),
 		'tree_search'         => array(
@@ -163,6 +167,7 @@ function dbe_features() {
 			'description' => __( 'Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '70-tree-search.css' ),
+			'shared_css'  => array( '02-nav-layout.css' ),
 			'js'          => true,
 		),
 		'favourites_reorder'  => array(
@@ -170,6 +175,7 @@ function dbe_features() {
 			'description' => __( 'Adds a rearrange button to the favourites bar. Drag the icons, or use the arrow keys, to put them in your preferred order; the order is remembered in your browser.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '23-favourites-reorder.css' ),
+			'shared_css'  => array( '02-nav-layout.css' ),
 			'js'          => true,
 		),
 		'reveal_selected'     => array(
@@ -201,6 +207,7 @@ function dbe_features() {
 			'description' => __( 'Reorganises the Navigator right-click menu into one flat, logically grouped list, so everyday actions are one click away. Includes full keyboard support (arrow keys, Home/End, Escape) and keeps submenus only where an action branches (Wrap in…, Save to…). Also adds a right-click copy and remove menu to the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
+			'shared_css'  => array( '30-context-menu.css' ),
 			'js'          => true,
 		),
 		'wrap_in'             => array(
@@ -208,6 +215,7 @@ function dbe_features() {
 			'description' => __( 'Right-click an element to wrap it in a div, a template or a collection with template. Unwrap does the reverse: it moves the children up one level and removes the empty wrapper.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
+			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
 			'js'          => true,
 		),
 		'element_moves'       => array(
@@ -222,6 +230,7 @@ function dbe_features() {
 			'description' => __( 'Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '32-rename.css' ),
+			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
 			'js'          => true,
 		),
 		'dblclick_rename'     => array(
@@ -236,6 +245,7 @@ function dbe_features() {
 			'description' => __( 'Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
+			'shared_css'  => array( '01-infra.css' ),
 			'js'          => true,
 		),
 
@@ -281,6 +291,7 @@ function dbe_features() {
 			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
+			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
@@ -289,6 +300,7 @@ function dbe_features() {
 			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
+			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
@@ -307,6 +319,7 @@ function dbe_features() {
 			'description'  => __( 'Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Adds an “All CSS” button that jumps to the full stylesheet for the active scope (the same view as Selectors → All CSS) and highlights where the current selector’s rules sit within it. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'styles',
 			'css'          => array( '41-scope-bar.css', '43-scope-isolation.css' ),
+			'shared_css'   => array( '30-context-menu.css' ),
 			'js'           => true,
 			'requires_pro' => true,
 		),
@@ -315,6 +328,7 @@ function dbe_features() {
 			'description' => __( 'Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'styles',
 			'css'         => array( '33-auto-bem.css' ),
+			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
 			'js'          => true,
 		),
 

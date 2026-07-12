@@ -64,9 +64,11 @@ function dbe_heartbeat_config() {
 /**
  * The ordered list of CSS files to emit for the current toggles.
  *
- * Infrastructure files are OR-gated on their consumers; per-feature files
- * come from the registry. Numeric prefixes keep the original cascade order —
- * never alphabetise or reorder (e.g. the tag-badge mono font rule must follow
+ * Everything is registry-driven: each feature lists its own files under
+ * `css` and any shared infrastructure it depends on under `shared_css`
+ * (see dbe_features()), so adding a feature never requires editing this
+ * function. Numeric prefixes keep the original cascade order — never
+ * alphabetise or reorder (e.g. the tag-badge mono font rule must follow
  * the blanket UI-font rule).
  *
  * @return string[] File names relative to assets/builder/css/.
@@ -77,41 +79,24 @@ function dbe_builder_css_files() {
 	// Token layer: emitted whenever anything is on (declarations only).
 	$files[] = '00-tokens.css';
 
-	// Toast + hidden auto context menu, shared by several features.
-	if ( dbe_enabled( 'wrap_in' ) || dbe_enabled( 'undo_delete' )
-		|| dbe_enabled( 'auto_bem' ) || dbe_enabled( 'inline_rename' )
-		|| dbe_enabled( 'keyboard_shortcuts' ) || dbe_enabled( 'command_palette' ) ) {
-		$files[] = '01-infra.css';
-	}
-
-	// Navigator flex layout: any feature that injects rows above the tree
-	// needs the tree to flex into the remaining panel height, or the footer
-	// (delete element / edit favourites) gets clipped.
-	if ( dbe_enabled( 'tree_search' ) || dbe_enabled( 'collapse_expand_all' ) || dbe_enabled( 'favourites_reorder' ) ) {
-		$files[] = '02-nav-layout.css';
-	}
-
 	foreach ( dbe_features() as $id => $feature ) {
-		if ( ! dbe_enabled( $id ) || empty( $feature['css'] ) ) {
+		if ( ! dbe_enabled( $id ) ) {
 			continue;
 		}
-		foreach ( $feature['css'] as $file ) {
-			$files[] = $file;
+		foreach ( array( 'css', 'shared_css' ) as $key ) {
+			if ( empty( $feature[ $key ] ) ) {
+				continue;
+			}
+			foreach ( $feature[ $key ] as $file ) {
+				$files[] = $file;
+			}
 		}
-	}
-
-	// Injected context-menu items / flyout chrome, shared by several features.
-	if ( dbe_enabled( 'context_menu' ) || dbe_enabled( 'wrap_in' ) || dbe_enabled( 'inline_rename' )
-		|| dbe_enabled( 'collapse_expand_all' ) || dbe_enabled( 'scope_bar' )
-		|| dbe_enabled( 'auto_bem' ) || dbe_enabled( 'keyboard_shortcuts' )
-		|| dbe_enabled( 'command_palette' ) ) {
-		$files[] = '30-context-menu.css';
 	}
 
 	$files = array_unique( $files );
 	sort( $files, SORT_STRING ); // Numeric prefixes define the cascade order.
 
-	return $files;
+	return array_values( $files );
 }
 
 /**
@@ -192,8 +177,17 @@ function dbe_print_builder_head() {
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
 
 /**
- * Config object and the builder chrome script printed inline on wp_footer
- * (same rationale as the CSS; enqueue behaviour under `?builderius` is unproven).
+ * Config object (inline — it varies per site and per toggle set) and the
+ * builder chrome script on wp_footer.
+ *
+ * The script is a plain `<script src>` tag printed directly, NOT inlined and
+ * NOT enqueued: at ~400 KB it is the plugin's largest asset and inlining
+ * defeated browser caching on every builder load, while the wp_enqueue
+ * pipeline under `?builderius` remains unproven (builder mode strips foreign
+ * hooks — see the header docblock in the main plugin file). A printed tag
+ * sidesteps both: the browser caches the file, and no enqueue machinery is
+ * involved. Versioned by filemtime so a plugin update — or an edit while
+ * developing — busts the cache immediately.
  */
 function dbe_print_builder_footer() {
 	if ( ! dbe_builder_output_allowed() ) {
@@ -221,7 +215,9 @@ function dbe_print_builder_footer() {
 		'version'   => DBE_VERSION,
 	);
 
+	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );
+
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '<script id="dbe-builder-enhancements-js">' . "\n" . file_get_contents( $path ) . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Trusted inline JS from a bundled plugin file, not a remote URL.
+	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: the enqueue pipeline is unproven under builder mode (see the function docblock); a printed tag is the delivery proven to survive it.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );

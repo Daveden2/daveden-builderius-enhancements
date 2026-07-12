@@ -1627,6 +1627,13 @@
         });
     }
 
+    /* Close the native context menu and any DBE submenus — the pair every
+       injected item's activation ends with. One copy, so a fix to the close
+       recipe can never miss a site again. */
+    function closeCtxMenu() {
+        closeCtxMenu();
+    }
+
     function positionFlyout(fly, parentLi) {
         var pr = parentLi.getBoundingClientRect();
         var fw = fly.offsetWidth || 176;
@@ -1769,8 +1776,7 @@
         li.addEventListener('mousedown', function (ev) {
             ev.preventDefault();
             ev.stopPropagation();
-            removeSubmenus();
-            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+            closeCtxMenu();
             onActivate();
         });
         return li;
@@ -1810,8 +1816,7 @@
             ev.preventDefault();
             ev.stopPropagation();
             wrap(type, multiCtxIds());
-            removeSubmenus();
-            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+            closeCtxMenu();
         });
         return li;
     }
@@ -1819,14 +1824,15 @@
     /* Expand the right-clicked row's whole subtree. Same chevron click channel
        as expandAll, scoped to the row's li; runs in short passes because deep
        rows that were never expanded may only mount after their parent opens. */
-    function expandSubtree(id) {
-        var rowBtn = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
-        var root = rowBtn && rowBtn.closest('li.uniModTree__itemDrag');
-        if (!root) { return; }
+    /* Repeatedly click every collapsed chevron under `rootEl` until none
+       remain — each pass triggers async re-renders that can mount previously
+       hidden collapsed rows, hence the multi-pass loop. Bounded at 10 passes.
+       Shared by "Expand children" and the Navigator's expand-all button. */
+    function dbeExpandPass(rootEl) {
         var passes = 0;
         (function pass() {
             var chevs = [];
-            root.querySelectorAll('button.uniModTree__item:not(.expanded)').forEach(function (btn) {
+            rootEl.querySelectorAll('button.uniModTree__item:not(.expanded)').forEach(function (btn) {
                 var chev = btn.querySelector('i');
                 if (chev) { chevs.push(chev); }
             });
@@ -1835,6 +1841,13 @@
             chevs.forEach(function (chev) { clickSeq(chev); });
             setTimeout(pass, 120);
         })();
+    }
+
+    function expandSubtree(id) {
+        var rowBtn = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        var root = rowBtn && rowBtn.closest('li.uniModTree__itemDrag');
+        if (!root) { return; }
+        dbeExpandPass(root);
     }
 
     /* Keyboard support for the context menu (APG menu pattern). The native menu
@@ -2021,8 +2034,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var id = lastCtxId || activeId();
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     startRename(id);
                 });
                 nameItems.push(renameLi);
@@ -2041,8 +2053,7 @@
                         ev.preventDefault();
                         ev.stopPropagation();
                         var id = lastCtxId;
-                        removeSubmenus();
-                        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                        closeCtxMenu();
                         commitRename(id, ctxDefault);
                         undoToast(dbeFmt(dbeT('labelResetTo', 'Label reset to <%s>'), ctxDefault));
                     });
@@ -2065,8 +2076,7 @@
                         ev.preventDefault();
                         ev.stopPropagation();
                         var id = lastCtxId;
-                        removeSubmenus();
-                        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                        closeCtxMenu();
                         // Let the menu dialog finish closing (it is showModal —
                         // while open our own dialog could not take focus).
                         setTimeout(function () { openAutoBemDialog(id); }, 120);
@@ -2088,8 +2098,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var id = lastCtxId;
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     expandSubtree(id);
                 });
             }
@@ -2115,8 +2124,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var ids = multiIds.slice();
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     clearMultiSel(); // the auto-driven per-row menus must be single-target
                     removeMulti(ids);
                 });
@@ -2294,10 +2302,7 @@
             if (!li || !li.parentElement.closest('li.uniModTree__itemDrag')) { return; }
             var chev = btn.querySelector('i');
             if (!chev) { return; }
-            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-                var Ev = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
-                chev.dispatchEvent(new Ev(t, { bubbles: true, cancelable: true, view: window }));
-            });
+            clickSeq(chev);
         });
     }
 
@@ -2326,18 +2331,8 @@
        rows that were never expanded may only mount after their parent opens,
        so this runs in short passes until no closed chevron rows remain. */
     function expandAll() {
-        var passes = 0;
-        (function pass() {
-            var chevs = [];
-            document.querySelectorAll('.uniRightPanel button.uniModTree__item:not(.expanded)').forEach(function (btn) {
-                var chev = btn.querySelector('i');
-                if (chev) { chevs.push(chev); }
-            });
-            if (!chevs.length || passes >= 10) { return; }
-            passes += 1;
-            chevs.forEach(function (chev) { clickSeq(chev); });
-            setTimeout(pass, 120);
-        })();
+        var panel = document.querySelector('.uniRightPanel');
+        if (panel) { dbeExpandPass(panel); }
     }
 
     function ensureExpandAllButton() {

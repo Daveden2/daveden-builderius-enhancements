@@ -13,6 +13,12 @@
 (function () {
 	'use strict';
 	var FIX_ID = 'dbe-overlay-label-fix';
+	/* The hexes below duplicate token values from 00-tokens.css — #2a6ecb =
+	   --dbe-accent-strong (dark), #067a57 = --dbe-component (light), #14161a =
+	   --dbe-on-accent (dark). They CANNOT reference the custom properties:
+	   this runs in the inner-preview iframe's shadow roots, a separate
+	   document the chrome CSS never reaches. If the tokens change, update
+	   both files (00-tokens.css carries the matching pointer). */
 	var CSS = [
 		'.label { font-weight: 600; }',
 		':host([data-uni-overlay-type="hovered"][data-uni-overlay-mod-type="regular"]) .label,',

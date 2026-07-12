@@ -54,7 +54,13 @@ html[data-dbe-theme="light"]   { color-scheme: light; }
 }
 
 /* --- Dark palette (default: no attribute, or data-dbe-theme="dark") ---
-   Values match the native Builderius chrome. */
+   Values match the native Builderius chrome.
+
+   NOTE: preview-overlay.js hard-codes three of these values (#2a6ecb
+   --dbe-accent-strong, #14161a --dbe-on-accent, and light's #067a57
+   --dbe-component) — it styles shadow roots in the inner-preview iframe,
+   a separate document these custom properties never reach. If those
+   values change here, change them there too. */
 :root,
 html[data-dbe-theme="dark"] {
     /* Elevation */
