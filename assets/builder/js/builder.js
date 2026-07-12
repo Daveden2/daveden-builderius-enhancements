@@ -4948,10 +4948,25 @@
         ensureSaveMenuButton(); // aria-expanded reflects the open menu at once
     }
 
+    /* Anchor the menu dialog to the injected button: right edges aligned,
+       dropped just below. The native dialog positions itself from the click
+       event's clientX/Y with its own clamping maths, which lands it well left
+       of the button — overwriting its inline left/top after it opens is the
+       only placement that is exact regardless of that maths. */
+    function dbeAnchorSaveMenu(menu) {
+        var btn = document.querySelector('.dbe-save-menu-btn');
+        var dlg = menu.closest('dialog');
+        if (!btn || !dlg) { return; }
+        var br = btn.getBoundingClientRect();
+        var dr = dlg.getBoundingClientRect();
+        dlg.style.left = Math.max(8, Math.round(br.right - dr.width)) + 'px';
+        dlg.style.top = Math.round(br.bottom + 4) + 'px';
+    }
+
     /* The menu mounts as a fresh <dialog> per open with a per-button
-       data-menu-id — nothing stable to select on. Both open paths (mouse and
-       the ArrowDown below) run through an .actions click, so catch it there:
-       the first visible dialog menu right after that click is this menu. */
+       data-menu-id — nothing stable to select on. Every open runs through
+       dbeOpenSaveMenu's click on the hidden strip, so the first visible
+       dialog menu right after that click is this menu. */
     function dbeWatchSaveMenuOpen(focusFirst) {
         waitFor(function () {
             var menus = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu'));
@@ -4959,6 +4974,7 @@
         }, function (menu) {
             if (!menu) { return; }
             dbeStampSaveMenu(menu);
+            dbeAnchorSaveMenu(menu);
             if (focusFirst) {
                 var items = dbeSaveMenuItems(menu);
                 var first = items.filter(function (li) { return !li.classList.contains('disabled'); })[0] || items[0];
@@ -5039,10 +5055,14 @@
         }
         var exp = dbeSaveMenuOpenEl() ? 'true' : 'false';
         if (btn.getAttribute('aria-expanded') !== exp) { btn.setAttribute('aria-expanded', exp); }
-        // Mirror the Save button's current colours (theme + save-state aware).
+        // Mirror the Save button's current colours AND exact height (theme,
+        // save-state and density aware) — flex stretch is not honoured in the
+        // top bar's layout, so the height is copied outright.
         var cs = getComputedStyle(save);
         if (btn.style.background !== cs.backgroundColor) { btn.style.background = cs.backgroundColor; }
         if (btn.style.color !== cs.color) { btn.style.color = cs.color; }
+        var wantH = Math.round(save.getBoundingClientRect().height) + 'px';
+        if (btn.style.blockSize !== wantH) { btn.style.blockSize = wantH; }
     }
 
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */

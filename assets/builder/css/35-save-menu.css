@@ -18,10 +18,15 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    align-self: stretch !important;      /* match the Save button's height */
-    inline-size: 24px !important;        /* WCAG 2.5.8 minimum pointer target */
+    /* Height is mirrored from the Save button's measured box by builder.js —
+       flex stretch is not honoured in the top bar's layout. */
+    inline-size: 28px !important;        /* ≥ WCAG 2.5.8 minimum pointer target */
+    min-inline-size: 28px !important;
+    flex: 0 0 auto !important;           /* the packed top-bar row must not squeeze it */
     padding: 0 !important;
-    margin-inline-start: 1px !important; /* hairline seam against Save */
+    /* The row is a flex container with a 4px gap between siblings; pull back
+       against it so only a 1px hairline seam separates the two segments. */
+    margin-inline-start: -3px !important;
     border: 0 !important;
     border-start-start-radius: 0 !important;
     border-end-start-radius: 0 !important;
