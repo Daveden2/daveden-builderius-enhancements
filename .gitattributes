@@ -8,3 +8,7 @@
 /CONTRIBUTING.md    export-ignore
 /CONTRIBUTORS.md    export-ignore
 /README.md          export-ignore
+/RELEASING.md       export-ignore
+/docs               export-ignore
+/composer.json      export-ignore
+/composer.lock      export-ignore

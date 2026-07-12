@@ -42,6 +42,18 @@ html[data-dbe-theme="auto"]    { color-scheme: light dark; }
     --dbe-t: 120ms ease;
 }
 
+/* Reduced motion: nearly every transition in the bundle takes its duration
+   from --dbe-t, so zeroing it here neutralises motion plugin-wide (this file
+   ships whenever any feature is on). --dbe-speed covers the panel-detach
+   dock-zone fade, which predates the shared token. Files with motion outside
+   these tokens keep their own prefers-reduced-motion guards. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dbe-t: 0ms;
+        --dbe-speed: 0ms;
+    }
+}
+
 /* --- Dark palette (default: no attribute, or data-dbe-theme="dark") ---
    Values match the native Builderius chrome. */
 :root,
