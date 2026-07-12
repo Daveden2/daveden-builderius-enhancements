@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.10.0
+Stable tag: 1.10.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,21 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.10.1 =
+Ships the finishing work that was completed just after 1.10.0 was tagged and so
+never reached the 1.10.0 download. If the command palette showed no keyboard
+shortcuts and the right-click menu had no accelerators, this restores them.
+* New: the command palette now groups its commands under labelled dividers, adds
+  the commands it was missing (Copy, Auto-BEM, Wrap in a div / figure / template /
+  collection) and shows each command's keyboard shortcut, right-aligned.
+* New: the right-click menu shows the keyboard shortcut on every actionable row.
+* Improved: a picked Section from the quick element menu now brings its native
+  container, so it is laid out and ready to fill like the native inserter's Section.
+* Fixed: clicking a settings-panel or Navigator tab now keeps focus on the tab so
+  the arrow keys continue from there.
+* Fixed: the element Attributes repeater is legible again in the light theme (it
+  rendered dark-on-dark).
 
 = 1.10.0 =
 A big accessibility pass across the builder, plus two experimental keyboard tools.

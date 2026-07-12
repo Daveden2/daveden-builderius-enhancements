@@ -3,6 +3,37 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.10.1
+A packaging fix. Three commits landed on `main` immediately after the `v1.10.0`
+tag was cut, so they were merged into the branch but never included in the
+`v1.10.0` release zip (which is built from the tag). This release re-cuts the
+package from the full `main` so those changes actually ship. There is no new
+feature work here beyond what 1.10.0 was meant to contain.
+
+* Command palette: commands are grouped under labelled dividers (Add to element,
+  Structure, Element, Go to); an empty group's divider hides while filtering. Adds
+  the commands the palette was missing next to the context menu — Copy, Auto-BEM,
+  and Wrap in a div / figure / template / collection (gated on the `wrap_in` and
+  `auto_bem` features). Each command shows its keyboard shortcut right-aligned,
+  mirroring the block editor.
+* Right-click menu: the keyboard shortcut is shown, right-aligned, on both the
+  injected rows (Cut, Rename, Add before / after) and the native rows (Duplicate,
+  Copy, Paste, Remove). Native hints are appended after the menu is assembled so
+  the hint text never corrupts the textContent the clustering and Remove-last
+  layout depend on.
+* Section quick-add: a Section added through the quick element picker now inserts
+  the native Builderius structure — `section > div.container[data-container="true"]`
+  — as the section's first child, so it is laid out and ready to fill like the
+  native inserter's Section instead of a bare full-bleed section.
+* Panel tabs: clicking a Content/Styles or Elements/Selectors/CSS-vars tab now
+  restores focus to the freshly mounted active tab (Builderius suppresses
+  focus-on-click and remounts the strip), so the arrow-key flow continues from the
+  clicked tab. Activating Styles keeps focus in the CSS editor it mounts.
+* Fixed: the element Attributes repeater rendered dark-on-dark in the light theme
+  (rows, name/value fields, per-row actions and the "Add attribute" button kept
+  their native dark-scale surfaces). Repainted from the theme tokens for light and
+  auto; dark is untouched.
+
 ## 1.10.0
 A large accessibility pass across the builder, plus two experimental
 keyboard-driven productivity features.
