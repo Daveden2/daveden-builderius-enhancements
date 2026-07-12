@@ -3,6 +3,90 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.10.2
+Light-theme polish across the Navigator and Styles panel, find-widget fixes in
+the CSS code editor, and a new "All CSS" jump in the scope bar.
+
+* New (scope_bar): an "All CSS" button beside the Global/Template switch opens the
+  full stylesheet for the active scope — the same view as the Navigator's
+  Selectors → All CSS — and flashes the current selector's rule so you can see
+  where it sits among everything else. The scope bar lives in the element's Styles
+  editor while the All CSS view lives in the Selectors tab (separate panels), so
+  the button drives the route for you: open Selectors, pick the selector (which
+  mounts the Selector CSS | All CSS sub-tabs, re-clicking through the list's
+  post-navigation re-renders), switch to All CSS, then reveal-and-highlight the
+  rule via Builderius' exposed Monaco API (window.monaco is not global;
+  window.Builderius.API.monaco is). It follows the active Global/Template scope
+  (shared store value) and is disabled at the local %local% level, which has no
+  shared rule to jump to. The control is the Builderius CSS-file glyph (cloned
+  from the native CSS-mode icon) so the scope switch keeps its full label width;
+  its accessible name and tooltip carry the "All CSS" label.
+* Fixed: Navigator tree rows drew a hard black border in the light theme. Stock
+  borders the rows in --primary-2 (#2e2f32), which vanishes into the dark rows
+  but reads as a heavy black box on the light theme's white rows. The resting
+  border is softened to the hairline token so the row label carries the
+  attention, matching how the border recedes in dark mode. Light/auto only, and
+  not forced — stock's stateful recolours (the selected row's accent border,
+  drag activation) still win.
+* Fixed: the class-name chips in the Styles panel sat on borderline contrast.
+  The selected/active chip was near-black text on the mid-tone --accent-normal
+  (~6:1) and the applied-class ("others") chips were --dbe-text-2 on the grey
+  --dbe-line-hi (~6:1) — both technically AA but weak. The active chip is now a
+  filled darkened-accent pill with white text (~6.5:1, and clearly distinct from
+  the grey chips), and the other chips use the strongest text token (~9.4:1).
+  The active chip's :hover is pinned to the strong fill so hover no longer drops
+  it back to the light accent (which would have sunk the white text to ~2.8:1).
+  Light and auto themes only; dark is untouched.
+* Fixed: the find widget's search field was badly cramped. Below ~411px of
+  editor width Monaco collapses the widget and pins it to 170px, which in the
+  clamped-narrow Styles panel squeezed the input down to ~46px. It is now
+  re-clamped to the panel's own width (input ~95px at the default width, wider
+  as the panel grows); a widened panel (Resizable side panels) clears Monaco's
+  threshold and keeps the full-size widget untouched.
+* Fixed: the find widget's search field showed as a dark box in the light theme.
+  The field is a `<textarea class="input">`, which slipped past the `.inputarea`
+  exemption in the control styling and inherited the panel's light `--dbe-l2`
+  fill; the editor's light theme then inverts its pixels, turning that fill
+  near-black. Monaco's own inputs are now left to Monaco's chrome, so the field
+  inverts in step with the rest of the widget (and stays correct in dark mode).
+* Fixed: the canvas preview took the builder's colour scheme. `color-scheme` is
+  set per theme (in 00-tokens.css) for native controls, but it inherits — so it
+  reached the preview `<iframe>` element, and a page with a transparent
+  background then painted on the dark UA backdrop in the dark theme, unlike the
+  front end. Reset to `color-scheme: normal` on `.uniIframePanel iframe` so the
+  previewed page renders in its own scheme, matching the published site.
+
+## 1.10.1
+A packaging fix. Three commits landed on `main` immediately after the `v1.10.0`
+tag was cut, so they were merged into the branch but never included in the
+`v1.10.0` release zip (which is built from the tag). This release re-cuts the
+package from the full `main` so those changes actually ship. There is no new
+feature work here beyond what 1.10.0 was meant to contain.
+
+* Command palette: commands are grouped under labelled dividers (Add to element,
+  Structure, Element, Go to); an empty group's divider hides while filtering. Adds
+  the commands the palette was missing next to the context menu — Copy, Auto-BEM,
+  and Wrap in a div / figure / template / collection (gated on the `wrap_in` and
+  `auto_bem` features). Each command shows its keyboard shortcut right-aligned,
+  mirroring the block editor.
+* Right-click menu: the keyboard shortcut is shown, right-aligned, on both the
+  injected rows (Cut, Rename, Add before / after) and the native rows (Duplicate,
+  Copy, Paste, Remove). Native hints are appended after the menu is assembled so
+  the hint text never corrupts the textContent the clustering and Remove-last
+  layout depend on.
+* Section quick-add: a Section added through the quick element picker now inserts
+  the native Builderius structure — `section > div.container[data-container="true"]`
+  — as the section's first child, so it is laid out and ready to fill like the
+  native inserter's Section instead of a bare full-bleed section.
+* Panel tabs: clicking a Content/Styles or Elements/Selectors/CSS-vars tab now
+  restores focus to the freshly mounted active tab (Builderius suppresses
+  focus-on-click and remounts the strip), so the arrow-key flow continues from the
+  clicked tab. Activating Styles keeps focus in the CSS editor it mounts.
+* Fixed: the element Attributes repeater rendered dark-on-dark in the light theme
+  (rows, name/value fields, per-row actions and the "Add attribute" button kept
+  their native dark-scale surfaces). Repainted from the theme tokens for light and
+  auto; dark is untouched.
+
 ## 1.10.0
 A large accessibility pass across the builder, plus two experimental
 keyboard-driven productivity features.

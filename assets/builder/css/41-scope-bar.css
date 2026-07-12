@@ -55,6 +55,40 @@
     outline-offset: -2px !important;
 }
 
+/* "All CSS" jump button: opens the whole active-scope stylesheet and flashes the
+   current selector. Sits right of the scope switch; styled to match it. */
+.dbe-scope-allcss {
+    margin-inline-start: 8px !important;
+    padding: 4px 10px !important;
+    font-size: 12px !important; font-weight: 500 !important;
+    white-space: nowrap !important;
+    background: var(--dbe-l2) !important; color: var(--dbe-text-2) !important;
+    border: 1px solid var(--dbe-line) !important; border-radius: var(--dbe-r-sm) !important;
+    cursor: pointer !important;
+    transition: background var(--dbe-t), color var(--dbe-t) !important;
+}
+.dbe-scope-allcss:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-text) !important; }
+.dbe-scope-allcss:focus-visible { outline: 2px solid var(--dbe-focus) !important; outline-offset: 1px !important; }
+.dbe-scope-allcss:disabled { opacity: .45 !important; cursor: not-allowed !important; }
+/* Icon-only variant: a square 28px target (clears WCAG 2.5.8) holding the
+   Builderius CSS-file glyph, so the scope switch keeps its label room. */
+.dbe-scope-allcss--icon {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    inline-size: 28px !important; block-size: 28px !important;
+    padding: 0 !important; flex: 0 0 auto !important;
+}
+.dbe-scope-allcss--icon svg { inline-size: 15px !important; block-size: 15px !important; }
+
+/* Flash decoration on the located rule. This paints INSIDE Monaco, whose light
+   theme is a pixel inversion (60-theme.css), so a semi-transparent accent-blue
+   is used deliberately — it reads as a blue wash in the dark editor and stays a
+   recognisable highlight once inverted, where a token colour would hue-shift. */
+.dbe-allcss-flash { background: rgba(94, 160, 237, 0.26) !important; }
+.dbe-allcss-flash-gutter {
+    background: rgba(94, 160, 237, 0.9) !important;
+    width: 3px !important; margin-inline-start: 2px !important;
+}
+
 /* Scope-switch mask: an opaque, panel-coloured cover placed over each side panel
    while the multi-step switch churns, then faded out to reveal the settled result.
    Starts opaque (no fade-in) so nothing peeks through; only the reveal animates. */

@@ -197,6 +197,8 @@ function dbe_builder_strings() {
 		'switchingScope'          => __( 'Switching scope…', 'daveden-builderius-enhancements' ),
 		'scopeBadgeTip'           => __( 'Scope controls where edits are SAVED. The editor shows the selector’s existing rules from both scopes, so a rule you see here may be stored in the other scope.', 'daveden-builderius-enhancements' ),
 		'cssScope'                => __( 'CSS scope', 'daveden-builderius-enhancements' ),
+		'scopeAllCss'             => __( 'All CSS', 'daveden-builderius-enhancements' ),
+		'scopeAllCssTip'          => __( 'Show the full CSS for the active scope and jump to this selector', 'daveden-builderius-enhancements' ),
 		'scopeGlobal'             => __( 'Global', 'daveden-builderius-enhancements' ),
 		'scopeTemplate'           => __( 'Template', 'daveden-builderius-enhancements' ),
 		'scopeComponent'          => __( 'Component', 'daveden-builderius-enhancements' ),

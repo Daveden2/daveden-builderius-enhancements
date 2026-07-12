@@ -13,6 +13,13 @@ html[data-dbe-theme="dark"]    { color-scheme: dark; }
 html[data-dbe-theme="light"]   { color-scheme: light; }
 html[data-dbe-theme="auto"]    { color-scheme: light dark; }
 
+/* color-scheme is inherited, so the value above also reaches the canvas
+   <iframe> ELEMENT — and a previewed page with a transparent background then
+   paints on the UA's scheme backdrop (dark in the dark theme), unlike the front
+   end. Hand the preview back its own scheme so the page renders as published,
+   independent of the builder's chrome theme. */
+.uniIframePanel iframe        { color-scheme: normal; }
+
 /* Theme-independent tokens + derived tints (the tints reference the palette
    tokens below, so they resolve to whichever theme is active). */
 :root {

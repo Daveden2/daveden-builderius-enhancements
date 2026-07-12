@@ -23,6 +23,43 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      # Guard against publishing a stale release. 1.10.0 shipped short because the
+      # tag was cut three commits before they merged into main, and the zip is
+      # built from the tag — so the download was missing shipped code. A plain
+      # "header version == tag" check would NOT have caught that (the header was
+      # already correct at the tagged commit); the tell was that main's tree had
+      # moved on. So we assert both: the version strings match the tag, and the
+      # tagged tree is identical to the tip of main.
+      - name: Guard against a stale or mistagged release
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.release.tag_name }}"
+          expected="${tag#v}"
+
+          header="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9][0-9A-Za-z.-]*).*/\1/p' daveden-builderius-enhancements.php | head -n1)"
+          define="$(sed -nE "s/^[[:space:]]*define\([[:space:]]*'DBE_VERSION'[[:space:]]*,[[:space:]]*'([0-9][0-9A-Za-z.-]*)'.*/\1/p" daveden-builderius-enhancements.php | head -n1)"
+          stable="$(sed -nE 's/^Stable tag:[[:space:]]*([0-9][0-9A-Za-z.-]*).*/\1/p' readme.txt | head -n1)"
+
+          fail=0
+          for pair in "plugin header:$header" "DBE_VERSION:$define" "readme Stable tag:$stable"; do
+            name="${pair%%:*}"; value="${pair#*:}"
+            if [ "$value" != "$expected" ]; then
+              echo "::error::$name is '$value' but the release tag is '$tag' (expected '$expected'). Bump it before tagging."
+              fail=1
+            fi
+          done
+
+          # The zip is built from the tagged commit; if main has moved on, the tag
+          # is missing shipped code. Compare trees, not history (shallow-safe).
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet HEAD FETCH_HEAD; then
+            echo "::error::The tagged tree differs from origin/main — main has changes this tag is missing. Re-tag at main's tip and re-publish."
+            git diff --stat HEAD FETCH_HEAD
+            fail=1
+          fi
+
+          [ "$fail" -eq 0 ] || exit 1
+
       - name: Build the distributable zip
         run: bash bin/build-zip.sh
 
