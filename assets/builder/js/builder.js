@@ -4885,20 +4885,40 @@
         }, true);
     }
 
-    /* (k3) Save split-button menu (topbar_toolbar). The Save button is a
-       native combo — <button.saveBtn.comboBtn><span>Save</span> plus a
-       <div class="actions"> caret strip — and clicking .actions opens a small
-       native menu dialog (Save to Development / Publish to Live). A div
-       inside a button is unreachable by keyboard, so this wires the APG
-       button-with-menu shape: ArrowDown on the focused Save button opens the
-       menu with focus on its first enabled item (Enter/Space keep saving
-       natively); inside, arrows move with wrap, Home/End jump, Enter/Space
-       activate, and Escape stays native — the dialog's own cancel closes it
-       and restores focus by itself. The dialog already ships role=menu and
-       role=menuitem; what it lacks is focusability, state and a name. */
+    /* (k3) Save split button (topbar_toolbar). The native Save button wraps
+       its dropdown trigger INSIDE the <button> — a <div class="actions">
+       caret strip that opens a small menu dialog (Save to Development /
+       Publish to Live). A control inside a control cannot be exposed
+       correctly to keyboard or assistive tech, so this rebuilds the proper
+       split-button shape instead of decorating the broken one:
+
+         - a REAL sibling menu button (.dbe-save-menu-btn, aria-haspopup +
+           live aria-expanded) is injected after Save, and the native strip
+           is hidden by 35-save-menu.css — Save stays a completely plain
+           button, the caret is its own Tab stop;
+         - opening dispatches a coordinate-carrying click sequence on the
+           (hidden) native strip: the menu dialog positions itself from the
+           click event's clientX/Y — a bare .click() carries (0,0) and lands
+           the menu in the top-left corner — so the events carry OUR button's
+           centre. The hidden target's own geometry is irrelevant;
+         - the menu (natively role=menu/menuitem, mounted fresh per open with
+           a random data-menu-id) is stamped focusable and named on open:
+           focus lands on the first enabled item, arrows move with wrap,
+           Home/End jump, Enter/Space activate (no-op on aria-disabled items,
+           which stay focusable for discovery), and Escape stays native — the
+           dialog's own cancel closes and returns focus to the menu button. */
     var dbeSaveMenuEl = null;
 
     function dbeSaveBtn() { return document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn'); }
+
+    /* clickSeq with real coordinates — for native handlers that position UI
+       from the event's clientX/Y rather than the target's box. */
+    function dbeClickSeqAt(el, cx, cy) {
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
+            var Ev = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
+            el.dispatchEvent(new Ev(t, { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy }));
+        });
+    }
 
     function dbeSaveMenuOpenEl() {
         return (dbeSaveMenuEl && dbeSaveMenuEl.isConnected && dbeSaveMenuEl.offsetParent !== null) ? dbeSaveMenuEl : null;
@@ -4947,72 +4967,82 @@
         }, 40);
     }
 
-    function bindSaveMenuKeys() {
-        // Mouse open: stamp focusability/state as the menu appears.
-        document.addEventListener('click', function (e) {
-            if (e.target.closest && e.target.closest('.uniTopPanel .saveBtn .actions')) {
-                dbeWatchSaveMenuOpen(false);
-            }
-        }, true);
+    /* Open the native menu through the hidden strip, positioned at our
+       injected button. */
+    function dbeOpenSaveMenu() {
+        var save = dbeSaveBtn();
+        var actions = save && save.querySelector('.actions');
+        var btn = document.querySelector('.dbe-save-menu-btn');
+        if (!actions || !btn) { return; }
+        var r = btn.getBoundingClientRect();
+        dbeClickSeqAt(actions, r.left + r.width / 2, r.top + r.height / 2);
+        dbeWatchSaveMenuOpen(true);
+    }
 
+    function bindSaveMenuKeys() {
         document.addEventListener('keydown', function (e) {
             var menu = dbeSaveMenuOpenEl();
-            if (menu) {
-                var items = dbeSaveMenuItems(menu);
-                if (!items.length) { return; }
-                var idx = items.indexOf(document.activeElement);
-                var next = -1;
-                if (e.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % items.length; }
-                else if (e.key === 'ArrowUp') { next = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length; }
-                else if (e.key === 'Home') { next = 0; }
-                else if (e.key === 'End') { next = items.length - 1; }
-                else if ((e.key === 'Enter' || e.key === ' ') && idx > -1) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (items[idx].getAttribute('aria-disabled') !== 'true') { items[idx].click(); }
-                    return;
-                } else {
-                    return; // Escape and everything else stay native
-                }
+            if (!menu) { return; }
+            var items = dbeSaveMenuItems(menu);
+            if (!items.length) { return; }
+            var idx = items.indexOf(document.activeElement);
+            var next = -1;
+            if (e.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % items.length; }
+            else if (e.key === 'ArrowUp') { next = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length; }
+            else if (e.key === 'Home') { next = 0; }
+            else if (e.key === 'End') { next = items.length - 1; }
+            else if ((e.key === 'Enter' || e.key === ' ') && idx > -1) {
                 e.preventDefault();
                 e.stopPropagation();
-                items[next].focus();
+                if (items[idx].getAttribute('aria-disabled') !== 'true') { items[idx].click(); }
                 return;
+            } else {
+                return; // Escape and everything else stay native
             }
-            // ArrowDown on the focused Save button opens the menu.
-            if (e.key !== 'ArrowDown' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; }
-            var save = dbeSaveBtn();
-            if (!save || document.activeElement !== save) { return; }
-            var actions = save.querySelector('.actions');
-            if (!actions) { return; }
             e.preventDefault();
             e.stopPropagation();
-            actions.click();
-            dbeWatchSaveMenuOpen(true);
+            items[next].focus();
         }, true);
     }
 
-    /* Per-tick state on the Save button itself: haspopup + expanded, the
-       caret strip hidden from the accessibility tree (it is reachable only
-       through the button), and the open gesture documented. */
+    /* Inject/maintain the real menu button after Save. Visuals self-sync by
+       copying the Save button's computed colours each tick, so the pair reads
+       as one pill through every theme and save-state change without this code
+       knowing any of the palettes. */
     function ensureSaveMenuButton() {
         var save = dbeSaveBtn();
         if (!save) { return; }
         var actions = save.querySelector('.actions');
+        var btn = save.parentElement.querySelector('.dbe-save-menu-btn');
         if (!actions) {
-            // No caret strip mounted (no publish flow) — clear stale state.
-            if (save.hasAttribute('aria-haspopup')) {
-                save.removeAttribute('aria-haspopup');
-                save.removeAttribute('aria-expanded');
-                save.removeAttribute('aria-keyshortcuts');
-            }
+            // No caret strip mounted (no publish flow) — retire our button too.
+            if (btn) { btn.remove(); }
             return;
         }
         if (actions.getAttribute('aria-hidden') !== 'true') { actions.setAttribute('aria-hidden', 'true'); }
-        if (save.getAttribute('aria-haspopup') !== 'menu') { save.setAttribute('aria-haspopup', 'menu'); }
-        if (save.getAttribute('aria-keyshortcuts') !== 'ArrowDown') { save.setAttribute('aria-keyshortcuts', 'ArrowDown'); }
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'uniPanelButtonPrimary dbe-save-menu-btn';
+            btn.setAttribute('aria-haspopup', 'menu');
+            btn.setAttribute('aria-label', dbeT('tipSaveOptions', 'Save options'));
+            var caretSvg = actions.querySelector('svg');
+            if (caretSvg) { btn.appendChild(caretSvg.cloneNode(true)); }
+            else { btn.textContent = '▾'; }
+            btn.addEventListener('click', dbeOpenSaveMenu);
+            btn.addEventListener('keydown', function (e) {
+                // Enter/Space are the button's native click; ArrowDown matches
+                // the APG menu-button pattern.
+                if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); dbeOpenSaveMenu(); }
+            });
+            save.parentElement.insertBefore(btn, save.nextSibling);
+        }
         var exp = dbeSaveMenuOpenEl() ? 'true' : 'false';
-        if (save.getAttribute('aria-expanded') !== exp) { save.setAttribute('aria-expanded', exp); }
+        if (btn.getAttribute('aria-expanded') !== exp) { btn.setAttribute('aria-expanded', exp); }
+        // Mirror the Save button's current colours (theme + save-state aware).
+        var cs = getComputedStyle(save);
+        if (btn.style.background !== cs.backgroundColor) { btn.style.background = cs.backgroundColor; }
+        if (btn.style.color !== cs.color) { btn.style.color = cs.color; }
     }
 
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
@@ -5024,8 +5054,6 @@
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ].concat(on('save_shortcut') ? [
             ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
-        ] : []).concat(on('topbar_toolbar') ? [
-            ['↓', dbeT('scSaveMenu', 'Open the Save options menu (on the Save button)')]
         ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [

@@ -1,0 +1,37 @@
+/* Save split button (topbar_toolbar). The native Save button wraps its
+   dropdown caret INSIDE the <button> (div.actions) — unreachable by keyboard
+   and impossible to expose correctly (a control inside a control). builder.js
+   injects a REAL sibling menu button (.dbe-save-menu-btn) and these rules
+   hide the native strip and shape the pair as one pill: Save = plain button,
+   caret = its own aria-haspopup button. Everything is gated on the injected
+   button actually existing, so a JS failure leaves the native control alone. */
+
+.uniTopPanel__rightCol:has(> .dbe-save-menu-btn) .saveBtn.comboBtn .actions {
+    display: none !important;
+}
+.uniTopPanel__rightCol:has(> .dbe-save-menu-btn) .saveBtn.comboBtn {
+    border-start-end-radius: 0 !important;
+    border-end-end-radius: 0 !important;
+}
+
+.dbe-save-menu-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: stretch !important;      /* match the Save button's height */
+    inline-size: 24px !important;        /* WCAG 2.5.8 minimum pointer target */
+    padding: 0 !important;
+    margin-inline-start: 1px !important; /* hairline seam against Save */
+    border: 0 !important;
+    border-start-start-radius: 0 !important;
+    border-end-start-radius: 0 !important;
+    cursor: pointer !important;
+}
+.dbe-save-menu-btn svg {
+    pointer-events: none !important;
+}
+/* Visible focus even when the focus_visibility toggle is off. */
+.dbe-save-menu-btn:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+}

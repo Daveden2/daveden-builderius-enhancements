@@ -105,9 +105,9 @@ function dbe_features() {
 		),
 		'topbar_toolbar'      => array(
 			'title'       => __( 'Top-bar keyboard groups', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), and the canvas width and zoom fields are grouped and labelled.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), the canvas width and zoom fields are grouped and labelled, and the Save button’s dropdown becomes a proper split button — the Save-options menu gets its own keyboard-reachable button, with arrow keys inside the menu.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
-			'css'         => false,
+			'css'         => array( '35-save-menu.css' ),
 			'js'          => true,
 		),
 		'footer_toolbar'      => array(
