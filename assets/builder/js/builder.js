@@ -3543,6 +3543,24 @@
                 items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
                 items[next].focus();
             });
+            // Builderius suppresses focus-on-click for these tab buttons (focus
+            // falls to <body>) and remounts the strip when the tab switches, so a
+            // mouse user is left with no tab focused and the keyboard flow broken.
+            // After the remount settles, move focus to the now-active tab — but
+            // only when nothing else has legitimately claimed focus (activating
+            // Styles mounts the CSS editor, which should keep it). Re-query the
+            // live strip: the node captured in this closure is detached by the
+            // remount, so focusing its buttons would silently land on <body>.
+            strip.addEventListener('click', function (e) {
+                if (!e.target.closest(sel)) { return; }
+                setTimeout(function () {
+                    var ae = document.activeElement;
+                    if (ae && ae !== document.body && !(ae.closest && ae.closest('.uniPanelTabs'))) { return; }
+                    var live = document.querySelector(panelSel + ' .uniPanelTabs');
+                    var active = live && live.querySelector(sel + '.active');
+                    if (active) { active.focus(); }
+                }, 0);
+            });
         });
     }
 

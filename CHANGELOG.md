@@ -23,7 +23,12 @@ keyboard-driven productivity features.
 * New: "Accessible panel tabs". The settings panel's Content / Styles strip and the
   Navigator's Elements / Selectors / CSS vars strip are now proper tab lists: each tab
   announces that it is a tab and whether it is current, and each strip is one Tab stop
-  where the arrow keys move between the tabs (Home and End jump to the ends).
+  where the arrow keys move between the tabs (Home and End jump to the ends). Clicking a
+  tab now moves keyboard focus to it, so the arrow keys carry on from the tab you
+  clicked. Builderius suppresses focus-on-click for these buttons (focus fell to the
+  page body) and remounts the strip when the tab switches, so the focus is restored to
+  the freshly mounted active tab once the switch settles, unless activating the tab
+  mounted the CSS editor, which keeps focus.
 * New: "Inserter keyboard navigation". The element Inserter is now navigable like the
   WordPress block inserter: each category is one Tab stop, the arrow keys move between
   the elements within a category (Home and End jump to its first and last), and Enter
