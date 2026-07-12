@@ -4734,7 +4734,10 @@
     }
     var dbeSaveClickBound = false;
     function ensureSaveCue() {
-        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary');
+        // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal mounts
+        // its own (disabled) primary Save earlier in document order, and the bare
+        // class would anchor the cue to — and rebaseline on — that dead button.
+        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
         if (!save) { return; }
         if (!dbeSaveClickBound) {
             dbeSaveClickBound = true;
@@ -4743,7 +4746,7 @@
             // again — the baseline would stop resetting and the cue would read
             // "Unsaved" forever after the first save.
             document.addEventListener('click', function (e) {
-                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary'))) { return; }
+                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
                 // Give the save request a beat, then treat the current state as
                 // clean. Optimistic: a save that fails re-flags only on the next
                 // history-growing edit — the native beforeunload warning remains
@@ -4768,6 +4771,31 @@
         cue.classList.toggle('is-dirty', len > saveBaseline);
     }
 
+    /* (k2) Cmd/Ctrl+S saves the template (save_shortcut). The browser's
+       save-page dialog is useless inside the builder, and every editor trains
+       this muscle memory. Capture-phase, so it wins before Monaco or the
+       builder see the key; deliberately NOT gated on inputs/contenteditable —
+       saving from the middle of typing is exactly what the WordPress block
+       editor does. Acts (and suppresses the browser dialog) only when the
+       native Save button is actually present; the programmatic click also
+       bubbles through the save cue's delegated listener, so the "Unsaved"
+       marker rebaselines exactly as a pointer click would. */
+    function bindSaveShortcut() {
+        document.addEventListener('keydown', function (e) {
+            if (e.repeat || (e.key || '').toLowerCase() !== 's') { return; }
+            var mod = dbeIsMac ? (e.metaKey && !e.ctrlKey) : e.ctrlKey;
+            if (!mod || e.shiftKey || e.altKey) { return; }
+            // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal
+            // mounts its own (disabled) primary Save earlier in document order,
+            // and querySelector on the bare class lands on that dead button.
+            var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
+            if (!save || save.disabled) { return; } // nothing to drive — leave the browser default alone
+            e.preventDefault();
+            e.stopPropagation();
+            clickSeq(save);
+        }, true);
+    }
+
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
@@ -4775,7 +4803,9 @@
             ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
-        ]],
+        ].concat(on('save_shortcut') ? [
+            ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
+        ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
                 ['↑ ↓', dbeT('scTreeMove', 'Move between elements (selection follows)')],
@@ -7384,6 +7414,9 @@
             hookHistoryCapture();
             bindUndoKeys();
         }
+
+        // Cmd/Ctrl+S saves the template.
+        if (on('save_shortcut')) { bindSaveShortcut(); }
 
         // Keyboard shortcuts overlay (?).
         if (on('shortcuts_overlay')) { bindShortcutsKey(); }
