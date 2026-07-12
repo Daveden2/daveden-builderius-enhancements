@@ -1,0 +1,46 @@
+name: Asset lint
+
+# ESLint + Stylelint over assets/ — the JS and CSS that make up ~85% of the
+# plugin and, until this workflow, had no automated checking at all (phpcs
+# covers only the PHP). Correctness-focused configs: eslint.config.js and
+# .stylelintrc.json in the repo root.
+#
+# Same rollout as phpcs: run it on every change now, add "assets-lint" to the
+# required checks on main and develop once it has proven itself quiet.
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: assets-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  assets-lint:
+    name: assets-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install lint tooling
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint:js
+
+      - name: Stylelint
+        run: npm run lint:css
