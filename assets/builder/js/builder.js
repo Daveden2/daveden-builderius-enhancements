@@ -4885,11 +4885,13 @@
         }, true);
     }
 
-    /* (k3) Save split button (topbar_toolbar). The native Save button wraps
-       its dropdown trigger INSIDE the <button> — a <div class="actions">
-       caret strip that opens a small menu dialog (Save to Development /
-       Publish to Live). A control inside a control cannot be exposed
-       correctly to keyboard or assistive tech, so this rebuilds the proper
+    /* (k3) Save split button (save_split_button — EXPERIMENTAL, off by
+       default). The native Save button wraps its dropdown trigger INSIDE the
+       <button> — a <div class="actions"> caret strip that opens a small menu
+       dialog (Save to Development / Publish to Live). A control inside a
+       control cannot be exposed correctly to keyboard or assistive tech; the
+       proper fix belongs in Builderius (REPORTED UPSTREAM — retire this
+       toggle when it lands). Until then this opt-in rebuilds the proper
        split-button shape instead of decorating the broken one:
 
          - a REAL sibling menu button (.dbe-save-menu-btn, aria-haspopup +
@@ -7596,10 +7598,8 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('topbar_toolbar')) {
-                try { ensureTopbarToolbars(); } catch (e) {}
-                try { ensureSaveMenuButton(); } catch (e) {}
-            }
+            if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
+            if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
@@ -7753,8 +7753,8 @@
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }
 
-        // Save split-button menu: ArrowDown opens, arrows/Enter drive it.
-        if (on('topbar_toolbar')) { bindSaveMenuKeys(); }
+        // Save split-button menu (experimental, off by default).
+        if (on('save_split_button')) { bindSaveMenuKeys(); }
 
         // Keyboard shortcuts overlay (?).
         if (on('shortcuts_overlay')) { bindShortcutsKey(); }

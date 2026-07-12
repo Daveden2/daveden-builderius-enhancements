@@ -105,9 +105,9 @@ function dbe_features() {
 		),
 		'topbar_toolbar'      => array(
 			'title'       => __( 'Top-bar keyboard groups', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), the canvas width and zoom fields are grouped and labelled, and the Save button’s dropdown becomes a proper split button — the Save-options menu gets its own keyboard-reachable button, with arrow keys inside the menu.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), and the canvas width and zoom fields are grouped and labelled.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
-			'css'         => array( '35-save-menu.css' ),
+			'css'         => false,
 			'js'          => true,
 		),
 		'footer_toolbar'      => array(
@@ -377,6 +377,14 @@ function dbe_features() {
 			'tab'         => 'workflow',
 			'css'         => false,
 			'js'          => true,
+		),
+		'save_split_button'   => array(
+			'title'        => __( 'Keyboard access for the Save options menu', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'workflow',
+			'css'          => array( '35-save-menu.css' ),
+			'js'           => true,
+			'experimental' => true,
 		),
 		'presence_heartbeat'  => array(
 			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
