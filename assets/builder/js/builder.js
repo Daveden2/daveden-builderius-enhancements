@@ -5824,6 +5824,23 @@
         return h;
     }
 
+    /* The native "hide side panels" toggle collapses both panel wrappers with
+       INLINE width/min-width/max-width: 0. Two of our stylesheets pin those
+       same properties with !important — 75-panel-resize.css (deliberately, to
+       beat the native resize bar's inline widths) and 40-css-code-default.css
+       (the anti-auto-widen clamp) — which would pin the panels OPEN and make
+       the native toggle look dead. So the native state is mirrored onto a
+       root class here (called from schedule() whenever either feature is on),
+       and every width-forcing rule in both files stands down while it is set.
+       Detection reads the native mechanism itself (the inline max-width: 0),
+       not the top-bar button, so it works with tooltips off. */
+    function dbeSyncPanelsHidden() {
+        var lpo = document.querySelector('.uniLeftPanelOuter');
+        var hidden = !!(lpo && /max-width:\s*0px/.test(lpo.getAttribute('style') || ''));
+        document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
+        return hidden;
+    }
+
     function ensurePanelHandles() {
         // Left settings/inserter panel — grip on its inner (right) edge. The outer
         // is made position:relative by 75-panel-resize.css so the absolute grip
@@ -7427,6 +7444,7 @@
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
+            if (on('panel_resize') || on('css_code_default')) { try { dbeSyncPanelsHidden(); } catch (e) {} }
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
             if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
