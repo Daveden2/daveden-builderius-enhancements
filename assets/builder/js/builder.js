@@ -404,7 +404,32 @@
         updated.settings = updated.settings || [];
         mutate(updated.settings);
         sf.storeSet('addModule', { module: updated });
+        // The canvas repaints from `modules`, but the settings panel for the
+        // selected element is hydrated on SELECTION and does not re-read this write
+        // — so an edit to the active element would not show in the panel (its class
+        // chips / attribute rows) until a save + reload. Re-hydrate by bouncing the
+        // selection off another row and back (a raw activeModule set does not
+        // trigger the hydration; only the selection click handler does).
+        if (activeId() === id) { dbeReselectToRehydrate(id); }
         return true;
+    }
+
+    function dbeReselectToRehydrate(id) {
+        var backRow = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        if (!backRow) { return; }
+        var mods = modules() || {};
+        var other = (mods[id] && mods[id].parent) || '';
+        var otherRow = other && document.querySelector('.uniRightPanel .uni-tree-node-' + other);
+        if (!otherRow) {
+            otherRow = [].slice.call(document.querySelectorAll('.uniRightPanel .uniModTree__list button.uniModTree__item'))
+                .filter(function (r) { return r !== backRow; })[0];
+        }
+        if (!otherRow) { return; }
+        clickSeq(otherRow);
+        waitFor(function () { return (activeId() && activeId() !== id) ? true : null; }, function () {
+            var again = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+            if (again) { clickSeq(again); }
+        });
     }
 
     // Append class name(s) to an element's tagClass setting (deduped).
