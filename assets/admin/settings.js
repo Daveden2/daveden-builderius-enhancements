@@ -30,13 +30,17 @@
     // Retrofit ARIA now that the tabs are functional.
     bar.hidden = false;
     bar.setAttribute('role', 'tablist');
-    document.querySelector('.dbe-settings').classList.add('dbe-js-tabs');
+    var wrap = document.querySelector('.dbe-settings');
+    if (wrap) { wrap.classList.add('dbe-js-tabs'); }
     tabs.forEach(function (tab) {
       tab.setAttribute('role', 'tab');
       tab.id = 'dbe-tab-' + tab.dataset.tab;
+      // Completes the APG tabs pattern: the tab names the panel it controls.
+      tab.setAttribute('aria-controls', 'dbe-panel-' + tab.dataset.tab);
     });
     panels.forEach(function (panel) {
       panel.setAttribute('role', 'tabpanel');
+      panel.id = 'dbe-panel-' + panel.dataset.tab;
       panel.setAttribute('aria-labelledby', 'dbe-tab-' + panel.dataset.tab);
     });
 
