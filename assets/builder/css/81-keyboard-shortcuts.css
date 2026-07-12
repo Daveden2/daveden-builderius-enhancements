@@ -1,0 +1,89 @@
+/* Element keyboard shortcuts (keyboard_shortcuts).
+
+   The quick element picker opened by Add-before / Add-after: a small modal with
+   a filter input over a scrollable, keyboard-navigable list of elements. */
+dialog.dbe-el-picker {
+	inline-size: min(320px, 92vw);
+	max-block-size: min(70vh, 560px);
+	padding: 0;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	background: var(--dbe-l1);
+	color: var(--dbe-text);
+	font-family: var(--dbe-ui-font);
+	box-shadow: 0 12px 40px var(--dbe-shadow);
+	overflow: hidden;
+}
+dialog.dbe-el-picker::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dbe-el-picker__head {
+	padding: 10px 12px 8px;
+	border-block-end: 1px solid var(--dbe-line);
+}
+.dbe-el-picker__title {
+	margin: 0 0 8px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--dbe-muted);
+}
+.dbe-el-picker__filter {
+	inline-size: 100%;
+	box-sizing: border-box;
+	padding: 6px 10px;
+	font-size: 13px;
+	font-family: var(--dbe-ui-font);
+	color: var(--dbe-text);
+	background: var(--dbe-l2);
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-sm);
+}
+.dbe-el-picker__filter:focus-visible {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: 1px;
+}
+
+.dbe-el-picker__list {
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	overflow-y: auto;
+	max-block-size: min(48vh, 380px);
+}
+.dbe-el-picker__item {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	inline-size: 100%;
+	box-sizing: border-box;
+	padding: 6px 10px;
+	border: 0;
+	border-radius: var(--dbe-r-sm);
+	background: transparent;
+	color: var(--dbe-text);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+	transition: background var(--dbe-t), color var(--dbe-t);
+}
+.dbe-el-picker__item:hover { background: var(--dbe-accent-tint); }
+.dbe-el-picker__item:focus-visible,
+.dbe-el-picker__item:focus {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -2px;
+	background: var(--dbe-accent-tint);
+}
+.dbe-el-picker__tag {
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	color: var(--dbe-muted);
+}
+.dbe-el-picker__item[hidden] { display: none; }
+
+.dbe-el-picker__empty {
+	padding: 10px;
+	font-size: 12px;
+	color: var(--dbe-muted);
+	text-align: center;
+}

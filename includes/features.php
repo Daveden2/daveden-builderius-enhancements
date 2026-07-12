@@ -276,6 +276,22 @@ function dbe_features() {
 			'css'         => array( '80-builderius-menu.css' ),
 			'js'          => true,
 		),
+		'keyboard_shortcuts'  => array(
+			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
+		'command_palette'     => array(
+			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '82-command-palette.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
 
 		/* -------------------------------------------------------- Styles panel */
 		'css_code_default'    => array(
