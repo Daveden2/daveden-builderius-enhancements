@@ -41,7 +41,27 @@
        Queries modal receives items:[{label,name,width,…}] (the base entry uses
        a huge sentinel width). Bounded scan, null on any failure — callers keep
        a hard-coded fallback. */
+    /* The fiber walk below is expensive (up to 12 fibers × depth-10 object
+       scans) and used to run on EVERY schedule() tick, twice when two consumer
+       features are on — for a list that changes about never. Successful scans
+       are cached; the builder's own breakpoint actions invalidate the cache.
+       A failed scan (panel not mounted yet) is NOT cached, so callers retry
+       exactly as before. */
+    var dbeBpCache = null;
+    var dbeBpHooked = false;
+    function dbeHookBreakpointInvalidation() {
+        if (dbeBpHooked) { return; }
+        dbeBpHooked = true;
+        try {
+            var hooks = window.Builderius.API.hooks;
+            ['builderius.breakpoints.set', 'builderius.Setting.breakpointsAndStrategyUpdated'].forEach(function (h) {
+                hooks.addAction(h, 'dbeBreakpointsCache', function () { dbeBpCache = null; });
+            });
+        } catch (e) { dbeBpHooked = false; } // hooks not ready — retry on the next call
+    }
     function dbeBreakpoints() {
+        if (dbeBpCache) { return dbeBpCache; }
+        dbeHookBreakpointInvalidation();
         try {
             var host = document.querySelector('.uniGlobalBreakpoints');
             if (!host) { return null; }
@@ -69,13 +89,14 @@
                 scan(f.memoizedProps, 0);
             }
             if (!found) { return null; }
-            return found.map(function (it) {
+            dbeBpCache = found.map(function (it) {
                 return {
                     name: it.name || '',
                     label: it.label || '',
                     width: (it.width && it.width < 100000) ? it.width : null
                 };
             });
+            return dbeBpCache;
         } catch (e) { return null; }
     }
 
@@ -86,6 +107,24 @@
         var idoc = iframe && iframe.contentDocument;
         var mods = modules();
         var sel = activeId();
+
+        // id → tag map, built lazily with ONE canvas pass per call. Without it
+        // every badge-less row (templates, components, not-yet-painted nodes)
+        // fired its own querySelector into the iframe on every tick, forever.
+        var tagById = null;
+        function canvasTag(id) {
+            if (!idoc) { return null; }
+            if (!tagById) {
+                tagById = {};
+                idoc.querySelectorAll('[class*="uni-node-"]').forEach(function (el) {
+                    // getAttribute, not className: SVG className is an object.
+                    var m = (el.getAttribute('class') || '').match(/uni-node-(\w+)/);
+                    // Looped templates paint N instances per id — first wins.
+                    if (m && !(m[1] in tagById)) { tagById[m[1]] = el.tagName.toLowerCase(); }
+                });
+            }
+            return tagById[id] || null;
+        }
 
         document.querySelectorAll(ROW_SEL).forEach(function (btn) {
             var idMatch = btn.className.toString().match(/uni-tree-node-(\w+)/);
@@ -113,11 +152,8 @@
             if (!on('tag_badges')) { return; }
             var span = btn.querySelector('span');
             if (!span || span.querySelector('.dbe-tag-badge')) { return; }
-            if (!idoc) { return; }
-            var canvasEl = idoc.querySelector('.uni-node-' + id);
-            if (!canvasEl) { return; }
-
-            var tag = canvasEl.tagName.toLowerCase();
+            var tag = canvasTag(id);
+            if (!tag) { return; }
             var raw = span.textContent.trim();
             var idx = raw.indexOf(' .');
             var label = idx >= 0 ? raw.slice(0, idx) : raw;
@@ -696,11 +732,25 @@
         return canvasTag || null;
     }
 
+    /* parent id → [child ids] in module-map key order (= sibling order), one
+       O(n) pass. The per-node Object.keys scan it replaces made every subtree
+       walk quadratic — felt on Auto-BEM over a page root and on the undo
+       capture of every delete. */
+    function dbeChildIndex(mods) {
+        var byParent = {};
+        Object.keys(mods).forEach(function (k) {
+            var p = mods[k].parent || '';
+            (byParent[p] || (byParent[p] = [])).push(k);
+        });
+        return byParent;
+    }
+
     /* The subtree in tree order (module-map key order = sibling order). */
     function bemCollectRows(rootId) {
         var mods = modules() || {};
         var iframe = document.getElementById('builderInner');
         var idoc = iframe && iframe.contentDocument;
+        var kids = dbeChildIndex(mods);
         var rows = [];
         (function walk(id, depth) {
             var mod = mods[id];
@@ -712,9 +762,7 @@
                 classes: moduleClasses(mod),
                 supported: bemClassable(mod) && !!tag && tag !== 'template'
             });
-            Object.keys(mods).forEach(function (k) {
-                if ((mods[k].parent || '') === id) { walk(k, depth + 1); }
-            });
+            (kids[id] || []).forEach(function (k) { walk(k, depth + 1); });
         })(rootId, 0);
         return rows;
     }
@@ -1367,9 +1415,10 @@
     // to '' (the shape native Paste expects in the forged clipboard).
     function dbeCollectSubtree(mods, id) {
         var subtree = {};
+        var kids = dbeChildIndex(mods);
         (function collect(x) {
             subtree[x] = JSON.parse(JSON.stringify(mods[x]));
-            Object.keys(mods).forEach(function (k) { if (mods[k].parent === x) { collect(k); } });
+            (kids[x] || []).forEach(collect);
         })(id);
         subtree[id].parent = '';
         return subtree;
@@ -3180,6 +3229,22 @@
         return false;
     }
 
+    /* selectorInScope is a full brace-balancing walk over a whole stylesheet
+       and ensureScopeIsolation runs it twice per schedule() tick on the
+       busiest observer. The store returns an unchanged css string between
+       edits, so one memo slot per scope skips the parse on almost every tick
+       (string === is a cheap reference check when nothing changed). */
+    var dbeSelScopeMemo = { global: { css: null, sel: null, hit: false }, entity: { css: null, sel: null, hit: false } };
+    function selectorInScopeCached(which, sel) {
+        var css = scopeCss(which);
+        var m = dbeSelScopeMemo[which];
+        if (m.css === css && m.sel === sel) { return m.hit; }
+        m.css = css;
+        m.sel = sel;
+        m.hit = selectorInScope(css, sel);
+        return m.hit;
+    }
+
     /* Render the scope status line for the active selector. Idempotent and
        signature-guarded so an unchanged tick writes no DOM (the panel
        MutationObserver re-runs schedule() on our own edits otherwise). */
@@ -3225,8 +3290,8 @@
             activeName = isGlobal ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
             otherName = isGlobal ? entityScopeLabel() : dbeT('scopeGlobal', 'Global');
             otherTarget = isGlobal ? 'template' : 'global';
-            activeHas = selectorInScope(scopeCss(isGlobal ? 'global' : 'entity'), sel);
-            otherHas = selectorInScope(scopeCss(isGlobal ? 'entity' : 'global'), sel);
+            activeHas = selectorInScopeCached(isGlobal ? 'global' : 'entity', sel);
+            otherHas = selectorInScopeCached(isGlobal ? 'entity' : 'global', sel);
             state = activeHas ? 'own' : (otherHas ? 'elsewhere' : 'new');
         }
         var sig = state + '|' + displaySel + '|' + activeName + '|' + otherName + '|' + (otherHas ? 1 : 0);
@@ -4688,6 +4753,14 @@
     var treeSearchDebounce = null;
     function applyTreeFilter() {
         var q = treeQuery.trim().toLowerCase();
+        // schedule() re-runs this on every tree mutation; with no filter active
+        // and nothing dimmed there is nothing to do, so skip the full-tree
+        // textContent walk (one cheap existence probe instead).
+        if (!q && !document.querySelector('.uniRightPanel .dbe-tree-dim')) {
+            var idleCount = document.querySelector('.dbe-tree-search__count');
+            if (idleCount && idleCount.textContent !== '') { idleCount.textContent = ''; }
+            return;
+        }
         var rows = document.querySelectorAll('.uniRightPanel .uniModTree__item');
         var total = 0, hits = 0;
         rows.forEach(function (row) {
@@ -6201,17 +6274,27 @@
             try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
         }, true);
 
+        // rAF-gated like the panel/preview drags: pointermove can fire several
+        // times per frame, and each hit-test reads rects (layout) and may
+        // insertBefore (write) — unthrottled, that interleaving thrashes.
+        var favRaf = 0, favY = 0;
         list.addEventListener('pointermove', function (ev) {
             if (!drag) { return; }
-            var items = favItems().filter(function (it) { return it !== drag.li; });
-            for (var i = 0; i < items.length; i++) {
-                var r = items[i].getBoundingClientRect();
-                if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-                    var before = ev.clientY < r.top + r.height / 2;
-                    list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
-                    break;
+            favY = ev.clientY;
+            if (favRaf) { return; }
+            favRaf = requestAnimationFrame(function () {
+                favRaf = 0;
+                if (!drag) { return; } // drag ended before the frame
+                var items = favItems().filter(function (it) { return it !== drag.li; });
+                for (var i = 0; i < items.length; i++) {
+                    var r = items[i].getBoundingClientRect();
+                    if (favY >= r.top && favY <= r.bottom) {
+                        var before = favY < r.top + r.height / 2;
+                        list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
+                        break;
+                    }
                 }
-            }
+            });
         }, true);
 
         function endFavDrag() {
@@ -6589,17 +6672,25 @@
             li.classList.add('dbe-prop-dragging');
             try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
         }, true);
+        // rAF-gated for the same reason as the favourites drag above.
+        var propRaf = 0, propY = 0;
         list.addEventListener('pointermove', function (ev) {
             if (!drag) { return; }
-            var items = propItems(list).filter(function (it) { return it !== drag.li; });
-            for (var i = 0; i < items.length; i++) {
-                var r = items[i].getBoundingClientRect();
-                if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-                    var before = ev.clientY < r.top + r.height / 2;
-                    list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
-                    break;
+            propY = ev.clientY;
+            if (propRaf) { return; }
+            propRaf = requestAnimationFrame(function () {
+                propRaf = 0;
+                if (!drag) { return; } // drag ended before the frame
+                var items = propItems(list).filter(function (it) { return it !== drag.li; });
+                for (var i = 0; i < items.length; i++) {
+                    var r = items[i].getBoundingClientRect();
+                    if (propY >= r.top && propY <= r.bottom) {
+                        var before = propY < r.top + r.height / 2;
+                        list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
+                        break;
+                    }
                 }
-            }
+            });
         }, true);
         function endDrag() {
             if (!drag) { return; }
@@ -7074,11 +7165,6 @@
     function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
     function navRowExpandable(btn) { return !!btn.querySelector('i'); }
     function navRowExpanded(btn) { return btn.classList.contains('expanded'); }
-    function navRowLevel(btn) {
-        var n = 0, li = navRowLi(btn);
-        while (li) { n += 1; li = li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag'); }
-        return n || 1;
-    }
     function navParentRow(btn) {
         var li = navRowLi(btn);
         var pli = li && li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag');
@@ -7131,7 +7217,17 @@
 
     /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
        so it is cheap to re-run every schedule() tick, keeping level/expanded/
-       selected/roving in sync through Builderius' React re-renders. */
+       selected/roving in sync through Builderius' React re-renders.
+
+       ONE top-down traversal: levels derive from the parent's level + 1,
+       sibling position/count are computed once per <ul>, and each wrapper is
+       stamped role="none" exactly once. The per-row form of this (climb the
+       ancestors for level, re-scan siblings for posinset, walk to root for
+       ownership — for every one of 100+ rows) was the hottest code on the
+       busiest observer. Visibility is derived structurally too — a branch list
+       is hidden exactly when its parent row is collapsed — so the roving-stop
+       pass needs no offsetParent reads, which would force layout between the
+       attribute writes above. */
     function navSyncAria() {
         var root = navRootList();
         if (!root) { return; }
@@ -7140,52 +7236,69 @@
         if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
 
         var sel = activeId();
-        var rows = [].slice.call(root.querySelectorAll(NAV_ROW_SEL));
-        rows.forEach(function (btn) {
+        var rows = [], visRows = [];
+
+        function stampRow(btn, level, pos, size, visible) {
             if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
-
-            var lvl = String(navRowLevel(btn));
+            var lvl = String(level);
             if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
-
-            var li = navRowLi(btn);
-            var ul = li && li.parentElement;
-            if (ul) {
-                var sibs = [].slice.call(ul.children).filter(function (el) {
-                    return el.matches && el.matches('li.uniModTree__itemDrag');
-                });
-                var pos = String(sibs.indexOf(li) + 1), size = String(sibs.length);
-                if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
-                if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
-            }
-
+            if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
+            if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
             if (navRowExpandable(btn)) {
                 var ex = navRowExpanded(btn) ? 'true' : 'false';
                 if (btn.getAttribute('aria-expanded') !== ex) { btn.setAttribute('aria-expanded', ex); }
             } else if (btn.hasAttribute('aria-expanded')) {
                 btn.removeAttribute('aria-expanded');
             }
-
             var s = (sel && navRowId(btn) === sel) ? 'true' : 'false';
             if (btn.getAttribute('aria-selected') !== s) { btn.setAttribute('aria-selected', s); }
+            rows.push(btn);
+            if (visible) { visRows.push(btn); }
+        }
 
-            // Flatten ownership: the <li>, its wrappers and any nested <ul> between
-            // this button and the tree become presentational, so the tree owns
-            // every treeitem directly (the level attributes carry the hierarchy).
-            var node = btn.parentElement;
-            while (node && node !== root) {
-                if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
-                node = node.parentElement;
+        function stampLi(li, level, pos, size, visible) {
+            if (li.getAttribute('role') !== 'none') { li.setAttribute('role', 'none'); }
+            var btn = null, childLists = [];
+            (function scan(parent) {
+                for (var node = parent.firstElementChild; node; node = node.nextElementSibling) {
+                    if (node.nodeName === 'UL') { childLists.push(node); continue; }   // nested branch
+                    if (node.matches && node.matches(NAV_ROW_SEL)) {
+                        // The li's OWN row is its first tree button in document order.
+                        if (!btn) { btn = node; }
+                        continue; // never descend into a button (chevron/label live there)
+                    }
+                    if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
+                    scan(node);
+                }
+            })(li);
+            if (btn) { stampRow(btn, level, pos, size, visible); }
+            // A collapsed row's child <ul> stays mounted but display:none, so
+            // child visibility is structural: parent visible AND expanded.
+            var childVis = !!(visible && btn && navRowExpanded(btn));
+            childLists.forEach(function (ul) { walkList(ul, level + 1, childVis); });
+        }
+
+        function walkList(ul, level, visible) {
+            if (ul !== root && ul.getAttribute('role') !== 'none') { ul.setAttribute('role', 'none'); }
+            var lis = [];
+            for (var el = ul.firstElementChild; el; el = el.nextElementSibling) {
+                if (el.matches && el.matches('li.uniModTree__itemDrag')) { lis.push(el); }
             }
-        });
+            var size = String(lis.length);
+            for (var i = 0; i < lis.length; i++) {
+                stampLi(lis[i], level, String(i + 1), size, visible);
+            }
+        }
+
+        walkList(root, 1, true);
 
         // Roving tab stop: keep the row that already holds it (so a keyboard
         // user's position survives a re-render), else the selected row, else the
         // first visible one.
-        var vis = rows.filter(function (b) { return b.offsetParent !== null; });
-        if (!vis.length) { return; }
-        var current = vis.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
-        var selRow = sel ? vis.filter(function (b) { return navRowId(b) === sel; })[0] : null;
-        var keep = current || selRow || vis[0];
+        if (!visRows.length) { return; }
+        var current = visRows.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
+        var selRow = sel ? visRows.filter(function (b) { return navRowId(b) === sel; })[0] : null;
+        var keep = current || selRow || visRows[0];
         rows.forEach(function (b) {
             var t = b === keep ? '0' : '-1';
             if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
