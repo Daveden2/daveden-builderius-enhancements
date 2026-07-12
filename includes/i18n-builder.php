@@ -268,6 +268,13 @@ function dbe_builder_strings() {
 		// Save cue.
 		'unsaved'                 => __( 'Unsaved', 'daveden-builderius-enhancements' ),
 
+		// Save shortcut.
+		'scSave'                  => __( 'Save the template', 'daveden-builderius-enhancements' ),
+
+		// Class-chip menu.
+		/* translators: %s: CSS class name */
+		'chipMenuFor'             => __( 'Actions for %s', 'daveden-builderius-enhancements' ),
+
 		// Keyboard shortcuts overlay.
 		'keyboardShortcuts'       => __( 'Keyboard shortcuts', 'daveden-builderius-enhancements' ),
 		'scGroupGeneral'          => __( 'General', 'daveden-builderius-enhancements' ),

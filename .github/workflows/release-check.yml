@@ -1,0 +1,80 @@
+name: Release check
+
+# Fails fast on a release (or hotfix) PR into main when the version bump is
+# incomplete, BEFORE the merge — the old flow only caught these at publish
+# time, after the tag was already cut. Checks that:
+#   - the three version strings (plugin header, DBE_VERSION, readme Stable tag)
+#     agree;
+#   - the version is greater than the latest v* tag;
+#   - readme.txt and CHANGELOG.md both have a block for it.
+#
+# Every PR into main is a release or a hotfix, so this runs (and can be
+# required) on all of them. auto-release.yml then tags and publishes on merge.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-check:
+    name: release-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the PR head
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify the version bump is complete
+        run: |
+          set -euo pipefail
+
+          header="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9][0-9A-Za-z.-]*).*/\1/p' daveden-builderius-enhancements.php | head -n1)"
+          define="$(sed -nE "s/^[[:space:]]*define\([[:space:]]*'DBE_VERSION'[[:space:]]*,[[:space:]]*'([0-9][0-9A-Za-z.-]*)'.*/\1/p" daveden-builderius-enhancements.php | head -n1)"
+          stable="$(sed -nE 's/^Stable tag:[[:space:]]*([0-9][0-9A-Za-z.-]*).*/\1/p' readme.txt | head -n1)"
+
+          fail=0
+
+          if [ -z "$header" ]; then
+            echo "::error::Could not read the Version header from the main plugin file."
+            exit 1
+          fi
+
+          for pair in "DBE_VERSION:$define" "readme Stable tag:$stable"; do
+            name="${pair%%:*}"; value="${pair#*:}"
+            if [ "$value" != "$header" ]; then
+              echo "::error::$name is '$value' but the plugin header says '$header'. Bump all three together."
+              fail=1
+            fi
+          done
+
+          latest="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          if [ -n "$latest" ]; then
+            latest="${latest#v}"
+            highest="$(printf '%s\n%s\n' "$latest" "$header" | sort -V | tail -n1)"
+            if [ "$header" = "$latest" ] || [ "$highest" != "$header" ]; then
+              echo "::error::Version '$header' is not greater than the latest release tag 'v$latest'. Did you forget the version bump?"
+              fail=1
+            fi
+          fi
+
+          escaped="$(printf '%s' "$header" | sed 's/\./\\./g')"
+          if ! grep -qE "^= $escaped =" readme.txt; then
+            echo "::error::readme.txt has no '= $header =' changelog block."
+            fail=1
+          fi
+          if ! grep -qE "^## $escaped( |$)" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $header' section."
+            fail=1
+          fi
+
+          [ "$fail" -eq 0 ] || exit 1
+          echo "Release $header is consistent and ready to merge."

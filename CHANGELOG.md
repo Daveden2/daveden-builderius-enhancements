@@ -3,6 +3,77 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.0
+Cmd/Ctrl+S to save, cacheable chrome-script delivery, the auto theme resolved
+at bootstrap, plugin-wide reduced-motion support, a hot-path performance pass,
+nine robustness fixes, ARIA structure polish, and two new CI gates. PRs #31,
+#33–#39.
+
+* New (save_shortcut): Cmd/Ctrl+S saves the template. Capture-phase and
+  deliberately not gated on inputs or the code editors (matching the WordPress
+  block editor); acts — and suppresses the browser's save-page dialog — only
+  when the native Save button is present. Targets `.uniPanelButtonPrimary.saveBtn`
+  specifically: the breakpoints modal mounts an earlier, disabled primary Save
+  that a bare class selector would hit (the save cue was re-anchored to the
+  same selector). With no unsaved changes Builderius wires the button's
+  onClick as a no-op, so a clean-template press is intentionally inert.
+* Improved: builder.js is delivered as a printed `<script src>` versioned by
+  filemtime instead of ~400 KB inlined into every builder page. Verified live:
+  first load 107 KB gzip, reload a ~300-byte revalidation; no enqueue
+  machinery, so builder mode's foreign-hook stripping has nothing to strip.
+  The config object stays inline.
+* Improved (theme_switcher): the auto MODE is resolved to a concrete
+  light/dark by the head bootstrap before first paint, with a matchMedia
+  listener re-resolving live. `data-dbe-theme` now only ever holds the
+  resolved value; the chosen mode moved to `data-dbe-theme-mode` (same
+  `dbeBuilderTheme` storage key, so saved preferences keep their meaning).
+  Deletes all 74 light+auto selector pairs, the duplicated auto-dark palette
+  and the Monaco auto media block (−168 lines); auto-under-a-dark-OS is now
+  byte-identical to the dark theme, where it was previously approximate.
+  Note: any user CSS targeting `[data-dbe-theme="auto"]` no longer matches.
+* Improved: reduced motion. `--dbe-t` (and the panel-detach `--dbe-speed`)
+  are zeroed under `prefers-reduced-motion: reduce` in 00-tokens.css, which
+  ships whenever any feature is on; files with motion outside the tokens keep
+  their own guards.
+* Improved: hot-path performance on the schedule() tick, verified live on a
+  149-row template. navSyncAria is one top-down traversal (levels from
+  parent+1, sibling counts once per list, wrappers stamped once, structural
+  visibility instead of offsetParent reads); the breakpoints fiber scan is
+  cached and invalidated by Builderius' own breakpoint actions; scope
+  isolation memoises its stylesheet parse; the tree filter early-outs when
+  idle; tag badges use one lazy canvas pass; the favourites/properties drags
+  are rAF-gated; Auto-BEM and undo-capture subtree walks use an O(n)
+  parent→children index instead of per-node scans.
+* Fixed: nine robustness gaps. Rename guards self-heal when a re-render
+  detaches the input (undo/redo, Escape, F2 and the palette no longer go
+  quiet); the save cue's baseline reset is delegated to document so a Save
+  button remount cannot wedge it; attr_helpers strips its seeded blank
+  attribute through the settings channel when the panel unmounts first; the
+  footer bar/panel observers are shared and node-tracked (they doubled up and
+  their done-once flags outlived replaced nodes); the navigator keydown flag
+  lives on the panel node; the dead window.monaco theming path is removed
+  (the CSS invert IS the light theme — setTheme underneath it would invert
+  the editor back to dark); the All CSS flash poll is generation-counted;
+  combobox keyboard-open polls via waitFor instead of a fixed 60 ms delay;
+  missing null/Element guards in the Emmet insert and chip-menu Escape.
+* Fixed: ARIA structure. Presentational <li> wrappers restore the
+  listbox→option chain in the element picker and command palette; the
+  class-chip menu gains an accessible name, click (not mousedown) activation,
+  a correct ArrowUp wrap and Home/End; the tag/class select listboxes mint
+  per-widget ids so aria-controls can never be ambiguous; the admin settings
+  tabs complete the APG pattern with panel ids + aria-controls; the
+  preview-overlay observer patches overlays nested in added subtrees.
+* Changed: the release tail is automated — merging the release PR tags main's
+  tip, creates the GitHub release with notes from readme.txt and attaches the
+  zip (auto-release.yml), with release-check gating the PR for a complete,
+  consistent version bump. ESLint + Stylelint now lint assets/ in CI (they
+  caught two real var redeclarations on day one); shared infrastructure CSS
+  is declared per-feature in the registry (shared_css) and
+  dbe_builder_css_files() is a plain registry fold, proven output-identical;
+  uninstall removes the update checker's options row; RELEASING.md documents
+  the automated flow and the hotfix path; the zip no longer ships
+  RELEASING.md, docs/, composer or npm tooling files.
+
 ## 1.11.0
 A new "All CSS" jump in the CSS scope bar, plus light-theme polish across the
 Navigator and Styles panel and find-widget fixes in the CSS code editor.

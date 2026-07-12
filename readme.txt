@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,41 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.12.0 =
+A quality release across the board: Cmd/Ctrl+S to save, a faster and lighter
+builder chrome, reduced-motion support, and a long list of robustness and
+screen-reader fixes.
+* New: press Cmd/Ctrl+S to save the template from anywhere in the builder,
+  including the code editors — no more reaching for the Save button or landing
+  in the browser's save-page dialog. Its own toggle (Workflow), on by default.
+* Improved: the builder chrome script is now served as a normal cacheable file
+  instead of being embedded in every builder page, so after the first visit the
+  builder loads it from cache rather than downloading it again.
+* Improved: the "auto" theme resolves to light or dark before the first paint,
+  and auto on a dark operating system is now exactly the dark theme (it was
+  previously a close approximation).
+* Improved: the busiest interface work — Navigator tree semantics, breakpoint
+  lookups, style-scope checks, drag reordering, Auto-BEM collection — does far
+  less per change, so large templates feel snappier.
+* Improved: all plugin animations now respect the operating system's "reduce
+  motion" setting.
+* Fixed: the "Unsaved" marker could stick permanently after the builder redrew
+  the Save button, and could clear before a save had actually finished.
+* Fixed: undo/redo, Escape, F2 and the command palette could all go quiet after
+  a tree redraw interrupted an inline rename.
+* Fixed: a blank attribute row left over from the attribute helpers could be
+  saved with the element if the settings panel closed before it was tidied.
+* Fixed: the bottom-bar toolbar and the AI session tabs could silently stop
+  updating after the builder replaced the footer; they now re-attach.
+* Fixed: screen readers now hear correct option counts in the element picker
+  and the command palette, the class-chip menu has a proper name, and its
+  arrow keys behave predictably (with Home and End added).
+* Fixed: uninstalling now also removes the update checker's stored data, and
+  the download zip no longer carries development files.
+* Changed: releases are now tagged and published automatically when the
+  release pull request merges, and the JavaScript and CSS are linted in CI
+  alongside the existing PHP checks.
 
 = 1.11.0 =
 A new "All CSS" jump in the scope bar, plus light-theme polish in the Navigator

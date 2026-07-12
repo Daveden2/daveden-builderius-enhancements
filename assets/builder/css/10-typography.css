@@ -17,6 +17,7 @@
 textarea.uniCodeField {
     font-family: var(--dbe-mono) !important;
 }
+/* stylelint-disable-next-line font-family-no-missing-generic-family-keyword -- icon font: a text fallback would render garbage glyphs */
 [class*="codicon"], [class*="codicon"]::before { font-family: "codicon" !important; }
 
 /* --- Depth: darken the top toolbar + footer bar so they frame the workspace --- */

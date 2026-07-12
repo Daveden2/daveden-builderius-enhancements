@@ -4,10 +4,8 @@ name: PHPCS
 # (ruleset: phpcs.xml.dist). Runs on every push to develop and on every pull
 # request into develop or main, and annotates changed lines inline via cs2pr.
 #
-# Rollout: this check is currently INFORMATIONAL. It is not yet listed as a
-# required status check in branch protection, so a red run reports problems
-# without blocking a merge. Once the codebase is clean, add "phpcs" to the
-# required checks on main (and develop) to make it blocking.
+# This check is REQUIRED by branch protection on both main and develop — a red
+# run blocks the merge. Run `composer phpcs` locally before pushing.
 
 on:
   push:

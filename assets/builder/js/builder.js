@@ -41,7 +41,27 @@
        Queries modal receives items:[{label,name,width,…}] (the base entry uses
        a huge sentinel width). Bounded scan, null on any failure — callers keep
        a hard-coded fallback. */
+    /* The fiber walk below is expensive (up to 12 fibers × depth-10 object
+       scans) and used to run on EVERY schedule() tick, twice when two consumer
+       features are on — for a list that changes about never. Successful scans
+       are cached; the builder's own breakpoint actions invalidate the cache.
+       A failed scan (panel not mounted yet) is NOT cached, so callers retry
+       exactly as before. */
+    var dbeBpCache = null;
+    var dbeBpHooked = false;
+    function dbeHookBreakpointInvalidation() {
+        if (dbeBpHooked) { return; }
+        dbeBpHooked = true;
+        try {
+            var hooks = window.Builderius.API.hooks;
+            ['builderius.breakpoints.set', 'builderius.Setting.breakpointsAndStrategyUpdated'].forEach(function (h) {
+                hooks.addAction(h, 'dbeBreakpointsCache', function () { dbeBpCache = null; });
+            });
+        } catch (e) { dbeBpHooked = false; } // hooks not ready — retry on the next call
+    }
     function dbeBreakpoints() {
+        if (dbeBpCache) { return dbeBpCache; }
+        dbeHookBreakpointInvalidation();
         try {
             var host = document.querySelector('.uniGlobalBreakpoints');
             if (!host) { return null; }
@@ -69,13 +89,14 @@
                 scan(f.memoizedProps, 0);
             }
             if (!found) { return null; }
-            return found.map(function (it) {
+            dbeBpCache = found.map(function (it) {
                 return {
                     name: it.name || '',
                     label: it.label || '',
                     width: (it.width && it.width < 100000) ? it.width : null
                 };
             });
+            return dbeBpCache;
         } catch (e) { return null; }
     }
 
@@ -86,6 +107,24 @@
         var idoc = iframe && iframe.contentDocument;
         var mods = modules();
         var sel = activeId();
+
+        // id → tag map, built lazily with ONE canvas pass per call. Without it
+        // every badge-less row (templates, components, not-yet-painted nodes)
+        // fired its own querySelector into the iframe on every tick, forever.
+        var tagById = null;
+        function canvasTag(id) {
+            if (!idoc) { return null; }
+            if (!tagById) {
+                tagById = {};
+                idoc.querySelectorAll('[class*="uni-node-"]').forEach(function (el) {
+                    // getAttribute, not className: SVG className is an object.
+                    var m = (el.getAttribute('class') || '').match(/uni-node-(\w+)/);
+                    // Looped templates paint N instances per id — first wins.
+                    if (m && !(m[1] in tagById)) { tagById[m[1]] = el.tagName.toLowerCase(); }
+                });
+            }
+            return tagById[id] || null;
+        }
 
         document.querySelectorAll(ROW_SEL).forEach(function (btn) {
             var idMatch = btn.className.toString().match(/uni-tree-node-(\w+)/);
@@ -113,11 +152,8 @@
             if (!on('tag_badges')) { return; }
             var span = btn.querySelector('span');
             if (!span || span.querySelector('.dbe-tag-badge')) { return; }
-            if (!idoc) { return; }
-            var canvasEl = idoc.querySelector('.uni-node-' + id);
-            if (!canvasEl) { return; }
-
-            var tag = canvasEl.tagName.toLowerCase();
+            var tag = canvasTag(id);
+            if (!tag) { return; }
             var raw = span.textContent.trim();
             var idx = raw.indexOf(' .');
             var label = idx >= 0 ? raw.slice(0, idx) : raw;
@@ -223,7 +259,6 @@
         waitFor(function () {
             return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;
         }, function (row) { if (row) { clickSeq(row); } });
-        console.log('[DBE] Wrapped ' + order.join(', ') + ' in ' + type + ' (' + newId + ') via store actions.');
     }
 
     /* Add a module through the builder's OWN add action (mirrors the sense
@@ -352,12 +387,13 @@
         var VOID = /^(img|input|br|hr|area|base|col|embed|link|meta|param|source|track|wbr)$/i;
         var tag = ((mods[targetId].settings || []).filter(function (x) { return x.name === 'tag'; })[0] || {}).value || '';
         var parentId, startIndex;
+        var indexes = sf.storeGet('indexes') || {};
         if (!VOID.test(tag)) {
             parentId = targetId;
-            startIndex = (sf.storeGet('indexes')[targetId] || []).length;
+            startIndex = (indexes[targetId] || []).length;
         } else {
             parentId = mods[targetId].parent || '';
-            var sibs = [].concat(sf.storeGet('indexes')[parentId || 'root'] || []);
+            var sibs = [].concat(indexes[parentId || 'root'] || []);
             startIndex = sibs.indexOf(targetId) + 1;
         }
         var count = 0;
@@ -542,6 +578,16 @@
        convention in comparable builders. */
     var renameState = null;
 
+    /* A tree re-render can detach the rename input WITHOUT firing blur, which
+       would leave renameState pointing at a dead input forever — and every
+       keyboard feature that defers to an open rename (undo/redo, Escape, F2,
+       the palette) would stay gagged until the next rename. Guards read the
+       state through this so a dead input heals to "no rename open". */
+    function renameActive() {
+        if (renameState && !document.contains(renameState.input)) { renameState = null; }
+        return renameState;
+    }
+
     /* The builder's own default label is the element's HTML tag (set on insert).
        An EMPTY label is a broken state — with label === '' the settings-panel
        header title unmounts entirely, taking the native rename channel with it
@@ -686,11 +732,25 @@
         return canvasTag || null;
     }
 
+    /* parent id → [child ids] in module-map key order (= sibling order), one
+       O(n) pass. The per-node Object.keys scan it replaces made every subtree
+       walk quadratic — felt on Auto-BEM over a page root and on the undo
+       capture of every delete. */
+    function dbeChildIndex(mods) {
+        var byParent = {};
+        Object.keys(mods).forEach(function (k) {
+            var p = mods[k].parent || '';
+            (byParent[p] || (byParent[p] = [])).push(k);
+        });
+        return byParent;
+    }
+
     /* The subtree in tree order (module-map key order = sibling order). */
     function bemCollectRows(rootId) {
         var mods = modules() || {};
         var iframe = document.getElementById('builderInner');
         var idoc = iframe && iframe.contentDocument;
+        var kids = dbeChildIndex(mods);
         var rows = [];
         (function walk(id, depth) {
             var mod = mods[id];
@@ -702,9 +762,7 @@
                 classes: moduleClasses(mod),
                 supported: bemClassable(mod) && !!tag && tag !== 'template'
             });
-            Object.keys(mods).forEach(function (k) {
-                if ((mods[k].parent || '') === id) { walk(k, depth + 1); }
-            });
+            (kids[id] || []).forEach(function (k) { walk(k, depth + 1); });
         })(rootId, 0);
         return rows;
     }
@@ -1308,7 +1366,7 @@
         });
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Escape' || !dbeMultiSel.size) { return; }
-            if (document.querySelector('dialog.uniBuilderContextMenu[open]') || renameState) { return; }
+            if (document.querySelector('dialog.uniBuilderContextMenu[open]') || renameActive()) { return; }
             var t = e.target;
             if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
             clearMultiSel();
@@ -1357,9 +1415,10 @@
     // to '' (the shape native Paste expects in the forged clipboard).
     function dbeCollectSubtree(mods, id) {
         var subtree = {};
+        var kids = dbeChildIndex(mods);
         (function collect(x) {
             subtree[x] = JSON.parse(JSON.stringify(mods[x]));
-            Object.keys(mods).forEach(function (k) { if (mods[k].parent === x) { collect(k); } });
+            (kids[x] || []).forEach(collect);
         })(id);
         subtree[id].parent = '';
         return subtree;
@@ -1550,7 +1609,7 @@
             // Leave text-editing undo alone: inputs, contenteditables (settings
             // header rename), Monaco code editors, and our inline rename field.
             var t = e.target;
-            if (renameState) { return; }
+            if (renameActive()) { return; }
             if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
             e.preventDefault();
             e.stopPropagation();
@@ -1566,6 +1625,13 @@
         document.querySelectorAll('.dbe-ctx-parent[aria-expanded="true"]').forEach(function (li) {
             li.setAttribute('aria-expanded', 'false');
         });
+    }
+
+    /* Close the native context menu and any DBE submenus — the pair every
+       injected item's activation ends with. One copy, so a fix to the close
+       recipe can never miss a site again. */
+    function closeCtxMenu() {
+        closeCtxMenu();
     }
 
     function positionFlyout(fly, parentLi) {
@@ -1710,8 +1776,7 @@
         li.addEventListener('mousedown', function (ev) {
             ev.preventDefault();
             ev.stopPropagation();
-            removeSubmenus();
-            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+            closeCtxMenu();
             onActivate();
         });
         return li;
@@ -1751,8 +1816,7 @@
             ev.preventDefault();
             ev.stopPropagation();
             wrap(type, multiCtxIds());
-            removeSubmenus();
-            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+            closeCtxMenu();
         });
         return li;
     }
@@ -1760,14 +1824,15 @@
     /* Expand the right-clicked row's whole subtree. Same chevron click channel
        as expandAll, scoped to the row's li; runs in short passes because deep
        rows that were never expanded may only mount after their parent opens. */
-    function expandSubtree(id) {
-        var rowBtn = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
-        var root = rowBtn && rowBtn.closest('li.uniModTree__itemDrag');
-        if (!root) { return; }
+    /* Repeatedly click every collapsed chevron under `rootEl` until none
+       remain — each pass triggers async re-renders that can mount previously
+       hidden collapsed rows, hence the multi-pass loop. Bounded at 10 passes.
+       Shared by "Expand children" and the Navigator's expand-all button. */
+    function dbeExpandPass(rootEl) {
         var passes = 0;
         (function pass() {
             var chevs = [];
-            root.querySelectorAll('button.uniModTree__item:not(.expanded)').forEach(function (btn) {
+            rootEl.querySelectorAll('button.uniModTree__item:not(.expanded)').forEach(function (btn) {
                 var chev = btn.querySelector('i');
                 if (chev) { chevs.push(chev); }
             });
@@ -1776,6 +1841,13 @@
             chevs.forEach(function (chev) { clickSeq(chev); });
             setTimeout(pass, 120);
         })();
+    }
+
+    function expandSubtree(id) {
+        var rowBtn = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        var root = rowBtn && rowBtn.closest('li.uniModTree__itemDrag');
+        if (!root) { return; }
+        dbeExpandPass(root);
     }
 
     /* Keyboard support for the context menu (APG menu pattern). The native menu
@@ -1962,8 +2034,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var id = lastCtxId || activeId();
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     startRename(id);
                 });
                 nameItems.push(renameLi);
@@ -1982,8 +2053,7 @@
                         ev.preventDefault();
                         ev.stopPropagation();
                         var id = lastCtxId;
-                        removeSubmenus();
-                        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                        closeCtxMenu();
                         commitRename(id, ctxDefault);
                         undoToast(dbeFmt(dbeT('labelResetTo', 'Label reset to <%s>'), ctxDefault));
                     });
@@ -2006,8 +2076,7 @@
                         ev.preventDefault();
                         ev.stopPropagation();
                         var id = lastCtxId;
-                        removeSubmenus();
-                        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                        closeCtxMenu();
                         // Let the menu dialog finish closing (it is showModal —
                         // while open our own dialog could not take focus).
                         setTimeout(function () { openAutoBemDialog(id); }, 120);
@@ -2029,8 +2098,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var id = lastCtxId;
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     expandSubtree(id);
                 });
             }
@@ -2056,8 +2124,7 @@
                     ev.preventDefault();
                     ev.stopPropagation();
                     var ids = multiIds.slice();
-                    removeSubmenus();
-                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    closeCtxMenu();
                     clearMultiSel(); // the auto-driven per-row menus must be single-target
                     removeMulti(ids);
                 });
@@ -2235,10 +2302,7 @@
             if (!li || !li.parentElement.closest('li.uniModTree__itemDrag')) { return; }
             var chev = btn.querySelector('i');
             if (!chev) { return; }
-            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-                var Ev = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
-                chev.dispatchEvent(new Ev(t, { bubbles: true, cancelable: true, view: window }));
-            });
+            clickSeq(chev);
         });
     }
 
@@ -2267,18 +2331,8 @@
        rows that were never expanded may only mount after their parent opens,
        so this runs in short passes until no closed chevron rows remain. */
     function expandAll() {
-        var passes = 0;
-        (function pass() {
-            var chevs = [];
-            document.querySelectorAll('.uniRightPanel button.uniModTree__item:not(.expanded)').forEach(function (btn) {
-                var chev = btn.querySelector('i');
-                if (chev) { chevs.push(chev); }
-            });
-            if (!chevs.length || passes >= 10) { return; }
-            passes += 1;
-            chevs.forEach(function (chev) { clickSeq(chev); });
-            setTimeout(pass, 120);
-        })();
+        var panel = document.querySelector('.uniRightPanel');
+        if (panel) { dbeExpandPass(panel); }
     }
 
     function ensureExpandAllButton() {
@@ -2915,7 +2969,9 @@
        flash it, so the eye lands on where its CSS lives in the full stylesheet.
        In All CSS the token is RESOLVED (e.g. `.page-content {`), not `%selector%`. */
     var dbeAllCssDecos = [];
+    var dbeFlashGen = 0; // two rapid All-CSS clicks = two live polls; only the newest may touch the shared decorations
     function flashSelectorLine(name) {
+        var gen = ++dbeFlashGen;
         var esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         // The class as a standalone selector in a rule head — not a value, and
         // not a longer BEM sibling (.card must not match .card__title).
@@ -2926,6 +2982,7 @@
         // its length unchanged for two ticks — then flash the live one once.
         var lastLen = -1, stable = 0, tries = 0;
         (function poll() {
+            if (gen !== dbeFlashGen) { return; } // a newer flash took over
             var h = leftPanelMonaco();
             var text = h ? h.ed.getModel().getValue() : '';
             var ready = !!h && text.indexOf(name) > -1;
@@ -2943,6 +3000,7 @@
                         h.ed.revealLineInCenter(lineNo);
                         // A flash to locate, not a permanent mark — clear it after a beat.
                         setTimeout(function () {
+                            if (gen !== dbeFlashGen) { return; } // the decorations belong to a newer flash now
                             var g = leftPanelMonaco();
                             try { if (g) { g.ed.deltaDecorations(dbeAllCssDecos, []); } } catch (e) { /* editor gone */ }
                             dbeAllCssDecos = [];
@@ -3088,7 +3146,8 @@
         // catch, re-scheduling us into a self-sustaining loop (the label visibly
         // flickered in the DOM).
         var badgeText = level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
-        var badge = bar.querySelector('.dbe-scope-badge');
+        // Re-queried (not the creation-branch variable): the bar may pre-date this call.
+        badge = bar.querySelector('.dbe-scope-badge');
         if (badge.textContent !== badgeText) { badge.textContent = badgeText; }
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             var sc = b.getAttribute('data-scope');
@@ -3097,7 +3156,7 @@
         });
         // "All CSS" needs a class selector to locate — a %local% one-off has no
         // shared rule to jump to, so disable it at the local level.
-        var allBtn = bar.querySelector('.dbe-scope-allcss');
+        allBtn = bar.querySelector('.dbe-scope-allcss');
         if (allBtn) { allBtn.disabled = (level === 'local'); }
     }
 
@@ -3165,6 +3224,22 @@
         return false;
     }
 
+    /* selectorInScope is a full brace-balancing walk over a whole stylesheet
+       and ensureScopeIsolation runs it twice per schedule() tick on the
+       busiest observer. The store returns an unchanged css string between
+       edits, so one memo slot per scope skips the parse on almost every tick
+       (string === is a cheap reference check when nothing changed). */
+    var dbeSelScopeMemo = { global: { css: null, sel: null, hit: false }, entity: { css: null, sel: null, hit: false } };
+    function selectorInScopeCached(which, sel) {
+        var css = scopeCss(which);
+        var m = dbeSelScopeMemo[which];
+        if (m.css === css && m.sel === sel) { return m.hit; }
+        m.css = css;
+        m.sel = sel;
+        m.hit = selectorInScope(css, sel);
+        return m.hit;
+    }
+
     /* Render the scope status line for the active selector. Idempotent and
        signature-guarded so an unchanged tick writes no DOM (the panel
        MutationObserver re-runs schedule() on our own edits otherwise). */
@@ -3210,8 +3285,8 @@
             activeName = isGlobal ? dbeT('scopeGlobal', 'Global') : entityScopeLabel();
             otherName = isGlobal ? entityScopeLabel() : dbeT('scopeGlobal', 'Global');
             otherTarget = isGlobal ? 'template' : 'global';
-            activeHas = selectorInScope(scopeCss(isGlobal ? 'global' : 'entity'), sel);
-            otherHas = selectorInScope(scopeCss(isGlobal ? 'entity' : 'global'), sel);
+            activeHas = selectorInScopeCached(isGlobal ? 'global' : 'entity', sel);
+            otherHas = selectorInScopeCached(isGlobal ? 'entity' : 'global', sel);
             state = activeHas ? 'own' : (otherHas ? 'elsewhere' : 'new');
         }
         var sig = state + '|' + displaySel + '|' + activeName + '|' + otherName + '|' + (otherHas ? 1 : 0);
@@ -3324,8 +3399,6 @@
         dark:  '<path d="M12.1 8.5A5.5 5.5 0 0 1 5.5 1.9 5.6 5.6 0 1 0 12.1 8.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>',
         auto:  '<circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11Z" fill="currentColor"/>'
     };
-    var lastMonacoTheme = null;
-
     /* Translated display names for the theme/density keywords (the keywords
        themselves stay English — they are data attributes and storage keys). */
     function dbeModeName(mode) {
@@ -3358,25 +3431,26 @@
         dbeEnsureModeStatus().textContent = msg;
     }
 
+    /* The MODE (light / dark / auto) lives in data-dbe-theme-mode + storage;
+       data-dbe-theme only ever carries the RESOLVED light/dark (the bootstrap
+       script resolves before first paint and follows OS changes while the
+       mode is auto). The switcher cycles and displays the MODE. */
     function currentTheme() {
-        var t = document.documentElement.dataset.dbeTheme;
+        var t = document.documentElement.dataset.dbeThemeMode;
         return THEME_ORDER.indexOf(t) !== -1 ? t : ((CFG.theme && CFG.theme.default) || 'auto');
     }
-    function effectiveTheme() {
-        var t = currentTheme();
-        if (t === 'auto') { return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
-        return t;
-    }
-    function applyMonacoTheme() {
-        var want = effectiveTheme() === 'light' ? 'vs' : 'vs-dark';
-        if (want === lastMonacoTheme) { return; }
+    function dbeResolveTheme(mode) {
         try {
-            if (window.monaco && window.monaco.editor) {
-                window.monaco.editor.setTheme(want);
-                lastMonacoTheme = want;
-            }
-        } catch (e) {}
+            return mode === 'auto'
+                ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : mode;
+        } catch (e) { return mode === 'auto' ? 'dark' : mode; }
     }
+    /* Monaco is deliberately NOT retheming via setTheme(): the light theme is
+       produced by the pixel-invert filter in 60-theme.css, refined across
+       several releases (find-widget, native-edit-context). A real setTheme('vs')
+       underneath that filter would invert a light editor back to dark, so no JS
+       theming here — the CSS tracks [data-dbe-theme] and the OS scheme itself. */
 
     /* Turn off Monaco's minimap (the code-overview strip) on every builder editor.
        43-scope-isolation.css hides the minimap PAINT, but Monaco still reserves
@@ -3447,9 +3521,9 @@
         btn.setAttribute('aria-label', tip);
     }
     function setTheme(t, announce) {
-        document.documentElement.dataset.dbeTheme = t;
+        document.documentElement.dataset.dbeThemeMode = t;
+        document.documentElement.dataset.dbeTheme = dbeResolveTheme(t);
         try { localStorage.setItem('dbeBuilderTheme', t); } catch (e) {}
-        applyMonacoTheme();
         var btn = document.querySelector('.dbe-theme-btn');
         if (btn) { decorateThemeButton(btn); }
         // Only speak on a user switch, never on the initial restore.
@@ -3468,10 +3542,6 @@
         decorateThemeButton(btn);
         dbeEnsureModeStatus(); // present before the first click so the switch is announced
         col.insertBefore(btn, col.firstChild);
-        // Auto mode: retheme Monaco when the OS scheme flips (CSS tracks itself).
-        try {
-            matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyMonacoTheme);
-        } catch (e) {}
     }
 
     /* (i2) Density toggle: comfortable <-> compact, persisted per browser.
@@ -3849,19 +3919,32 @@
          - the shared panel = a labelled role="region", named after the open tool.
        The footer lives outside the panels the other observers watch, so it wires
        its own (attached once, lazily, when the bar first appears). */
-    var dbeFooterObserved = false;
+    /* Shared by footer_toolbar and ai_terminal_tabs (previously each attached
+       its own identical observer, doubling the callback work). Tracked by NODE,
+       not a done-once flag: a flag would outlive a React-replaced bar — the old
+       observer dies with the old node and the feature would go silently dead.
+       The panel is retried independently of the bar: it can mount later, and
+       the old code never re-checked once the bar was seen. */
+    var dbeFooterBarNode = null, dbeFooterPanelNode = null;
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
-        if (dbeFooterObserved) { return; }
-        dbeFooterObserved = true;
-        try {
-            // Bar: button active/locked class + add/remove (small subtree).
-            new MutationObserver(schedule).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-            // Panel: open/collapse (content mounts/unmounts, height/style change).
-            // Shallow — no subtree — so the Monaco editors inside do not spam it.
-            var fp = document.querySelector('.uniFooterPanel');
-            if (fp) { new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] }); }
-        } catch (e) { dbeFooterObserved = false; }
+        if (!window.MutationObserver) { return; }
+        if (bar && bar !== dbeFooterBarNode) {
+            try {
+                // Bar: button active/locked class + add/remove (small subtree).
+                new MutationObserver(schedule).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+                dbeFooterBarNode = bar;
+            } catch (e) {}
+        }
+        // Panel: open/collapse (content mounts/unmounts, height/style change).
+        // Shallow — no subtree — so the Monaco editors inside do not spam it.
+        var fp = document.querySelector('.uniFooterPanel');
+        if (fp && fp !== dbeFooterPanelNode) {
+            try {
+                new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+                dbeFooterPanelNode = fp;
+            } catch (e) {}
+        }
     }
     function ensureFooterToolbar() {
         var bar = document.querySelector('.uniFooterPanelBar');
@@ -4220,12 +4303,14 @@
         // so it already has keyboard navigation — it only lacks the ARIA roles.
         // Roles only here: no key handler (native owns the arrows) and no tabindex
         // changes (native owns focus). The `expanded` class drives aria-expanded.
-        var MTAGS_LIST_ID = 'dbe-mtags-list';
+        // Ids are minted PER WIDGET (dbeSSId counter, like dbe-ss-lbl-): a single
+        // shared id would be duplicated in the document if two tag selects were
+        // ever mounted at once, making every aria-controls ambiguous.
         document.querySelectorAll('.uniSystemSelectModuleTags').forEach(function (mt) {
             var results = mt.querySelector('.uniSystemSelectModuleTags__resultsWrapper');
             if (results) {
                 if (results.getAttribute('role') !== 'listbox') { results.setAttribute('role', 'listbox'); }
-                if (results.id !== MTAGS_LIST_ID) { results.id = MTAGS_LIST_ID; }
+                if (!results.id || results.id.indexOf('dbe-mtags-list') !== 0) { results.id = 'dbe-mtags-list-' + (++dbeSSId); }
                 if (!results.getAttribute('aria-label')) { results.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
             var curVal = ((mt.querySelector('.uniSystemSelectModuleTags__placeholder') || {}).textContent || '').trim();
@@ -4245,7 +4330,7 @@
                 var fexp = mexp ? 'true' : 'false';
                 if (mfake.getAttribute('aria-expanded') !== fexp) { mfake.setAttribute('aria-expanded', fexp); }
                 if (results && mexp) {
-                    if (mfake.getAttribute('aria-controls') !== MTAGS_LIST_ID) { mfake.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                    if (mfake.getAttribute('aria-controls') !== results.id) { mfake.setAttribute('aria-controls', results.id); }
                 } else if (mfake.hasAttribute('aria-controls')) { mfake.removeAttribute('aria-controls'); }
                 var mTitle = dbeSSLabelEl(mt);
                 var mRef = [];
@@ -4258,7 +4343,7 @@
             if (msearch) {
                 if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
                 if (msearch.getAttribute('aria-expanded') !== (mexp ? 'true' : 'false')) { msearch.setAttribute('aria-expanded', mexp ? 'true' : 'false'); }
-                if (results && msearch.getAttribute('aria-controls') !== MTAGS_LIST_ID) { msearch.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                if (results && msearch.getAttribute('aria-controls') !== results.id) { msearch.setAttribute('aria-controls', results.id); }
                 if (msearch.getAttribute('aria-autocomplete') !== 'list') { msearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!msearch.getAttribute('aria-label')) { msearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
             }
@@ -4271,17 +4356,23 @@
         // aria-multiselectable and each already-applied item is aria-selected.
         // Roles only — no key handler and no store writes — so it never disturbs
         // Auto-BEM, which drives the same search input.
-        var CSCLASSES_LIST_ID = 'dbe-csclasses-list';
         document.querySelectorAll('.uniSystemSelectClasses').forEach(function (cs) {
             var csExp = cs.classList.contains('expanded');
+            // Resolve the list (and mint its per-widget id) up front so the fake
+            // input's aria-controls can reference it in the same pass.
+            var csItems = csExp
+                ? [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; })
+                : [];
+            var csList = csItems.length ? csItems[0].parentElement : null;
+            if (csList && (!csList.id || csList.id.indexOf('dbe-csclasses-list') !== 0)) { csList.id = 'dbe-csclasses-list-' + (++dbeSSId); }
             var csFake = cs.querySelector('.uniSystemSelectClasses__fakeInput');
             if (csFake) {
                 if (csFake.getAttribute('role') !== 'combobox') { csFake.setAttribute('role', 'combobox'); }
                 if (csFake.getAttribute('aria-haspopup') !== 'listbox') { csFake.setAttribute('aria-haspopup', 'listbox'); }
                 var ce = csExp ? 'true' : 'false';
                 if (csFake.getAttribute('aria-expanded') !== ce) { csFake.setAttribute('aria-expanded', ce); }
-                if (csExp) {
-                    if (csFake.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csFake.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csExp && csList) {
+                    if (csFake.getAttribute('aria-controls') !== csList.id) { csFake.setAttribute('aria-controls', csList.id); }
                 } else if (csFake.hasAttribute('aria-controls')) { csFake.removeAttribute('aria-controls'); }
                 var csTitle = dbeSSLabelEl(cs);
                 if (csTitle) {
@@ -4294,11 +4385,8 @@
                 }
             }
             if (!csExp) { return; }
-            var csItems = [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; });
-            var csList = csItems.length ? csItems[0].parentElement : null;
             if (csList) {
                 if (csList.getAttribute('role') !== 'listbox') { csList.setAttribute('role', 'listbox'); }
-                if (csList.id !== CSCLASSES_LIST_ID) { csList.id = CSCLASSES_LIST_ID; }
                 if (csList.getAttribute('aria-multiselectable') !== 'true') { csList.setAttribute('aria-multiselectable', 'true'); }
                 if (!csList.getAttribute('aria-label')) { csList.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
@@ -4311,7 +4399,7 @@
             if (csSearch) {
                 if (csSearch.getAttribute('role') !== 'combobox') { csSearch.setAttribute('role', 'combobox'); }
                 if (csSearch.getAttribute('aria-expanded') !== 'true') { csSearch.setAttribute('aria-expanded', 'true'); }
-                if (csList && csSearch.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csSearch.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csList && csSearch.getAttribute('aria-controls') !== csList.id) { csSearch.setAttribute('aria-controls', csList.id); }
                 if (csSearch.getAttribute('aria-autocomplete') !== 'list') { csSearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!csSearch.getAttribute('aria-label')) { csSearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
             }
@@ -4382,19 +4470,11 @@
        schedule()'s rAF debounce coalesces the rest. The "+" sits inside the list
        as a labelled button (as a browser tab strip's does); it is not a tab, so
        the roving set (matched on .uniAiChat__terminalTab) skips it. */
-    var dbeTermBarObserved = false;
     var dbeTermAiNode = null;
     var dbeTermAiObs = null;
     function dbeObserveTerminalBar() {
-        if (dbeTermBarObserved || !window.MutationObserver) { return; }
-        var bar = document.querySelector('.uniFooterPanelBar');
-        if (!bar) { return; }
-        dbeTermBarObserved = true;
-        try {
-            new MutationObserver(schedule).observe(bar, {
-                childList: true, subtree: true, attributes: true, attributeFilter: ['class']
-            });
-        } catch (e) { dbeTermBarObserved = false; }
+        // Same bar, same options as the footer toolbar — share its observer.
+        dbeObserveFooter(document.querySelector('.uniFooterPanelBar'));
     }
     function dbeObserveTerminalPanel(ai) {
         if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
@@ -4611,13 +4691,16 @@
                 if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     take();
                     clickSeq(trigger.querySelector('.uniSystemSelect__valueWrapper') || trigger);
-                    setTimeout(function () {
+                    // Poll for the dropdown rather than a fixed delay: a long
+                    // option list on a busy frame can mount later than one tick,
+                    // and a missed mount would leave ArrowDown apparently dead.
+                    waitFor(dbeSSOpenDropdown, function (dd) {
+                        if (!dd) { return; }
                         try { ensureSelectComboboxes(); } catch (err) {}   // stamp option ids/roles
-                        var dd = dbeSSOpenDropdown(); if (!dd) { return; }
                         var items = dbeSSItems(dd);
                         var si = items.map(function (it) { return it.getAttribute('aria-selected') === 'true'; }).indexOf(true);
                         dbeSSHighlight(trigger, items, si >= 0 ? si : 0);
-                    }, 60);
+                    }, 40);
                 }
                 return;
             }
@@ -4670,6 +4753,14 @@
     var treeSearchDebounce = null;
     function applyTreeFilter() {
         var q = treeQuery.trim().toLowerCase();
+        // schedule() re-runs this on every tree mutation; with no filter active
+        // and nothing dimmed there is nothing to do, so skip the full-tree
+        // textContent walk (one cheap existence probe instead).
+        if (!q && !document.querySelector('.uniRightPanel .dbe-tree-dim')) {
+            var idleCount = document.querySelector('.dbe-tree-search__count');
+            if (idleCount && idleCount.textContent !== '') { idleCount.textContent = ''; }
+            return;
+        }
         var rows = document.querySelectorAll('.uniRightPanel .uniModTree__item');
         var total = 0, hits = 0;
         rows.forEach(function (row) {
@@ -4727,9 +4818,31 @@
     function historyLen() {
         try { return (store().storeGet('history') || []).length; } catch (e) { return null; }
     }
+    var dbeSaveClickBound = false;
     function ensureSaveCue() {
-        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary');
+        // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal mounts
+        // its own (disabled) primary Save earlier in document order, and the bare
+        // class would anchor the cue to — and rebaseline on — that dead button.
+        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
         if (!save) { return; }
+        if (!dbeSaveClickBound) {
+            dbeSaveClickBound = true;
+            // Delegated to document, NOT bound to the button: React remounts the
+            // Save button freely, and a listener on a replaced button never fires
+            // again — the baseline would stop resetting and the cue would read
+            // "Unsaved" forever after the first save.
+            document.addEventListener('click', function (e) {
+                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
+                // Give the save request a beat, then treat the current state as
+                // clean. Optimistic: a save that fails re-flags only on the next
+                // history-growing edit — the native beforeunload warning remains
+                // the backstop for that window.
+                setTimeout(function () {
+                    saveBaseline = historyLen();
+                    ensureSaveCue();
+                }, 500);
+            }, true);
+        }
         var cue = document.querySelector('.dbe-save-cue');
         if (!cue) {
             cue = document.createElement('span');
@@ -4737,18 +4850,36 @@
             cue.setAttribute('role', 'status');
             cue.textContent = dbeT('unsaved', 'Unsaved');
             save.parentNode.insertBefore(cue, save);
-            save.addEventListener('click', function () {
-                // Give the save request a beat, then treat the current state as clean.
-                setTimeout(function () {
-                    saveBaseline = historyLen();
-                    ensureSaveCue();
-                }, 500);
-            }, true);
         }
         var len = historyLen();
         if (len === null) { return; }
         if (saveBaseline === null) { saveBaseline = len; }
         cue.classList.toggle('is-dirty', len > saveBaseline);
+    }
+
+    /* (k2) Cmd/Ctrl+S saves the template (save_shortcut). The browser's
+       save-page dialog is useless inside the builder, and every editor trains
+       this muscle memory. Capture-phase, so it wins before Monaco or the
+       builder see the key; deliberately NOT gated on inputs/contenteditable —
+       saving from the middle of typing is exactly what the WordPress block
+       editor does. Acts (and suppresses the browser dialog) only when the
+       native Save button is actually present; the programmatic click also
+       bubbles through the save cue's delegated listener, so the "Unsaved"
+       marker rebaselines exactly as a pointer click would. */
+    function bindSaveShortcut() {
+        document.addEventListener('keydown', function (e) {
+            if (e.repeat || (e.key || '').toLowerCase() !== 's') { return; }
+            var mod = dbeIsMac ? (e.metaKey && !e.ctrlKey) : e.ctrlKey;
+            if (!mod || e.shiftKey || e.altKey) { return; }
+            // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal
+            // mounts its own (disabled) primary Save earlier in document order,
+            // and querySelector on the bare class lands on that dead button.
+            var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
+            if (!save || save.disabled) { return; } // nothing to drive — leave the browser default alone
+            e.preventDefault();
+            e.stopPropagation();
+            clickSeq(save);
+        }, true);
     }
 
     /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
@@ -4758,7 +4889,9 @@
             ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
-        ]],
+        ].concat(on('save_shortcut') ? [
+            ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
+        ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
                 ['↑ ↓', dbeT('scTreeMove', 'Move between elements (selection follows)')],
@@ -4855,7 +4988,7 @@
     function bindShortcutsKey() {
         document.addEventListener('keydown', function (e) {
             if (e.key !== '?') { return; }
-            if (renameState) { return; }
+            if (renameActive()) { return; }
             var t = e.target;
             if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
             if (document.querySelector('dialog[open]')) { return; }
@@ -4915,6 +5048,10 @@
         listEl.setAttribute('role', 'listbox');
         var buttons = DBE_PICKER_ELEMENTS.map(function (tag) {
             var li = document.createElement('li');
+            // The option role sits on the button, so the wrapper <li> must be
+            // presentational or it breaks the listbox→option ownership chain
+            // (screen readers then misreport option counts and positions).
+            li.setAttribute('role', 'presentation');
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'dbe-el-picker__item';
@@ -5017,7 +5154,7 @@
 
     var dbeShortcutKeyBound = false;
     function dbeElementShortcutsKeydown(e) {
-        if (renameState) { return; }
+        if (renameActive()) { return; }
         var t = e.target;
         if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
         if (document.querySelector('dialog[open]')) { return; } // don't fire over a dialog or the native menu
@@ -5228,6 +5365,10 @@
                     groupHeads.push(head);
                 }
                 var li = document.createElement('li');
+                // The option role sits on the button; the wrapper <li> must be
+                // presentational (like the group heads above) or it breaks the
+                // listbox→option ownership chain for screen readers.
+                li.setAttribute('role', 'presentation');
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'dbe-palette__item';
@@ -5313,7 +5454,7 @@
     function dbePaletteKeydown(e) {
         if (e.code !== 'KeyK' || !e.shiftKey || e.altKey) { return; }
         if (!(dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey))) { return; }
-        if (renameState) { return; }
+        if (renameActive()) { return; }
         var t = e.target;
         if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
         if (document.querySelector('dialog[open]')) { return; }
@@ -6141,17 +6282,27 @@
             try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
         }, true);
 
+        // rAF-gated like the panel/preview drags: pointermove can fire several
+        // times per frame, and each hit-test reads rects (layout) and may
+        // insertBefore (write) — unthrottled, that interleaving thrashes.
+        var favRaf = 0, favY = 0;
         list.addEventListener('pointermove', function (ev) {
             if (!drag) { return; }
-            var items = favItems().filter(function (it) { return it !== drag.li; });
-            for (var i = 0; i < items.length; i++) {
-                var r = items[i].getBoundingClientRect();
-                if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-                    var before = ev.clientY < r.top + r.height / 2;
-                    list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
-                    break;
+            favY = ev.clientY;
+            if (favRaf) { return; }
+            favRaf = requestAnimationFrame(function () {
+                favRaf = 0;
+                if (!drag) { return; } // drag ended before the frame
+                var items = favItems().filter(function (it) { return it !== drag.li; });
+                for (var i = 0; i < items.length; i++) {
+                    var r = items[i].getBoundingClientRect();
+                    if (favY >= r.top && favY <= r.bottom) {
+                        var before = favY < r.top + r.height / 2;
+                        list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
+                        break;
+                    }
                 }
-            }
+            });
         }, true);
 
         function endFavDrag() {
@@ -6226,9 +6377,13 @@
        (1) when the list opens empty, seed one blank row so the user can type
            straight away — and drop it again if it is left blank, so an empty
            attribute never reaches a save; (2) a native <datalist> of common
-           attribute names on each name field. Both are pure DOM sugar over the
-           native control — the store is only written through Builderius's own
-           add / remove buttons, never a raw storeSet. */
+           attribute names on each name field. Both are DOM sugar over the
+           native control — the store is written through Builderius's own
+           add / remove buttons, with one exception: when the panel unmounts
+           before the blank row could be removed via its button, the leftover
+           blank entry is stripped through the addModule upsert channel
+           (dbeRemoveBlankAttrs), the same channel the palette's attribute
+           command uses. Never a raw slice write. */
     var dbeAttrSeededRow = null; // the blank row we added, awaiting use or cleanup
     var dbeAttrSeededFor = null; // activeModule id we last seeded for (double-seed guard)
 
@@ -6247,6 +6402,27 @@
     function attrRemoveRow(row) {
         var btn = row.querySelector('.uniSettingHtmlAttribute_itemActions button') || row.querySelector('button');
         if (btn) { clickSeq(btn); }
+    }
+
+    /* Fallback cleanup for the seeded row when its DOM is already gone (panel
+       unmounted before focusout fired): the native Add click has written the
+       blank {name:'', value:''} into the module's settings, and with no row
+       left there is no remove button to drive — so strip blank entries through
+       the settings upsert channel instead. No-ops (one read, no dispatch) when
+       the blank never reached the store. */
+    function dbeRemoveBlankAttrs(id) {
+        var mods = modules() || {};
+        var mod = mods[id];
+        if (!mod) { return; }
+        var ha = (mod.settings || []).filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+        if (!ha || !Array.isArray(ha.value)) { return; }
+        if (!ha.value.some(function (a) { return !(a && (a.name || '').trim()); })) { return; }
+        dbeUpdateModuleSettings(id, function (settings) {
+            var h = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+            if (h && Array.isArray(h.value)) {
+                h.value = h.value.filter(function (a) { return a && (a.name || '').trim(); });
+            }
+        });
     }
 
     function ensureAttrDatalist() {
@@ -6291,7 +6467,12 @@
             setTimeout(function () {
                 var r = dbeAttrSeededRow;
                 if (!r) { return; }
-                if (!document.body.contains(r)) { dbeAttrSeededRow = null; return; }
+                if (!document.body.contains(r)) {
+                    // Row gone with the panel — clean the store copy instead.
+                    dbeAttrSeededRow = null;
+                    if (dbeAttrSeededFor) { try { dbeRemoveBlankAttrs(dbeAttrSeededFor); } catch (e) {} }
+                    return;
+                }
                 if (r.contains(document.activeElement)) { return; } // still editing it
                 r.classList.remove('dbe-attr-seeded');
                 if (attrRowBlank(r)) { attrRemoveRow(r); }
@@ -6499,17 +6680,25 @@
             li.classList.add('dbe-prop-dragging');
             try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
         }, true);
+        // rAF-gated for the same reason as the favourites drag above.
+        var propRaf = 0, propY = 0;
         list.addEventListener('pointermove', function (ev) {
             if (!drag) { return; }
-            var items = propItems(list).filter(function (it) { return it !== drag.li; });
-            for (var i = 0; i < items.length; i++) {
-                var r = items[i].getBoundingClientRect();
-                if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-                    var before = ev.clientY < r.top + r.height / 2;
-                    list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
-                    break;
+            propY = ev.clientY;
+            if (propRaf) { return; }
+            propRaf = requestAnimationFrame(function () {
+                propRaf = 0;
+                if (!drag) { return; } // drag ended before the frame
+                var items = propItems(list).filter(function (it) { return it !== drag.li; });
+                for (var i = 0; i < items.length; i++) {
+                    var r = items[i].getBoundingClientRect();
+                    if (propY >= r.top && propY <= r.bottom) {
+                        var before = propY < r.top + r.height / 2;
+                        list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
+                        break;
+                    }
                 }
-            }
+            });
         }, true);
         function endDrag() {
             if (!drag) { return; }
@@ -6619,7 +6808,7 @@
        the active-selector chip). items: [{label, fn, first?}] — `first` draws the
        group separator (30-context-menu.css). focusReturn takes focus back on
        Escape. Same card chain as the flyouts so the framework CSS styles it. */
-    function renderChipCard(focusReturn, x, y, items) {
+    function renderChipCard(focusReturn, x, y, items, label) {
         closeChipMenu();
         if (!items || !items.length) { return; }
         var card = document.createElement('div');
@@ -6629,6 +6818,9 @@
         var menu = document.createElement('div');
         menu.className = 'uniContextMenu';
         menu.setAttribute('role', 'menu');
+        // A menu needs an accessible name or screen readers announce a bare
+        // "menu" with no hint of what it acts on.
+        if (label) { menu.setAttribute('aria-label', label); }
         var ul = document.createElement('ul');
         items.forEach(function (item) {
             var li = document.createElement('li');
@@ -6637,7 +6829,11 @@
             li.tabIndex = -1;
             li.textContent = item.label;
             function act(ev) { ev.preventDefault(); ev.stopPropagation(); closeChipMenu(); item.fn(); }
-            li.addEventListener('mousedown', act);
+            // Activate on click, not mousedown: pressing and dragging away must
+            // cancel, and a screen reader's simulated click must not double-fire
+            // against the keydown path. mousedown only suppresses the focus jump.
+            li.addEventListener('mousedown', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+            li.addEventListener('click', act);
             li.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter' || ev.key === ' ') { act(ev); }
             });
@@ -6647,15 +6843,23 @@
         inner.appendChild(menu);
         card.appendChild(inner);
 
-        // Keyboard: arrows move, Escape closes and returns focus to the chip.
+        // Keyboard: arrows move (wrapping), Home/End jump, Escape closes and
+        // returns focus to the chip.
         card.addEventListener('keydown', function (ev) {
             var lis = [].slice.call(card.querySelectorAll('li'));
             var idx = lis.indexOf(document.activeElement);
-            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            var next = -1;
+            if (ev.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % lis.length; }
+            else if (ev.key === 'ArrowUp') { next = idx < 0 ? lis.length - 1 : (idx - 1 + lis.length) % lis.length; }
+            else if (ev.key === 'Home') { next = 0; }
+            else if (ev.key === 'End') { next = lis.length - 1; }
+            if (next > -1) {
                 ev.preventDefault();
                 ev.stopPropagation();
-                lis[(idx + (ev.key === 'ArrowDown' ? 1 : lis.length - 1)) % lis.length].focus();
-            } else if (ev.key === 'Escape') {
+                lis[next].focus();
+                return;
+            }
+            if (ev.key === 'Escape') {
                 ev.preventDefault();
                 ev.stopPropagation();
                 closeChipMenu();
@@ -6715,7 +6919,7 @@
                 undoToast(dbeFmt(dbeT('removedName', 'Removed %s'), name));
             } });
         }
-        renderChipCard(chipLi, x, y, items);
+        renderChipCard(chipLi, x, y, items, dbeFmt(dbeT('chipMenuFor', 'Actions for %s'), name));
     }
 
     /* Active-selector chip — the class currently being edited. Natively it offers
@@ -6777,7 +6981,7 @@
             });
         } });
         items.push({ label: dbeT('close', 'Close'), fn: function () { driveSelectedClose(function () {}); } });
-        renderChipCard(selChip, x, y, items);
+        renderChipCard(selChip, x, y, items, dbeFmt(dbeT('chipMenuFor', 'Actions for %s'), name));
     }
 
     /* Chips are plain li>span with no focus support; tabindex lets keyboard
@@ -6847,7 +7051,7 @@
             }, true);
         });
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && dbeChipMenu && !e.target.closest('.dbe-chip-menu')) {
+            if (e.key === 'Escape' && dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) {
                 e.stopPropagation();
                 closeChipMenu();
             }
@@ -6909,7 +7113,7 @@
         sc.scrollTop += (rr.top - sr.top) - (sc.clientHeight - rr.height) / 2;
     }
     function revealActiveInTree() {
-        if (renameState) { return; }
+        if (renameActive()) { return; }
         var id = activeId();
         if (!id || id === dbeLastRevealedId) { return; }
         var mods = modules();
@@ -6968,7 +7172,6 @@
        re-asserted by node id afterwards. */
     var NAV_TREE_SEL = '.uniRightPanel .uniModTree .uniModTree__list';
     var NAV_ROW_SEL = 'button.uniModTree__item';
-    var dbeNavKeyBound = false;
 
     function navRootList() {
         // Outermost element list — querySelector returns the first in document
@@ -6985,11 +7188,6 @@
     function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
     function navRowExpandable(btn) { return !!btn.querySelector('i'); }
     function navRowExpanded(btn) { return btn.classList.contains('expanded'); }
-    function navRowLevel(btn) {
-        var n = 0, li = navRowLi(btn);
-        while (li) { n += 1; li = li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag'); }
-        return n || 1;
-    }
     function navParentRow(btn) {
         var li = navRowLi(btn);
         var pli = li && li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag');
@@ -7042,7 +7240,17 @@
 
     /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
        so it is cheap to re-run every schedule() tick, keeping level/expanded/
-       selected/roving in sync through Builderius' React re-renders. */
+       selected/roving in sync through Builderius' React re-renders.
+
+       ONE top-down traversal: levels derive from the parent's level + 1,
+       sibling position/count are computed once per <ul>, and each wrapper is
+       stamped role="none" exactly once. The per-row form of this (climb the
+       ancestors for level, re-scan siblings for posinset, walk to root for
+       ownership — for every one of 100+ rows) was the hottest code on the
+       busiest observer. Visibility is derived structurally too — a branch list
+       is hidden exactly when its parent row is collapsed — so the roving-stop
+       pass needs no offsetParent reads, which would force layout between the
+       attribute writes above. */
     function navSyncAria() {
         var root = navRootList();
         if (!root) { return; }
@@ -7051,52 +7259,69 @@
         if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
 
         var sel = activeId();
-        var rows = [].slice.call(root.querySelectorAll(NAV_ROW_SEL));
-        rows.forEach(function (btn) {
+        var rows = [], visRows = [];
+
+        function stampRow(btn, level, pos, size, visible) {
             if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
-
-            var lvl = String(navRowLevel(btn));
+            var lvl = String(level);
             if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
-
-            var li = navRowLi(btn);
-            var ul = li && li.parentElement;
-            if (ul) {
-                var sibs = [].slice.call(ul.children).filter(function (el) {
-                    return el.matches && el.matches('li.uniModTree__itemDrag');
-                });
-                var pos = String(sibs.indexOf(li) + 1), size = String(sibs.length);
-                if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
-                if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
-            }
-
+            if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
+            if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
             if (navRowExpandable(btn)) {
                 var ex = navRowExpanded(btn) ? 'true' : 'false';
                 if (btn.getAttribute('aria-expanded') !== ex) { btn.setAttribute('aria-expanded', ex); }
             } else if (btn.hasAttribute('aria-expanded')) {
                 btn.removeAttribute('aria-expanded');
             }
-
             var s = (sel && navRowId(btn) === sel) ? 'true' : 'false';
             if (btn.getAttribute('aria-selected') !== s) { btn.setAttribute('aria-selected', s); }
+            rows.push(btn);
+            if (visible) { visRows.push(btn); }
+        }
 
-            // Flatten ownership: the <li>, its wrappers and any nested <ul> between
-            // this button and the tree become presentational, so the tree owns
-            // every treeitem directly (the level attributes carry the hierarchy).
-            var node = btn.parentElement;
-            while (node && node !== root) {
-                if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
-                node = node.parentElement;
+        function stampLi(li, level, pos, size, visible) {
+            if (li.getAttribute('role') !== 'none') { li.setAttribute('role', 'none'); }
+            var btn = null, childLists = [];
+            (function scan(parent) {
+                for (var node = parent.firstElementChild; node; node = node.nextElementSibling) {
+                    if (node.nodeName === 'UL') { childLists.push(node); continue; }   // nested branch
+                    if (node.matches && node.matches(NAV_ROW_SEL)) {
+                        // The li's OWN row is its first tree button in document order.
+                        if (!btn) { btn = node; }
+                        continue; // never descend into a button (chevron/label live there)
+                    }
+                    if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
+                    scan(node);
+                }
+            })(li);
+            if (btn) { stampRow(btn, level, pos, size, visible); }
+            // A collapsed row's child <ul> stays mounted but display:none, so
+            // child visibility is structural: parent visible AND expanded.
+            var childVis = !!(visible && btn && navRowExpanded(btn));
+            childLists.forEach(function (ul) { walkList(ul, level + 1, childVis); });
+        }
+
+        function walkList(ul, level, visible) {
+            if (ul !== root && ul.getAttribute('role') !== 'none') { ul.setAttribute('role', 'none'); }
+            var lis = [];
+            for (var el = ul.firstElementChild; el; el = el.nextElementSibling) {
+                if (el.matches && el.matches('li.uniModTree__itemDrag')) { lis.push(el); }
             }
-        });
+            var size = String(lis.length);
+            for (var i = 0; i < lis.length; i++) {
+                stampLi(lis[i], level, String(i + 1), size, visible);
+            }
+        }
+
+        walkList(root, 1, true);
 
         // Roving tab stop: keep the row that already holds it (so a keyboard
         // user's position survives a re-render), else the selected row, else the
         // first visible one.
-        var vis = rows.filter(function (b) { return b.offsetParent !== null; });
-        if (!vis.length) { return; }
-        var current = vis.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
-        var selRow = sel ? vis.filter(function (b) { return navRowId(b) === sel; })[0] : null;
-        var keep = current || selRow || vis[0];
+        if (!visRows.length) { return; }
+        var current = visRows.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
+        var selRow = sel ? visRows.filter(function (b) { return navRowId(b) === sel; })[0] : null;
+        var keep = current || selRow || visRows[0];
         rows.forEach(function (b) {
             var t = b === keep ? '0' : '-1';
             if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
@@ -7153,13 +7378,14 @@
         var root = navRootList();
         if (!root) { return; }
         navSyncAria();
-        if (dbeNavKeyBound) { return; }
         var panel = document.querySelector('.uniRightPanel');
-        if (!panel) { return; }
+        if (!panel || panel.dbeNavKeyBound) { return; }
         // Bound on the stable panel (the tree lists are replaced on re-render), so
-        // one binding survives every repaint of the tree below it.
+        // one binding survives every repaint of the tree below it. The flag lives
+        // ON the panel node (not module state): if React ever replaces the panel,
+        // the replacement simply gets bound afresh instead of the feature dying.
         panel.addEventListener('keydown', navOnKeydown);
-        dbeNavKeyBound = true;
+        panel.dbeNavKeyBound = true;
     }
 
     function schedule() {
@@ -7185,10 +7411,7 @@
                 try { ensureScopeIsolation(); } catch (e) {}
             }
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
-            if (on('theme_switcher')) {
-                try { ensureThemeButton(); } catch (e) {}
-                try { applyMonacoTheme(); } catch (e) {}
-            }
+            if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
@@ -7285,7 +7508,7 @@
         // keeping schedule() running). Bounded; stops as soon as the bar is found.
         if (on('footer_toolbar')) {
             (function footerBoot(n) {
-                if (dbeFooterObserved || n <= 0) { return; }
+                if (dbeFooterBarNode || n <= 0) { return; }
                 schedule();
                 setTimeout(function () { footerBoot(n - 1); }, 500);
             })(30);
@@ -7296,7 +7519,7 @@
         // so the tabs are reachable even when this is the only feature enabled.
         if (on('ai_terminal_tabs')) {
             (function terminalBoot(n) {
-                if (dbeTermBarObserved || n <= 0) { return; }
+                if (dbeFooterBarNode || n <= 0) { return; }
                 schedule();
                 setTimeout(function () { terminalBoot(n - 1); }, 500);
             })(30);
@@ -7340,6 +7563,9 @@
             hookHistoryCapture();
             bindUndoKeys();
         }
+
+        // Cmd/Ctrl+S saves the template.
+        if (on('save_shortcut')) { bindSaveShortcut(); }
 
         // Keyboard shortcuts overlay (?).
         if (on('shortcuts_overlay')) { bindShortcutsKey(); }
