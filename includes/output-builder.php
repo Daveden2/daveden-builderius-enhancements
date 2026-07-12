@@ -152,7 +152,31 @@ function dbe_print_builder_head() {
 			function pick(key, fallback) {
 				try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
 			}
-			if (cfg.theme)   { d.dataset.dbeTheme   = pick('dbeBuilderTheme', cfg.theme); }
+			/*
+			 * The MODE (light / dark / auto — what the user chose) lives in
+			 * data-dbe-theme-mode and localStorage; data-dbe-theme only ever
+			 * carries the RESOLVED light/dark. Resolving auto here, before
+			 * first paint, means the stylesheets need no "auto" selectors at
+			 * all — auto under a dark OS is byte-identical to the dark theme.
+			 */
+			function resolve(mode) {
+				try {
+					return mode === 'auto'
+						? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+						: mode;
+				} catch (e) { return mode === 'auto' ? 'dark' : mode; }
+			}
+			if (cfg.theme) {
+				var mode = pick('dbeBuilderTheme', cfg.theme);
+				d.dataset.dbeThemeMode = mode;
+				d.dataset.dbeTheme = resolve(mode);
+				// Auto keeps following the OS live, not just at load.
+				try {
+					matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+						if (d.dataset.dbeThemeMode === 'auto') { d.dataset.dbeTheme = resolve('auto'); }
+					});
+				} catch (e) {}
+			}
 			if (cfg.density) { d.dataset.dbeDensity = pick('dbeBuilderDensity', cfg.density); }
 		})(document.documentElement);
 		</script>
