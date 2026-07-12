@@ -323,5 +323,27 @@ function dbe_builder_strings() {
 		'copyFailed'              => __( 'Copy failed: clipboard unavailable', 'daveden-builderius-enhancements' ),
 		/* translators: %s: class name. */
 		'removedName'             => __( 'Removed %s', 'daveden-builderius-enhancements' ),
+
+		// Element keyboard shortcuts + quick element picker.
+		'cut'                     => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'addBefore'               => __( 'Add element before', 'daveden-builderius-enhancements' ),
+		'addAfter'                => __( 'Add element after', 'daveden-builderius-enhancements' ),
+		'pickBeforeTitle'         => __( 'Add element before', 'daveden-builderius-enhancements' ),
+		'pickAfterTitle'          => __( 'Add element after', 'daveden-builderius-enhancements' ),
+		'pickFilter'              => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
+		'pickNoMatch'             => __( 'No matching element', 'daveden-builderius-enhancements' ),
+		'duplicated'              => __( 'Duplicated element', 'daveden-builderius-enhancements' ),
+		'cutDone'                 => __( 'Cut element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element/tag name just inserted. */
+		'addedElement'            => __( 'Added %s', 'daveden-builderius-enhancements' ),
+		'noElementSelected'       => __( 'Select an element first', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — Elements group.
+		'scGroupElements'         => __( 'Selected element', 'daveden-builderius-enhancements' ),
+		'scDuplicate'             => __( 'Duplicate', 'daveden-builderius-enhancements' ),
+		'scCut'                   => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'scAddBefore'             => __( 'Add an element before', 'daveden-builderius-enhancements' ),
+		'scAddAfter'              => __( 'Add an element after', 'daveden-builderius-enhancements' ),
+		'scRename'                => __( 'Rename', 'daveden-builderius-enhancements' ),
+		'scCopyPasteDelete'       => __( 'Copy / paste / delete the element (Builderius)', 'daveden-builderius-enhancements' ),
 	);
 }
