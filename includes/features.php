@@ -378,6 +378,14 @@ function dbe_features() {
 			'css'         => false,
 			'js'          => true,
 		),
+		'save_split_button'   => array(
+			'title'        => __( 'Keyboard access for the Save options menu', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'workflow',
+			'css'          => array( '35-save-menu.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
 		'presence_heartbeat'  => array(
 			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab.', 'daveden-builderius-enhancements' ),
