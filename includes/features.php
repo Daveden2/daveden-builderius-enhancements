@@ -357,6 +357,13 @@ function dbe_features() {
 			'css'         => array( '72-save-cue.css' ),
 			'js'          => true,
 		),
+		'save_shortcut'       => array(
+			'title'       => __( 'Save with Cmd/Ctrl+S', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Saves the template with Cmd/Ctrl+S, the shortcut every editor trains into your fingers, instead of opening the browser’s save-page dialog. It works wherever you are in the builder, including the code editors, just like the WordPress block editor.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'workflow',
+			'css'         => false,
+			'js'          => true,
+		),
 		'presence_heartbeat'  => array(
 			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab.', 'daveden-builderius-enhancements' ),
