@@ -22,8 +22,15 @@
     pointer-events: none !important;
 }
 
+/* Every width-forcing rule below is scoped to html:not(.dbe-panels-hidden):
+   the native "hide side panels" toggle collapses the wrappers with inline
+   zero widths, which these !important pins would otherwise defeat — the
+   panels would sit open and the toggle would appear dead. builder.js mirrors
+   the native hide state onto the root class (dbeSyncPanelsHidden), and while
+   it is set the native inline styles run the layout unopposed. */
+
 /* Left settings/inserter panel. */
-.uniLeftPanelOuter {
+html:not(.dbe-panels-hidden) .uniLeftPanelOuter {
     position: relative !important; /* anchor for the absolute grip */
     inline-size: var(--dbe-panel-width) !important;
     min-inline-size: var(--dbe-panel-width) !important;
@@ -31,14 +38,19 @@
 }
 
 /* Right Navigator panel + the canvas space it reserves. */
-.uniIframePanel:has(.uniRightPanel) {
+html:not(.dbe-panels-hidden) .uniIframePanel:has(.uniRightPanel) {
     margin-inline-end: var(--dbe-panel-width) !important;
     inline-size: calc(100% - var(--dbe-panel-width)) !important;
 }
-.uniMainPanel div:has(> .uniRightPanel) {
+html:not(.dbe-panels-hidden) .uniMainPanel div:has(> .uniRightPanel) {
     inline-size: var(--dbe-panel-width) !important;
     min-inline-size: var(--dbe-panel-width) !important;
     max-inline-size: var(--dbe-panel-width) !important;
+}
+
+/* The grips have no edge to sit on while the panels are hidden. */
+html.dbe-panels-hidden .dbe-panel-handle {
+    display: none !important;
 }
 
 /* --- Drag grips ---------------------------------------------------------------
