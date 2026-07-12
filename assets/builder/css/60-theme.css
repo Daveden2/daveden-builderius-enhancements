@@ -637,3 +637,57 @@ textarea::selection {
     background: var(--dbe-accent-strong) !important;
     color: var(--dbe-on-accent-strong) !important;
 }
+
+/* --- Leak audit pass 15: element HTML attributes repeater --- */
+/* An element's Attributes repeater (the rows, their name/value fields, the
+   per-row actions button and the "Add attribute" button) keeps its native
+   dark-scale surfaces and foreground, so in the light theme it renders
+   dark-on-dark: the rows and the Add button are black text on a near-black
+   fill, unreadable. Repaint the surfaces, borders and text from the theme
+   tokens so the repeater matches the rest of the light panel. Dark is left
+   alone — its native values are already correct — and the tokens resolve per
+   theme, so auto follows the OS. */
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_item,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_item,
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemEdit,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemEdit {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemName,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemName,
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemValue,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemValue,
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_item input,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_item input,
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemEdit input,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemEdit input {
+    color: var(--dbe-text) !important;
+    border-color: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_item input::placeholder,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_item input::placeholder,
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemEdit input::placeholder,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemEdit input::placeholder {
+    color: var(--dbe-muted) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemActions button,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemActions button {
+    color: var(--dbe-muted) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemActions button:hover,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_itemActions button:hover {
+    color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_addNewBtn,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_addNewBtn {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text-2) !important;
+}
+html[data-dbe-theme="light"] .uniSettingHtmlAttribute_addNewBtn:hover,
+html[data-dbe-theme="auto"]  .uniSettingHtmlAttribute_addNewBtn:hover {
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}

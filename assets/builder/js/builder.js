@@ -391,6 +391,27 @@
         return module.id;
     }
 
+    /* The native Section ships with an inner content wrapper —
+       section > div.container[data-container="true"] — so its children are
+       constrained to the layout container rather than the full-bleed section.
+       Our quick-add mirrors that: a picked Section inserts the section at the
+       sibling slot, then drops the container div inside it, so it is immediately
+       usable like the native inserter's Section. Returns the section's id. */
+    function dbeInsertSection(targetId, dir) {
+        var sf = store();
+        var newId = dbeInsertSibling(targetId, dir, dbeElementModule('section'));
+        if (!newId) { return null; }
+        storeAddModule(sf, {
+            id: dbeMakeId(), name: 'HtmlElement', label: 'Container',
+            settings: [
+                { name: 'tag', value: 'div' },
+                { name: 'tagClass', value: ['container'] },
+                { name: 'htmlAttribute', value: [{ name: 'data-container', value: 'true' }] }
+            ]
+        }, newId, 0);
+        return newId;
+    }
+
     /* Update an existing element's settings in place. Verified live: dispatching
        `addModule` with an EXISTING id upserts the module (settings replaced, no
        duplicate module or index entry) and repaints — so class/attribute edits on
@@ -4786,7 +4807,9 @@
         }
         function choose(tag) {
             dlg.close(); // close first — showModal makes the tree inert
-            var newId = dbeInsertSibling(targetId, dir, dbeElementModule(tag));
+            var newId = tag === 'section'
+                ? dbeInsertSection(targetId, dir)
+                : dbeInsertSibling(targetId, dir, dbeElementModule(tag));
             if (!newId) { return; }
             waitFor(function () {
                 return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;

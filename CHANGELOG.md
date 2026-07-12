@@ -73,6 +73,13 @@ keyboard-driven productivity features.
   themes.
 * Fixed: the Auto-BEM dialog's checkboxes could not be ticked, because a builder-level
   click handler swallowed clicks landing outside its own area. They work now.
+* Fixed: in the light theme, an element's Attributes repeater rendered dark-on-dark —
+  the attribute rows, their name/value fields and the "Add attribute" button were all
+  black text on a near-black fill. They now use the light theme's surfaces and text.
+* Improved: adding a Section through the quick element picker now brings the native
+  Builderius structure with it (section &gt; div.container[data-container="true"]), so a
+  picked Section is laid out and ready to fill like the native inserter's, rather than
+  an empty full-bleed section.
 
 ## 1.9.0
 * New: "Accessible AI session tabs". The tabs for the Sense AI chats have gotten some
