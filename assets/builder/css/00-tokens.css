@@ -11,7 +11,6 @@
 :root                          { color-scheme: dark; }
 html[data-dbe-theme="dark"]    { color-scheme: dark; }
 html[data-dbe-theme="light"]   { color-scheme: light; }
-html[data-dbe-theme="auto"]    { color-scheme: light dark; }
 
 /* color-scheme is inherited, so the value above also reaches the canvas
    <iframe> ELEMENT — and a previewed page with a transparent background then
@@ -90,12 +89,15 @@ html[data-dbe-theme="dark"] {
     --dbe-menu-bg: #171719;   /* floating menu/submenu card (native) */
 }
 
-/* --- Light palette (data-dbe-theme="light", and "auto" by default) ---
+/* --- Light palette (data-dbe-theme="light") ---
+   The bootstrap script resolves the "auto" MODE to a concrete light/dark
+   before first paint (and re-resolves on OS scheme changes), so this
+   attribute only ever holds "light" or "dark" — auto needs no selectors of
+   its own, and auto-under-a-dark-OS is byte-identical to the dark theme.
    Rebuilds the same roles on white; all text pairs AA-audited on #f4f5f7. In
    light mode the accent ROLE swaps: lines/text/cues need the darker blue on
    light surfaces, so --dbe-accent is the strong tone here. */
-html[data-dbe-theme="light"],
-html[data-dbe-theme="auto"] {
+html[data-dbe-theme="light"] {
     --dbe-l0: #e3e5ea;
     --dbe-l1: #f4f5f7;
     --dbe-l2: #ffffff;
@@ -121,37 +123,6 @@ html[data-dbe-theme="auto"] {
 
     --dbe-component: #067a57;
     --dbe-menu-bg: #ffffff;
-}
-
-/* "auto" resolves to the dark palette when the OS prefers dark. */
-@media (prefers-color-scheme: dark) {
-    html[data-dbe-theme="auto"] {
-        --dbe-l0: #17181a;
-        --dbe-l1: #202022;
-        --dbe-l2: #292a2d;
-        --dbe-l2-hi: #33353a;
-
-        --dbe-line: #303236;
-        --dbe-line-hi: #3c3f45;
-
-        --dbe-text: #e6e8ee;
-        --dbe-text-2: #c2c6d0;
-        --dbe-muted: #9aa0b0;
-
-        --dbe-accent: #5ea0ed;
-        --dbe-accent-strong: #2a6ecb;
-        --dbe-on-accent: #14161a;
-        --dbe-focus: #7cb4f2;
-
-        --dbe-shadow: rgba(0, 0, 0, 0.45);
-
-        --dbe-lvl-local: #5ea0ed;
-        --dbe-lvl-global: #e0a94a;
-        --dbe-lvl-template: #4fb894;
-
-        --dbe-component: #07cc91;
-        --dbe-menu-bg: #171719;
-    }
 }
 
 /* Shared screen-reader-only utility. Used by every live region the plugin

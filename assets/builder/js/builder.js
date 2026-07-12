@@ -3370,9 +3370,20 @@
         dbeEnsureModeStatus().textContent = msg;
     }
 
+    /* The MODE (light / dark / auto) lives in data-dbe-theme-mode + storage;
+       data-dbe-theme only ever carries the RESOLVED light/dark (the bootstrap
+       script resolves before first paint and follows OS changes while the
+       mode is auto). The switcher cycles and displays the MODE. */
     function currentTheme() {
-        var t = document.documentElement.dataset.dbeTheme;
+        var t = document.documentElement.dataset.dbeThemeMode;
         return THEME_ORDER.indexOf(t) !== -1 ? t : ((CFG.theme && CFG.theme.default) || 'auto');
+    }
+    function dbeResolveTheme(mode) {
+        try {
+            return mode === 'auto'
+                ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : mode;
+        } catch (e) { return mode === 'auto' ? 'dark' : mode; }
     }
     /* Monaco is deliberately NOT retheming via setTheme(): the light theme is
        produced by the pixel-invert filter in 60-theme.css, refined across
@@ -3449,7 +3460,8 @@
         btn.setAttribute('aria-label', tip);
     }
     function setTheme(t, announce) {
-        document.documentElement.dataset.dbeTheme = t;
+        document.documentElement.dataset.dbeThemeMode = t;
+        document.documentElement.dataset.dbeTheme = dbeResolveTheme(t);
         try { localStorage.setItem('dbeBuilderTheme', t); } catch (e) {}
         var btn = document.querySelector('.dbe-theme-btn');
         if (btn) { decorateThemeButton(btn); }
