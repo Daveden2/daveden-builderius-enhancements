@@ -304,7 +304,7 @@ function dbe_features() {
 		),
 		'scope_bar'           => array(
 			'title'        => __( 'CSS scope bar', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Adds an “All CSS” button that jumps to the full stylesheet for the active scope (the same view as Selectors → All CSS) and highlights where the current selector’s rules sit within it. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'styles',
 			'css'          => array( '41-scope-bar.css', '43-scope-isolation.css' ),
 			'js'           => true,
