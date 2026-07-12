@@ -368,8 +368,12 @@ function dbe_builder_strings() {
 		'goToCanvas'              => __( 'Go to canvas', 'daveden-builderius-enhancements' ),
 		'openInserterCmd'         => __( 'Open Inserter', 'daveden-builderius-enhancements' ),
 		'deletedElement'          => __( 'Deleted element', 'daveden-builderius-enhancements' ),
+		'phClass'                 => __( 'class1 class2  (or .a.b)', 'daveden-builderius-enhancements' ),
+		'phAttr'                  => __( 'name=value; name2=value2', 'daveden-builderius-enhancements' ),
 		/* translators: %s: attribute name. */
 		'addedAttribute'          => __( 'Added attribute %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of attributes added. */
+		'addedAttributesMany'     => __( 'Added %s attributes', 'daveden-builderius-enhancements' ),
 		'attrNoPanel'             => __( 'Open the element settings to add an attribute', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the text that could not be parsed. */
 		'emmetInvalid'            => __( 'Could not parse: %s', 'daveden-builderius-enhancements' ),

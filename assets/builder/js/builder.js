@@ -425,10 +425,20 @@
                 .filter(function (r) { return r !== backRow; })[0];
         }
         if (!otherRow) { return; }
+        // Remember the active settings tab (the class chips live on Styles) so the
+        // bounce lands the user back where they were, not on Content.
+        var tabLabel = (([].slice.call(document.querySelectorAll('.uniLeftPanel .uniPanelTabs__tab'))
+            .filter(function (t) { return t.classList.contains('active'); })[0] || {}).textContent || '').trim();
         clickSeq(otherRow);
         waitFor(function () { return (activeId() && activeId() !== id) ? true : null; }, function () {
             var again = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
             if (again) { clickSeq(again); }
+            if (!tabLabel) { return; }
+            waitFor(function () { return activeId() === id ? true : null; }, function () {
+                var tab = [].slice.call(document.querySelectorAll('.uniLeftPanel .uniPanelTabs__tab'))
+                    .filter(function (t) { return (t.textContent || '').trim() === tabLabel; })[0];
+                if (tab && !tab.classList.contains('active')) { clickSeq(tab); }
+            });
         });
     }
 
@@ -4795,17 +4805,32 @@
        then runs. */
     var dbePaletteKeyBound = false;
 
-    /* Add (or update) an HTML attribute on an existing element through the
-       settings upsert — no native-control driving. */
-    function dbeAddAttribute(id, name, value) {
-        var ok = dbeUpdateModuleSettings(id, function (settings) {
+    /* Add (or update) one or more HTML attributes on an existing element through
+       the settings upsert (a single upsert for the whole batch — no native-control
+       driving). `pairs` = [{name, value}, …]. Returns false if the element is gone. */
+    function dbeAddAttributes(id, pairs) {
+        if (!pairs.length) { return false; }
+        return dbeUpdateModuleSettings(id, function (settings) {
             var ha = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
             if (!ha) { ha = { name: 'htmlAttribute', value: [] }; settings.push(ha); }
             if (!Array.isArray(ha.value)) { ha.value = []; }
-            var existing = ha.value.filter(function (a) { return a.name === name; })[0];
-            if (existing) { existing.value = value; } else { ha.value.push({ name: name, value: value }); }
+            pairs.forEach(function (p) {
+                var existing = ha.value.filter(function (a) { return a.name === p.name; })[0];
+                if (existing) { existing.value = p.value; } else { ha.value.push({ name: p.name, value: p.value }); }
+            });
         });
-        if (ok) { undoToast(dbeFmt(dbeT('addedAttribute', 'Added attribute %s'), name)); }
+    }
+
+    /* Parse an attribute string into {name,value} pairs. Multiple attributes are
+       separated by ";" (so values may contain spaces, e.g. an aria-label), or by
+       whitespace when there is no ";" (Emmet-style: href=# target=_blank). */
+    function dbeParseAttributes(str) {
+        str = (str || '').trim();
+        var parts = str.indexOf(';') !== -1 ? str.split(';') : str.split(/\s+/);
+        return parts.map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
+            var eq = p.indexOf('=');
+            return { name: (eq < 0 ? p : p.slice(0, eq)).trim(), value: eq < 0 ? '' : p.slice(eq + 1).trim() };
+        }).filter(function (p) { return p.name; });
     }
 
     function openCommandPalette() {
@@ -4841,7 +4866,7 @@
         var commands = [];
         if (hasEl) {
             commands.push(
-                { label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: '.class or class', run: function (v) {
+                { label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
                     var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
                     if (!cls.length) { return; }
                     runClose(function () {
@@ -4850,10 +4875,14 @@
                         }
                     });
                 } },
-                { label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: 'name=value', run: function (v) {
-                    var eq = v.indexOf('='); var nm = (eq < 0 ? v : v.slice(0, eq)).trim(); var val = eq < 0 ? '' : v.slice(eq + 1).trim();
-                    if (!nm) { return; }
-                    runClose(function () { dbeAddAttribute(id, nm, val); });
+                { label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                    var pairs = dbeParseAttributes(v);
+                    if (!pairs.length) { return; }
+                    runClose(function () {
+                        if (dbeAddAttributes(id, pairs)) {
+                            undoToast(dbeFmt(dbeTn(pairs.length, 'addedAttribute', 'Added attribute %s', 'addedAttributesMany', 'Added %s attributes'), pairs.length === 1 ? pairs[0].name : pairs.length));
+                        }
+                    });
                 } },
                 { label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
