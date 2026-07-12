@@ -3151,7 +3151,8 @@
         // catch, re-scheduling us into a self-sustaining loop (the label visibly
         // flickered in the DOM).
         var badgeText = level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
-        var badge = bar.querySelector('.dbe-scope-badge');
+        // Re-queried (not the creation-branch variable): the bar may pre-date this call.
+        badge = bar.querySelector('.dbe-scope-badge');
         if (badge.textContent !== badgeText) { badge.textContent = badgeText; }
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             var sc = b.getAttribute('data-scope');
@@ -3160,7 +3161,7 @@
         });
         // "All CSS" needs a class selector to locate — a %local% one-off has no
         // shared rule to jump to, so disable it at the local level.
-        var allBtn = bar.querySelector('.dbe-scope-allcss');
+        allBtn = bar.querySelector('.dbe-scope-allcss');
         if (allBtn) { allBtn.disabled = (level === 'local'); }
     }
 
@@ -3435,9 +3436,20 @@
         dbeEnsureModeStatus().textContent = msg;
     }
 
+    /* The MODE (light / dark / auto) lives in data-dbe-theme-mode + storage;
+       data-dbe-theme only ever carries the RESOLVED light/dark (the bootstrap
+       script resolves before first paint and follows OS changes while the
+       mode is auto). The switcher cycles and displays the MODE. */
     function currentTheme() {
-        var t = document.documentElement.dataset.dbeTheme;
+        var t = document.documentElement.dataset.dbeThemeMode;
         return THEME_ORDER.indexOf(t) !== -1 ? t : ((CFG.theme && CFG.theme.default) || 'auto');
+    }
+    function dbeResolveTheme(mode) {
+        try {
+            return mode === 'auto'
+                ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : mode;
+        } catch (e) { return mode === 'auto' ? 'dark' : mode; }
     }
     /* Monaco is deliberately NOT retheming via setTheme(): the light theme is
        produced by the pixel-invert filter in 60-theme.css, refined across
@@ -3514,7 +3526,8 @@
         btn.setAttribute('aria-label', tip);
     }
     function setTheme(t, announce) {
-        document.documentElement.dataset.dbeTheme = t;
+        document.documentElement.dataset.dbeThemeMode = t;
+        document.documentElement.dataset.dbeTheme = dbeResolveTheme(t);
         try { localStorage.setItem('dbeBuilderTheme', t); } catch (e) {}
         var btn = document.querySelector('.dbe-theme-btn');
         if (btn) { decorateThemeButton(btn); }
