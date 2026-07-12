@@ -5,8 +5,11 @@
    code editor opens compact. When the panel_resize feature is on it re-points
    this width at the shared --dbe-panel-width variable (75-panel-resize.css,
    which loads after this file and wins) and gives the user a drag handle to
-   widen on demand — superseding the old one-shot "widen" header button. */
-.uniLeftPanelOuter {
+   widen on demand — superseding the old one-shot "widen" header button.
+   Scoped to html:not(.dbe-panels-hidden): the native "hide side panels" toggle
+   collapses the wrapper with inline zero widths, and this !important clamp
+   would pin it open (builder.js mirrors the native state onto the class). */
+html:not(.dbe-panels-hidden) .uniLeftPanelOuter {
     min-width: 260px !important;
     max-width: 340px !important;
 }
