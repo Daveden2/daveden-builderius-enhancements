@@ -4740,6 +4740,9 @@
                 || document.querySelector('.uniRightPanel .uniModTree__list button.uniModTree__item');
             if (el) { el.setAttribute('tabindex', '0'); }
         } else if (which === 'settings') {
+            // The settings panel shows the selected element's settings — nothing to
+            // go to without a selection.
+            if (!activeId()) { return; }
             var left = document.querySelector('.uniLeftPanel');
             el = (left && left.querySelector('button, input, select, textarea, a[href], [tabindex="0"]')) || left;
             if (el === left && left && left.tabIndex < 0) { left.setAttribute('tabindex', '-1'); }
@@ -4834,7 +4837,7 @@
     }
 
     function openCommandPalette() {
-        var id = lastCtxId || activeId();
+        var id = activeId(); // the selected element (the palette is keyboard-invoked)
         var hasEl = !!(id && (modules() || {})[id]);
         var prior = document.querySelector('dialog.dbe-palette');
         if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
@@ -4900,12 +4903,13 @@
                 { label: dbeT('paletteCut', 'Cut'), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
                 { label: dbeT('addBefore', 'Add element before'), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
                 { label: dbeT('addAfter', 'Add element after'), run: function () { runClose(function () { openElementPicker(id, 1); }); } },
-                { label: dbeT('paletteDelete', 'Delete'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } }
+                { label: dbeT('paletteDelete', 'Delete'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } },
+                // Settings show the selected element's settings — only useful with one.
+                { label: dbeT('goToSettings', 'Go to settings'), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
         commands.push(
             { label: dbeT('goToNavigator', 'Go to Navigator'), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
-            { label: dbeT('goToSettings', 'Go to settings'), run: function () { runClose(function () { dbeFocusArea('settings'); }); } },
             { label: dbeT('goToCanvas', 'Go to canvas'), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
             { label: dbeT('openInserterCmd', 'Open Inserter'), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
             { label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), run: function () { runClose(openShortcutsDialog); } }
