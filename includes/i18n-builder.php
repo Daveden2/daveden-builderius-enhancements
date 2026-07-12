@@ -242,6 +242,8 @@ function dbe_builder_strings() {
 		/* translators: %s: the name of the open tool (e.g. Dynamic Data). Names the editor panel region. */
 		'footerPanelNamed'        => __( '%s panel', 'daveden-builderius-enhancements' ),
 		'footerToolsPanel'        => __( 'Editor tools panel', 'daveden-builderius-enhancements' ),
+		'footerScopeTabs'         => __( 'Scope', 'daveden-builderius-enhancements' ),
+		'builderiusMenu'          => __( 'Builderius menu', 'daveden-builderius-enhancements' ),
 		'comboboxFilter'          => __( 'Filter options', 'daveden-builderius-enhancements' ),
 		'comboboxListbox'         => __( 'Options', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the currently selected value. Names the select trigger for screen readers. */
@@ -253,6 +255,13 @@ function dbe_builder_strings() {
 		// Navigator search.
 		'filterElements'          => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
 		'filterElementsAria'      => __( 'Filter elements by label or tag', 'daveden-builderius-enhancements' ),
+
+		// Navigator keyboard tree.
+		'elementsTree'            => __( 'Elements', 'daveden-builderius-enhancements' ),
+		'scTreeMove'              => __( 'Move between elements (selection follows)', 'daveden-builderius-enhancements' ),
+		'scTreeExpand'            => __( 'Open a branch, then step into its first child', 'daveden-builderius-enhancements' ),
+		'scTreeCollapse'          => __( 'Close a branch, then step out to the parent', 'daveden-builderius-enhancements' ),
+		'scTreeFirstLast'         => __( 'First / last element', 'daveden-builderius-enhancements' ),
 
 		// Save cue.
 		'unsaved'                 => __( 'Unsaved', 'daveden-builderius-enhancements' ),
@@ -314,5 +323,80 @@ function dbe_builder_strings() {
 		'copyFailed'              => __( 'Copy failed: clipboard unavailable', 'daveden-builderius-enhancements' ),
 		/* translators: %s: class name. */
 		'removedName'             => __( 'Removed %s', 'daveden-builderius-enhancements' ),
+
+		// Element keyboard shortcuts + quick element picker.
+		'cut'                     => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'addBefore'               => __( 'Add element before', 'daveden-builderius-enhancements' ),
+		'addAfter'                => __( 'Add element after', 'daveden-builderius-enhancements' ),
+		'pickBeforeTitle'         => __( 'Add element before', 'daveden-builderius-enhancements' ),
+		'pickAfterTitle'          => __( 'Add element after', 'daveden-builderius-enhancements' ),
+		'pickFilter'              => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
+		'pickNoMatch'             => __( 'No matching element', 'daveden-builderius-enhancements' ),
+		'duplicated'              => __( 'Duplicated element', 'daveden-builderius-enhancements' ),
+		'cutDone'                 => __( 'Cut element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element/tag name just inserted. */
+		'addedElement'            => __( 'Added %s', 'daveden-builderius-enhancements' ),
+		'noElementSelected'       => __( 'Select an element first', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — Elements group.
+		'scGroupElements'         => __( 'Selected element', 'daveden-builderius-enhancements' ),
+		'scDuplicate'             => __( 'Duplicate', 'daveden-builderius-enhancements' ),
+		'scCut'                   => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'scAddBefore'             => __( 'Add an element before', 'daveden-builderius-enhancements' ),
+		'scAddAfter'              => __( 'Add an element after', 'daveden-builderius-enhancements' ),
+		'scRename'                => __( 'Rename', 'daveden-builderius-enhancements' ),
+		'scCopyPasteDelete'       => __( 'Copy / paste / delete the element (Builderius)', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — Move to area group.
+		'scGroupAreas'            => __( 'Move to area', 'daveden-builderius-enhancements' ),
+		'scGotoNavigator'         => __( 'Navigator', 'daveden-builderius-enhancements' ),
+		'scGotoSettings'          => __( 'Settings panel', 'daveden-builderius-enhancements' ),
+		'scGotoCanvas'            => __( 'Canvas / preview', 'daveden-builderius-enhancements' ),
+		'scGotoInserter'          => __( 'Insert elements', 'daveden-builderius-enhancements' ),
+
+		// Command palette.
+		'commandPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
+		'searchCommands'          => __( 'Search commands…', 'daveden-builderius-enhancements' ),
+		'paletteNoEl'             => __( 'No element selected — element commands are hidden', 'daveden-builderius-enhancements' ),
+		'paletteAddClass'         => __( 'Add class…', 'daveden-builderius-enhancements' ),
+		'paletteAddAttr'          => __( 'Add attribute…', 'daveden-builderius-enhancements' ),
+		'paletteAddEmmet'         => __( 'Add element (Emmet)…', 'daveden-builderius-enhancements' ),
+		'paletteRename'           => __( 'Rename…', 'daveden-builderius-enhancements' ),
+		'paletteAutoBem'          => __( 'Auto-BEM…', 'daveden-builderius-enhancements' ),
+		'paletteDuplicate'        => __( 'Duplicate', 'daveden-builderius-enhancements' ),
+		'paletteCopy'             => __( 'Copy', 'daveden-builderius-enhancements' ),
+		'paletteCut'              => __( 'Cut', 'daveden-builderius-enhancements' ),
+		'paletteDelete'           => __( 'Delete', 'daveden-builderius-enhancements' ),
+		'paletteWrapDiv'          => __( 'Wrap in div', 'daveden-builderius-enhancements' ),
+		'paletteWrapFigure'       => __( 'Wrap in figure', 'daveden-builderius-enhancements' ),
+		'paletteWrapTemplate'     => __( 'Wrap in template', 'daveden-builderius-enhancements' ),
+		'paletteWrapCollection'   => __( 'Wrap in collection', 'daveden-builderius-enhancements' ),
+		// Command-palette group dividers.
+		'paletteGroupAdd'         => __( 'Add to element', 'daveden-builderius-enhancements' ),
+		'paletteGroupStructure'   => __( 'Structure', 'daveden-builderius-enhancements' ),
+		'paletteGroupElement'     => __( 'Element', 'daveden-builderius-enhancements' ),
+		'paletteGroupGoto'        => __( 'Go to', 'daveden-builderius-enhancements' ),
+		// Shortcut hint for the native delete (kept short for the right-aligned label).
+		'accelDelete'             => __( 'Del', 'daveden-builderius-enhancements' ),
+		'goToNavigator'           => __( 'Go to Navigator', 'daveden-builderius-enhancements' ),
+		'goToSettings'            => __( 'Go to settings', 'daveden-builderius-enhancements' ),
+		'goToCanvas'              => __( 'Go to canvas', 'daveden-builderius-enhancements' ),
+		'openInserterCmd'         => __( 'Open Inserter', 'daveden-builderius-enhancements' ),
+		'copiedElement'           => __( 'Copied element', 'daveden-builderius-enhancements' ),
+		'deletedElement'          => __( 'Deleted element', 'daveden-builderius-enhancements' ),
+		'phClass'                 => __( 'class1 class2  (or .a.b)', 'daveden-builderius-enhancements' ),
+		'phAttr'                  => __( 'name=value; name2=value2', 'daveden-builderius-enhancements' ),
+		/* translators: %s: attribute name. */
+		'addedAttribute'          => __( 'Added attribute %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of attributes added. */
+		'addedAttributesMany'     => __( 'Added %s attributes', 'daveden-builderius-enhancements' ),
+		'attrNoPanel'             => __( 'Open the element settings to add an attribute', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the text that could not be parsed. */
+		'emmetInvalid'            => __( 'Could not parse: %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements added. */
+		'emmetAddedOne'           => __( 'Added %s element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements added. */
+		'emmetAddedMany'          => __( 'Added %s elements', 'daveden-builderius-enhancements' ),
+		// Shortcuts overlay — command palette.
+		'scGroupPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
+		'scOpenPalette'           => __( 'Open the command palette (add class / attribute / element)', 'daveden-builderius-enhancements' ),
 	);
 }

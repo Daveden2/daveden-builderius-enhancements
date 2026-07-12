@@ -1,0 +1,16 @@
+/* Navigator keyboard tree (navigator_keyboard).
+
+   The rows carry a roving tabindex and receive real DOM focus as the arrow keys
+   move through the tree, so the keyboard cursor must always be visible — even
+   when the separate "Focus visibility" feature is off. A clear ring on the
+   focused treeitem, inset so it is not clipped by the row's overflow. */
+.uniRightPanel .uniModTree__item:focus-visible {
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: -2px !important;
+}
+
+/* Keep the ring visible even in the rare browsers that fall back to :focus. */
+.uniRightPanel .uniModTree__item:focus:not(:focus-visible) {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -2px;
+}

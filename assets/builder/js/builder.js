@@ -172,11 +172,7 @@
         var firstAt = siblings.indexOf(order[0]);
         if (firstAt < 0) { firstAt = siblings.length; }
 
-        var makeId = function () {
-            return 'u' + Array.from({ length: 9 }, function () {
-                return Math.floor(Math.random() * 16).toString(16);
-            }).join('');
-        };
+        var makeId = dbeMakeId;
         var newId = makeId();
         var attachId = newId; // where the selected elements are moved into
 
@@ -268,6 +264,212 @@
         sf.storeSet('moveModule', {
             oldParent: oldParent, sourceId: moduleId, oldIndex: oldIndex,
             newIndex: (typeof newIndex === 'number') ? newIndex : 0, newParent: newParent
+        });
+    }
+
+    /* Random module id in Builderius' shape ('u' + 9 hex). Lifted from wrap()'s
+       closure so element-insertion helpers (picker, Emmet palette) can share it. */
+    function dbeMakeId() {
+        return 'u' + Array.from({ length: 9 }, function () {
+            return Math.floor(Math.random() * 16).toString(16);
+        }).join('');
+    }
+
+    /* Build an HtmlElement module object for a tag, with optional classes/id/text.
+       Mirrors the native insert shape used by wrap() — the tag lives in a `tag`
+       setting, classes in a `tagClass` array setting. (id/text handling for the
+       Emmet palette is resolved in phase 3 against the live settings shape.) */
+    function dbeElementModule(tag, opts) {
+        opts = opts || {};
+        var settings = [{ name: 'tag', value: tag }];
+        // Verified live: addModule renders text from a `content` setting, classes
+        // from `tagClass`, and the id/attributes from an `htmlAttribute` list — so a
+        // fully-formed element (Emmet included) inserts in one call, no native
+        // class/attr driving.
+        if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: opts.text }); }
+        if (opts.classes && opts.classes.length) { settings.push({ name: 'tagClass', value: opts.classes.slice() }); }
+        if (opts.id) { settings.push({ name: 'htmlAttribute', value: [{ name: 'id', value: opts.id }] }); }
+        var label = tag.charAt(0).toUpperCase() + tag.slice(1);
+        return { id: dbeMakeId(), name: 'HtmlElement', label: label, settings: settings };
+    }
+
+    /* Minimal Emmet parser (command_palette): tag, .class, #id, > child, + sibling,
+       * multiply, {text}. No grouping (), climb-up ^, numbering $ or [attr].
+       Returns an array of root nodes {tag,id,classes,text,count,children}; throws
+       (a plain value) on a parse error. */
+    function dbeEmmetParse(str) {
+        var s = (str || '').trim();
+        var i = 0;
+        function parseElement() {
+            var node = { tag: '', id: '', classes: [], text: null, count: 1, children: [] };
+            var tm = /^[A-Za-z][A-Za-z0-9]*/.exec(s.slice(i));
+            if (tm) { node.tag = tm[0]; i += tm[0].length; }
+            while (i < s.length) {
+                var c = s[i];
+                if (c === '#') {
+                    i++; var im = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!im) { throw 0; }
+                    node.id = im[0]; i += im[0].length;
+                } else if (c === '.') {
+                    i++; var cm = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!cm) { throw 0; }
+                    node.classes.push(cm[0]); i += cm[0].length;
+                } else if (c === '{') {
+                    var end = s.indexOf('}', i); if (end < 0) { throw 0; }
+                    node.text = s.slice(i + 1, end); i = end + 1;
+                } else { break; }
+            }
+            if (!node.tag && !node.classes.length && !node.id && node.text == null) { throw 0; }
+            if (s[i] === '*') {
+                i++; var nm = /^[0-9]+/.exec(s.slice(i)); if (!nm) { throw 0; }
+                node.count = Math.max(1, Math.min(50, parseInt(nm[0], 10))); i += nm[0].length;
+            }
+            return node;
+        }
+        var roots = [];
+        var cur = parseElement();
+        roots.push(cur);
+        var level = roots; // the array `cur` currently lives in (its sibling list)
+        while (i < s.length) {
+            var op = s[i];
+            if (op === '>') { i++; level = cur.children; var ch = parseElement(); level.push(ch); cur = ch; }
+            else if (op === '+') { i++; var sib = parseElement(); level.push(sib); cur = sib; }
+            else { throw 0; }
+        }
+        return roots;
+    }
+
+    function dbeEmmetNodeToModule(node) {
+        var tag = node.tag || ((node.text != null && !node.classes.length && !node.id) ? 'span' : 'div');
+        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text });
+    }
+
+    /* Insert a parsed Emmet tree relative to targetId: as its last children when it
+       can hold children, else as siblings after it. DFS with running per-level
+       indices; * multiplies a node into consecutive siblings. Returns the count. */
+    function dbeEmmetInsert(targetId, roots) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[targetId]) { return 0; }
+        var VOID = /^(img|input|br|hr|area|base|col|embed|link|meta|param|source|track|wbr)$/i;
+        var tag = ((mods[targetId].settings || []).filter(function (x) { return x.name === 'tag'; })[0] || {}).value || '';
+        var parentId, startIndex;
+        if (!VOID.test(tag)) {
+            parentId = targetId;
+            startIndex = (sf.storeGet('indexes')[targetId] || []).length;
+        } else {
+            parentId = mods[targetId].parent || '';
+            var sibs = [].concat(sf.storeGet('indexes')[parentId || 'root'] || []);
+            startIndex = sibs.indexOf(targetId) + 1;
+        }
+        var count = 0;
+        (function buildInto(nodeList, pId, startIdx) {
+            var idx = startIdx;
+            nodeList.forEach(function (node) {
+                for (var rep = 0; rep < (node.count || 1); rep++) {
+                    var mod = dbeEmmetNodeToModule(node);
+                    storeAddModule(sf, mod, pId, idx);
+                    idx += 1; count += 1;
+                    if (node.children && node.children.length) { buildInto(node.children, mod.id, 0); }
+                }
+            });
+        })(roots, parentId, startIndex);
+        return count;
+    }
+
+    /* Insert `module` as a sibling of targetId: dir < 0 = before, dir > 0 = after.
+       Uses the same live-index slot maths as wrap(), through the persist+repaint
+       add channel. Returns the new id (or null if the target is gone). */
+    function dbeInsertSibling(targetId, dir, module) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[targetId]) { return null; }
+        var parent = mods[targetId].parent || '';
+        var idx = sf.storeGet('indexes') || {};
+        var sibs = idx[parent || 'root'] ? [].concat(idx[parent || 'root']) : [];
+        var at = sibs.indexOf(targetId);
+        if (at < 0) { at = sibs.length ? sibs.length - 1 : 0; }
+        storeAddModule(sf, module, parent, dir > 0 ? at + 1 : at);
+        return module.id;
+    }
+
+    /* The native Section ships with an inner content wrapper —
+       section > div.container[data-container="true"] — so its children are
+       constrained to the layout container rather than the full-bleed section.
+       Our quick-add mirrors that: a picked Section inserts the section at the
+       sibling slot, then drops the container div inside it, so it is immediately
+       usable like the native inserter's Section. Returns the section's id. */
+    function dbeInsertSection(targetId, dir) {
+        var sf = store();
+        var newId = dbeInsertSibling(targetId, dir, dbeElementModule('section'));
+        if (!newId) { return null; }
+        storeAddModule(sf, {
+            id: dbeMakeId(), name: 'HtmlElement', label: 'Container',
+            settings: [
+                { name: 'tag', value: 'div' },
+                { name: 'tagClass', value: ['container'] },
+                { name: 'htmlAttribute', value: [{ name: 'data-container', value: 'true' }] }
+            ]
+        }, newId, 0);
+        return newId;
+    }
+
+    /* Update an existing element's settings in place. Verified live: dispatching
+       `addModule` with an EXISTING id upserts the module (settings replaced, no
+       duplicate module or index entry) and repaints — so class/attribute edits on
+       an existing element need no native-control driving. `mutate` receives the
+       (cloned) settings array to modify. Returns false if the id is gone. */
+    function dbeUpdateModuleSettings(id, mutate) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[id]) { return false; }
+        var updated = JSON.parse(JSON.stringify(mods[id]));
+        updated.settings = updated.settings || [];
+        mutate(updated.settings);
+        sf.storeSet('addModule', { module: updated });
+        // The canvas repaints from `modules`, but the settings panel for the
+        // selected element is hydrated on SELECTION and does not re-read this write
+        // — so an edit to the active element would not show in the panel (its class
+        // chips / attribute rows) until a save + reload. Re-hydrate by bouncing the
+        // selection off another row and back (a raw activeModule set does not
+        // trigger the hydration; only the selection click handler does).
+        if (activeId() === id) { dbeReselectToRehydrate(id); }
+        return true;
+    }
+
+    function dbeReselectToRehydrate(id) {
+        var backRow = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        if (!backRow) { return; }
+        var mods = modules() || {};
+        var other = (mods[id] && mods[id].parent) || '';
+        var otherRow = other && document.querySelector('.uniRightPanel .uni-tree-node-' + other);
+        if (!otherRow) {
+            otherRow = [].slice.call(document.querySelectorAll('.uniRightPanel .uniModTree__list button.uniModTree__item'))
+                .filter(function (r) { return r !== backRow; })[0];
+        }
+        if (!otherRow) { return; }
+        // Remember the active settings tab (the class chips live on Styles) so the
+        // bounce lands the user back where they were, not on Content.
+        var tabLabel = (([].slice.call(document.querySelectorAll('.uniLeftPanel .uniPanelTabs__tab'))
+            .filter(function (t) { return t.classList.contains('active'); })[0] || {}).textContent || '').trim();
+        clickSeq(otherRow);
+        waitFor(function () { return (activeId() && activeId() !== id) ? true : null; }, function () {
+            var again = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+            if (again) { clickSeq(again); }
+            if (!tabLabel) { return; }
+            waitFor(function () { return activeId() === id ? true : null; }, function () {
+                var tab = [].slice.call(document.querySelectorAll('.uniLeftPanel .uniPanelTabs__tab'))
+                    .filter(function (t) { return (t.textContent || '').trim() === tabLabel; })[0];
+                if (tab && !tab.classList.contains('active')) { clickSeq(tab); }
+            });
+        });
+    }
+
+    // Append class name(s) to an element's tagClass setting (deduped).
+    function dbeAddClasses(id, classes) {
+        return dbeUpdateModuleSettings(id, function (settings) {
+            var tc = settings.filter(function (s) { return s.name === 'tagClass'; })[0];
+            if (!tc) { tc = { name: 'tagClass', value: [] }; settings.push(tc); }
+            if (!Array.isArray(tc.value)) { tc.value = []; }
+            classes.forEach(function (c) { if (tc.value.indexOf(c) === -1) { tc.value.push(c); } });
         });
     }
 
@@ -675,9 +877,19 @@
         dlg.appendChild(foot);
         refreshApplyCount();
 
-        // Keys inside the dialog must not reach the builder (Delete removes the
-        // selected element!); Escape keeps its native close behaviour.
+        // Isolate the dialog from the builder's global handlers. Keys must not
+        // reach it (Delete removes the selected element!); Escape keeps its native
+        // close behaviour. Pointer events must not either: Builderius has a
+        // document-level click handler that preventDefault()s clicks landing
+        // outside its React root (our dialog is appended to <body>), which
+        // reverted the row checkboxes' native toggle — they looked un-checkable.
+        // Stopping propagation at the dialog leaves the inner controls' own
+        // target-phase handlers (Apply/Cancel, the checkboxes) working while the
+        // builder never sees the event.
         dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
         dlg.addEventListener('close', function () { dlg.remove(); });
         document.body.appendChild(dlg);
         dlg.showModal();
@@ -860,6 +1072,24 @@
     var dbeIsMac = /mac|ip(hone|ad|od)/i.test(
         (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
     );
+
+    /* Platform-formatted accelerator label for a shortcut hint. `o.cmd` is the
+       primary modifier (Cmd on Mac, Ctrl elsewhere); `o.alt`/`o.shift` the rest.
+       Mac uses the glyph stack in Apple's order (⌃⌥⇧⌘) with no separators; other
+       platforms use "Ctrl+Alt+Shift+Key". Purely presentational — the shortcuts
+       overlay remains the authoritative reference. */
+    function dbeAccel(key, o) {
+        o = o || {};
+        if (dbeIsMac) {
+            return (o.ctrl ? '⌃' : '') + (o.alt ? '⌥' : '') + (o.shift ? '⇧' : '') + (o.cmd ? '⌘' : '') + key;
+        }
+        var p = [];
+        if (o.cmd || o.ctrl) { p.push('Ctrl'); }
+        if (o.alt) { p.push('Alt'); }
+        if (o.shift) { p.push('Shift'); }
+        p.push(key);
+        return p.join('+');
+    }
 
     function clearMultiSel() {
         if (!dbeMultiSel.size) { return; }
@@ -1462,6 +1692,15 @@
         li.className = 'uniContextMenu__item dbe-ctx-item';
         li.setAttribute('role', 'menuitem');
         li.textContent = labelText;
+        if (opts.accel) {
+            // Right-aligned shortcut hint, mirroring the block editor's menu.
+            li.classList.add('dbe-ctx-item--accel');
+            var acc = document.createElement('span');
+            acc.className = 'dbe-ctx-accel';
+            acc.textContent = opts.accel;
+            acc.setAttribute('aria-hidden', 'true');
+            li.appendChild(acc);
+        }
         if (opts.disabled) {
             li.classList.add('disabled', 'dbe-ctx-disabled');
             li.setAttribute('aria-disabled', 'true');
@@ -1476,6 +1715,30 @@
             onActivate();
         });
         return li;
+    }
+
+    /* Append a right-aligned shortcut hint to the native menu rows that have one
+       (Duplicate is our shortcut; Copy/Paste/Remove are Builderius'), so they read
+       like the injected rows and the block editor's menu. Matched by the English
+       labels the plugin already drives the native menu by. Idempotent. */
+    function annotateNativeCtxAccels(container) {
+        var map = {
+            Duplicate: dbeAccel('D', { cmd: true, shift: true }),
+            Copy: dbeAccel('C', { cmd: true }),
+            Paste: dbeAccel('V', { cmd: true }),
+            Remove: dbeT('accelDelete', 'Del')
+        };
+        [].slice.call(container.querySelectorAll('.uniContextMenu__item')).forEach(function (li) {
+            if (li.querySelector('.dbe-ctx-accel')) { return; }
+            var accel = map[(li.textContent || '').trim()];
+            if (!accel) { return; }
+            li.classList.add('dbe-ctx-item--accel');
+            var s = document.createElement('span');
+            s.className = 'dbe-ctx-accel';
+            s.textContent = accel;
+            s.setAttribute('aria-hidden', 'true');
+            li.appendChild(s);
+        });
     }
 
     function makeWrapItem(type, labelText) {
@@ -1687,6 +1950,14 @@
                 renameLi.className = 'uniContextMenu__item dbe-ctx-item';
                 renameLi.setAttribute('role', 'menuitem');
                 renameLi.textContent = dbeT('rename', 'Rename');
+                if (on('keyboard_shortcuts')) { // F2 is only bound when that feature is on
+                    renameLi.classList.add('dbe-ctx-item--accel');
+                    var renameAcc = document.createElement('span');
+                    renameAcc.className = 'dbe-ctx-accel';
+                    renameAcc.textContent = 'F2';
+                    renameAcc.setAttribute('aria-hidden', 'true');
+                    renameLi.appendChild(renameAcc);
+                }
                 renameLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -1825,11 +2096,26 @@
                 }
             }
 
+            // Cut + Add before / Add after (keyboard_shortcuts). Cut mirrors the
+            // Cmd/Ctrl+X shortcut (native Copy then Remove); Add-before/after open
+            // the quick element picker (deferred a tick so the menu closes first).
+            var cutLi = null, addBeforeLi = null, addAfterLi = null;
+            if (!multiIds && on('keyboard_shortcuts') && lastCtxId) {
+                var ksId = lastCtxId;
+                cutLi = makeCtxItem(dbeT('cut', 'Cut'), function () {
+                    driveContextMenuItem(ksId, 'Copy', function (ok) {
+                        if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); }
+                    });
+                }, { accel: dbeAccel('X', { cmd: true }) });
+                addBeforeLi = makeCtxItem(dbeT('addBefore', 'Add element before'), function () { setTimeout(function () { openElementPicker(ksId, -1); }, 60); }, { accel: dbeAccel('T', { cmd: true, alt: true }) });
+                addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
+            }
+
             /* --- Flat layout (context_menu off): append injected items after the
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(
-                    [unwrapLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -1853,6 +2139,10 @@
                     if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
+                // After the rows are placed: append shortcut hints to the native
+                // rows. Done last so it never mutates the textContent the layout
+                // above matches native items by (Remove-last, cluster detection).
+                if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
                 fitContextMenu(ctxDialog);
                 return;
             }
@@ -1903,8 +2193,9 @@
             // (which skips only disabled rows) is untouched.
             var clusters = [
                 natDuplicate,                                                    // Clone
-                natClip,                                                         // Clipboard
+                natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                 nameItems,                                                       // Name & style
+                [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
                 [wrapParent, unwrapLi].filter(Boolean),                          // Structure
                 [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
@@ -1918,6 +2209,10 @@
                 seenCluster = true;
                 items.forEach(function (li) { container.appendChild(li); });
             });
+
+            // After clustering (which matches native rows by textContent): append
+            // the shortcut hints, so the hint text never corrupts those matches.
+            if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
 
             setupMenuKeyboard(container);
             fitContextMenu(ctxDialog);
@@ -2003,19 +2298,49 @@
         icons.insertBefore(btn, icons.querySelector('.dbe-collapse-subtrees') || icons.firstChild);
     }
 
-    /* (h) Tooltips + accessible names for icon-only chrome buttons. Builderius
-       wraps a few controls (favourites bar, footer overlay toggle) in a
-       react-tooltip .tooltipItem; everything else — Navigator header icons, the
-       settings-header conditions/CSS-mode icons, the top-bar breakpoint and
-       reload buttons, the tree-footer delete — has neither a tooltip nor an
-       accessible name. setTip() gives each an aria-label (4.1.2) and a
-       data-dbe-tip driving the shared .dbe-tooltip chip; any title attribute is
-       dropped so native and custom tooltips never double up. */
+    /* (h) Tooltips + accessible names for icon-only chrome buttons. setTip()
+       gives each control — Navigator header icons, the settings-header
+       conditions/CSS-mode icons, the top-bar breakpoint and reload buttons, the
+       tree-footer delete — an aria-label (4.1.2) and a data-dbe-tip driving the
+       shared .dbe-tooltip chip. Controls that ship their own native tooltip
+       (the favourites bar and footer bar) are brought into the same chip by
+       adoptNativeTips(), so the whole chrome speaks through one tooltip.
+
+       Any native tooltip on a control we label is a duplicate, so setTip strips
+       it: the title attribute, and — Builderius labels many icons with a
+       react-tooltip anchor (.tooltipItem[data-tooltip-content], one shared
+       floating chip keyed off the hovered anchor's content) — the
+       data-tooltip-content, both on el itself (footer items carry it directly)
+       and on any inner wrapper (the breakpoint/reload icons wrap it a level
+       down). Dropping the content leaves the native chip nothing to show, so
+       only our .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it
+       self-heals after a React re-render re-adds the attribute. */
     function setTip(el, label) {
         if (!el) { return; }
         if (el.getAttribute('data-dbe-tip') !== label) { el.setAttribute('data-dbe-tip', label); }
         if (!el.getAttribute('aria-label')) { el.setAttribute('aria-label', label); }
         if (el.hasAttribute('title')) { el.removeAttribute('title'); }
+        if (el.hasAttribute('data-tooltip-content')) { el.removeAttribute('data-tooltip-content'); }
+        el.querySelectorAll('[data-tooltip-content]').forEach(function (a) {
+            a.removeAttribute('data-tooltip-content');
+        });
+    }
+
+    /* Adopt Builderius' own tooltips on the favourites bar and the footer bar
+       into our chip. Those controls carry a native react-tooltip
+       (.tooltipItem[data-tooltip-content]) and no chip of ours; rather than
+       leave a second, differently-styled system, take their text over so the
+       whole chrome speaks through one .dbe-tooltip. Reusing Builderius' copy
+       keeps the labels correct with nothing to maintain (incl. the footer's
+       "Soon: …" strings). setTip() then drops the native content, so only our
+       chip shows. Re-runs each pass, self-healing on re-render. */
+    function adoptNativeTips() {
+        document.querySelectorAll(
+            '.uniModTree__favouritesList [data-tooltip-content], .uniFooterPanelBar [data-tooltip-content]'
+        ).forEach(function (a) {
+            var label = (a.getAttribute('data-tooltip-content') || '').trim();
+            if (label) { setTip(a, label); }
+        });
     }
 
     var DBE_TIPS = [
@@ -2054,6 +2379,7 @@
         DBE_TIPS.forEach(function (pair) {
             document.querySelectorAll(pair[0]).forEach(function (el) { setTip(el, pair[1]); });
         });
+        adoptNativeTips();
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
         // base first, then large-to-small), falling back to the static list.
@@ -2106,27 +2432,41 @@
 
     /* Shared tooltip chip. Shown after a short hover delay (instantly on
        keyboard focus), hidden on leave/blur/Escape/pointerdown/scroll.
-       Placement prefers ABOVE the trigger (never sits under the pointer),
-       then the side with the most room, and only then below — so the top-bar
-       icons get a side chip and everything else gets an above chip. Anchored
-       to the element, not the cursor, so keyboard focus behaves identically. */
+       Placement prefers ABOVE the trigger (never sits under the pointer), then
+       BELOW, and only then beside. Top-bar controls (breakpoints, save, the
+       canvas-size fields) sit flush to the top edge, so they fall to BELOW —
+       matching the native tooltip and dropping the chip into the open canvas,
+       clear of the busy toolbar row rather than overlapping a neighbour beside
+       it. Anchored to the element, not the cursor, so keyboard focus behaves
+       identically. */
     var tipEl = null, tipTimer = null, tipTarget = null;
     function placeTip(r, w, h) {
         var M = 4, G = 8;
         var clampX = function (x) { return Math.min(Math.max(M, x), window.innerWidth - w - M); };
         var clampY = function (y) { return Math.min(Math.max(M, y), window.innerHeight - h - M); };
-        // 1. Above, centred.
+        // 1. Above, centred — anything with headroom.
         if (r.top - h - G >= M) {
             return [clampX(r.left + r.width / 2 - w / 2), r.top - h - G];
         }
-        // 2. Beside, vertically centred — whichever side has more room.
-        var spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
-        if (spaceRight >= w + G + M || spaceLeft >= w + G + M) {
-            var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
-            return [x, clampY(r.top + r.height / 2 - h / 2)];
+        // 2. Below, centred — top-edge controls land here (over the canvas).
+        if (r.bottom + h + G <= window.innerHeight - M) {
+            return [clampX(r.left + r.width / 2 - w / 2), r.bottom + G];
         }
-        // 3. Below, centred (last resort).
-        return [clampX(r.left + r.width / 2 - w / 2), clampY(r.bottom + G)];
+        // 3. Beside, vertically centred — last resort (no room above or below).
+        var spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
+        var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
+        return [clampX(x), clampY(r.top + r.height / 2 - h / 2)];
+    }
+    /* Where to mount the chip. A chip on <body> renders BEHIND a showModal()
+       dialog (down in its blurred backdrop), so when the trigger sits inside an
+       open modal <dialog> — the breakpoints modal, our own Auto-BEM dialog —
+       host it in that dialog instead, joining its top layer so it paints above
+       the backdrop. These dialogs carry no transform/filter, so the chip's
+       position:fixed viewport coordinates still hold. Everything else uses body. */
+    function tipHost(target) {
+        var dlg = target.closest && target.closest('dialog');
+        if (dlg) { try { if (dlg.matches(':modal')) { return dlg; } } catch (e) {} }
+        return document.body;
     }
     function showTip(target, instant) {
         var label = target.getAttribute('data-dbe-tip');
@@ -2139,8 +2479,9 @@
                 tipEl = document.createElement('div');
                 tipEl.className = 'dbe-tooltip';
                 tipEl.setAttribute('aria-hidden', 'true');
-                document.body.appendChild(tipEl);
             }
+            var host = tipHost(target);
+            if (tipEl.parentNode !== host) { host.appendChild(tipEl); }
             tipEl.textContent = label;
             var r = target.getBoundingClientRect();
             tipEl.style.left = '0px'; tipEl.style.top = '0px';
@@ -2596,11 +2937,17 @@
             else { picker.parentNode.appendChild(bar); }
         }
         var entLabel = entityScopeLabel();
-        bar.querySelector('.dbe-scope-badge').textContent =
-            level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
+        // Only write when the text actually changes: this runs every schedule()
+        // tick, and rewriting textContent replaces the text node even when the
+        // value is identical — a childList mutation the left-panel observer would
+        // catch, re-scheduling us into a self-sustaining loop (the label visibly
+        // flickered in the DOM).
+        var badgeText = level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
+        var badge = bar.querySelector('.dbe-scope-badge');
+        if (badge.textContent !== badgeText) { badge.textContent = badgeText; }
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             var sc = b.getAttribute('data-scope');
-            if (sc === 'template') { b.textContent = entLabel; } // keep the label in sync after an entity switch
+            if (sc === 'template' && b.textContent !== entLabel) { b.textContent = entLabel; } // keep in sync after an entity switch
             b.classList.toggle('is-active', sc === dbeScope);
         });
     }
@@ -3103,8 +3450,19 @@
         if (!container) { return; }
         opts = opts || {};
         var role = opts.role || 'toolbar';
+        // APG: a horizontal tablist or toolbar navigates with Left/Right only —
+        // Up/Down belong to a vertical orientation and must pass through. A radio
+        // group navigates with both axes (Right/Down next, Left/Up previous).
+        // Default from the role; override with opts.orientation.
+        var orientation = opts.orientation || (role === 'radiogroup' ? 'both' : 'horizontal');
+        var useHoriz = orientation !== 'vertical';
+        var useVert = orientation === 'vertical' || orientation === 'both';
         if (container.getAttribute('role') !== role) { container.setAttribute('role', role); }
         if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+        // A vertical group announces its orientation; horizontal is the default.
+        if (orientation === 'vertical' && container.getAttribute('aria-orientation') !== 'vertical') {
+            container.setAttribute('aria-orientation', 'vertical');
+        }
         if (opts.itemRole) {
             dbeRovingItems(container, sel).forEach(function (el) {
                 if (el.getAttribute('role') !== opts.itemRole) { el.setAttribute('role', opts.itemRole); }
@@ -3114,21 +3472,26 @@
         if (container.dbeGroupBound) { return; }
         container.dbeGroupBound = true;
         container.addEventListener('keydown', function (e) {
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+            var moveNext = (useHoriz && e.key === 'ArrowRight') || (useVert && e.key === 'ArrowDown');
+            var movePrev = (useHoriz && e.key === 'ArrowLeft') || (useVert && e.key === 'ArrowUp');
+            if (!moveNext && !movePrev && e.key !== 'Home' && e.key !== 'End') { return; }
             var items = dbeRovingItems(container, sel);
             if (!items.length) { return; }
             var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
             var i = items.indexOf(focused);
             if (i === -1) { return; }
             var next = i;
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (i + 1) % items.length; }
-            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (i - 1 + items.length) % items.length; }
+            if (moveNext) { next = (i + 1) % items.length; }
+            else if (movePrev) { next = (i - 1 + items.length) % items.length; }
             else if (e.key === 'Home') { next = 0; }
             else if (e.key === 'End') { next = items.length - 1; }
             e.preventDefault();
             e.stopPropagation();
             items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
-            if (opts.selectAttr) {
+            // Only an automatic (selectOnMove) group selects on move. A manually
+            // activated tablist leaves aria-selected on the active tab (mirrored
+            // from its class by dbeSyncRoving) until the user presses Enter/Space.
+            if (opts.selectAttr && opts.selectOnMove) {
                 items.forEach(function (el, k) { el.setAttribute(opts.selectAttr, k === next ? 'true' : 'false'); });
             }
             items[next].focus();
@@ -3150,6 +3513,142 @@
                     }
                 });
             }
+        });
+    }
+
+    /* Inserter keyboard navigation (inserter_keyboard). The element Inserter
+       (left panel) lists ~60 add-element buttons across categories. They are
+       native <button>s, so every one is a tab stop — reaching a lower category
+       means tabbing past everything above it. Wire each category's grid as a
+       single tab stop with roving tabindex and grid-aware arrow keys, mirroring
+       the WordPress block inserter: Tab moves category-to-category, arrows move
+       within a category (Left/Right along a row, Up/Down between rows), Home/End
+       jump to the first/last, and Enter/Space still inserts (native button). The
+       category grid gets role="group" + the category name — the honest semantics
+       for a set of action buttons, without overstating them as a selectable
+       listbox. Re-runs each schedule() tick (roving stays synced through the
+       search filter's re-renders); the keydown handler binds once per grid. */
+    function dbeInserterCols(items) {
+        // Column count = how many leading items share the first item's row (same
+        // top). Read from layout each keypress so it survives a panel resize.
+        if (!items.length) { return 1; }
+        var top0 = items[0].getBoundingClientRect().top;
+        var cols = 0;
+        for (var k = 0; k < items.length; k++) {
+            if (Math.abs(items[k].getBoundingClientRect().top - top0) <= 1) { cols++; } else { break; }
+        }
+        return cols || 1;
+    }
+
+    function ensureInserterKeyboard() {
+        var sel = '.uniModItems__item';
+        document.querySelectorAll('.uniModItems__catWrapper').forEach(function (cw) {
+            var container = cw.querySelector('.uniModItems__items');
+            if (!container) { return; }
+            var titleEl = cw.querySelector('.uniCatTitle');
+            var label = titleEl ? (titleEl.textContent || '').trim() : '';
+            if (container.getAttribute('role') !== 'group') { container.setAttribute('role', 'group'); }
+            if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+            dbeSyncRoving(container, sel);
+            if (container.dbeInserterBound) { return; }
+            container.dbeInserterBound = true;
+            container.addEventListener('keydown', function (e) {
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                var items = dbeRovingItems(container, sel);
+                if (!items.length) { return; }
+                var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
+                var i = items.indexOf(focused);
+                if (i === -1) { return; }
+                var cols = dbeInserterCols(items);
+                var next = i;
+                if (e.key === 'ArrowRight') { next = Math.min(i + 1, items.length - 1); }
+                else if (e.key === 'ArrowLeft') { next = Math.max(i - 1, 0); }
+                else if (e.key === 'ArrowDown') { next = (i + cols < items.length) ? i + cols : i; }
+                else if (e.key === 'ArrowUp') { next = (i - cols >= 0) ? i - cols : i; }
+                else if (e.key === 'Home') { next = 0; }
+                else if (e.key === 'End') { next = items.length - 1; }
+                e.preventDefault();
+                e.stopPropagation();
+                if (next === i) { return; }
+                items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
+                items[next].focus();
+            });
+        });
+    }
+
+    /* (pt) Panel tabs (panel_tabs). The settings panel's Content / Styles strip
+       and the Navigator's Elements / Selectors / CSS vars strip are rows of
+       <button>s with no tab semantics: a screen reader cannot tell they are tabs
+       or which is current, and there is no single-Tab-stop arrow-key model. Wire
+       each strip as an APG tab list — role=tablist, each tab role=tab +
+       aria-selected mirrored from the native `active` class, one Tab stop where
+       arrows move focus and Enter/Space activates (the tabs are native buttons,
+       so activation is their own click). MANUAL activation, not automatic:
+       switching to Styles mounts the CSS editor, which grabs focus, and the
+       settings strip is replaced by our code-mode replica — so auto-switching on
+       arrow would fight the editor for focus and disorient. Arrows therefore only
+       move the roving focus between tabs; the user presses Enter/Space when ready
+       to switch. aria-selected tracks the native `active` class, so it stays on
+       the shown tab until one is actually activated. Not dbeEnsureGroup: its
+       selectOnMove refocus is document-wide, and the shared .uniPanelTabs__tab
+       selector would let it land on the other panel's tablist. */
+    function ensurePanelTabs() {
+        ['.uniLeftPanel', '.uniRightPanel'].forEach(function (panelSel) {
+            var panel = document.querySelector(panelSel);
+            var strip = panel && panel.querySelector('.uniPanelTabs');
+            if (!strip || !strip.querySelector('.uniPanelTabs__tab')) { return; }
+            var sel = '.uniPanelTabs__tab';
+            var label = panelSel === '.uniRightPanel'
+                ? dbeT('navigatorTabs', 'Navigator views')
+                : dbeT('settingsTabs', 'Element settings');
+            if (strip.getAttribute('role') !== 'tablist') { strip.setAttribute('role', 'tablist'); }
+            if (strip.getAttribute('aria-label') !== label) { strip.setAttribute('aria-label', label); }
+            dbeRovingItems(strip, sel).forEach(function (t) {
+                if (t.getAttribute('role') !== 'tab') { t.setAttribute('role', 'tab'); }
+                var on = t.classList.contains('active') ? 'true' : 'false';
+                if (t.getAttribute('aria-selected') !== on) { t.setAttribute('aria-selected', on); }
+            });
+            dbeSyncRoving(strip, sel, { activeClass: 'active' });
+            if (strip.dbePanelTabsBound) { return; }
+            strip.dbePanelTabsBound = true;
+            strip.addEventListener('keydown', function (e) {
+                // Horizontal tablist (APG): Left/Right move between tabs; Up/Down
+                // belong to a vertical tablist and are left to pass through.
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                var items = dbeRovingItems(strip, sel);
+                var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(sel) : null;
+                var i = items.indexOf(focused);
+                if (i === -1 || !items.length) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var next = i;
+                if (e.key === 'ArrowRight') { next = (i + 1) % items.length; }
+                else if (e.key === 'ArrowLeft') { next = (i - 1 + items.length) % items.length; }
+                else if (e.key === 'Home') { next = 0; }
+                else if (e.key === 'End') { next = items.length - 1; }
+                if (next === i) { return; }
+                // Move the roving focus only; Enter/Space (native button) switches.
+                items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
+                items[next].focus();
+            });
+            // Builderius suppresses focus-on-click for these tab buttons (focus
+            // falls to <body>) and remounts the strip when the tab switches, so a
+            // mouse user is left with no tab focused and the keyboard flow broken.
+            // After the remount settles, move focus to the now-active tab — but
+            // only when nothing else has legitimately claimed focus (activating
+            // Styles mounts the CSS editor, which should keep it). Re-query the
+            // live strip: the node captured in this closure is detached by the
+            // remount, so focusing its buttons would silently land on <body>.
+            strip.addEventListener('click', function (e) {
+                if (!e.target.closest(sel)) { return; }
+                setTimeout(function () {
+                    var ae = document.activeElement;
+                    if (ae && ae !== document.body && !(ae.closest && ae.closest('.uniPanelTabs'))) { return; }
+                    var live = document.querySelector(panelSel + ' .uniPanelTabs');
+                    var active = live && live.querySelector(sel + '.active');
+                    if (active) { active.focus(); }
+                }, 0);
+            });
         });
     }
 
@@ -3202,6 +3701,7 @@
        The footer lives outside the panels the other observers watch, so it wires
        its own (attached once, lazily, when the bar first appears). */
     var dbeFooterObserved = false;
+    var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
         if (dbeFooterObserved) { return; }
         dbeFooterObserved = true;
@@ -3259,6 +3759,227 @@
         // buttons stay in the roving set (focusable, aria-disabled) so a keyboard
         // user can discover them and hear that they are locked.
         dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
+
+        dbeEnsureFooterScopeTabs();
+    }
+
+    /* (tf2) Global / Template scope tabs inside the JavaScript and Dynamic Data
+       footer tools (.uniFooterTabScopes). Two stacked buttons that switch the
+       editor beside them (.uniFooterTabScopeContent) between the global and the
+       template scope — a VERTICAL tablist, but with no tab semantics or keyboard
+       model. Wire it as an APG vertical tablist: role=tablist + aria-orientation,
+       each button role=tab controlling the content panel, one roving tab stop
+       with Up/Down moving between them. Activation is MANUAL (Enter/Space on the
+       native button switches, mounting the other scope's editor), so the arrows
+       only move focus; aria-selected tracks the native `active` class. Its own
+       observer keeps that in sync — the shared footer observer is shallow and
+       would miss the deep class toggle on switch. */
+    function dbeEnsureFooterScopeTabs() {
+        var scope = document.querySelector('.uniFooterTabScopes');
+        if (!scope) { return; }
+        var content = document.querySelector('.uniFooterTabScopeContent');
+        if (content) {
+            if (!content.id) { content.id = DBE_FOOTER_SCOPE_PANEL_ID; }
+            if (content.getAttribute('role') !== 'tabpanel') { content.setAttribute('role', 'tabpanel'); }
+            if (content.getAttribute('tabindex') !== '0') { content.setAttribute('tabindex', '0'); }
+        }
+        var active = null;
+        [].slice.call(scope.querySelectorAll('button')).forEach(function (t, i) {
+            if (!t.id) { t.id = 'dbe-footer-scope-tab-' + i; }
+            if (content && t.getAttribute('aria-controls') !== content.id) { t.setAttribute('aria-controls', content.id); }
+            if (t.classList.contains('active')) { active = t; }
+        });
+        if (content && active && content.getAttribute('aria-labelledby') !== active.id) {
+            content.setAttribute('aria-labelledby', active.id);
+        }
+        dbeEnsureGroup(scope, dbeT('footerScopeTabs', 'Scope'), 'button', {
+            role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
+            orientation: 'vertical', activeClass: 'active'
+        });
+        // Switching scope toggles the `active` class deep inside the footer panel,
+        // which the shallow footer observer misses; watch it here so aria-selected
+        // and the panel's aria-labelledby follow the switch.
+        if (!scope.dbeScopeObserved) {
+            scope.dbeScopeObserved = true;
+            try {
+                new MutationObserver(schedule).observe(scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
+            } catch (e) { scope.dbeScopeObserved = false; }
+        }
+    }
+
+    /* (bm) Accessible Builderius menu (builderius_menu). The menu button in the
+       top bar (.uniPanelButton--builderiusMenu) opens a left-panel sidebar
+       (.uniNavigator) of templates, pages, components and admin links — but with
+       no semantics, no focus management (focus stayed on the page) and no keyboard
+       model. It is not a flat list: the category headers (.uniCatTitle) are
+       collapsible sections, so it is wired as an APG tree.
+         - The button gets aria-haspopup=tree + aria-expanded + aria-controls.
+         - The items list (.uniNavigatorItems) becomes role=tree; each category
+           heading a level-1 role=treeitem carrying aria-expanded and controlling
+           its role=group of level-2 item treeitems.
+         - Focus moves to the first row when the menu opens; Up/Down move between
+           the visible rows (headers + items), Right opens a collapsed section then
+           steps into it, Left collapses it then steps out to the header, Home/End
+           jump to the ends. Enter/Space toggles a header (a plain <div>, so the
+           click is synthesised) and activates an item (native button).
+         - Escape closes the menu and returns focus to the button; so does the
+           panel's own Close button (focus is re-homed when the menu closes).
+       Collapse leaves no state class, so expanded state is read from whether a
+       section's items are on screen. */
+    var DBE_MENU_ID = 'dbe-builderius-menu';
+    var dbeMenuWasOpen = false;
+    var dbeMenuKeyBound = false;
+    var DBE_MENU_ROW_SEL = '.uniCatTitle, .uniNavigatorItems__item';
+
+    function dbeMenuTrigger() { return document.querySelector('.uniPanelButton--builderiusMenu'); }
+    function dbeMenuList() { return document.querySelector('.uniLeftPanel .uniNavigatorItems'); }
+    function dbeMenuIsHeader(el) { return !!(el && el.classList && el.classList.contains('uniCatTitle')); }
+    function dbeMenuCatExpanded(header) {
+        var cat = header.closest('.uniNavigatorItems__catWrapper');
+        var wrap = cat && cat.querySelector('.uniNavigatorItems__items');
+        return !!(wrap && wrap.offsetHeight > 0);
+    }
+    // Navigable rows in DOM order: every category header, plus the items of the
+    // expanded sections (a collapsed section's items have no offsetParent).
+    function dbeMenuRows() {
+        var list = dbeMenuList();
+        if (!list) { return []; }
+        return [].slice.call(list.querySelectorAll(DBE_MENU_ROW_SEL)).filter(function (el) {
+            return el.offsetParent !== null && !el.disabled;
+        });
+    }
+    function dbeMenuFocus(rows, idx) {
+        rows.forEach(function (el, k) { el.setAttribute('tabindex', k === idx ? '0' : '-1'); });
+        try { rows[idx].focus(); } catch (e) {}
+    }
+
+    function ensureBuilderiusMenu() {
+        var trigger = dbeMenuTrigger();
+        if (!trigger) { return; }
+        var open = trigger.classList.contains('active');
+        var list = open ? dbeMenuList() : null;
+
+        // Disclosure semantics on the trigger.
+        if (trigger.getAttribute('aria-haspopup') !== 'tree') { trigger.setAttribute('aria-haspopup', 'tree'); }
+        var exp = open ? 'true' : 'false';
+        if (trigger.getAttribute('aria-expanded') !== exp) { trigger.setAttribute('aria-expanded', exp); }
+        if (open && list) {
+            if (!list.id) { list.id = DBE_MENU_ID; }
+            if (trigger.getAttribute('aria-controls') !== list.id) { trigger.setAttribute('aria-controls', list.id); }
+        } else if (trigger.hasAttribute('aria-controls')) {
+            trigger.removeAttribute('aria-controls');
+        }
+
+        if (!open || !list) {
+            // The menu just closed. If the close stranded focus (e.g. the panel's
+            // Close button, which leaves focus on <body>), return it to the button.
+            if (dbeMenuWasOpen) {
+                dbeMenuWasOpen = false;
+                var ae = document.activeElement;
+                if (!ae || ae === document.body) { try { trigger.focus(); } catch (e) {} }
+            }
+            return;
+        }
+
+        if (list.getAttribute('role') !== 'tree') { list.setAttribute('role', 'tree'); }
+        var label = dbeT('builderiusMenu', 'Builderius menu');
+        if (list.getAttribute('aria-label') !== label) { list.setAttribute('aria-label', label); }
+
+        // Category headings = level-1 expandable treeitems controlling their group.
+        [].slice.call(list.querySelectorAll('.uniNavigatorItems__catWrapper')).forEach(function (cat, ci) {
+            var title = cat.querySelector('.uniCatTitle');
+            var wrap = cat.querySelector('.uniNavigatorItems__items');
+            if (title) {
+                if (title.getAttribute('role') !== 'treeitem') { title.setAttribute('role', 'treeitem'); }
+                if (title.getAttribute('aria-level') !== '1') { title.setAttribute('aria-level', '1'); }
+                if (title.hasAttribute('aria-hidden')) { title.removeAttribute('aria-hidden'); }
+                var ex = dbeMenuCatExpanded(title) ? 'true' : 'false';
+                if (title.getAttribute('aria-expanded') !== ex) { title.setAttribute('aria-expanded', ex); }
+                if (wrap) {
+                    if (!wrap.id) { wrap.id = 'dbe-menu-grp-' + ci; }
+                    if (title.getAttribute('aria-controls') !== wrap.id) { title.setAttribute('aria-controls', wrap.id); }
+                }
+            }
+            if (wrap && wrap.getAttribute('role') !== 'group') { wrap.setAttribute('role', 'group'); }
+        });
+        // Items = level-2 treeitems.
+        [].slice.call(list.querySelectorAll('.uniNavigatorItems__item')).forEach(function (b) {
+            if (b.getAttribute('role') !== 'treeitem') { b.setAttribute('role', 'treeitem'); }
+            if (b.getAttribute('aria-level') !== '2') { b.setAttribute('aria-level', '2'); }
+        });
+
+        // One roving tab stop across every header + item (keep the current one,
+        // else the first visible row).
+        var rows = dbeMenuRows();
+        var all = [].slice.call(list.querySelectorAll(DBE_MENU_ROW_SEL));
+        var current = all.filter(function (el) { return el.getAttribute('tabindex') === '0' && el.offsetParent !== null; })[0];
+        var keep = current || rows[0];
+        all.forEach(function (el) {
+            var t = el === keep ? '0' : '-1';
+            if (el.getAttribute('tabindex') !== t) { el.setAttribute('tabindex', t); }
+        });
+
+        // Move focus into the tree on the open transition (it stayed on the page
+        // before). Once per open, and only if focus is not already inside.
+        if (!dbeMenuWasOpen) {
+            dbeMenuWasOpen = true;
+            if (rows[0] && !list.contains(document.activeElement)) { dbeMenuFocus(rows, 0); }
+        }
+    }
+
+    function dbeMenuKeydown(e) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape', 'Enter', ' '].indexOf(e.key) === -1) { return; }
+        var list = dbeMenuList();
+        if (e.key === 'Escape') {
+            // Close only when focus is within the open menu; otherwise let Escape
+            // fall through (it may close a dialog or clear a selection elsewhere).
+            if (!list || !list.contains(document.activeElement)) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var trigger = dbeMenuTrigger();
+            if (trigger) { clickSeq(trigger); trigger.focus(); }
+            dbeMenuWasOpen = false;
+            return;
+        }
+        var row = e.target && e.target.closest ? e.target.closest(DBE_MENU_ROW_SEL) : null;
+        if (!row || !list || !list.contains(row)) { return; }
+        var header = dbeMenuIsHeader(row);
+
+        // Enter/Space: toggle a header (a <div>, so synthesise the click), or let
+        // an item's native button activation run.
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (header) { e.preventDefault(); e.stopPropagation(); clickSeq(row); }
+            return;
+        }
+
+        var rows = dbeMenuRows();
+        var i = rows.indexOf(row);
+        if (i === -1) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.key === 'ArrowRight') {
+            if (header && !dbeMenuCatExpanded(row)) { clickSeq(row); }          // open the section
+            else if (header && rows[i + 1] && !dbeMenuIsHeader(rows[i + 1])) { dbeMenuFocus(rows, i + 1); } // step into it
+            return;
+        }
+        if (e.key === 'ArrowLeft') {
+            if (header && dbeMenuCatExpanded(row)) { clickSeq(row); }            // collapse the section
+            else if (!header) {                                                 // step out to the header
+                var cat = row.closest('.uniNavigatorItems__catWrapper');
+                var hdr = cat && cat.querySelector('.uniCatTitle');
+                var hi = rows.indexOf(hdr);
+                if (hi !== -1) { dbeMenuFocus(rows, hi); }
+            }
+            return;
+        }
+        var next = i;
+        if (e.key === 'ArrowDown') { next = (i + 1) % rows.length; }
+        else if (e.key === 'ArrowUp') { next = (i - 1 + rows.length) % rows.length; }
+        else if (e.key === 'Home') { next = 0; }
+        else if (e.key === 'End') { next = rows.length - 1; }
+        if (next === i) { return; }
+        dbeMenuFocus(rows, next);
     }
 
     /* (sc) Accessible select comboboxes (select_combobox). Builderius's reused
@@ -3291,6 +4012,15 @@
         var dd = document.querySelector('.uniSystemSelect__dropdown');
         return (dd && dd.offsetParent !== null) ? dd : null;
     }
+    var dbeSSId = 0;
+    /* The field's visible title, used to name the combobox (aria-labelledby, so
+       both the label and the shown value are announced). */
+    function dbeSSLabelEl(sel) {
+        var field = sel.closest('.uniFormField') || sel;
+        var c = field.parentElement;
+        var el = c ? c.querySelector('[class*="settingLabel"], [class*="settingTitle"], [class*="__label"], [class*="__title"], label') : null;
+        return (el && !sel.contains(el)) ? el : null;
+    }
     function ensureSelectComboboxes() {
         // Closed triggers: drop the invisible hidden field out of the tab order
         // (it is an 8px opacity:0 input that makes the control a double Tab stop)
@@ -3299,12 +4029,40 @@
         document.querySelectorAll('.uniSystemSelect').forEach(function (sel) {
             var hidden = sel.querySelector('.uniSystemSelect__hiddenField');
             if (hidden && hidden.getAttribute('tabindex') !== '-1') { hidden.setAttribute('tabindex', '-1'); }
+            // Fold the caret into the trigger: one Tab stop, out of the a11y tree,
+            // so the whole control reads and behaves as a single combobox.
             var caret = sel.querySelector('.uniIconButton.caretIcon');
-            var val = ((sel.querySelector('.uniSystemSelect__valueInner') || {}).textContent || '').trim();
             if (caret) {
-                if (caret.getAttribute('aria-haspopup') !== 'listbox') { caret.setAttribute('aria-haspopup', 'listbox'); }
+                if (caret.getAttribute('tabindex') !== '-1') { caret.setAttribute('tabindex', '-1'); }
+                if (caret.getAttribute('aria-hidden') !== 'true') { caret.setAttribute('aria-hidden', 'true'); }
+            }
+            // The focusable trigger IS the combobox (APG select-only pattern):
+            // haspopup + an expanded state that controls the listbox when open.
+            if (sel.getAttribute('role') !== 'combobox') { sel.setAttribute('role', 'combobox'); }
+            if (sel.getAttribute('aria-haspopup') !== 'listbox') { sel.setAttribute('aria-haspopup', 'listbox'); }
+            var open = sel.classList.contains('expanded');
+            var exp = open ? 'true' : 'false';
+            if (sel.getAttribute('aria-expanded') !== exp) { sel.setAttribute('aria-expanded', exp); }
+            if (open) {
+                if (sel.getAttribute('aria-controls') !== SSCOMBO_LIST_ID) { sel.setAttribute('aria-controls', SSCOMBO_LIST_ID); }
+            } else if (sel.hasAttribute('aria-controls')) {
+                sel.removeAttribute('aria-controls');
+                sel.removeAttribute('aria-activedescendant');
+            }
+            // Name it from its field title + shown value via aria-labelledby, so
+            // both are announced without duplicating the trigger's own text.
+            var titleEl = dbeSSLabelEl(sel);
+            var valueEl = sel.querySelector('.uniSystemSelect__value') || sel.querySelector('.uniSystemSelect__valueInner');
+            var ref = [];
+            if (titleEl) { if (!titleEl.id) { titleEl.id = 'dbe-ss-lbl-' + (++dbeSSId); } ref.push(titleEl.id); }
+            if (valueEl) { if (!valueEl.id) { valueEl.id = 'dbe-ss-val-' + (++dbeSSId); } ref.push(valueEl.id); }
+            if (ref.length) {
+                var lb = ref.join(' ');
+                if (sel.getAttribute('aria-labelledby') !== lb) { sel.setAttribute('aria-labelledby', lb); }
+            } else {
+                var val = ((valueEl || {}).textContent || '').trim();
                 var want = val ? dbeFmt(dbeT('comboboxTrigger', 'Selection: %s'), val) : '';
-                if (want && caret.getAttribute('aria-label') !== want) { caret.setAttribute('aria-label', want); }
+                if (want && sel.getAttribute('aria-label') !== want) { sel.setAttribute('aria-label', want); }
             }
         });
 
@@ -3327,14 +4085,86 @@
                 var isSel = (curVal && (it.textContent || '').trim() === curVal) ? 'true' : 'false';
                 if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
             });
+            var mexp = mt.classList.contains('expanded');
+            // Closed trigger (the fake input focused before you type/open): give
+            // it combobox semantics so a screen reader announces it as one, with
+            // the current tag as its value. Focus moves to the real search on open.
+            var mfake = mt.querySelector('.uniSystemSelectModuleTags__fakeInput');
+            if (mfake) {
+                if (mfake.getAttribute('role') !== 'combobox') { mfake.setAttribute('role', 'combobox'); }
+                if (mfake.getAttribute('aria-haspopup') !== 'listbox') { mfake.setAttribute('aria-haspopup', 'listbox'); }
+                var fexp = mexp ? 'true' : 'false';
+                if (mfake.getAttribute('aria-expanded') !== fexp) { mfake.setAttribute('aria-expanded', fexp); }
+                if (results && mexp) {
+                    if (mfake.getAttribute('aria-controls') !== MTAGS_LIST_ID) { mfake.setAttribute('aria-controls', MTAGS_LIST_ID); }
+                } else if (mfake.hasAttribute('aria-controls')) { mfake.removeAttribute('aria-controls'); }
+                var mTitle = dbeSSLabelEl(mt);
+                var mRef = [];
+                if (mTitle) { if (!mTitle.id) { mTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } mRef.push(mTitle.id); }
+                var mPlaceholder = mt.querySelector('.uniSystemSelectModuleTags__placeholder');
+                if (mPlaceholder) { if (!mPlaceholder.id) { mPlaceholder.id = 'dbe-ss-val-' + (++dbeSSId); } mRef.push(mPlaceholder.id); }
+                if (mRef.length && mfake.getAttribute('aria-labelledby') !== mRef.join(' ')) { mfake.setAttribute('aria-labelledby', mRef.join(' ')); }
+            }
             var msearch = mt.querySelector('.uniSystemSelectModuleTags__search');
             if (msearch) {
                 if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
-                var exp = mt.classList.contains('expanded') ? 'true' : 'false';
-                if (msearch.getAttribute('aria-expanded') !== exp) { msearch.setAttribute('aria-expanded', exp); }
+                if (msearch.getAttribute('aria-expanded') !== (mexp ? 'true' : 'false')) { msearch.setAttribute('aria-expanded', mexp ? 'true' : 'false'); }
                 if (results && msearch.getAttribute('aria-controls') !== MTAGS_LIST_ID) { msearch.setAttribute('aria-controls', MTAGS_LIST_ID); }
                 if (msearch.getAttribute('aria-autocomplete') !== 'list') { msearch.setAttribute('aria-autocomplete', 'list'); }
                 if (!msearch.getAttribute('aria-label')) { msearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
+            }
+        });
+
+        // Class selector (.uniSystemSelectClasses — the Styles "Add an ID or
+        // classes" field). Same fake-input pattern as the HTML-tag field, and
+        // native owns open/type/navigate/select; it only lacks ARIA. It is
+        // MULTI-select (you add several classes), so the listbox is
+        // aria-multiselectable and each already-applied item is aria-selected.
+        // Roles only — no key handler and no store writes — so it never disturbs
+        // Auto-BEM, which drives the same search input.
+        var CSCLASSES_LIST_ID = 'dbe-csclasses-list';
+        document.querySelectorAll('.uniSystemSelectClasses').forEach(function (cs) {
+            var csExp = cs.classList.contains('expanded');
+            var csFake = cs.querySelector('.uniSystemSelectClasses__fakeInput');
+            if (csFake) {
+                if (csFake.getAttribute('role') !== 'combobox') { csFake.setAttribute('role', 'combobox'); }
+                if (csFake.getAttribute('aria-haspopup') !== 'listbox') { csFake.setAttribute('aria-haspopup', 'listbox'); }
+                var ce = csExp ? 'true' : 'false';
+                if (csFake.getAttribute('aria-expanded') !== ce) { csFake.setAttribute('aria-expanded', ce); }
+                if (csExp) {
+                    if (csFake.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csFake.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                } else if (csFake.hasAttribute('aria-controls')) { csFake.removeAttribute('aria-controls'); }
+                var csTitle = dbeSSLabelEl(cs);
+                if (csTitle) {
+                    if (!csTitle.id) { csTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); }
+                    if (csFake.getAttribute('aria-labelledby') !== csTitle.id) { csFake.setAttribute('aria-labelledby', csTitle.id); }
+                } else {
+                    var ph = ((cs.querySelector('.uniSystemSelectClasses__placeholder') || {}).textContent || '').trim();
+                    var cname = ph || dbeT('addClass', 'Add an ID or classes');
+                    if (csFake.getAttribute('aria-label') !== cname) { csFake.setAttribute('aria-label', cname); }
+                }
+            }
+            if (!csExp) { return; }
+            var csItems = [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; });
+            var csList = csItems.length ? csItems[0].parentElement : null;
+            if (csList) {
+                if (csList.getAttribute('role') !== 'listbox') { csList.setAttribute('role', 'listbox'); }
+                if (csList.id !== CSCLASSES_LIST_ID) { csList.id = CSCLASSES_LIST_ID; }
+                if (csList.getAttribute('aria-multiselectable') !== 'true') { csList.setAttribute('aria-multiselectable', 'true'); }
+                if (!csList.getAttribute('aria-label')) { csList.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
+            }
+            csItems.forEach(function (it) {
+                if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
+                var on = it.classList.contains('assigned') ? 'true' : 'false';
+                if (it.getAttribute('aria-selected') !== on) { it.setAttribute('aria-selected', on); }
+            });
+            var csSearch = cs.querySelector('.uniSystemSelectClasses__search');
+            if (csSearch) {
+                if (csSearch.getAttribute('role') !== 'combobox') { csSearch.setAttribute('role', 'combobox'); }
+                if (csSearch.getAttribute('aria-expanded') !== 'true') { csSearch.setAttribute('aria-expanded', 'true'); }
+                if (csList && csSearch.getAttribute('aria-controls') !== CSCLASSES_LIST_ID) { csSearch.setAttribute('aria-controls', CSCLASSES_LIST_ID); }
+                if (csSearch.getAttribute('aria-autocomplete') !== 'list') { csSearch.setAttribute('aria-autocomplete', 'list'); }
+                if (!csSearch.getAttribute('aria-label')) { csSearch.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
             }
         });
 
@@ -3368,10 +4198,14 @@
             if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
         });
         if (search) {
-            if (search.getAttribute('role') !== 'combobox') { search.setAttribute('role', 'combobox'); }
-            if (search.getAttribute('aria-expanded') !== 'true') { search.setAttribute('aria-expanded', 'true'); }
-            if (search.getAttribute('aria-controls') !== SSCOMBO_LIST_ID) { search.setAttribute('aria-controls', SSCOMBO_LIST_ID); }
-            if (search.getAttribute('aria-autocomplete') !== 'list') { search.setAttribute('aria-autocomplete', 'list'); }
+            // The trigger owns combobox semantics now; the in-popup search is a
+            // plain filter. Keep it out of the Tab order (keyboard drives from the
+            // trigger via aria-activedescendant) but leave it clickable/typeable
+            // for mouse users. Drop the combobox role it used to carry.
+            if (search.getAttribute('tabindex') !== '-1') { search.setAttribute('tabindex', '-1'); }
+            if (search.getAttribute('role') === 'combobox') { search.removeAttribute('role'); }
+            if (search.hasAttribute('aria-expanded')) { search.removeAttribute('aria-expanded'); }
+            if (search.getAttribute('aria-controls') === SSCOMBO_LIST_ID) { search.removeAttribute('aria-controls'); }
             if (!search.getAttribute('aria-label')) { search.setAttribute('aria-label', dbeT('comboboxFilter', 'Filter options')); }
         }
     }
@@ -3553,12 +4387,36 @@
         document.addEventListener('keydown', function (e) {
             var search = e.target;
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') { return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Tab') { return; }
             var dd = dbeSSOpenDropdown();
             if (!dd) { return; }
             var items = dbeSSItems(dd);
             if (!items.length) { return; }
             var idx = dbeSSActiveIndex(items, search.getAttribute('aria-activedescendant'));
+            if (e.key === 'Tab') {
+                // Focus is leaving the open popup. Opening the picker moves real
+                // focus into this in-popup search, so Tab/Shift+Tab walks focus out
+                // of it — but native never closes the popup, leaving it open behind
+                // the trigger (confusing for keyboard users). Close it by re-selecting
+                // the current option (value unchanged) and let the browser move focus
+                // naturally: Shift+Tab lands back on the trigger, Tab moves on to the
+                // next control. No preventDefault — the focus move must proceed.
+                var curTab = items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0];
+                if (curTab) { curTab.click(); }
+                return;
+            }
+            if (e.key === 'Escape') {
+                // Close without changing the value (re-select the current option),
+                // and return focus to the trigger. Native has no Escape-to-close;
+                // stopPropagation so it does not also close an enclosing dialog.
+                e.preventDefault();
+                e.stopPropagation();
+                var trig = document.querySelector('.uniSystemSelect.expanded');
+                var cur = items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0];
+                if (cur) { cur.click(); }
+                if (trig) { trig.focus(); }
+                return;
+            }
             if (e.key === 'Enter') {
                 // Only take Enter when WE have a highlighted option; otherwise leave
                 // it for Builderius (e.g. its own submit/first-match behaviour).
@@ -3582,6 +4440,77 @@
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
             search.removeAttribute('aria-activedescendant');
             schedule();
+        }, true);
+
+        // Trigger keyboard support (select-only combobox). The native widget is
+        // mouse-only — no keyboard open, and Escape does not close it — so drive
+        // it with the same clicks a mouse makes: focus stays on the trigger,
+        // arrows move aria-activedescendant, and selecting an option is the native
+        // close+commit path. Escape/Tab close by re-selecting the current value
+        // (a no-op that leaves it unchanged). Runs only when the trigger itself
+        // holds focus, so it never clashes with the in-popup search handler above.
+        document.addEventListener('keydown', function (e) {
+            var trigger = e.target;
+            if (!trigger || !trigger.classList || !trigger.classList.contains('uniSystemSelect')) { return; }
+            var open = trigger.classList.contains('expanded');
+            // preventDefault + stopPropagation on every key we handle, so it never
+            // also reaches the builder or the dialog (e.g. Enter re-triggering the
+            // widget or submitting the modal, Escape closing the modal, arrows
+            // scrolling). Tab is the exception — it must fall through to move focus.
+            var take = function () { e.preventDefault(); e.stopPropagation(); };
+            if (!open) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    take();
+                    clickSeq(trigger.querySelector('.uniSystemSelect__valueWrapper') || trigger);
+                    setTimeout(function () {
+                        try { ensureSelectComboboxes(); } catch (err) {}   // stamp option ids/roles
+                        var dd = dbeSSOpenDropdown(); if (!dd) { return; }
+                        var items = dbeSSItems(dd);
+                        var si = items.map(function (it) { return it.getAttribute('aria-selected') === 'true'; }).indexOf(true);
+                        dbeSSHighlight(trigger, items, si >= 0 ? si : 0);
+                    }, 60);
+                }
+                return;
+            }
+            var dd = dbeSSOpenDropdown();
+            var items = dd ? dbeSSItems(dd) : [];
+            var idx = dbeSSActiveIndex(items, trigger.getAttribute('aria-activedescendant'));
+            var current = function () { return items.filter(function (it) { return it.getAttribute('aria-selected') === 'true'; })[0] || items[0]; };
+            var closeVia = function (opt) { if (opt) { opt.click(); } trigger.removeAttribute('aria-activedescendant'); };
+            if (e.key === 'ArrowDown') { take(); if (items.length) { dbeSSHighlight(trigger, items, idx < 0 ? 0 : (idx + 1) % items.length); } }
+            else if (e.key === 'ArrowUp') { take(); if (items.length) { dbeSSHighlight(trigger, items, idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length); } }
+            else if (e.key === 'Home') { take(); if (items.length) { dbeSSHighlight(trigger, items, 0); } }
+            else if (e.key === 'End') { take(); if (items.length) { dbeSSHighlight(trigger, items, items.length - 1); } }
+            else if (e.key === 'Enter' || e.key === ' ') { take(); closeVia(idx >= 0 ? items[idx] : current()); trigger.focus(); }
+            else if (e.key === 'Escape') { take(); closeVia(current()); trigger.focus(); }   // keep value; don't also close the dialog
+            else if (e.key === 'Tab') { closeVia(current()); }                               // close, let focus move on
+        }, true);
+
+        // The native fake-input selects — the element HTML-tag field
+        // (.uniSystemSelectModuleTags) and the Styles "Add an ID or classes" field
+        // (.uniSystemSelectClasses) — move real focus into an in-popup search on
+        // open, but never close when focus tabs back out, so the dropdown lingers
+        // open behind the field (the confusion reported for both). Close it on
+        // focusout: once focus has settled on a real element OUTSIDE the widget,
+        // dispatch the widget's own close.
+        //
+        // Two details matter. (1) The native close is an Escape handler that checks
+        // keyCode === 27, so the synthetic event must carry keyCode/which — a plain
+        // {key:'Escape'} is silently ignored. (2) Closing while focus is still
+        // inside the widget drops focus to <body>, from where the CSS editor's
+        // Monaco grabs it; closing only AFTER focus has moved elsewhere leaves it
+        // where the user tabbed. So we act only when relatedTarget is a real
+        // element outside the widget (a null relatedTarget is an outside click,
+        // which the widget already closes itself). Neither close commits (verified)
+        // — the class field is multi-select, so re-committing would be especially
+        // wrong.
+        document.addEventListener('focusout', function (e) {
+            var w = e.target && e.target.closest && e.target.closest('.uniSystemSelectModuleTags, .uniSystemSelectClasses');
+            if (!w || !w.classList.contains('expanded')) { return; }
+            var to = e.relatedTarget;
+            if (!to || w.contains(to)) { return; }
+            var esc = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+            (w.querySelector('input[class*="__search"]') || w).dispatchEvent(esc);
         }, true);
     }
 
@@ -3681,20 +4610,47 @@
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ]],
-        [dbeT('scGroupNavigator', 'Navigator'), [
-            ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
-            ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
-            ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
-            ['Shift+click', dbeT('scRange', 'Select a range of rows')],
-            ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
-        ]],
+        [dbeT('scGroupNavigator', 'Navigator'), [].concat(
+            on('navigator_keyboard') ? [
+                ['↑ ↓', dbeT('scTreeMove', 'Move between elements (selection follows)')],
+                ['→', dbeT('scTreeExpand', 'Open a branch, then step into its first child')],
+                ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
+                ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
+            ] : [],
+            [
+                ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
+                ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
+                ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
+                ['Shift+click', dbeT('scRange', 'Select a range of rows')],
+                ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
+            ]
+        )],
         [dbeT('scGroupContextMenu', 'Context menu'), [
             ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
             ['Home · End', dbeT('scFirstLast', 'First / last item')],
             ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
             ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
         ]]
-    ];
+    ].concat(on('keyboard_shortcuts') ? [
+        [dbeT('scGroupElements', 'Selected element'), [
+            ['Cmd/Ctrl+Shift+D', dbeT('scDuplicate', 'Duplicate')],
+            ['Cmd/Ctrl+X', dbeT('scCut', 'Cut')],
+            ['Cmd/Ctrl+Alt+T', dbeT('scAddBefore', 'Add an element before')],
+            ['Cmd/Ctrl+Alt+Y', dbeT('scAddAfter', 'Add an element after')],
+            ['F2', dbeT('scRename', 'Rename')],
+            ['Cmd/Ctrl+C · Cmd/Ctrl+V · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
+        ]],
+        [dbeT('scGroupAreas', 'Move to area'), [
+            ['Cmd/Ctrl+Alt+O', dbeT('scGotoNavigator', 'Navigator')],
+            ['Cmd/Ctrl+Alt+S', dbeT('scGotoSettings', 'Settings panel')],
+            ['Cmd/Ctrl+Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
+            ['Cmd/Ctrl+Alt+N', dbeT('scGotoInserter', 'Insert elements')]
+        ]]
+    ] : []).concat(on('command_palette') ? [
+        [dbeT('scGroupPalette', 'Command palette'), [
+            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add class / attribute / element)')]
+        ]]
+    ] : []);
     function openShortcutsDialog() {
         var dlg = document.querySelector('dialog.dbe-shortcuts');
         if (!dlg) {
@@ -3758,6 +4714,462 @@
             e.stopPropagation();
             openShortcutsDialog();
         }, true);
+    }
+
+    /* (ks) Element keyboard shortcuts (keyboard_shortcuts). Gutenberg-style keys
+       for the element selected in the Navigator: Duplicate (Cmd/Ctrl+Shift+D),
+       Cut (Cmd/Ctrl+X = native Copy then Remove), Add before / after
+       (Cmd/Ctrl+Alt+T / +Y, via a quick element picker) and Rename (F2). Each
+       reuses a proven channel — driveContextMenuItem for the native duplicate/cut,
+       storeAddModule for the inserts, startRename for renaming. Copy/Paste/Delete
+       stay with Builderius' own native shortcuts (documented in the overlay only).
+       Letter keys are matched by e.code (KeyD/KeyX/KeyT/KeyY) so Option/Alt on Mac
+       — which rewrites e.key to a symbol — does not break the combos. */
+
+    // Elements the quick picker offers (all HtmlElement, tag only).
+    var DBE_PICKER_ELEMENTS = [
+        'div', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'main',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'a', 'img', 'ul', 'ol', 'li',
+        'button', 'figure', 'figcaption', 'blockquote', 'label'
+    ];
+
+    /* The quick element picker for Add-before / Add-after. A small modal (same
+       isolation contract as openAutoBemDialog: stop key/pointer events, close
+       before driving the tree) whose only job is to return a tag; the module is
+       built and inserted at the sibling slot via dbeInsertSibling. */
+    function openElementPicker(targetId, dir) {
+        if (!targetId || !(modules() || {})[targetId]) { undoToast(dbeT('noElementSelected', 'Select an element first')); return; }
+        var prior = document.querySelector('dialog.dbe-el-picker');
+        if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
+
+        var titleKey = dir > 0 ? 'pickAfterTitle' : 'pickBeforeTitle';
+        var titleText = dbeT(titleKey, dir > 0 ? 'Add element after' : 'Add element before');
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-el-picker';
+        dlg.setAttribute('aria-label', titleText);
+
+        var head = document.createElement('div');
+        head.className = 'dbe-el-picker__head';
+        var title = document.createElement('div');
+        title.className = 'dbe-el-picker__title';
+        title.textContent = titleText;
+        var filter = document.createElement('input');
+        filter.type = 'text';
+        filter.className = 'dbe-el-picker__filter';
+        filter.placeholder = dbeT('pickFilter', 'Filter elements…');
+        filter.setAttribute('aria-label', dbeT('pickFilter', 'Filter elements…'));
+        head.appendChild(title);
+        head.appendChild(filter);
+
+        var listEl = document.createElement('ul');
+        listEl.className = 'dbe-el-picker__list';
+        listEl.setAttribute('role', 'listbox');
+        var buttons = DBE_PICKER_ELEMENTS.map(function (tag) {
+            var li = document.createElement('li');
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dbe-el-picker__item';
+            btn.setAttribute('role', 'option');
+            btn.dataset.tag = tag;
+            var name = document.createElement('span');
+            name.textContent = tag.charAt(0).toUpperCase() + tag.slice(1);
+            var tagEl = document.createElement('span');
+            tagEl.className = 'dbe-el-picker__tag';
+            tagEl.textContent = '<' + tag + '>';
+            btn.appendChild(name);
+            btn.appendChild(tagEl);
+            btn.addEventListener('click', function () { choose(tag); });
+            li.appendChild(btn);
+            listEl.appendChild(li);
+            return btn;
+        });
+        var empty = document.createElement('div');
+        empty.className = 'dbe-el-picker__empty';
+        empty.hidden = true;
+        empty.textContent = dbeT('pickNoMatch', 'No matching element');
+
+        dlg.appendChild(head);
+        dlg.appendChild(listEl);
+        dlg.appendChild(empty);
+        // Isolate from Builderius' document-level key/click handlers; native
+        // <dialog> keeps Escape closing.
+        ['keydown', 'pointerdown', 'mousedown', 'click'].forEach(function (type) {
+            dlg.addEventListener(type, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        document.body.appendChild(dlg);
+
+        function visible() { return buttons.filter(function (b) { return !b.parentElement.hidden; }); }
+        function applyFilter() {
+            var q = filter.value.trim().toLowerCase();
+            buttons.forEach(function (b) { b.parentElement.hidden = !!q && b.dataset.tag.indexOf(q) === -1; });
+            empty.hidden = visible().length > 0;
+        }
+        function choose(tag) {
+            dlg.close(); // close first — showModal makes the tree inert
+            var newId = tag === 'section'
+                ? dbeInsertSection(targetId, dir)
+                : dbeInsertSibling(targetId, dir, dbeElementModule(tag));
+            if (!newId) { return; }
+            waitFor(function () {
+                return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;
+            }, function (row) { if (row) { clickSeq(row); } });
+            undoToast(dbeFmt(dbeT('addedElement', 'Added %s'), '<' + tag + '>'));
+        }
+
+        filter.addEventListener('input', applyFilter);
+        dlg.addEventListener('keydown', function (e) {
+            if (['ArrowDown', 'ArrowUp', 'Enter'].indexOf(e.key) === -1) { return; }
+            var vis = visible();
+            if (!vis.length) { return; }
+            var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-el-picker__item') : null;
+            var i = vis.indexOf(cur);
+            e.preventDefault();
+            if (e.key === 'Enter') { choose((cur || vis[0]).dataset.tag); return; }
+            var next = e.key === 'ArrowDown'
+                ? (i < 0 ? 0 : (i + 1) % vis.length)
+                : (i < 0 ? vis.length - 1 : (i - 1 + vis.length) % vis.length);
+            vis[next].focus();
+        });
+
+        dlg.showModal();
+        filter.focus();
+    }
+
+    /* Move keyboard focus to one of the builder's regions. Targets are chosen for
+       resilience: the Navigator hands off to navigator_keyboard's roving row; the
+       settings panel and the quick-insert bar fall back to their container (given
+       a -1 tabindex) when they have no focusable control mounted; the canvas is
+       the preview iframe itself. */
+    function dbeFocusArea(which) {
+        var el = null;
+        if (which === 'navigator') {
+            el = document.querySelector('.uniRightPanel .uni-tree-node-' + (activeId() || '\0'))
+                || document.querySelector('.uniRightPanel .uniModTree__list button.uniModTree__item');
+            if (el) { el.setAttribute('tabindex', '0'); }
+        } else if (which === 'settings') {
+            // The settings panel shows the selected element's settings — nothing to
+            // go to without a selection.
+            if (!activeId()) { return; }
+            var left = document.querySelector('.uniLeftPanel');
+            el = (left && left.querySelector('button, input, select, textarea, a[href], [tabindex="0"]')) || left;
+            if (el === left && left && left.tabIndex < 0) { left.setAttribute('tabindex', '-1'); }
+        } else if (which === 'canvas') {
+            el = document.getElementById('builderInner');
+        } else if (which === 'inserter') {
+            el = document.querySelector('.uniModItems__item')
+                || document.querySelector('.uniModTree__favouritesListItem');
+            if (el && el.tabIndex < 0 && !/^(a|button|input)$/i.test(el.tagName)) { el.setAttribute('tabindex', '-1'); }
+        }
+        if (!el) { return; }
+        try { el.focus(); } catch (e) {}
+        try { el.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+
+    var dbeShortcutKeyBound = false;
+    function dbeElementShortcutsKeydown(e) {
+        if (renameState) { return; }
+        var t = e.target;
+        if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
+        if (document.querySelector('dialog[open]')) { return; } // don't fire over a dialog or the native menu
+        var id = activeId();
+        // F2 — rename (no modifiers).
+        if (e.key === 'F2' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+            if (!id) { return; }
+            e.preventDefault(); e.stopPropagation();
+            startRename(id);
+            return;
+        }
+        var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey);
+        if (!mod) { return; }
+        var code = e.code;
+        // Area jumps — Cmd/Ctrl+Alt+O/S/P/N. No selected element required.
+        var AREA = { KeyO: 'navigator', KeyS: 'settings', KeyP: 'canvas', KeyN: 'inserter' };
+        if (e.altKey && !e.shiftKey && AREA[code]) {
+            e.preventDefault(); e.stopPropagation();
+            dbeFocusArea(AREA[code]);
+            return;
+        }
+        if (code === 'KeyD' && e.shiftKey && !e.altKey) {                       // Duplicate
+            if (!id) { return; }
+            e.preventDefault(); e.stopPropagation();
+            driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } });
+        } else if (code === 'KeyX' && !e.shiftKey && !e.altKey) {               // Cut = Copy then Remove
+            if (!id) { return; }
+            e.preventDefault(); e.stopPropagation();
+            driveContextMenuItem(id, 'Copy', function (ok) {
+                if (!ok) { return; }
+                driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); });
+            });
+        } else if (e.altKey && !e.shiftKey && (code === 'KeyT' || code === 'KeyY')) { // Add before / after
+            if (!id) { return; }
+            e.preventDefault(); e.stopPropagation();
+            openElementPicker(id, code === 'KeyY' ? 1 : -1);
+        }
+    }
+
+    /* (cp) Command palette (command_palette). Cmd/Ctrl+Shift+K opens a searchable
+       command list (modelled on openAutoBemDialog's isolation contract). With an
+       element selected it offers add-class, add-attribute and add-element (minimal
+       Emmet), the element ops and the area jumps. Any command that drives the tree
+       or a native picker CLOSES the dialog first (showModal makes the page inert),
+       then runs. */
+    var dbePaletteKeyBound = false;
+
+    /* Add (or update) one or more HTML attributes on an existing element through
+       the settings upsert (a single upsert for the whole batch — no native-control
+       driving). `pairs` = [{name, value}, …]. Returns false if the element is gone. */
+    function dbeAddAttributes(id, pairs) {
+        if (!pairs.length) { return false; }
+        return dbeUpdateModuleSettings(id, function (settings) {
+            var ha = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+            if (!ha) { ha = { name: 'htmlAttribute', value: [] }; settings.push(ha); }
+            if (!Array.isArray(ha.value)) { ha.value = []; }
+            pairs.forEach(function (p) {
+                var existing = ha.value.filter(function (a) { return a.name === p.name; })[0];
+                if (existing) { existing.value = p.value; } else { ha.value.push({ name: p.name, value: p.value }); }
+            });
+        });
+    }
+
+    /* Parse an attribute string into {name,value} pairs. Multiple attributes are
+       separated by ";" (so values may contain spaces, e.g. an aria-label), or by
+       whitespace when there is no ";" (Emmet-style: href=# target=_blank). */
+    function dbeParseAttributes(str) {
+        str = (str || '').trim();
+        var parts = str.indexOf(';') !== -1 ? str.split(';') : str.split(/\s+/);
+        return parts.map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
+            var eq = p.indexOf('=');
+            return { name: (eq < 0 ? p : p.slice(0, eq)).trim(), value: eq < 0 ? '' : p.slice(eq + 1).trim() };
+        }).filter(function (p) { return p.name; });
+    }
+
+    function openCommandPalette() {
+        var id = activeId(); // the selected element (the palette is keyboard-invoked)
+        var hasEl = !!(id && (modules() || {})[id]);
+        var prior = document.querySelector('dialog.dbe-palette');
+        if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
+
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-palette';
+        dlg.setAttribute('aria-label', dbeT('commandPalette', 'Command palette'));
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'dbe-palette__input';
+        input.setAttribute('aria-label', dbeT('searchCommands', 'Search commands'));
+        input.placeholder = dbeT('searchCommands', 'Search commands…');
+        var listEl = document.createElement('ul');
+        listEl.className = 'dbe-palette__list';
+        listEl.setAttribute('role', 'listbox');
+        var hintEl = document.createElement('div');
+        hintEl.className = 'dbe-palette__hint';
+        dlg.appendChild(input);
+        dlg.appendChild(listEl);
+        dlg.appendChild(hintEl);
+        ['keydown', 'pointerdown', 'mousedown', 'click'].forEach(function (type) {
+            dlg.addEventListener(type, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        document.body.appendChild(dlg);
+
+        function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
+
+        // Commands carry a group key; renderList draws a labelled divider each
+        // time the group changes, so related commands read as a set. `accel` is a
+        // presentational shortcut hint shown right-aligned, mirroring the block
+        // editor's context menu.
+        var GROUP_LABELS = {
+            add: dbeT('paletteGroupAdd', 'Add to element'),
+            structure: dbeT('paletteGroupStructure', 'Structure'),
+            element: dbeT('paletteGroupElement', 'Element'),
+            goto: dbeT('paletteGroupGoto', 'Go to')
+        };
+
+        var commands = [];
+        if (hasEl) {
+            commands.push(
+                { group: 'add', label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
+                    var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
+                    if (!cls.length) { return; }
+                    runClose(function () {
+                        if (dbeAddClasses(id, cls)) {
+                            undoToast(dbeFmt(dbeTn(cls.length, 'addedClassesOne', 'Added %s class', 'addedClassesMany', 'Added %s classes'), cls.length));
+                        }
+                    });
+                } },
+                { group: 'add', label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                    var pairs = dbeParseAttributes(v);
+                    if (!pairs.length) { return; }
+                    runClose(function () {
+                        if (dbeAddAttributes(id, pairs)) {
+                            undoToast(dbeFmt(dbeTn(pairs.length, 'addedAttribute', 'Added attribute %s', 'addedAttributesMany', 'Added %s attributes'), pairs.length === 1 ? pairs[0].name : pairs.length));
+                        }
+                    });
+                } },
+                { group: 'add', label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                    var roots;
+                    try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
+                    runClose(function () {
+                        var n = dbeEmmetInsert(id, roots);
+                        undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
+                    });
+                } }
+            );
+            commands.push(
+                { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
+                { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, 1); }); } }
+            );
+            if (on('wrap_in')) {
+                commands.push(
+                    { group: 'structure', label: dbeT('paletteWrapDiv', 'Wrap in div'), run: function () { runClose(function () { wrap('div', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapFigure', 'Wrap in figure'), run: function () { runClose(function () { wrap('figure', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapTemplate', 'Wrap in template'), run: function () { runClose(function () { wrap('template', [id]); }); } },
+                    { group: 'structure', label: dbeT('paletteWrapCollection', 'Wrap in collection'), run: function () { runClose(function () { wrap('collection', [id]); }); } }
+                );
+            }
+            commands.push(
+                { group: 'element', label: dbeT('paletteRename', 'Rename…'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
+                    if (!v.trim()) { return; }
+                    runClose(function () { commitRename(id, v.trim()); });
+                } }
+            );
+            if (on('auto_bem')) {
+                commands.push(
+                    { group: 'element', label: dbeT('paletteAutoBem', 'Auto-BEM…'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
+                );
+            }
+            commands.push(
+                { group: 'element', label: dbeT('paletteDuplicate', 'Duplicate'), accel: dbeAccel('D', { cmd: true, shift: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
+                { group: 'element', label: dbeT('paletteCopy', 'Copy'), accel: dbeAccel('C', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { undoToast(dbeT('copiedElement', 'Copied element')); } }); }); } },
+                { group: 'element', label: dbeT('paletteCut', 'Cut'), accel: dbeAccel('X', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
+                { group: 'element', label: dbeT('paletteDelete', 'Delete'), accel: dbeT('accelDelete', 'Del'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } },
+                // Settings show the selected element's settings — only useful with one.
+                { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
+            );
+        }
+        commands.push(
+            { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
+            { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
+            { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
+            { group: 'goto', label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), accel: '?', run: function () { runClose(openShortcutsDialog); } }
+        );
+
+        var mode = null; // null = list mode; else the active input command
+        var buttons = [];
+        var groupHeads = []; // divider/heading <li>s, hidden when their group is fully filtered out
+
+        function renderList() {
+            listEl.innerHTML = '';
+            buttons = [];
+            groupHeads = [];
+            var lastGroup = null;
+            commands.forEach(function (cmd) {
+                if (cmd.group && cmd.group !== lastGroup) {
+                    lastGroup = cmd.group;
+                    // A labelled divider row. role=presentation + aria-hidden: the
+                    // options are self-describing, so the grouping is a visual aid
+                    // and must not be read as a listbox child.
+                    var head = document.createElement('li');
+                    head.className = 'dbe-palette__group';
+                    head.setAttribute('role', 'presentation');
+                    head.setAttribute('aria-hidden', 'true');
+                    head.textContent = GROUP_LABELS[cmd.group] || '';
+                    head.dbeGroup = cmd.group;
+                    listEl.appendChild(head);
+                    groupHeads.push(head);
+                }
+                var li = document.createElement('li');
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dbe-palette__item';
+                btn.setAttribute('role', 'option');
+                var lab = document.createElement('span');
+                lab.className = 'dbe-palette__label';
+                lab.textContent = cmd.label;
+                btn.appendChild(lab);
+                if (cmd.accel) {
+                    var acc = document.createElement('span');
+                    acc.className = 'dbe-palette__accel';
+                    acc.textContent = cmd.accel;
+                    acc.setAttribute('aria-hidden', 'true'); // decorative; the shortcuts overlay documents it
+                    btn.appendChild(acc);
+                }
+                btn.dbeCmd = cmd;
+                btn.dbeGroup = cmd.group;
+                btn.dbeLabel = cmd.label; // filter on the label only, not the accel glyphs
+                btn.addEventListener('click', function () { pick(cmd); });
+                li.appendChild(btn);
+                listEl.appendChild(li);
+                buttons.push(btn);
+            });
+            hintEl.textContent = hasEl ? '' : dbeT('paletteNoEl', 'No element selected — element commands are hidden');
+        }
+        function visible() { return buttons.filter(function (b) { return !b.parentElement.hidden; }); }
+        function applyFilter() {
+            if (mode) { return; }
+            var q = input.value.trim().toLowerCase();
+            buttons.forEach(function (b) { b.parentElement.hidden = !!q && (b.dbeLabel || b.textContent).toLowerCase().indexOf(q) === -1; });
+            // Hide a group's divider when the filter left it with no visible items.
+            groupHeads.forEach(function (h) {
+                h.hidden = !buttons.some(function (b) { return b.dbeGroup === h.dbeGroup && !b.parentElement.hidden; });
+            });
+        }
+        function pick(cmd) { if (cmd.input) { enterInput(cmd); } else { cmd.run(); } }
+        function enterInput(cmd) {
+            mode = cmd;
+            listEl.innerHTML = '';
+            input.value = '';
+            input.placeholder = cmd.ph || cmd.label;
+            hintEl.textContent = cmd.label;
+            input.focus();
+        }
+        function exitInput() {
+            mode = null;
+            input.value = '';
+            input.placeholder = dbeT('searchCommands', 'Search commands…');
+            renderList(); applyFilter();
+            input.focus();
+        }
+
+        input.addEventListener('input', applyFilter);
+        dlg.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (mode) { mode.run(input.value); return; }
+                var vis = visible();
+                var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
+                var pickBtn = cur || vis[0];
+                if (pickBtn) { pick(pickBtn.dbeCmd); }
+                return;
+            }
+            if (e.key === 'Escape') {
+                if (mode) { e.preventDefault(); exitInput(); } // list mode: native dialog Escape closes
+                return;
+            }
+            if (mode || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) { return; }
+            e.preventDefault();
+            var vis2 = visible();
+            if (!vis2.length) { return; }
+            var cur2 = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
+            var i = vis2.indexOf(cur2);
+            var next = e.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % vis2.length) : (i < 0 ? vis2.length - 1 : (i - 1 + vis2.length) % vis2.length);
+            vis2[next].focus();
+        });
+
+        renderList();
+        dlg.showModal();
+        input.focus();
+    }
+
+    function dbePaletteKeydown(e) {
+        if (e.code !== 'KeyK' || !e.shiftKey || e.altKey) { return; }
+        if (!(dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey))) { return; }
+        if (renameState) { return; }
+        var t = e.target;
+        if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
+        if (document.querySelector('dialog[open]')) { return; }
+        e.preventDefault(); e.stopPropagation();
+        openCommandPalette();
     }
 
     /* Preview resize handles (preview_resize): drag either edge of the canvas
@@ -4324,7 +5736,17 @@
         btn.setAttribute('aria-pressed', floating ? 'true' : 'false');
         var label = floating ? dbeT('dockPanel', 'Dock panel') : dbeT('detachPanel', 'Detach panel');
         btn.setAttribute('aria-label', label);
-        btn.title = label;
+        // Prefer our branded chip. The label is dynamic (Detach ↔ Dock), so this
+        // button can't ride the static DBE_TIPS list like the other header icons
+        // — set data-dbe-tip here and drop the native title so the two never
+        // double up. With the tooltips feature off, fall back to the title.
+        if (on('tooltips')) {
+            btn.setAttribute('data-dbe-tip', label);
+            btn.removeAttribute('title');
+        } else {
+            btn.title = label;
+            btn.removeAttribute('data-dbe-tip');
+        }
     }
 
     function ensureDetachButton() {
@@ -4696,9 +6118,17 @@
         attrRows(list).forEach(function (row) {
             var nameInput = attrNameInput(row);
             // React may drop an unmanaged attribute on re-render — re-apply each tick.
-            if (nameInput && nameInput.getAttribute('list') !== 'dbe-attr-names') {
-                nameInput.setAttribute('list', 'dbe-attr-names');
+            if (nameInput) {
+                if (nameInput.getAttribute('list') !== 'dbe-attr-names') { nameInput.setAttribute('list', 'dbe-attr-names'); }
+                // The inputs carry only a "name"/"value" placeholder, which is not
+                // an accessible name — give each a real label for screen readers.
+                if (!nameInput.getAttribute('aria-label')) { nameInput.setAttribute('aria-label', dbeT('attrNameLabel', 'Attribute name')); }
             }
+            [].slice.call(row.querySelectorAll('input')).forEach(function (inp) {
+                if (inp !== nameInput && !inp.getAttribute('aria-label')) {
+                    inp.setAttribute('aria-label', dbeT('attrValueLabel', 'Attribute value'));
+                }
+            });
         });
     }
 
@@ -5279,7 +6709,7 @@
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves');
+    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -5372,6 +6802,217 @@
         }, 200);
     }
 
+    /* (nk) Navigator keyboard tree (navigator_keyboard). The element Navigator is
+       a nested <ul>/<li> of plain <button> rows: every one of the 100+ rows is a
+       tab stop, there is no arrow-key model, and a screen reader hears "button",
+       not "level 2, expanded". Wire it as an APG tree with the WordPress
+       list-view keys — Up/Down move (and select, so the canvas follows), Right
+       opens a branch then steps into its first child, Left closes it then steps
+       out to the parent, Home/End jump to the ends.
+
+       A row's child <ul> is a SIBLING of its button, not a descendant, so DOM
+       nesting cannot express treeitem ownership; the flat aria-level form is used
+       (level + setsize + posinset on each row) with the intervening wrappers
+       marked presentational so the tree owns every treeitem directly. Selection
+       and expand/collapse go through the proven channels: clickSeq(button)
+       selects, clickSeq(chevron <i>) toggles — both async re-renders, so focus is
+       re-asserted by node id afterwards. */
+    var NAV_TREE_SEL = '.uniRightPanel .uniModTree .uniModTree__list';
+    var NAV_ROW_SEL = 'button.uniModTree__item';
+    var dbeNavKeyBound = false;
+
+    function navRootList() {
+        // Outermost element list — querySelector returns the first in document
+        // order (favourites live in a separate list, the footer outside it).
+        return document.querySelector(NAV_TREE_SEL);
+    }
+    function navRowId(btn) {
+        var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
+        return m ? m[1] : null;
+    }
+    function navRowById(id) {
+        return id ? document.querySelector('.uniRightPanel .uni-tree-node-' + id) : null;
+    }
+    function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
+    function navRowExpandable(btn) { return !!btn.querySelector('i'); }
+    function navRowExpanded(btn) { return btn.classList.contains('expanded'); }
+    function navRowLevel(btn) {
+        var n = 0, li = navRowLi(btn);
+        while (li) { n += 1; li = li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag'); }
+        return n || 1;
+    }
+    function navParentRow(btn) {
+        var li = navRowLi(btn);
+        var pli = li && li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag');
+        // The parent li's OWN row is the first tree button inside it (its content
+        // wrapper precedes the nested child <ul>).
+        return pli ? pli.querySelector(NAV_ROW_SEL) : null;
+    }
+    // Rows currently on screen — a collapsed branch's <ul> is display:none, so its
+    // rows have no offsetParent and drop out of the flattened visible order.
+    function navVisibleRows(root) {
+        root = root || navRootList();
+        if (!root) { return []; }
+        return [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).filter(function (b) {
+            return b.offsetParent !== null;
+        });
+    }
+
+    // Move the single tab stop onto `target`, focus it, scroll it into view.
+    function navFocus(target) {
+        if (!target) { return; }
+        var root = navRootList();
+        if (root) {
+            [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).forEach(function (b) {
+                var t = b === target ? '0' : '-1';
+                if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+            });
+        }
+        target.focus();
+        try { scrollRowIntoTree(target); } catch (e) {}
+    }
+
+    // Select the row's element (canvas + settings follow), then re-assert focus on
+    // it after the async re-render — re-queried by id in case the node moved.
+    function navSelect(target) {
+        var id = navRowId(target);
+        navFocus(target);
+        if (!id) { return; }
+        clickSeq(target);
+        requestAnimationFrame(function () {
+            var row = navRowById(id);
+            if (row && document.activeElement !== row) { navFocus(row); }
+        });
+    }
+
+    // Expand/collapse a branch without changing the selection (chevron channel).
+    function navToggleExpand(btn) {
+        var chev = btn.querySelector('i');
+        if (chev) { clickSeq(chev); }
+    }
+
+    /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
+       so it is cheap to re-run every schedule() tick, keeping level/expanded/
+       selected/roving in sync through Builderius' React re-renders. */
+    function navSyncAria() {
+        var root = navRootList();
+        if (!root) { return; }
+        if (root.getAttribute('role') !== 'tree') { root.setAttribute('role', 'tree'); }
+        var label = dbeT('elementsTree', 'Elements');
+        if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
+
+        var sel = activeId();
+        var rows = [].slice.call(root.querySelectorAll(NAV_ROW_SEL));
+        rows.forEach(function (btn) {
+            if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
+
+            var lvl = String(navRowLevel(btn));
+            if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
+
+            var li = navRowLi(btn);
+            var ul = li && li.parentElement;
+            if (ul) {
+                var sibs = [].slice.call(ul.children).filter(function (el) {
+                    return el.matches && el.matches('li.uniModTree__itemDrag');
+                });
+                var pos = String(sibs.indexOf(li) + 1), size = String(sibs.length);
+                if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
+                if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
+            }
+
+            if (navRowExpandable(btn)) {
+                var ex = navRowExpanded(btn) ? 'true' : 'false';
+                if (btn.getAttribute('aria-expanded') !== ex) { btn.setAttribute('aria-expanded', ex); }
+            } else if (btn.hasAttribute('aria-expanded')) {
+                btn.removeAttribute('aria-expanded');
+            }
+
+            var s = (sel && navRowId(btn) === sel) ? 'true' : 'false';
+            if (btn.getAttribute('aria-selected') !== s) { btn.setAttribute('aria-selected', s); }
+
+            // Flatten ownership: the <li>, its wrappers and any nested <ul> between
+            // this button and the tree become presentational, so the tree owns
+            // every treeitem directly (the level attributes carry the hierarchy).
+            var node = btn.parentElement;
+            while (node && node !== root) {
+                if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
+                node = node.parentElement;
+            }
+        });
+
+        // Roving tab stop: keep the row that already holds it (so a keyboard
+        // user's position survives a re-render), else the selected row, else the
+        // first visible one.
+        var vis = rows.filter(function (b) { return b.offsetParent !== null; });
+        if (!vis.length) { return; }
+        var current = vis.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
+        var selRow = sel ? vis.filter(function (b) { return navRowId(b) === sel; })[0] : null;
+        var keep = current || selRow || vis[0];
+        rows.forEach(function (b) {
+            var t = b === keep ? '0' : '-1';
+            if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
+        });
+    }
+
+    function navOnKeydown(e) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave modified combos to the builder
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        var root = navRootList();
+        if (!btn || !root || !root.contains(btn)) { return; }
+        var rows = navVisibleRows(root);
+        var i = rows.indexOf(btn);
+        if (i === -1) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+
+        switch (e.key) {
+            case 'ArrowDown':
+                if (i < rows.length - 1) { navSelect(rows[i + 1]); }
+                break;
+            case 'ArrowUp':
+                if (i > 0) { navSelect(rows[i - 1]); }
+                break;
+            case 'Home':
+                navSelect(rows[0]);
+                break;
+            case 'End':
+                navSelect(rows[rows.length - 1]);
+                break;
+            case 'ArrowRight':
+                if (navRowExpandable(btn) && !navRowExpanded(btn)) {
+                    navToggleExpand(btn); // open the branch in place
+                } else if (navRowExpandable(btn) && navRowExpanded(btn)) {
+                    // Already open: the next visible row is this branch's first
+                    // child (guard that it really is a descendant).
+                    var child = rows[i + 1];
+                    if (child && navRowLi(btn).contains(child)) { navSelect(child); }
+                }
+                break;
+            case 'ArrowLeft':
+                if (navRowExpandable(btn) && navRowExpanded(btn)) {
+                    navToggleExpand(btn); // close the branch in place
+                } else {
+                    var parent = navParentRow(btn);
+                    if (parent) { navSelect(parent); }
+                }
+                break;
+        }
+    }
+
+    function ensureNavKeyboard() {
+        var root = navRootList();
+        if (!root) { return; }
+        navSyncAria();
+        if (dbeNavKeyBound) { return; }
+        var panel = document.querySelector('.uniRightPanel');
+        if (!panel) { return; }
+        // Bound on the stable panel (the tree lists are replaced on re-render), so
+        // one binding survives every repaint of the tree below it.
+        panel.addEventListener('keydown', navOnKeydown);
+        dbeNavKeyBound = true;
+    }
+
     function schedule() {
         if (scheduled) { return; }
         scheduled = true;
@@ -5401,13 +7042,17 @@
             }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
+            if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
+            if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
+            if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
             }
+            if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
@@ -5440,7 +7085,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
@@ -5449,7 +7094,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('preview_resize') || on('panel_resize') || on('panel_detach')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -5459,10 +7104,20 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; labelChromeIcons(), the theme/density buttons and the save
         // cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar')) {
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
+            }
+        }
+        // Footer bar sits outside uniMainPanel/uniTopPanel, so it needs its own
+        // watch for adoptNativeTips() to re-take the footer tooltips if the bar
+        // re-renders. childList only (no attributes) so our own data-dbe-tip /
+        // aria-label edits don't retrigger it.
+        if (on('tooltips')) {
+            var footer = document.querySelector('.uniFooterPanel');
+            if (footer) {
+                new MutationObserver(schedule).observe(footer, { childList: true, subtree: true });
             }
         }
         if (on('tooltips')) { bindTooltips(); }
@@ -5545,6 +7200,25 @@
 
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
+
+        // Builderius menu: arrow/Home/End/Escape while focus is inside the menu.
+        // Bound on document (capture) so it survives the menu mounting/unmounting.
+        if (on('builderius_menu') && !dbeMenuKeyBound) {
+            dbeMenuKeyBound = true;
+            document.addEventListener('keydown', dbeMenuKeydown, true);
+        }
+
+        // Element keyboard shortcuts (Duplicate / Cut / Add before-after / Rename).
+        if (on('keyboard_shortcuts') && !dbeShortcutKeyBound) {
+            dbeShortcutKeyBound = true;
+            document.addEventListener('keydown', dbeElementShortcutsKeydown, true);
+        }
+
+        // Command palette (Cmd/Ctrl+Shift+K).
+        if (on('command_palette') && !dbePaletteKeyBound) {
+            dbePaletteKeyBound = true;
+            document.addEventListener('keydown', dbePaletteKeydown, true);
+        }
     }
 
     /* Presence heartbeat for the admin-bar "Edit template" link (see

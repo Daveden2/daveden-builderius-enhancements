@@ -109,7 +109,7 @@ function dbe_features() {
 		),
 		'footer_toolbar'      => array(
 			'title'       => __( 'Bottom-bar keyboard toolbar', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -124,6 +124,13 @@ function dbe_features() {
 		'ai_terminal_tabs'    => array(
 			'title'       => __( 'Accessible AI session tabs', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Wires the Sense AI terminal session tabs (Claude Code, Gemini CLI and so on) as a proper tab list for screen readers and the keyboard: the tabs announce which session is active, arrow keys move between them and switch with one Tab stop, the terminal below is exposed as their tab panel, and the "new session" button gets a clear name in place of its bare plus sign, plus a proper pop-up menu (arrow keys to choose an agent, Escape to close). Purely additive: clicking to switch is left to Builderius.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => false,
+			'js'          => true,
+		),
+		'panel_tabs'          => array(
+			'title'       => __( 'Accessible panel tabs', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -170,6 +177,13 @@ function dbe_features() {
 			'description' => __( 'When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array(),
+			'js'          => true,
+		),
+		'navigator_keyboard'  => array(
+			'title'       => __( 'Navigator keyboard tree', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'navigator',
+			'css'         => array( '79-navigator-keyboard.css' ),
 			'js'          => true,
 		),
 		'panel_detach'        => array(
@@ -247,6 +261,36 @@ function dbe_features() {
 			'tab'         => 'editing',
 			'css'         => array( '34-attr-helpers.css' ),
 			'js'          => true,
+		),
+		'inserter_keyboard'   => array(
+			'title'       => __( 'Inserter keyboard navigation', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '78-inserter-keyboard.css' ),
+			'js'          => true,
+		),
+		'builderius_menu'     => array(
+			'title'       => __( 'Accessible Builderius menu', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '80-builderius-menu.css' ),
+			'js'          => true,
+		),
+		'keyboard_shortcuts'  => array(
+			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
+		'command_palette'     => array(
+			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '82-command-palette.css' ),
+			'js'           => true,
+			'experimental' => true,
 		),
 
 		/* -------------------------------------------------------- Styles panel */

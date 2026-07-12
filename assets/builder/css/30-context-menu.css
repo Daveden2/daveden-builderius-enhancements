@@ -17,6 +17,22 @@
    own 8px top padding does the breathing; this only adds the rule + 4px. */
 .dbe-ctx-item--first { border-block-start: 1px solid var(--dbe-sep-line) !important; margin-block-start: 4px !important; padding-block-start: 8px !important; }
 .dbe-ctx-parent .dbe-ctx-caret { margin-inline-start: auto !important; opacity: .55 !important; font-size: 15px !important; line-height: 1 !important; }
+
+/* Right-aligned shortcut hint on an injected row, mirroring the block editor's
+   context menu. The row becomes a flex line so the hint sits at the far end. */
+.uniContextMenu__item.dbe-ctx-item--accel {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+}
+.dbe-ctx-accel {
+    flex: none !important;
+    color: var(--dbe-muted) !important;
+    font-size: 12px !important;
+    letter-spacing: .02em !important;
+    white-space: nowrap !important;
+}
 .dbe-ctx-submenu {
     /* Builderius sets Inter on #builderiusPanel; cards appended to <body>
        (the chip menu, or a flyout with no native dialog) sit outside it. */

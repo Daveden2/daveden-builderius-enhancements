@@ -1,0 +1,101 @@
+/* Command palette (command_palette): a centered modal with a search input over a
+   scrollable, keyboard-navigable command list. */
+dialog.dbe-palette {
+	inline-size: min(460px, 94vw);
+	max-block-size: min(70vh, 560px);
+	margin-block-start: 12vh;
+	padding: 0;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	background: var(--dbe-l1);
+	color: var(--dbe-text);
+	font-family: var(--dbe-ui-font);
+	box-shadow: 0 16px 48px var(--dbe-shadow);
+	overflow: hidden;
+}
+dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dbe-palette__input {
+	inline-size: 100%;
+	box-sizing: border-box;
+	padding: 12px 14px;
+	font-size: 15px;
+	font-family: var(--dbe-ui-font);
+	color: var(--dbe-text);
+	background: var(--dbe-l1);
+	border: 0;
+	border-block-end: 1px solid var(--dbe-line);
+}
+.dbe-palette__input:focus-visible { outline: none; }
+.dbe-palette__input::placeholder { color: var(--dbe-muted); }
+
+.dbe-palette__list {
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	overflow-y: auto;
+	max-block-size: min(52vh, 420px);
+}
+.dbe-palette__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	inline-size: 100%;
+	box-sizing: border-box;
+	padding: 8px 12px;
+	border: 0;
+	border-radius: var(--dbe-r-sm);
+	background: transparent;
+	color: var(--dbe-text);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+	transition: background var(--dbe-t), color var(--dbe-t);
+}
+.dbe-palette__item:hover { background: var(--dbe-accent-tint); }
+.dbe-palette__item:focus-visible,
+.dbe-palette__item:focus {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -2px;
+	background: var(--dbe-accent-tint);
+}
+.dbe-palette__item[hidden] { display: none; }
+
+/* The shortcut hint, right-aligned like the block editor's context menu. */
+.dbe-palette__accel {
+	flex: none;
+	color: var(--dbe-muted);
+	font-size: 12px;
+	letter-spacing: .02em;
+	white-space: nowrap;
+}
+
+/* Group divider: a small uppercase label with a rule above it. The first group
+   drops the rule so it does not double up under the search field. */
+.dbe-palette__group {
+	margin-block-start: 6px;
+	padding: 9px 12px 3px;
+	border-block-start: 1px solid var(--dbe-line);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--dbe-muted);
+	pointer-events: none;
+}
+.dbe-palette__group:first-child {
+	margin-block-start: 0;
+	padding-block-start: 2px;
+	border-block-start: 0;
+}
+.dbe-palette__group[hidden] { display: none; }
+
+.dbe-palette__hint {
+	padding: 8px 14px;
+	border-block-start: 1px solid var(--dbe-line);
+	font-size: 12px;
+	color: var(--dbe-muted);
+	min-block-size: 1em;
+}
+.dbe-palette__hint:empty { display: none; }
