@@ -37,6 +37,23 @@
     border-color: var(--dbe-accent) !important;
 }
 
+/* Hand Monaco's own form controls back to Monaco. The rule above styles every
+   panel input, and the CSS code editor's find widget (Cmd/Ctrl+F) search field
+   inherits the --dbe-l2 fill. That is wrong on two counts: it double-styles a
+   control Monaco already themes, and the light theme paints the editor by
+   inverting its native vs-dark pixels (60-theme.css), so the light fill inverts
+   to near-black — the field reads as a dark box inside an otherwise light
+   widget. Clearing the fill and border lets the field show the editor's own
+   input chrome, which inverts in step with the rest of the widget (and stays
+   correct in dark mode, where nothing is inverted). Note the find field is a
+   <textarea class="input"> — not the main editor's .inputarea, so it slips past
+   the :not(.inputarea) exemption above; clear both element types here. */
+.uniLeftPanel .monaco-editor input,
+.uniLeftPanel .monaco-editor textarea {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
 /* --- Segmented radio (e.g. Heading level H1–H6): clear accent-checked state --- */
 .uniFormFieldRadio {
     border: 1px solid var(--dbe-line) !important;

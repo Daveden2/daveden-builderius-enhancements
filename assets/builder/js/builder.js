@@ -2881,6 +2881,134 @@
         return p;
     }
 
+    /* Handle to the visible left-panel (Styles) Monaco editor. window.monaco is
+       NOT global here, but Builderius exposes the namespace at
+       window.Builderius.API.monaco — that gives getEditors(), Range and the
+       reveal/decoration API the "All CSS" jump needs. Returns {m, ed} or null. */
+    function leftPanelMonaco() {
+        try {
+            var m = window.Builderius.API.monaco;
+            if (!m || !m.editor || !m.editor.getEditors) { return null; }
+            var eds = m.editor.getEditors();
+            for (var i = 0; i < eds.length; i++) {
+                var n = eds[i].getDomNode && eds[i].getDomNode();
+                if (n && n.offsetParent !== null && n.closest('.uniLeftPanel')) { return { m: m, ed: eds[i] }; }
+            }
+        } catch (e) { /* API shape changed — jump degrades to a no-op */ }
+        return null;
+    }
+
+    /* The native "Selector CSS" | "All CSS" sub-tab (label-matched) in the Styles
+       code editor. These are the only .uniPanelTabs__tab in the left panel
+       carrying that text, so a text match is unambiguous. */
+    function cssViewTab(label) {
+        var lp = document.querySelector('.uniLeftPanel');
+        if (!lp) { return null; }
+        var tabs = [].slice.call(lp.querySelectorAll('.uniPanelTabs__tab'));
+        for (var i = 0; i < tabs.length; i++) {
+            if ((tabs[i].textContent || '').trim() === label) { return tabs[i]; }
+        }
+        return null;
+    }
+
+    /* Reveal the current selector's rule in the (already-open) All CSS view and
+       flash it, so the eye lands on where its CSS lives in the full stylesheet.
+       In All CSS the token is RESOLVED (e.g. `.page-content {`), not `%selector%`. */
+    var dbeAllCssDecos = [];
+    function flashSelectorLine(name) {
+        var esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // The class as a standalone selector in a rule head — not a value, and
+        // not a longer BEM sibling (.card must not match .card__title).
+        var re = new RegExp('(^|[\\s,>+~(])' + esc + '(?![\\w-])');
+        // Reaching All CSS triggers several builder re-renders that swap the
+        // Monaco instance; a decoration applied mid-churn is dropped with the old
+        // editor. So WAIT for the editor to settle — the All-CSS model present and
+        // its length unchanged for two ticks — then flash the live one once.
+        var lastLen = -1, stable = 0, tries = 0;
+        (function poll() {
+            var h = leftPanelMonaco();
+            var text = h ? h.ed.getModel().getValue() : '';
+            var ready = !!h && text.indexOf(name) > -1;
+            stable = (ready && text.length === lastLen) ? stable + 1 : 0;
+            lastLen = ready ? text.length : -1;
+            if (ready && stable >= 2) {
+                var lines = text.split('\n'), lineNo = -1;
+                for (var i = 0; i < lines.length; i++) { if (re.test(lines[i])) { lineNo = i + 1; break; } }
+                if (lineNo > 0) {
+                    try {
+                        dbeAllCssDecos = h.ed.deltaDecorations(dbeAllCssDecos, [{
+                            range: new h.m.Range(lineNo, 1, lineNo, 1),
+                            options: { isWholeLine: true, className: 'dbe-allcss-flash', linesDecorationsClassName: 'dbe-allcss-flash-gutter' }
+                        }]);
+                        h.ed.revealLineInCenter(lineNo);
+                        // A flash to locate, not a permanent mark — clear it after a beat.
+                        setTimeout(function () {
+                            var g = leftPanelMonaco();
+                            try { if (g) { g.ed.deltaDecorations(dbeAllCssDecos, []); } } catch (e) { /* editor gone */ }
+                            dbeAllCssDecos = [];
+                        }, 2600);
+                    } catch (e) { dbeAllCssDecos = []; }
+                }
+                return;
+            }
+            if (tries++ < 45) { setTimeout(poll, 150); }   // wait up to ~7s for the churn to settle
+        })();
+    }
+
+    /* A top-level Navigator tab (Elements / Selectors / CSS vars) by label.
+       "Selectors" is unique across every .uniPanelTabs__tab, so no scoping. */
+    function navPanelTab(label) {
+        var tabs = [].slice.call(document.querySelectorAll('.uniPanelTabs__tab'));
+        for (var i = 0; i < tabs.length; i++) {
+            if ((tabs[i].textContent || '').trim() === label) { return tabs[i]; }
+        }
+        return null;
+    }
+
+    /* Scope-bar "All CSS" button. The native "All CSS" view lives in the
+       Navigator's Selectors tab, NOT the element's Styles editor where this
+       button sits — the two are separate panels. So this drives the same route
+       a user would: open Selectors → pick the selector (which mounts the
+       Selector CSS | All CSS sub-tabs) → switch to All CSS → flash the rule.
+       Scope (Global/Template) rides the shared store value, so All CSS already
+       shows whichever the switch beside this button has active. Each step waits
+       for the builder to re-render before the next (it rebuilds the panel). */
+    function openAllCss() {
+        var lp = document.querySelector('.uniLeftPanel');
+        var name = lp ? currentSelectorName(lp) : '';   // capture before we navigate away
+        var flashName = (name && name.charAt(0) === '.') ? name : '';  // only class selectors flash safely
+        var nav = navPanelTab('Selectors');
+        if (!nav) { return; }
+        clickSeq(nav);   // the Selectors list is React-driven — plain .click() is ignored, so fire the full pointer sequence
+        // Switching to Selectors from an active element re-renders the list a few
+        // times; a single item click during that churn hits a node that is about
+        // to be replaced and is lost. Re-click the current selector (or any item,
+        // to bootstrap) until the Selector CSS | All CSS sub-tabs actually mount.
+        clickSelectorUntilLoaded(name, 30, function (allTab) {
+            if (!allTab) { return; }
+            if (!allTab.classList.contains('active')) { clickSeq(allTab); }  // picking an item may already land on All CSS
+            if (flashName) { flashSelectorLine(flashName); }                 // flashSelectorLine polls for the live editor itself
+        });
+    }
+
+    /* Re-click a Selectors-list item until the CSS editor mounts (its All CSS
+       sub-tab appears), tolerating the list's post-navigation re-renders. Calls
+       done(allTab) on success, done(null) if it never mounts. */
+    function clickSelectorUntilLoaded(name, attemptsLeft, done) {
+        var allTab = cssViewTab('All CSS');
+        if (allTab) { done(allTab); return; }
+        if (attemptsLeft <= 0) { done(null); return; }
+        var items = document.querySelectorAll('.uniSelectorsCss__item');
+        if (items.length) {
+            var target = null;
+            for (var i = 0; i < items.length && name; i++) {
+                if ((items[i].textContent || '').trim() === name) { target = items[i]; break; }
+            }
+            clickSeq(target || items[0]);
+        }
+        setTimeout(function () { clickSelectorUntilLoaded(name, attemptsLeft - 1, done); }, 120);
+    }
+
     function ensureScopeBar() {
         var lp = document.querySelector('.uniLeftPanel');
         if (!lp) { return; }
@@ -2933,6 +3061,23 @@
                 sw.appendChild(b);
             });
             bar.appendChild(sw);
+            // "All CSS": jump from this selector's rules to the whole active-scope
+            // stylesheet, with the selector's rule flashed. Sits after the scope
+            // switch so the cluster reads scope → view.
+            var allBtn = document.createElement('button');
+            allBtn.type = 'button';
+            allBtn.className = 'dbe-scope-allcss';
+            // Icon-only (Builderius' own CSS-file glyph, cloned so it tracks any
+            // icon change) to leave the Template/Component label its full width.
+            // The label moves to the accessible name + tooltip. Text fallback if
+            // the native icon isn't in the DOM.
+            var cssIcon = document.querySelector('.uniIconCssMode svg');
+            if (cssIcon) { allBtn.appendChild(cssIcon.cloneNode(true)); allBtn.classList.add('dbe-scope-allcss--icon'); }
+            else { allBtn.textContent = dbeT('scopeAllCss', 'All CSS'); }
+            allBtn.setAttribute('aria-label', dbeT('scopeAllCss', 'All CSS'));
+            allBtn.setAttribute('data-dbe-tip', dbeT('scopeAllCssTip', 'Show the full CSS for the active scope and jump to this selector'));
+            allBtn.addEventListener('click', openAllCss);
+            bar.appendChild(allBtn);
             if (picker.nextSibling) { picker.parentNode.insertBefore(bar, picker.nextSibling); }
             else { picker.parentNode.appendChild(bar); }
         }
@@ -2950,6 +3095,10 @@
             if (sc === 'template' && b.textContent !== entLabel) { b.textContent = entLabel; } // keep in sync after an entity switch
             b.classList.toggle('is-active', sc === dbeScope);
         });
+        // "All CSS" needs a class selector to locate — a %local% one-off has no
+        // shared rule to jump to, so disable it at the local level.
+        var allBtn = bar.querySelector('.dbe-scope-allcss');
+        if (allBtn) { allBtn.disabled = (level === 'local'); }
     }
 
     /* (h) Scope isolation.

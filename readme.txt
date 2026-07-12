@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.10.1
+Stable tag: 1.10.2
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,22 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.10.2 =
+Light-theme polish in the Navigator and Styles panel, find-widget fixes, and a
+new "All CSS" jump in the scope bar.
+* New: an "All CSS" button (the Builderius CSS-file icon) beside the Global/Template
+  switch opens the full stylesheet for the active scope and highlights where the
+  current selector's CSS lives — the same view as Selectors → All CSS, one click
+  away from the element you're styling. Requires Builderius Pro.
+* Fixed: Navigator tree rows had a hard black border in the light theme; it is now
+  a soft hairline so the element names stand out, as they do in dark mode.
+* Fixed: the class-name chips in the Styles panel had weak contrast in the light
+  theme; both the selected chip and the other class chips are now clearly legible.
+* Fixed: the find widget (Cmd/Ctrl+F) search field was cramped to a sliver in the
+  narrow Styles panel; it now uses the panel's full width, and grows when widened.
+* Fixed: the find widget's search field showed as a dark box in the light theme;
+  it now matches the rest of the editor.
 
 = 1.10.1 =
 Ships the finishing work that was completed just after 1.10.0 was tagged and so

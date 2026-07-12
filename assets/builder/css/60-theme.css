@@ -56,16 +56,44 @@ html[data-dbe-theme="light"] .uniPanelButtonQuaternary,
 html[data-dbe-theme="auto"]  .uniPanelButtonQuaternary { background: var(--dbe-l2-hi) !important; color: var(--dbe-text-2) !important; }
 html[data-dbe-theme="light"] .uniPanelButtonQuaternary:hover,
 html[data-dbe-theme="auto"]  .uniPanelButtonQuaternary:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-accent) !important; }
-/* --primary-4 as a surface: the applied-class chips + the idle Save button
-   ("nothing to save" grey; the green .saveBtnShouldSave state uses --accent-
-   special and is untouched). Light grey chip keeps the dark label legible. */
+/* --primary-4 as a surface: the applied-class chips ("others" in the class
+   picker) + the idle Save button ("nothing to save" grey; the green
+   .saveBtnShouldSave state uses --accent-special and is untouched). Light grey
+   chip; pair it with the strongest text token so the label clears AA with
+   margin — --dbe-text-2 on --dbe-line-hi was only ~6:1, --dbe-text lifts it to
+   ~9.4:1. */
 html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li,
 html[data-dbe-theme="auto"]  .uniModuleCssClassesSelect__list li {
     background: var(--dbe-line-hi) !important;
-    color: var(--dbe-text-2) !important;
+    color: var(--dbe-text) !important;
 }
 html[data-dbe-theme="light"] .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave),
 html[data-dbe-theme="auto"]  .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave) { background: var(--dbe-line-hi) !important; }
+
+/* The active/selected class chip in the Styles selector picker ships as
+   near-black text on the mid-tone --accent-normal (#5EA0ED, ~6:1 — a borderline
+   pass that reads as muddy). Repaint it as the plugin's darkened accent with
+   white text (~6.5:1 and far crisper): a filled accent pill that also reads
+   clearly as "active" against the grey applied-class chips. The native :hover
+   drops the fill back to the lighter --accent-normal, which would sink white
+   text to ~2.8:1, so hover is pinned to the same strong fill. The .actions
+   overlay (remove control) matches. Dark theme keeps the native treatment. */
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected,
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected:hover,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected:hover,
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected .actions {
+    background: var(--dbe-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected,
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected span,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected span,
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions,
+html[data-dbe-theme="auto"]  .uniModuleCssSelectorItemSelected .actions {
+    color: var(--dbe-on-accent-strong) !important;
+}
 
 /* --- Core surfaces --- */
 #builderiusPanel,
@@ -132,6 +160,18 @@ html[data-dbe-theme="auto"]  .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSa
 .uniRightPanel .uniPanelTabs { background: var(--dbe-l1) !important; }
 /* Navigator tree rows: native #2e2f32 fill → raised token surface. */
 .uniModTree__item { background: var(--dbe-l2) !important; }
+/* Row border: stock draws it in --primary-2 (#2e2f32), which disappears into
+   the dark rows but reads as a hard black box on the light theme's white rows.
+   Soften it to the hairline token so the label carries the attention, matching
+   how the border recedes in dark mode. Light/auto only (dark keeps the native
+   border, which already blends). Deliberately NOT !important — the same reason
+   the border-restore rule in 14-tree-rows.css avoids it: stock's stateful
+   recolours (the selected row's accent border, drag activation) out-specify
+   this and still win. */
+html[data-dbe-theme="light"] .uniModTree__item,
+html[data-dbe-theme="auto"]  .uniModTree__item {
+    border-color: var(--dbe-line);
+}
 /* Top-bar inputs (canvas width/zoom) + selects + Navigator search field. */
 .uniTopPanel input,
 .uniTopPanel .uniSystemSelect,

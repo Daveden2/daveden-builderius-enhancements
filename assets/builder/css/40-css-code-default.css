@@ -21,3 +21,20 @@
    layout apply unchanged; just restore the top divider the header loses. */
 .dbe-code-tabs { border-bottom: 1px solid var(--dbe-line) !important; }
 .dbe-code-tab { cursor: pointer !important; }
+
+/* Monaco find widget (Cmd/Ctrl+F) inside the clamped-narrow code panel.
+   Below ~411px of editor width Monaco flips the find widget into its collapsed
+   layout and pins it with two !important rules — narrow-find-widget to 257px
+   and collapsed-find-widget to 170px. In this ~260px panel the 170px clamp wins
+   and squeezes the search input down to ~46px, barely wide enough to read what
+   you are typing. Re-clamp both states to the panel's own width instead, minus
+   Monaco's ~28px scrollbar gutter on the right and a small inset on the left,
+   so the flex:1 input grows back to a usable size (~95px at 260px, wider as the
+   panel grows). Scoped under .uniLeftPanel purely to out-specify Monaco's own
+   !important rules whatever their injected DOM order. Only the narrow/collapsed
+   states are touched, so a widened panel (Resizable side panels) that clears
+   Monaco's threshold keeps the full-size widget untouched. */
+.uniLeftPanel .monaco-editor .find-widget.narrow-find-widget,
+.uniLeftPanel .monaco-editor .find-widget.collapsed-find-widget {
+    max-width: calc(100% - 36px) !important;
+}

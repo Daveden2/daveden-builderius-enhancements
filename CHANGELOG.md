@@ -3,6 +3,53 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.10.2
+Light-theme polish across the Navigator and Styles panel, find-widget fixes in
+the CSS code editor, and a new "All CSS" jump in the scope bar.
+
+* New (scope_bar): an "All CSS" button beside the Global/Template switch opens the
+  full stylesheet for the active scope — the same view as the Navigator's
+  Selectors → All CSS — and flashes the current selector's rule so you can see
+  where it sits among everything else. The scope bar lives in the element's Styles
+  editor while the All CSS view lives in the Selectors tab (separate panels), so
+  the button drives the route for you: open Selectors, pick the selector (which
+  mounts the Selector CSS | All CSS sub-tabs, re-clicking through the list's
+  post-navigation re-renders), switch to All CSS, then reveal-and-highlight the
+  rule via Builderius' exposed Monaco API (window.monaco is not global;
+  window.Builderius.API.monaco is). It follows the active Global/Template scope
+  (shared store value) and is disabled at the local %local% level, which has no
+  shared rule to jump to. The control is the Builderius CSS-file glyph (cloned
+  from the native CSS-mode icon) so the scope switch keeps its full label width;
+  its accessible name and tooltip carry the "All CSS" label.
+* Fixed: Navigator tree rows drew a hard black border in the light theme. Stock
+  borders the rows in --primary-2 (#2e2f32), which vanishes into the dark rows
+  but reads as a heavy black box on the light theme's white rows. The resting
+  border is softened to the hairline token so the row label carries the
+  attention, matching how the border recedes in dark mode. Light/auto only, and
+  not forced — stock's stateful recolours (the selected row's accent border,
+  drag activation) still win.
+* Fixed: the class-name chips in the Styles panel sat on borderline contrast.
+  The selected/active chip was near-black text on the mid-tone --accent-normal
+  (~6:1) and the applied-class ("others") chips were --dbe-text-2 on the grey
+  --dbe-line-hi (~6:1) — both technically AA but weak. The active chip is now a
+  filled darkened-accent pill with white text (~6.5:1, and clearly distinct from
+  the grey chips), and the other chips use the strongest text token (~9.4:1).
+  The active chip's :hover is pinned to the strong fill so hover no longer drops
+  it back to the light accent (which would have sunk the white text to ~2.8:1).
+  Light and auto themes only; dark is untouched.
+* Fixed: the find widget's search field was badly cramped. Below ~411px of
+  editor width Monaco collapses the widget and pins it to 170px, which in the
+  clamped-narrow Styles panel squeezed the input down to ~46px. It is now
+  re-clamped to the panel's own width (input ~95px at the default width, wider
+  as the panel grows); a widened panel (Resizable side panels) clears Monaco's
+  threshold and keeps the full-size widget untouched.
+* Fixed: the find widget's search field showed as a dark box in the light theme.
+  The field is a `<textarea class="input">`, which slipped past the `.inputarea`
+  exemption in the control styling and inherited the panel's light `--dbe-l2`
+  fill; the editor's light theme then inverts its pixels, turning that fill
+  near-black. Monaco's own inputs are now left to Monaco's chrome, so the field
+  inverts in step with the rest of the widget (and stays correct in dark mode).
+
 ## 1.10.1
 A packaging fix. Three commits landed on `main` immediately after the `v1.10.0`
 tag was cut, so they were merged into the branch but never included in the
