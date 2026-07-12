@@ -5,8 +5,8 @@ name: Asset lint
 # covers only the PHP). Correctness-focused configs: eslint.config.js and
 # .stylelintrc.json in the repo root.
 #
-# Same rollout as phpcs: run it on every change now, add "assets-lint" to the
-# required checks on main and develop once it has proven itself quiet.
+# This check is REQUIRED by branch protection on both main and develop - a red
+# run blocks the merge. Run `npm run lint` locally before pushing.
 
 on:
   push:
