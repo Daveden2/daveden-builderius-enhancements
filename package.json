@@ -1,0 +1,17 @@
+{
+  "name": "daveden-builderius-enhancements",
+  "private": true,
+  "description": "Dev tooling only (ESLint/Stylelint) — the plugin ships no built or bundled JS/CSS.",
+  "scripts": {
+    "lint:js": "eslint assets",
+    "lint:css": "stylelint \"assets/**/*.css\"",
+    "lint": "npm run lint:js && npm run lint:css"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.30.0",
+    "globals": "^16.0.0",
+    "stylelint": "^16.21.0",
+    "stylelint-config-recommended": "^17.0.0"
+  }
+}

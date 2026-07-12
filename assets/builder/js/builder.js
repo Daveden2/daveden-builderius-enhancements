@@ -3102,7 +3102,8 @@
         // catch, re-scheduling us into a self-sustaining loop (the label visibly
         // flickered in the DOM).
         var badgeText = level === 'local' ? dbeT('scopeLocal', 'Local') : (level === 'template' ? entLabel : dbeT('scopeGlobal', 'Global'));
-        var badge = bar.querySelector('.dbe-scope-badge');
+        // Re-queried (not the creation-branch variable): the bar may pre-date this call.
+        badge = bar.querySelector('.dbe-scope-badge');
         if (badge.textContent !== badgeText) { badge.textContent = badgeText; }
         [].slice.call(bar.querySelectorAll('.dbe-scope-switch button')).forEach(function (b) {
             var sc = b.getAttribute('data-scope');
@@ -3111,7 +3112,7 @@
         });
         // "All CSS" needs a class selector to locate — a %local% one-off has no
         // shared rule to jump to, so disable it at the local level.
-        var allBtn = bar.querySelector('.dbe-scope-allcss');
+        allBtn = bar.querySelector('.dbe-scope-allcss');
         if (allBtn) { allBtn.disabled = (level === 'local'); }
     }
 
