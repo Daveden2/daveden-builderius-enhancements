@@ -5686,6 +5686,23 @@
         return m;
     }
 
+    /* The breakpoint button whose range covers width w — the smallest max ≥ w,
+       or the base/"All" button when w is wider than every breakpoint. Button
+       order matches the breakpoint list (same pairing dbeAllBreakpointBtn
+       relies on); null when the two cannot be paired. */
+    function dbeBpBtnForWidth(w) {
+        var btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
+        var bps = dbeBreakpoints();
+        if (!btns.length || !bps || bps.length !== btns.length) { return null; }
+        var best = -1, bestW = Infinity;
+        for (var i = 0; i < bps.length; i++) {
+            if (bps[i].width && w <= bps[i].width && bps[i].width < bestW) { best = i; bestW = bps[i].width; }
+        }
+        if (best !== -1) { return btns[best]; }
+        for (var j = 0; j < bps.length; j++) { if (!bps[j].width) { return btns[j]; } }
+        return btns[0];
+    }
+
     /* The base/"All" (full-width, no media query) breakpoint button. It carries
        no width in the breakpoint list; in the top-bar row it sits first. */
     function dbeAllBreakpointBtn() {
@@ -5786,6 +5803,25 @@
         w = Math.round(w);
         var bpMax = dbeLargestBpMax();
         var inner = dbeCanvasInner();
+
+        // Native "hide side panels" pins the canvas to width:100% and IGNORES
+        // the numeric width channel entirely (verified: while hidden, a width
+        // write updates the readout and the breakpoint band but never sizes
+        // the canvas). Handing over to the native path mid-drag would collapse
+        // the canvas — so while hidden, OWN the width across the WHOLE range
+        // with the same inline+guard channel the above-widest zone uses, and
+        // keep the breakpoint CONTEXT in step by clicking the matching band.
+        if (inner && w < max && document.documentElement.classList.contains('dbe-panels-hidden')) {
+            var band = dbeBpBtnForWidth(w);
+            if (band && !band.classList.contains('active')) {
+                try { band.click(); } catch (e) {}
+            }
+            inner.style.width = w + 'px';
+            dbePreviewOverriding = true;
+            dbePreviewSetReadout(w);
+            dbePreviewGuard(w); // re-assert across the band click's re-render
+            return;
+        }
 
         // Custom width strictly between the widest breakpoint and full: base/"All"
         // context, canvas sized by us.
@@ -6007,6 +6043,23 @@
             dbeSetPanelWidth(next);
         });
         return h;
+    }
+
+    /* The native "hide side panels" toggle collapses both panel wrappers with
+       INLINE width/min-width/max-width: 0. Two of our stylesheets pin those
+       same properties with !important — 75-panel-resize.css (deliberately, to
+       beat the native resize bar's inline widths) and 40-css-code-default.css
+       (the anti-auto-widen clamp) — which would pin the panels OPEN and make
+       the native toggle look dead. So the native state is mirrored onto a
+       root class here (called from schedule() whenever either feature is on),
+       and every width-forcing rule in both files stands down while it is set.
+       Detection reads the native mechanism itself (the inline max-width: 0),
+       not the top-bar button, so it works with tooltips off. */
+    function dbeSyncPanelsHidden() {
+        var lpo = document.querySelector('.uniLeftPanelOuter');
+        var hidden = !!(lpo && /max-width:\s*0px/.test(lpo.getAttribute('style') || ''));
+        document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
+        return hidden;
     }
 
     function ensurePanelHandles() {
@@ -7613,6 +7666,7 @@
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
+            if (on('panel_resize') || on('css_code_default')) { try { dbeSyncPanelsHidden(); } catch (e) {} }
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
             if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
