@@ -653,3 +653,13 @@ html[data-dbe-theme="light"] .uniSettingHtmlAttribute_addNewBtn:hover {
     border-color: var(--dbe-accent) !important;
     color: var(--dbe-accent) !important;
 }
+
+/* --- Leak audit pass 16: favourites bar icon borders --- */
+/* Each favourites icon keeps its native dark-scale border (--primary-2,
+   near-black), which on the light panel reads as a heavy outline drawn around
+   every icon. Soften it to the theme hairline so the strip sits quietly
+   beside the tree, matching the rest of the light chrome. Dark is left
+   alone — there the native border is already a subtle hairline. */
+html[data-dbe-theme="light"] .uniModTree__favouritesListItem {
+    border-color: var(--dbe-line) !important;
+}
