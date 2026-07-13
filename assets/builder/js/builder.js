@@ -1471,31 +1471,61 @@
         } catch (e) {}
     }
 
+    /* A menu row's label with any injected accel hint (.dbe-ctx-accel) left
+       out. When a menu item drives the menu it was activated from (Cut =
+       Copy then Remove), React can reuse the just-closed dialog still
+       enriched, so the native row reads "Copy⌘C" — the hint span must not
+       break the exact-label match. */
+    function nativeCtxLabel(li) {
+        var t = '';
+        for (var n = li.firstChild; n; n = n.nextSibling) {
+            if (n.nodeType === 1 && n.classList && n.classList.contains('dbe-ctx-accel')) { continue; }
+            t += n.textContent || '';
+        }
+        return t.trim();
+    }
+
     /* Open a row's native context menu invisibly and activate one item. */
     function driveContextMenuItem(rowId, itemText, cb) {
         var row = document.querySelector('.uniRightPanel .uni-tree-node-' + rowId);
         if (!row) { cb(false); return; }
         document.documentElement.classList.add('dbe-auto-ctx');
-        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window }));
+        // A menu may still be open — Cut drives the menu it was activated from.
+        // Close it and wait until it has really gone before opening ours: the
+        // poll below would otherwise find the old ENRICHED dialog, and React
+        // recycles its rows on re-render, so the node found as "Copy" can be a
+        // different item by the time the click lands (observed as a stray
+        // Paste during Cut).
+        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
         waitFor(function () {
-            var d = document.querySelector('dialog.uniBuilderContextMenu[open]');
-            if (!d) { return null; }
-            return [].slice.call(d.querySelectorAll('li.uniContextMenu__item')).find(function (li) {
-                return (li.textContent || '').trim() === itemText;
-            }) || null;
-        }, function (item) {
-            if (!item) {
+            return document.querySelector('dialog.uniBuilderContextMenu[open]') ? null : true;
+        }, function (closed) {
+            if (!closed) {
                 document.documentElement.classList.remove('dbe-auto-ctx');
-                try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
                 cb(false);
                 return;
             }
-            clickSeq(item);
-            setTimeout(function () {
-                try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
-                document.documentElement.classList.remove('dbe-auto-ctx');
-                cb(true);
-            }, 120);
+            row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window }));
+            waitFor(function () {
+                var d = document.querySelector('dialog.uniBuilderContextMenu[open]');
+                if (!d) { return null; }
+                return [].slice.call(d.querySelectorAll('li.uniContextMenu__item')).find(function (li) {
+                    return !li.classList.contains('dbe-ctx-item') && nativeCtxLabel(li) === itemText;
+                }) || null;
+            }, function (item) {
+                if (!item) {
+                    document.documentElement.classList.remove('dbe-auto-ctx');
+                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    cb(false);
+                    return;
+                }
+                clickSeq(item);
+                setTimeout(function () {
+                    try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
+                    document.documentElement.classList.remove('dbe-auto-ctx');
+                    cb(true);
+                }, 120);
+            });
         });
     }
 
@@ -1631,7 +1661,8 @@
        injected item's activation ends with. One copy, so a fix to the close
        recipe can never miss a site again. */
     function closeCtxMenu() {
-        closeCtxMenu();
+        removeSubmenus();
+        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
     }
 
     function positionFlyout(fly, parentLi) {

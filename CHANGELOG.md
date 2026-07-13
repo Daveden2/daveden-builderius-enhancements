@@ -3,6 +3,36 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.3
+Hotfixes: the 1.12.0 dedup left every injected context-menu action dead,
+the menu-driver behind Cut raced the closing menu, and the light theme
+drew the Sonner toasts dark-on-dark.
+
+* Fixed: the 1.12.0 "verified-safe fixes" pass deduplicated each injected
+  menu item's inline close recipe (`removeSubmenus()` + the native
+  `builderius.contextMenu.hide` action) into one shared `closeCtxMenu()` —
+  but the helper's body was the recursive call `closeCtxMenu()` instead of
+  the recipe, so every activation that ended with it threw "Maximum call
+  stack size exceeded" and stopped there: Auto-BEM, Rename, Reset label,
+  Wrap in / Unwrap, Expand children, Move up/down and Select parent all did
+  nothing, with the native menu left open. The helper now performs the
+  close recipe it was extracted to hold.
+* Fixed: context-menu Cut (= driven native Copy then Remove) did nothing,
+  or occasionally pasted a stray copy. `driveContextMenuItem` dispatched
+  its synthetic contextmenu while the visible menu could still be open, so
+  the poll found the old ENRICHED dialog: the exact-label match failed on
+  rows carrying accel hints ("Copy" reads "Copy⌘C"), and React recycles
+  the reused dialog's rows, so the node found as "Copy" could be another
+  item by the time the click landed. The driver now closes any open menu
+  and waits for it to unmount before opening its own, and the label match
+  ignores the injected `.dbe-ctx-accel` hint. Benefits every drive user:
+  ctx-menu Cut, the palette element ops and undo's forged Paste.
+* Fixed (theme, light): the native Sonner toasts ("Template saved",
+  "Copied …") pair a `--contrast` (#000) card with `--base-2` text, which
+  the light remap turns near-black — dark-on-dark. The light theme now
+  gives the card a token surface (`--dbe-l2` + hairlines on three edges,
+  the left edge stays the native status strip). Dark theme untouched.
+
 ## 1.12.2
 A multisite activation fix (#45), two favourites bar repairs, and a new
 screen-reader landmarks feature.
