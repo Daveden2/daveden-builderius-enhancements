@@ -34,9 +34,15 @@ Navigator's canvas reclaim, plus community label polish.
   matching the dual-platform convention the "Cmd/Ctrl" prefix already
   sets — the Mac key is Option. The focus-hint accelerators already used
   the ⌥ glyph and are unchanged.
-* Changed (#52): the Auto-BEM item in the elements context menu drops
-  its ellipsis (community suggestion); the redundant `autoBemMenu`
-  string is removed. Submenu items (Wrap in…, Save to…) keep theirs.
+* Changed (#52): the Auto-BEM item in the elements context menu and all
+  five command-palette entries drop their ellipses (community
+  suggestion), and the palette's Add entries are pluralised — Add
+  classes / Add attributes / Add elements (Emmet) — since each input
+  accepts several at once. The redundant `autoBemMenu`, `paletteRename`
+  and `paletteAutoBem` strings are removed (the palette reuses
+  `rename`/`autoBem`), and the palette-shortcut description in the
+  overlay says "add classes / attributes / elements" to match. Submenu
+  items (Wrap in…, Save to…) keep their ellipses.
 
 ## 1.12.3
 Hotfixes: the 1.12.0 dedup left every injected context-menu action dead,

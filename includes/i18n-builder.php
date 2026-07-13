@@ -372,11 +372,9 @@ function dbe_builder_strings() {
 		'commandPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
 		'searchCommands'          => __( 'Search commands…', 'daveden-builderius-enhancements' ),
 		'paletteNoEl'             => __( 'No element selected — element commands are hidden', 'daveden-builderius-enhancements' ),
-		'paletteAddClass'         => __( 'Add class…', 'daveden-builderius-enhancements' ),
-		'paletteAddAttr'          => __( 'Add attribute…', 'daveden-builderius-enhancements' ),
-		'paletteAddEmmet'         => __( 'Add element (Emmet)…', 'daveden-builderius-enhancements' ),
-		'paletteRename'           => __( 'Rename…', 'daveden-builderius-enhancements' ),
-		'paletteAutoBem'          => __( 'Auto-BEM…', 'daveden-builderius-enhancements' ),
+		'paletteAddClass'         => __( 'Add classes', 'daveden-builderius-enhancements' ),
+		'paletteAddAttr'          => __( 'Add attributes', 'daveden-builderius-enhancements' ),
+		'paletteAddEmmet'         => __( 'Add elements (Emmet)', 'daveden-builderius-enhancements' ),
 		'paletteDuplicate'        => __( 'Duplicate', 'daveden-builderius-enhancements' ),
 		'paletteCopy'             => __( 'Copy', 'daveden-builderius-enhancements' ),
 		'paletteCut'              => __( 'Cut', 'daveden-builderius-enhancements' ),
@@ -413,6 +411,6 @@ function dbe_builder_strings() {
 		'emmetAddedMany'          => __( 'Added %s elements', 'daveden-builderius-enhancements' ),
 		// Shortcuts overlay — command palette.
 		'scGroupPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
-		'scOpenPalette'           => __( 'Open the command palette (add class / attribute / element)', 'daveden-builderius-enhancements' ),
+		'scOpenPalette'           => __( 'Open the command palette (add classes / attributes / elements)', 'daveden-builderius-enhancements' ),
 	);
 }

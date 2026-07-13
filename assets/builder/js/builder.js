@@ -5150,7 +5150,7 @@
         ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [
-            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add class / attribute / element)')]
+            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
         ]]
     ] : []);
     function openShortcutsDialog() {
@@ -5494,7 +5494,7 @@
         var commands = [];
         if (hasEl) {
             commands.push(
-                { group: 'add', label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddClass', 'Add classes'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
                     var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
                     if (!cls.length) { return; }
                     runClose(function () {
@@ -5503,7 +5503,7 @@
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddAttr', 'Add attributes'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
                     var pairs = dbeParseAttributes(v);
                     if (!pairs.length) { return; }
                     runClose(function () {
@@ -5512,7 +5512,7 @@
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
                     try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
                     runClose(function () {
@@ -5534,14 +5534,14 @@
                 );
             }
             commands.push(
-                { group: 'element', label: dbeT('paletteRename', 'Rename…'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
+                { group: 'element', label: dbeT('rename', 'Rename'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
                     if (!v.trim()) { return; }
                     runClose(function () { commitRename(id, v.trim()); });
                 } }
             );
             if (on('auto_bem')) {
                 commands.push(
-                    { group: 'element', label: dbeT('paletteAutoBem', 'Auto-BEM…'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
+                    { group: 'element', label: dbeT('autoBem', 'Auto-BEM'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
                 );
             }
             commands.push(

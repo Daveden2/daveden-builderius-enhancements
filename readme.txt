@@ -45,8 +45,11 @@ Fixes for the CSS vars tab and the detachable Navigator, plus label polish.
   prefers reduced motion), and the preview drag handles report the
   correct width range to assistive technology throughout.
 * Changed: the keyboard-shortcuts overlay labels the modifier as
-  "Opt/Alt" — the Mac key is Option — and the Auto-BEM context-menu item
-  drops its ellipsis (community suggestion).
+  "Opt/Alt" — the Mac key is Option — and, following a community
+  suggestion, the Auto-BEM context-menu item and the command palette
+  entries drop their ellipses. The palette's Add entries are also
+  pluralised (Add classes / Add attributes / Add elements) since each
+  accepts several at once.
 
 = 1.12.3 =
 Hotfixes for the tree context menu's actions and the light-theme toasts.
