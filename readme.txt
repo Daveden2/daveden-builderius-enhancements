@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.3
+Stable tag: 1.12.4
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,22 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.12.4 =
+Fixes for the CSS vars tab and the detachable Navigator, plus label polish.
+* Fixed: opening the Navigator's CSS vars tab hid the left settings panel
+  and made the panel widths flicker — the tab was being mistaken for the
+  hide-side-panels toggle. Both panels now keep their shared width there,
+  and the real toggle still works while that tab is open.
+* Fixed: with the Navigator detached, the canvas stayed squeezed beside
+  the empty dock whenever the CSS vars tab was open.
+* Improved: the canvas now glides open and closed with the same easing as
+  the Navigator when detaching or docking (still instant if your system
+  prefers reduced motion), and the preview drag handles report the
+  correct width range to assistive technology throughout.
+* Changed: the keyboard-shortcuts overlay labels the modifier as
+  "Opt/Alt" — the Mac key is Option — and the Auto-BEM context-menu item
+  drops its ellipsis (community suggestion).
 
 = 1.12.3 =
 Hotfixes for the tree context menu's actions and the light-theme toasts.

@@ -3,6 +3,41 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.4
+Repairs for the CSS vars tab (a 1.12.1 regression) and the detachable
+Navigator's canvas reclaim, plus community label polish.
+
+* Fixed (#49): opening the Navigator's CSS vars tab hid the left settings
+  panel and dropped every panel-width pin, flickering the right panel's
+  width. Builderius collapses the LEFT panel on its own for that tab
+  (inline zero widths, with the right wrapper widened to 600px), and the
+  1.12.1 hide-side-panels detection read the left wrapper alone — so the
+  tab switch was mistaken for the native toggle and `dbe-panels-hidden`
+  went up. The real toggle zeroes BOTH wrappers (verified live), so
+  detection now requires both; the CSS vars clamp in 11-tabs.css also
+  gained the `html:not(.dbe-panels-hidden)` scope every other width pin
+  already has, so the genuine toggle is no longer defeated on that tab.
+* Fixed (#51): detaching the Navigator while the CSS vars tab was open
+  left the canvas squeezed at the docked reserve and pinned the float to
+  the docked width — the CSS vars clamp carries one more class than
+  76-panel-detach's float and reclaim rules and out-specified them. The
+  clamp now stands down under `body:not(.dbe-nav-detached)`.
+* Improved (#51): the canvas reclaim on detach/dock now animates on the
+  same .25s ease the docked panel already uses instead of snapping (with
+  a `prefers-reduced-motion` opt-out; panel-resize drags still suspend
+  the transition), and the preview handles' ARIA range follows the
+  canvas maximum when it moves — `dbeSyncHandleAria` is write-on-change
+  and re-runs from `schedule()`, with detach/dock triggering a resync
+  immediately and again once the transition settles.
+* Changed (#50): the keyboard-shortcuts overlay and the
+  element-shortcuts feature description label the modifier as "Opt/Alt",
+  matching the dual-platform convention the "Cmd/Ctrl" prefix already
+  sets — the Mac key is Option. The focus-hint accelerators already used
+  the ⌥ glyph and are unchanged.
+* Changed (#52): the Auto-BEM item in the elements context menu drops
+  its ellipsis (community suggestion); the redundant `autoBemMenu`
+  string is removed. Submenu items (Wrap in…, Save to…) keep theirs.
+
 ## 1.12.3
 Hotfixes: the 1.12.0 dedup left every injected context-menu action dead,
 the menu-driver behind Cut raced the closing menu, and the light theme
