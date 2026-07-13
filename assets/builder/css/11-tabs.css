@@ -172,13 +172,18 @@
    margin-right override mirrors the physical inline style Builderius sets.
    Scoped to html:not(.dbe-panels-hidden) like every other width pin: the
    native hide-side-panels toggle collapses the wrappers with inline zero
-   widths, which this clamp would otherwise defeat on the CSS vars tab. */
-html:not(.dbe-panels-hidden) .uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
+   widths, which this clamp would otherwise defeat on the CSS vars tab.
+   Also stands down for a detached Navigator (body:not(.dbe-nav-detached)):
+   these selectors carry one more class than 76-panel-detach's float and
+   reclaim rules, so without the guard they would out-specify them on the
+   CSS vars tab — pinning the float to the docked width and keeping the
+   canvas squeezed beside a panel that is no longer there. */
+html:not(.dbe-panels-hidden) body:not(.dbe-nav-detached) .uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
     min-width: var(--dbe-panel-width, 380px) !important;
     width: var(--dbe-panel-width, 380px) !important;
     max-width: var(--dbe-panel-width, 420px) !important;
 }
-html:not(.dbe-panels-hidden) .uniMainPanel:has(.uniVarsCss) .uniIframePanel {
+html:not(.dbe-panels-hidden) body:not(.dbe-nav-detached) .uniMainPanel:has(.uniVarsCss) .uniIframePanel {
     margin-right: var(--dbe-panel-width, 380px) !important;
     width: calc(100% - var(--dbe-panel-width, 380px)) !important;
 }

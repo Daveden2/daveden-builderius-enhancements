@@ -28,7 +28,21 @@ body.dbe-nav-detached .uniMainPanel div:has(> .uniRightPanel) {
     transition: none !important;
 }
 
-/* Canvas reclaims the docked column (overrides the panel_resize reservation). */
+/* Canvas reclaims the docked column (overrides the panel_resize reservation).
+   The reclaim is animated to match the docked panel's own native .25s width
+   ease — without it the canvas snaps wide while the panel glides, a visual
+   jump. Declared unconditionally (not under .dbe-nav-detached) so both
+   directions animate; panel-resize drags still kill it through 75's
+   body.dbe-panel-resizing rule, and users who prefer reduced motion get the
+   plain jump back below. */
+.uniIframePanel:has(.uniRightPanel) {
+    transition: margin-inline-end .25s ease-out, inline-size .25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+    .uniIframePanel:has(.uniRightPanel) {
+        transition: none;
+    }
+}
 body.dbe-nav-detached .uniIframePanel:has(.uniRightPanel) {
     margin-inline-end: 0 !important;
     inline-size: 100% !important;

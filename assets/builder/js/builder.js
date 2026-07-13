@@ -5893,12 +5893,18 @@
         dbeSetCanvasWidth(w);
     }
 
+    /* Conditional writes: this also runs from schedule() to catch layout
+       changes that move the canvas maximum (detaching/docking the Navigator,
+       hiding the side panels), so it must not churn attributes every tick. */
     function dbeSyncHandleAria(handle) {
         var inner = dbeCanvasInner();
         if (!inner) { return; }
-        handle.setAttribute('aria-valuemin', String(DBE_PREVIEW_MIN));
-        handle.setAttribute('aria-valuemax', String(dbeCanvasMax()));
-        handle.setAttribute('aria-valuenow', String(Math.round(inner.getBoundingClientRect().width)));
+        var set = function (name, value) {
+            if (handle.getAttribute(name) !== value) { handle.setAttribute(name, value); }
+        };
+        set('aria-valuemin', String(DBE_PREVIEW_MIN));
+        set('aria-valuemax', String(dbeCanvasMax()));
+        set('aria-valuenow', String(Math.round(inner.getBoundingClientRect().width)));
     }
 
     function makePreviewHandle(edge) {
@@ -5979,7 +5985,13 @@
         if (!inner) { return; }
         // No native width input = no write channel; don't render dead handles.
         if (!document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]')) { return; }
-        if (inner.querySelector(':scope > .dbe-preview-handle')) { return; }
+        var existing = inner.querySelectorAll(':scope > .dbe-preview-handle');
+        if (existing.length) {
+            // The range moves whenever the canvas maximum does (Navigator
+            // detached/docked, side panels hidden) — keep the ARIA in step.
+            existing.forEach(dbeSyncHandleAria);
+            return;
+        }
         var left = makePreviewHandle('left');
         var right = makePreviewHandle('right');
         inner.appendChild(left);
@@ -6282,6 +6294,7 @@
         document.body.classList.add('dbe-nav-detached');
         saveNavFloat(st);
         syncDetachButton();
+        dbeNavRescheduled();
     }
     function dockNav() {
         document.body.classList.remove('dbe-nav-detached');
@@ -6289,6 +6302,14 @@
         st.detached = false;
         saveNavFloat(st);
         syncDetachButton();
+        dbeNavRescheduled();
+    }
+    /* The canvas maximum moves when the Navigator detaches or docks — resync
+       the preview-handle ARIA now, and again once the canvas reclaim
+       transition (76-panel-detach.css, .25s) has settled on the final width. */
+    function dbeNavRescheduled() {
+        schedule();
+        setTimeout(schedule, 300);
     }
     function toggleNav() {
         if (document.body.classList.contains('dbe-nav-detached')) { dockNav(); } else { detachNav(); }
