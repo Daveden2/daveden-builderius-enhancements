@@ -92,8 +92,13 @@ $dbe_update_checker->addResultFilter(
  * the top of its main file, rather than a hard-coded plugin path — that keeps
  * the check working if Builderius is ever installed under a different folder
  * and needs no wp-admin/includes/plugin.php include on the front end.
- * Builderius sorts before daveden-builderius-enhancements, so it has already
- * loaded by the time this runs (both at activation and on every request).
+ *
+ * Only reliable from plugins_loaded onwards: network-activated plugins load
+ * before per-site ones, so if DBE is network-active on a multisite and
+ * Builderius is activated per site, Builderius has not loaded yet while DBE's
+ * own file runs. dbe_bootstrap() defers the check accordingly. The activation
+ * guard may call it earlier — there the plugin being activated is loaded last,
+ * after every already-active plugin, so the check holds.
  *
  * @return bool
  */
@@ -107,18 +112,29 @@ require_once DBE_DIR . 'includes/i18n-builder.php';
 require_once DBE_DIR . 'includes/options.php';
 require_once DBE_DIR . 'includes/settings-page.php';
 
-/*
+add_action( 'plugins_loaded', 'dbe_bootstrap', 0 );
+
+/**
+ * Include the builder-facing output once every active plugin has loaded.
+ *
  * Builder-facing output only makes sense when Builderius is running. If the
  * parent plugin is inactive, skip these features (they hook wp_head/wp_footer/
  * admin_bar to enhance the builder) and surface an admin notice instead. The
  * settings screen above still loads so toggles remain reachable.
+ *
+ * Deferred to plugins_loaded (rather than decided at load time) so the
+ * detection also works on multisite when DBE is network-active and Builderius
+ * is activated per site — see dbe_builderius_is_active(). Everything these
+ * files register (wp_head, wp_footer, admin_bar_menu) fires later still.
  */
-if ( dbe_builderius_is_active() ) {
-	require_once DBE_DIR . 'includes/output-builder.php';
-	require_once DBE_DIR . 'includes/output-preview.php';
-	require_once DBE_DIR . 'includes/admin-bar.php';
-} else {
-	add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
+function dbe_bootstrap() {
+	if ( dbe_builderius_is_active() ) {
+		require_once DBE_DIR . 'includes/output-builder.php';
+		require_once DBE_DIR . 'includes/output-preview.php';
+		require_once DBE_DIR . 'includes/admin-bar.php';
+	} else {
+		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
+	}
 }
 
 /**
