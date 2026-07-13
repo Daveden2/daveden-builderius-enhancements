@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.2
+Stable tag: 1.12.3
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,13 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.12.3 =
+A hotfix for the tree context menu's injected actions.
+* Fixed: choosing any of the plugin's context-menu actions (Auto-BEM,
+  Rename, Reset label, Wrap in, Expand children and the rest) did nothing
+  and left the menu open — a 1.12.0 refactor made the shared menu-close
+  helper call itself. The helper now closes the menu again.
 
 = 1.12.2 =
 A multisite activation fix, two favourites bar repairs, and screen-reader

@@ -3,6 +3,19 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.3
+A hotfix: the 1.12.0 dedup left every injected context-menu action dead.
+
+* Fixed: the 1.12.0 "verified-safe fixes" pass deduplicated each injected
+  menu item's inline close recipe (`removeSubmenus()` + the native
+  `builderius.contextMenu.hide` action) into one shared `closeCtxMenu()` —
+  but the helper's body was the recursive call `closeCtxMenu()` instead of
+  the recipe, so every activation that ended with it threw "Maximum call
+  stack size exceeded" and stopped there: Auto-BEM, Rename, Reset label,
+  Wrap in / Unwrap, Expand children, Move up/down and Select parent all did
+  nothing, with the native menu left open. The helper now performs the
+  close recipe it was extracted to hold.
+
 ## 1.12.2
 A multisite activation fix (#45), two favourites bar repairs, and a new
 screen-reader landmarks feature.
