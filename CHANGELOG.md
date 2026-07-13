@@ -3,6 +3,54 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.4
+Repairs for the CSS vars tab (a 1.12.1 regression) and the detachable
+Navigator's canvas reclaim, plus community label polish.
+
+* Fixed (#49): opening the Navigator's CSS vars tab hid the left settings
+  panel and dropped every panel-width pin, flickering the right panel's
+  width. Builderius collapses the LEFT panel on its own for that tab
+  (inline zero widths, with the right wrapper widened to 600px), and the
+  1.12.1 hide-side-panels detection read the left wrapper alone — so the
+  tab switch was mistaken for the native toggle and `dbe-panels-hidden`
+  went up. The real toggle zeroes BOTH wrappers (verified live), so
+  detection now requires both; the CSS vars clamp in 11-tabs.css also
+  gained the `html:not(.dbe-panels-hidden)` scope every other width pin
+  already has, so the genuine toggle is no longer defeated on that tab.
+* Fixed (#51): detaching the Navigator while the CSS vars tab was open
+  left the canvas squeezed at the docked reserve and pinned the float to
+  the docked width — the CSS vars clamp carries one more class than
+  76-panel-detach's float and reclaim rules and out-specified them. The
+  clamp now stands down under `body:not(.dbe-nav-detached)`.
+* Improved (#51): the canvas reclaim on detach/dock now animates on the
+  same .25s ease the docked panel already uses instead of snapping (with
+  a `prefers-reduced-motion` opt-out; panel-resize drags still suspend
+  the transition), and the preview handles' ARIA range follows the
+  canvas maximum when it moves — `dbeSyncHandleAria` is write-on-change
+  and re-runs from `schedule()`, with detach/dock triggering a resync
+  immediately and again once the transition settles.
+* Changed (#50): the keyboard-shortcuts overlay renders every combo for
+  the viewer's own platform through the same `dbeAccel` helper the
+  context-menu hints use — the Mac glyph stack (⇧⌘D, ⌥⌘T) there,
+  Ctrl+Shift+D / Ctrl+Alt+T elsewhere — replacing the dual
+  "Cmd/Ctrl+Alt" spelling. The settings-page feature description, which
+  is server-rendered for every platform, keeps the dual convention but
+  now says "Opt/Alt" (the Mac key is Option, not Alt).
+* Fixed: the shortcuts overlay still advertised the Cmd/Ctrl+click and
+  Shift+click multi-selection rows (and Esc's "clear the
+  multi-selection" clause) although multi_select was withdrawn from the
+  registry on 6 Jul 2026 — the rows described shortcuts that do
+  nothing. They are now gated on the feature and return with it.
+* Changed (#52): the Auto-BEM item in the elements context menu and all
+  five command-palette entries drop their ellipses (community
+  suggestion), and the palette's Add entries are pluralised — Add
+  classes / Add attributes / Add elements (Emmet) — since each input
+  accepts several at once. The redundant `autoBemMenu`, `paletteRename`
+  and `paletteAutoBem` strings are removed (the palette reuses
+  `rename`/`autoBem`), and the palette-shortcut description in the
+  overlay says "add classes / attributes / elements" to match. Submenu
+  items (Wrap in…, Save to…) keep their ellipses.
+
 ## 1.12.3
 Hotfixes: the 1.12.0 dedup left every injected context-menu action dead,
 the menu-driver behind Cut raced the closing menu, and the light theme

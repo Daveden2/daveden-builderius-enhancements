@@ -2092,7 +2092,7 @@
                 }
             }
 
-            // "Auto-BEM…" -> the class-naming dialog. Offered on any element that
+            // "Auto-BEM" -> the class-naming dialog. Offered on any element that
             // can hold a tagClass (decided from the module, not a canvas node, so
             // an unpainted element still qualifies); components / templates can't.
             if (!multiIds && on('auto_bem')) {
@@ -2102,7 +2102,7 @@
                     var bemLi = document.createElement('li');
                     bemLi.className = 'uniContextMenu__item dbe-ctx-item';
                     bemLi.setAttribute('role', 'menuitem');
-                    bemLi.textContent = dbeT('autoBemMenu', 'Auto-BEM…');
+                    bemLi.textContent = dbeT('autoBem', 'Auto-BEM');
                     bemLi.addEventListener('mousedown', function (ev) {
                         ev.preventDefault();
                         ev.stopPropagation();
@@ -5102,15 +5102,23 @@
         if (btn.style.blockSize !== wantH) { btn.style.blockSize = wantH; }
     }
 
-    /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
+    /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. Combos are
+       rendered for THIS platform through dbeAccel, matching the context menu's
+       accelerator hints: the Mac glyph stack (⌥⌘T) there, Ctrl+Alt+T
+       elsewhere — never the dual "Cmd/Ctrl" spelling. */
+    function sc(key, o) { return dbeAccel(key, o); }
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
             ['?', dbeT('scOpenOverlay', 'Open this shortcuts overlay')],
-            ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
+            // multi_select is withdrawn from the registry (see features.php);
+            // its rows and the Esc clause return with it via these gates.
+            ['Esc', on('multi_select') ?
+                dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection') :
+                dbeT('scEscapeClose', 'Close menus and dialogs')],
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
-            ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
+            [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }), dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ].concat(on('save_shortcut') ? [
-            ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
+            [sc('S', { cmd: true }), dbeT('scSave', 'Save the template')]
         ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
@@ -5120,11 +5128,15 @@
                 ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
             ] : [],
             [
-                ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
-                ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
-                ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
-                ['Shift+click', dbeT('scRange', 'Select a range of rows')],
-                ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
+                [sc('Z', { cmd: true }), dbeT('scUndo', 'Restore the last deleted element')],
+                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')]
+            ],
+            on('multi_select') ? [
+                [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
+                [sc('click', { shift: true }), dbeT('scRange', 'Select a range of rows')]
+            ] : [],
+            [
+                [sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]
             ]
         )],
         [dbeT('scGroupContextMenu', 'Context menu'), [
@@ -5135,22 +5147,22 @@
         ]]
     ].concat(on('keyboard_shortcuts') ? [
         [dbeT('scGroupElements', 'Selected element'), [
-            ['Cmd/Ctrl+Shift+D', dbeT('scDuplicate', 'Duplicate')],
-            ['Cmd/Ctrl+X', dbeT('scCut', 'Cut')],
-            ['Cmd/Ctrl+Alt+T', dbeT('scAddBefore', 'Add an element before')],
-            ['Cmd/Ctrl+Alt+Y', dbeT('scAddAfter', 'Add an element after')],
+            [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate')],
+            [sc('X', { cmd: true }), dbeT('scCut', 'Cut')],
+            [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
+            [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
-            ['Cmd/Ctrl+C · Cmd/Ctrl+V · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
+            [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
         [dbeT('scGroupAreas', 'Move to area'), [
-            ['Cmd/Ctrl+Alt+O', dbeT('scGotoNavigator', 'Navigator')],
-            ['Cmd/Ctrl+Alt+S', dbeT('scGotoSettings', 'Settings panel')],
-            ['Cmd/Ctrl+Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
-            ['Cmd/Ctrl+Alt+N', dbeT('scGotoInserter', 'Insert elements')]
+            [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
+            [sc('S', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Settings panel')],
+            [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas / preview')],
+            [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
         ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [
-            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add class / attribute / element)')]
+            [sc('K', { cmd: true, shift: true }), dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
         ]]
     ] : []);
     function openShortcutsDialog() {
@@ -5494,7 +5506,7 @@
         var commands = [];
         if (hasEl) {
             commands.push(
-                { group: 'add', label: dbeT('paletteAddClass', 'Add class…'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddClass', 'Add classes'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
                     var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
                     if (!cls.length) { return; }
                     runClose(function () {
@@ -5503,7 +5515,7 @@
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddAttr', 'Add attribute…'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddAttr', 'Add attributes'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
                     var pairs = dbeParseAttributes(v);
                     if (!pairs.length) { return; }
                     runClose(function () {
@@ -5512,7 +5524,7 @@
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddEmmet', 'Add element (Emmet)…'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
                     try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
                     runClose(function () {
@@ -5534,14 +5546,14 @@
                 );
             }
             commands.push(
-                { group: 'element', label: dbeT('paletteRename', 'Rename…'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
+                { group: 'element', label: dbeT('rename', 'Rename'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
                     if (!v.trim()) { return; }
                     runClose(function () { commitRename(id, v.trim()); });
                 } }
             );
             if (on('auto_bem')) {
                 commands.push(
-                    { group: 'element', label: dbeT('paletteAutoBem', 'Auto-BEM…'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
+                    { group: 'element', label: dbeT('autoBem', 'Auto-BEM'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
                 );
             }
             commands.push(
@@ -5893,12 +5905,18 @@
         dbeSetCanvasWidth(w);
     }
 
+    /* Conditional writes: this also runs from schedule() to catch layout
+       changes that move the canvas maximum (detaching/docking the Navigator,
+       hiding the side panels), so it must not churn attributes every tick. */
     function dbeSyncHandleAria(handle) {
         var inner = dbeCanvasInner();
         if (!inner) { return; }
-        handle.setAttribute('aria-valuemin', String(DBE_PREVIEW_MIN));
-        handle.setAttribute('aria-valuemax', String(dbeCanvasMax()));
-        handle.setAttribute('aria-valuenow', String(Math.round(inner.getBoundingClientRect().width)));
+        var set = function (name, value) {
+            if (handle.getAttribute(name) !== value) { handle.setAttribute(name, value); }
+        };
+        set('aria-valuemin', String(DBE_PREVIEW_MIN));
+        set('aria-valuemax', String(dbeCanvasMax()));
+        set('aria-valuenow', String(Math.round(inner.getBoundingClientRect().width)));
     }
 
     function makePreviewHandle(edge) {
@@ -5979,7 +5997,13 @@
         if (!inner) { return; }
         // No native width input = no write channel; don't render dead handles.
         if (!document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]')) { return; }
-        if (inner.querySelector(':scope > .dbe-preview-handle')) { return; }
+        var existing = inner.querySelectorAll(':scope > .dbe-preview-handle');
+        if (existing.length) {
+            // The range moves whenever the canvas maximum does (Navigator
+            // detached/docked, side panels hidden) — keep the ARIA in step.
+            existing.forEach(dbeSyncHandleAria);
+            return;
+        }
         var left = makePreviewHandle('left');
         var right = makePreviewHandle('right');
         inner.appendChild(left);
@@ -6089,10 +6113,18 @@
        root class here (called from schedule() whenever either feature is on),
        and every width-forcing rule in both files stands down while it is set.
        Detection reads the native mechanism itself (the inline max-width: 0),
-       not the top-bar button, so it works with tooltips off. */
+       not the top-bar button, so it works with tooltips off. BOTH wrappers
+       must be collapsed: the CSS vars tab collapses the LEFT panel on its own
+       (while widening the right wrapper to 600px), and reading the left panel
+       alone mistook that tab for the hide toggle — panels vanished and the
+       width pins dropped every time it opened. */
     function dbeSyncPanelsHidden() {
-        var lpo = document.querySelector('.uniLeftPanelOuter');
-        var hidden = !!(lpo && /max-width:\s*0px/.test(lpo.getAttribute('style') || ''));
+        function collapsed(el) {
+            return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
+        }
+        var rp = document.querySelector('.uniRightPanel');
+        var hidden = collapsed(document.querySelector('.uniLeftPanelOuter')) &&
+            (!rp || collapsed(rp.parentElement));
         document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
         return hidden;
     }
@@ -6274,6 +6306,7 @@
         document.body.classList.add('dbe-nav-detached');
         saveNavFloat(st);
         syncDetachButton();
+        dbeNavRescheduled();
     }
     function dockNav() {
         document.body.classList.remove('dbe-nav-detached');
@@ -6281,6 +6314,14 @@
         st.detached = false;
         saveNavFloat(st);
         syncDetachButton();
+        dbeNavRescheduled();
+    }
+    /* The canvas maximum moves when the Navigator detaches or docks — resync
+       the preview-handle ARIA now, and again once the canvas reclaim
+       transition (76-panel-detach.css, .25s) has settled on the final width. */
+    function dbeNavRescheduled() {
+        schedule();
+        setTimeout(schedule, 300);
     }
     function toggleNav() {
         if (document.body.classList.contains('dbe-nav-detached')) { dockNav(); } else { detachNav(); }
