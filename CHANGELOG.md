@@ -29,11 +29,13 @@ Navigator's canvas reclaim, plus community label polish.
   canvas maximum when it moves — `dbeSyncHandleAria` is write-on-change
   and re-runs from `schedule()`, with detach/dock triggering a resync
   immediately and again once the transition settles.
-* Changed (#50): the keyboard-shortcuts overlay and the
-  element-shortcuts feature description label the modifier as "Opt/Alt",
-  matching the dual-platform convention the "Cmd/Ctrl" prefix already
-  sets — the Mac key is Option. The focus-hint accelerators already used
-  the ⌥ glyph and are unchanged.
+* Changed (#50): the keyboard-shortcuts overlay renders every combo for
+  the viewer's own platform through the same `dbeAccel` helper the
+  context-menu hints use — the Mac glyph stack (⇧⌘D, ⌥⌘T) there,
+  Ctrl+Shift+D / Ctrl+Alt+T elsewhere — replacing the dual
+  "Cmd/Ctrl+Alt" spelling. The settings-page feature description, which
+  is server-rendered for every platform, keeps the dual convention but
+  now says "Opt/Alt" (the Mac key is Option, not Alt).
 * Changed (#52): the Auto-BEM item in the elements context menu and all
   five command-palette entries drop their ellipses (community
   suggestion), and the palette's Add entries are pluralised — Add

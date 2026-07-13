@@ -5102,15 +5102,19 @@
         if (btn.style.blockSize !== wantH) { btn.style.blockSize = wantH; }
     }
 
-    /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. */
+    /* (l) Keyboard shortcuts overlay — ? opens a native <dialog>. Combos are
+       rendered for THIS platform through dbeAccel, matching the context menu's
+       accelerator hints: the Mac glyph stack (⌥⌘T) there, Ctrl+Alt+T
+       elsewhere — never the dual "Cmd/Ctrl" spelling. */
+    function sc(key, o) { return dbeAccel(key, o); }
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
             ['?', dbeT('scOpenOverlay', 'Open this shortcuts overlay')],
             ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
-            ['Cmd/Ctrl+C · Cmd/Ctrl+V', dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
+            [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }), dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ].concat(on('save_shortcut') ? [
-            ['Cmd/Ctrl+S', dbeT('scSave', 'Save the template')]
+            [sc('S', { cmd: true }), dbeT('scSave', 'Save the template')]
         ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
@@ -5120,11 +5124,11 @@
                 ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
             ] : [],
             [
-                ['Cmd/Ctrl+Z', dbeT('scUndo', 'Restore the last deleted element')],
-                ['Cmd/Ctrl+Shift+Z', dbeT('scRedo', 'Redo the delete')],
-                ['Cmd/Ctrl+click', dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
-                ['Shift+click', dbeT('scRange', 'Select a range of rows')],
-                ['Shift+F10', dbeT('scCtxOpen', 'Open the context menu on the focused row')]
+                [sc('Z', { cmd: true }), dbeT('scUndo', 'Restore the last deleted element')],
+                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')],
+                [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
+                [sc('click', { shift: true }), dbeT('scRange', 'Select a range of rows')],
+                [sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]
             ]
         )],
         [dbeT('scGroupContextMenu', 'Context menu'), [
@@ -5135,22 +5139,22 @@
         ]]
     ].concat(on('keyboard_shortcuts') ? [
         [dbeT('scGroupElements', 'Selected element'), [
-            ['Cmd/Ctrl+Shift+D', dbeT('scDuplicate', 'Duplicate')],
-            ['Cmd/Ctrl+X', dbeT('scCut', 'Cut')],
-            ['Cmd/Ctrl+Opt/Alt+T', dbeT('scAddBefore', 'Add an element before')],
-            ['Cmd/Ctrl+Opt/Alt+Y', dbeT('scAddAfter', 'Add an element after')],
+            [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate')],
+            [sc('X', { cmd: true }), dbeT('scCut', 'Cut')],
+            [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
+            [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
-            ['Cmd/Ctrl+C · Cmd/Ctrl+V · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
+            [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
         [dbeT('scGroupAreas', 'Move to area'), [
-            ['Cmd/Ctrl+Opt/Alt+O', dbeT('scGotoNavigator', 'Navigator')],
-            ['Cmd/Ctrl+Opt/Alt+S', dbeT('scGotoSettings', 'Settings panel')],
-            ['Cmd/Ctrl+Opt/Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
-            ['Cmd/Ctrl+Opt/Alt+N', dbeT('scGotoInserter', 'Insert elements')]
+            [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
+            [sc('S', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Settings panel')],
+            [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas / preview')],
+            [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
         ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [
-            ['Cmd/Ctrl+Shift+K', dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
+            [sc('K', { cmd: true, shift: true }), dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
         ]]
     ] : []);
     function openShortcutsDialog() {
