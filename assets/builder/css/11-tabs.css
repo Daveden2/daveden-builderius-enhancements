@@ -169,13 +169,16 @@
    enough that a variable row (name input + value input + edit/delete icons)
    stays usable, narrow enough not to swallow the canvas. The earlier 260px
    clamp squeezed the value input to ~12px — unusable. The physical
-   margin-right override mirrors the physical inline style Builderius sets. */
-.uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
+   margin-right override mirrors the physical inline style Builderius sets.
+   Scoped to html:not(.dbe-panels-hidden) like every other width pin: the
+   native hide-side-panels toggle collapses the wrappers with inline zero
+   widths, which this clamp would otherwise defeat on the CSS vars tab. */
+html:not(.dbe-panels-hidden) .uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
     min-width: var(--dbe-panel-width, 380px) !important;
     width: var(--dbe-panel-width, 380px) !important;
     max-width: var(--dbe-panel-width, 420px) !important;
 }
-.uniMainPanel:has(.uniVarsCss) .uniIframePanel {
+html:not(.dbe-panels-hidden) .uniMainPanel:has(.uniVarsCss) .uniIframePanel {
     margin-right: var(--dbe-panel-width, 380px) !important;
     width: calc(100% - var(--dbe-panel-width, 380px)) !important;
 }

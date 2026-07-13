@@ -6089,10 +6089,18 @@
        root class here (called from schedule() whenever either feature is on),
        and every width-forcing rule in both files stands down while it is set.
        Detection reads the native mechanism itself (the inline max-width: 0),
-       not the top-bar button, so it works with tooltips off. */
+       not the top-bar button, so it works with tooltips off. BOTH wrappers
+       must be collapsed: the CSS vars tab collapses the LEFT panel on its own
+       (while widening the right wrapper to 600px), and reading the left panel
+       alone mistook that tab for the hide toggle — panels vanished and the
+       width pins dropped every time it opened. */
     function dbeSyncPanelsHidden() {
-        var lpo = document.querySelector('.uniLeftPanelOuter');
-        var hidden = !!(lpo && /max-width:\s*0px/.test(lpo.getAttribute('style') || ''));
+        function collapsed(el) {
+            return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
+        }
+        var rp = document.querySelector('.uniRightPanel');
+        var hidden = collapsed(document.querySelector('.uniLeftPanelOuter')) &&
+            (!rp || collapsed(rp.parentElement));
         document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
         return hidden;
     }
