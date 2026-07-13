@@ -3,6 +3,45 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.2
+A multisite activation fix (#45), two favourites bar repairs, and a new
+screen-reader landmarks feature.
+
+* Fixed (#45): WordPress loads network-activated plugins before per-site
+  ones, so on a multisite with DBE network-active and Builderius activated
+  per site, the load-time `function_exists( 'builderius_get_version' )`
+  check ran before Builderius had loaded and DBE went dormant on every
+  subsite, warning that Builderius was inactive. The include decision now
+  runs in `dbe_bootstrap()` on `plugins_loaded` priority 0, by which point
+  every active plugin has loaded regardless of the activation mix; all the
+  gated hooks (`wp_head`, `wp_footer`, `admin_bar_menu`, `admin_notices`)
+  fire later still.
+* Fixed (theme, light): each `.uniModTree__favouritesListItem` keeps its
+  native dark-scale border (`--primary-2`, near-black), a heavy outline on
+  the light panel. Leak audit pass 16 softens it to the theme hairline
+  (`--dbe-line`); the dark theme keeps the native value.
+* Fixed (nav layout): the favourites strip is a flex column of fixed-size
+  icons with visible overflow, so when the Navigator loses height (Sense AI
+  or another footer panel expanded) the icons spilt over the tree footer's
+  delete and edit-favourites buttons and on under the footer bar. The strip
+  now scrolls within the remaining height. Two traps: one overflow axis set
+  to auto computes the other to auto as well, and the resulting scrollbar
+  squeezed the 26px icons inside the ~31px strip, so the scrollbar is hidden
+  (wheel, drag and focus-driven scrolling still work, and the icon clipped
+  at the edge shows there is more below); and overflow other than visible
+  drops the strip's min-content width floor in the container's row layout,
+  so its width is pinned with `flex: 0 0 auto`.
+* New (chrome_landmarks, on by default): named landmark regions for the
+  builder chrome, the way the WordPress block editor exposes its regions.
+  Stamped each schedule() tick, attributes written only when they differ:
+  Top toolbar, Element library / Element settings (the left panel is
+  contextual, so its label is re-read from what it currently holds), Canvas,
+  Navigator and Footer bar. `role="region"` is only a landmark when named,
+  so every stamp pairs the role with an `aria-label`. Rode along: the footer
+  tools panel (footer_toolbar) is demoted from `role="region"` to a labelled
+  `role="group"`, so the footer contributes exactly one landmark; the name
+  still announces on entry and the `aria-controls` wiring is unchanged.
+
 ## 1.12.1
 Fixes around the native "hide side panels" toggle, an opt-in Save-menu
 keyboard route, and concise settings copy. PRs #41–#43.
