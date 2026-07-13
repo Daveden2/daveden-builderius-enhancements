@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Daveden Builder Enhancements 1.12.0\n"
+"Project-Id-Version: Daveden Builder Enhancements 1.12.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/daveden-builderius-enhancements\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-12T22:22:07+00:00\n"
+"POT-Creation-Date: 2026-07-13T00:03:31+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: daveden-builderius-enhancements.php
 #: includes/settings-page.php:44
 #: includes/settings-page.php:52
-#: includes/settings-page.php:267
+#: includes/settings-page.php:292
 msgid "Daveden Builder Enhancements"
 msgstr ""
 
@@ -103,399 +103,595 @@ msgid "Typography & design tokens"
 msgstr ""
 
 #: includes/features.php:52
+msgid "One consistent typeface and tidier labels across the builder."
+msgstr ""
+
+#: includes/features.php:53
 msgid "Applies one consistent typeface across the builder and tidies field labels, group headings and panel shadows to match."
 msgstr ""
 
-#: includes/features.php:58
+#: includes/features.php:59
 msgid "Tab styling"
 msgstr ""
 
-#: includes/features.php:59
+#: includes/features.php:60
+msgid "Clear accent underlines on every tab in the builder."
+msgstr ""
+
+#: includes/features.php:61
 msgid "Gives every tab in the builder a clear underline in the accent colour (panel tabs, document tabs, scope switchers and settings tabs), and widens the search field in the CSS vars tab."
 msgstr ""
 
-#: includes/features.php:65
+#: includes/features.php:67
 msgid "Search field icons"
 msgstr ""
 
-#: includes/features.php:66
+#: includes/features.php:68
+msgid "Adds the missing magnifying-glass icons to search fields."
+msgstr ""
+
+#: includes/features.php:69
 msgid "Adds a magnifying-glass icon to the builder search fields that lack one (the Navigator filter and the CSS vars search) so each reads as a search box at a glance. The Inserter search keeps its own built-in icon."
 msgstr ""
 
-#: includes/features.php:72
+#: includes/features.php:75
 msgid "Controls styling"
 msgstr ""
 
-#: includes/features.php:73
+#: includes/features.php:76
+msgid "Restyles buttons, inputs and dropdowns with accessible contrast."
+msgstr ""
+
+#: includes/features.php:77
 msgid "Restyles buttons, inputs, dropdowns, segmented radios and the element inserter with the plugin's colour palette, meeting WCAG AA contrast."
 msgstr ""
 
-#: includes/features.php:79
+#: includes/features.php:83
 msgid "Focus visibility"
 msgstr ""
 
-#: includes/features.php:80
+#: includes/features.php:84
+msgid "A visible focus ring on every control."
+msgstr ""
+
+#: includes/features.php:85
 msgid "Shows a visible focus ring on every interactive control in the builder, as required by WCAG 2.4.7."
 msgstr ""
 
-#: includes/features.php:86
+#: includes/features.php:91
 msgid "Navigator row styling"
 msgstr ""
 
-#: includes/features.php:87
-msgid "Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works."
+#: includes/features.php:92
+msgid "Larger, easier-to-scan Navigator rows."
 msgstr ""
 
 #: includes/features.php:93
+msgid "Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works."
+msgstr ""
+
+#: includes/features.php:99
 msgid "Theme switcher (light / dark / auto)"
 msgstr ""
 
-#: includes/features.php:94
-msgid "Adds a top-bar button that switches the builder between light and dark themes, or follows your operating system automatically."
-msgstr ""
-
 #: includes/features.php:100
-msgid "Density toggle"
+msgid "Light, dark or follow-the-OS builder theme."
 msgstr ""
 
 #: includes/features.php:101
-msgid "Adds a top-bar button that switches panel and Navigator spacing between comfortable and compact."
+msgid "Adds a top-bar button that switches the builder between light and dark themes, or follows your operating system automatically."
 msgstr ""
 
 #: includes/features.php:107
-msgid "Top-bar keyboard groups"
+msgid "Density toggle"
 msgstr ""
 
 #: includes/features.php:108
-msgid "Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), and the canvas width and zoom fields are grouped and labelled."
+msgid "Comfortable or compact spacing, switched from the top bar."
 msgstr ""
 
-#: includes/features.php:114
-msgid "Bottom-bar keyboard toolbar"
+#: includes/features.php:109
+msgid "Adds a top-bar button that switches panel and Navigator spacing between comfortable and compact."
 msgstr ""
 
 #: includes/features.php:115
+msgid "Top-bar keyboard groups"
+msgstr ""
+
+#: includes/features.php:116
+msgid "Screen-reader grouping and arrow keys for the top-bar controls."
+msgstr ""
+
+#: includes/features.php:117
+msgid "Gives the top-bar control clusters proper grouping for screen readers and keyboard users: the breakpoint switcher becomes a radio group (announces which breakpoint is current, arrow keys move and select it, one Tab stop), and the canvas width and zoom fields are grouped and labelled."
+msgstr ""
+
+#: includes/features.php:123
+msgid "Bottom-bar keyboard toolbar"
+msgstr ""
+
+#: includes/features.php:124
+msgid "Makes the bottom tool bar one Tab stop with arrow keys."
+msgstr ""
+
+#: includes/features.php:125
 msgid "Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list."
 msgstr ""
 
-#: includes/features.php:121
+#: includes/features.php:131
 msgid "Accessible select comboboxes"
 msgstr ""
 
-#: includes/features.php:122
+#: includes/features.php:132
+msgid "Keyboard and screen-reader support for the custom selects."
+msgstr ""
+
+#: includes/features.php:133
 msgid "Makes the builder's custom select popovers (the preview picker, the responsive-strategy select, the element HTML-tag select and others) usable with a screen reader and the keyboard: proper combobox / listbox / option roles, one Tab stop, and arrow keys to move through the options with Enter to choose. Purely additive — typing to filter and clicking to choose are left to Builderius."
 msgstr ""
 
-#: includes/features.php:128
+#: includes/features.php:139
 msgid "Accessible AI session tabs"
 msgstr ""
 
-#: includes/features.php:129
+#: includes/features.php:140
+msgid "Proper tabs and keyboard access for the Sense AI sessions."
+msgstr ""
+
+#: includes/features.php:141
 msgid "Wires the Sense AI terminal session tabs (Claude Code, Gemini CLI and so on) as a proper tab list for screen readers and the keyboard: the tabs announce which session is active, arrow keys move between them and switch with one Tab stop, the terminal below is exposed as their tab panel, and the \"new session\" button gets a clear name in place of its bare plus sign, plus a proper pop-up menu (arrow keys to choose an agent, Escape to close). Purely additive: clicking to switch is left to Builderius."
 msgstr ""
 
-#: includes/features.php:135
+#: includes/features.php:147
 msgid "Accessible panel tabs"
 msgstr ""
 
-#: includes/features.php:136
+#: includes/features.php:148
+msgid "Arrow-key tab strips in the settings panel and Navigator."
+msgstr ""
+
+#: includes/features.php:149
 msgid "Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel's Content / Styles tabs and the Navigator's Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last)."
 msgstr ""
 
-#: includes/features.php:144
+#: includes/features.php:157
 msgid "HTML tag badges"
 msgstr ""
 
-#: includes/features.php:145
-msgid "Shows each element's HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class."
-msgstr ""
-
-#: includes/features.php:151
-msgid "Tidier Navigator icons"
-msgstr ""
-
-#: includes/features.php:152
-msgid "Hides the repeated element-type icons in the Navigator, keeping only the ones that carry meaning (Collections and Templates)."
-msgstr ""
-
 #: includes/features.php:158
-msgid "Collapse & expand buttons"
+msgid "Shows each element's HTML tag in the Navigator."
 msgstr ""
 
 #: includes/features.php:159
-msgid "Adds two buttons to the Navigator header: one expands every row, the other collapses the tree down to its top-level sections."
+msgid "Shows each element's HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class."
+msgstr ""
+
+#: includes/features.php:165
+msgid "Tidier Navigator icons"
 msgstr ""
 
 #: includes/features.php:166
-msgid "Navigator search"
+msgid "Hides repeated Navigator icons, keeping the meaningful ones."
 msgstr ""
 
 #: includes/features.php:167
-msgid "Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type."
+msgid "Hides the repeated element-type icons in the Navigator, keeping only the ones that carry meaning (Collections and Templates)."
+msgstr ""
+
+#: includes/features.php:173
+msgid "Collapse & expand buttons"
 msgstr ""
 
 #: includes/features.php:174
+msgid "One-click expand or collapse of the whole tree."
+msgstr ""
+
+#: includes/features.php:175
+msgid "Adds two buttons to the Navigator header: one expands every row, the other collapses the tree down to its top-level sections."
+msgstr ""
+
+#: includes/features.php:182
+msgid "Navigator search"
+msgstr ""
+
+#: includes/features.php:183
+msgid "A filter box for the Navigator tree."
+msgstr ""
+
+#: includes/features.php:184
+msgid "Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type."
+msgstr ""
+
+#: includes/features.php:191
 #: includes/i18n-builder.php:302
 msgid "Rearrange favourites"
 msgstr ""
 
-#: includes/features.php:175
+#: includes/features.php:192
+msgid "Drag or arrow-key reordering of the favourites bar."
+msgstr ""
+
+#: includes/features.php:193
 msgid "Adds a rearrange button to the favourites bar. Drag the icons, or use the arrow keys, to put them in your preferred order; the order is remembered in your browser."
 msgstr ""
 
-#: includes/features.php:182
+#: includes/features.php:200
 msgid "Follow selection in the tree"
 msgstr ""
 
-#: includes/features.php:183
+#: includes/features.php:201
+msgid "The tree opens and scrolls to whatever you select."
+msgstr ""
+
+#: includes/features.php:202
 msgid "When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree."
 msgstr ""
 
-#: includes/features.php:189
+#: includes/features.php:208
 msgid "Navigator keyboard tree"
 msgstr ""
 
-#: includes/features.php:190
+#: includes/features.php:209
+msgid "Full arrow-key navigation of the tree, WordPress style."
+msgstr ""
+
+#: includes/features.php:210
 msgid "Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position."
 msgstr ""
 
-#: includes/features.php:196
+#: includes/features.php:216
 msgid "Detachable Navigator"
 msgstr ""
 
-#: includes/features.php:197
+#: includes/features.php:217
+msgid "Float the Navigator over the canvas."
+msgstr ""
+
+#: includes/features.php:218
 msgid "Adds a detach button to the Navigator header so you can float the panel over the canvas. Drag it by its header, resize it from the bottom corner, and dock it again with the same button. Its position is remembered. Experimental: it floats the panel over the builder chrome, so a Builderius update could shift it."
 msgstr ""
 
-#: includes/features.php:206
+#: includes/features.php:227
 msgid "Right-click menu enhancements"
 msgstr ""
 
-#: includes/features.php:207
-msgid "Reorganises the Navigator right-click menu into one flat, logically grouped list, so everyday actions are one click away. Includes full keyboard support (arrow keys, Home/End, Escape) and keeps submenus only where an action branches (Wrap in…, Save to…). Also adds a right-click copy and remove menu to the class chips in the Styles editor."
-msgstr ""
-
-#: includes/features.php:214
-msgid "Wrap in… / Unwrap"
-msgstr ""
-
-#: includes/features.php:215
-msgid "Right-click an element to wrap it in a div, a template or a collection with template. Unwrap does the reverse: it moves the children up one level and removes the empty wrapper."
-msgstr ""
-
-#: includes/features.php:222
-msgid "Move & navigate elements"
-msgstr ""
-
-#: includes/features.php:223
-msgid "Adds Move up, Move down and Select parent to the right-click menu, so you can reorder an element among its siblings or step the selection up a level."
+#: includes/features.php:228
+msgid "A flatter, keyboard-friendly right-click menu."
 msgstr ""
 
 #: includes/features.php:229
-msgid "Inline rename"
+msgid "Reorganises the Navigator right-click menu into one flat, logically grouped list, so everyday actions are one click away. Includes full keyboard support (arrow keys, Home/End, Escape) and keeps submenus only where an action branches (Wrap in…, Save to…). Also adds a right-click copy and remove menu to the class chips in the Styles editor."
 msgstr ""
 
-#: includes/features.php:230
-msgid "Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag)."
+#: includes/features.php:236
+msgid "Wrap in… / Unwrap"
 msgstr ""
 
 #: includes/features.php:237
-msgid "Double-click to rename"
+msgid "Wrap elements in a div, template or collection - and unwrap."
 msgstr ""
 
 #: includes/features.php:238
-msgid "Double-click an element's Navigator row to rename it in place, without opening the right-click menu."
-msgstr ""
-
-#: includes/features.php:244
-msgid "Undo / redo add & delete"
+msgid "Right-click an element to wrap it in a div, a template or a collection with template. Unwrap does the reverse: it moves the children up one level and removes the empty wrapper."
 msgstr ""
 
 #: includes/features.php:245
-msgid "Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered."
+msgid "Move & navigate elements"
+msgstr ""
+
+#: includes/features.php:246
+msgid "Move up, move down and select parent in the right-click menu."
+msgstr ""
+
+#: includes/features.php:247
+msgid "Adds Move up, Move down and Select parent to the right-click menu, so you can reorder an element among its siblings or step the selection up a level."
+msgstr ""
+
+#: includes/features.php:253
+msgid "Inline rename"
+msgstr ""
+
+#: includes/features.php:254
+msgid "Rename an element directly on its Navigator row."
+msgstr ""
+
+#: includes/features.php:255
+msgid "Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag)."
 msgstr ""
 
 #: includes/features.php:262
-msgid "Rearrange component properties"
+msgid "Double-click to rename"
 msgstr ""
 
 #: includes/features.php:263
-msgid "Adds a rearrange button to a component's properties panel. Drag the properties, or use the arrow keys, to change their order; the new order is saved with the component."
+msgid "Double-click a row to rename it."
 msgstr ""
 
-#: includes/features.php:269
-msgid "HTML attribute helpers"
+#: includes/features.php:264
+msgid "Double-click an element's Navigator row to rename it in place, without opening the right-click menu."
 msgstr ""
 
 #: includes/features.php:270
-msgid "Opens a blank, ready-to-type row when an element has no HTML attributes yet (it is removed again if left empty), and suggests common attribute names such as id, role, aria-* and data-*."
+msgid "Undo / redo add & delete"
 msgstr ""
 
-#: includes/features.php:276
-msgid "Inserter keyboard navigation"
+#: includes/features.php:271
+msgid "Cmd/Ctrl+Z restores deleted elements and undoes adds."
 msgstr ""
 
-#: includes/features.php:277
-msgid "Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it."
+#: includes/features.php:272
+msgid "Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered."
 msgstr ""
 
-#: includes/features.php:283
-msgid "Accessible Builderius menu"
-msgstr ""
-
-#: includes/features.php:284
-msgid "Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button."
+#: includes/features.php:289
+msgid "Rearrange component properties"
 msgstr ""
 
 #: includes/features.php:290
-msgid "Element keyboard shortcuts"
+msgid "Drag or arrow-key reordering of component properties."
 msgstr ""
 
 #: includes/features.php:291
-msgid "Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired."
+msgid "Adds a rearrange button to a component's properties panel. Drag the properties, or use the arrow keys, to change their order; the new order is saved with the component."
+msgstr ""
+
+#: includes/features.php:297
+msgid "HTML attribute helpers"
+msgstr ""
+
+#: includes/features.php:298
+msgid "A ready-to-type attribute row plus common-name suggestions."
 msgstr ""
 
 #: includes/features.php:299
+msgid "Opens a blank, ready-to-type row when an element has no HTML attributes yet (it is removed again if left empty), and suggests common attribute names such as id, role, aria-* and data-*."
+msgstr ""
+
+#: includes/features.php:305
+msgid "Inserter keyboard navigation"
+msgstr ""
+
+#: includes/features.php:306
+msgid "Arrow-key navigation of the element Inserter."
+msgstr ""
+
+#: includes/features.php:307
+msgid "Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it."
+msgstr ""
+
+#: includes/features.php:313
+msgid "Accessible Builderius menu"
+msgstr ""
+
+#: includes/features.php:314
+msgid "Keyboard and screen-reader access for the Builderius menu."
+msgstr ""
+
+#: includes/features.php:315
+msgid "Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button."
+msgstr ""
+
+#: includes/features.php:321
+msgid "Element keyboard shortcuts"
+msgstr ""
+
+#: includes/features.php:322
+msgid "Block-editor-style shortcuts for the selected element."
+msgstr ""
+
+#: includes/features.php:323
+msgid "Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired."
+msgstr ""
+
+#: includes/features.php:331
 #: includes/i18n-builder.php:365
 #: includes/i18n-builder.php:408
 msgid "Command palette"
 msgstr ""
 
-#: includes/features.php:300
+#: includes/features.php:332
+msgid "A searchable command palette on Cmd/Ctrl+Shift+K."
+msgstr ""
+
+#: includes/features.php:333
 msgid "Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental."
 msgstr ""
 
-#: includes/features.php:310
+#: includes/features.php:343
 msgid "CSS code editor by default"
 msgstr ""
 
-#: includes/features.php:311
+#: includes/features.php:344
+msgid "Opens the Styles tab straight into the CSS code editor."
+msgstr ""
+
+#: includes/features.php:345
 msgid "Opens the Styles tab straight into the CSS code editor and keeps the Content and Styles tabs visible while you are there. (To widen the panel for more room, use the Resizable side panels feature.) Requires Builderius Pro: the CSS code editor is a Pro feature, so this stays off (and the CSS-mode icon is left in place) when Pro is inactive."
 msgstr ""
 
-#: includes/features.php:318
+#: includes/features.php:352
 msgid "CSS scope bar"
 msgstr ""
 
-#: includes/features.php:319
+#: includes/features.php:353
+msgid "Shows and switches where CSS edits are saved."
+msgstr ""
+
+#: includes/features.php:354
 msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Adds an “All CSS” button that jumps to the full stylesheet for the active scope (the same view as Selectors → All CSS) and highlights where the current selector’s rules sit within it. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features."
 msgstr ""
 
-#: includes/features.php:327
+#: includes/features.php:362
 #: includes/i18n-builder.php:67
 msgid "Auto-BEM"
 msgstr ""
 
-#: includes/features.php:328
+#: includes/features.php:363
+msgid "Suggested BEM class names for an element and its children."
+msgstr ""
+
+#: includes/features.php:364
 msgid "Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go."
 msgstr ""
 
-#: includes/features.php:336
+#: includes/features.php:372
 msgid "Hide the code minimap"
 msgstr ""
 
-#: includes/features.php:337
+#: includes/features.php:373
+msgid "Removes the code editor's minimap strip."
+msgstr ""
+
+#: includes/features.php:374
 msgid "Removes the minimap (the small code-overview strip on the right of the CSS code editor) and reclaims the width Monaco reserves for it, so long lines run to the edge of the panel. It switches the editor option off inside the builder's bundled Monaco; if a Builderius update ever changes that, it falls back to simply hiding the minimap from view."
 msgstr ""
 
-#: includes/features.php:344
+#: includes/features.php:381
 msgid "Tidy selector hint"
 msgstr ""
 
-#: includes/features.php:346
+#: includes/features.php:382
+msgid "A compact, dismissable hint under the CSS editor."
+msgstr ""
+
+#: includes/features.php:384
 #, php-format
 msgid "Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them)."
 msgstr ""
 
-#: includes/features.php:354
+#: includes/features.php:392
 msgid "Tooltips & accessible names"
 msgstr ""
 
-#: includes/features.php:355
+#: includes/features.php:393
+msgid "Tooltips and names for the unlabelled icon buttons."
+msgstr ""
+
+#: includes/features.php:394
 msgid "Adds tooltips and accessible names to around 25 icon-only builder buttons that ship without either."
 msgstr ""
 
-#: includes/features.php:361
+#: includes/features.php:400
 msgid "Keyboard shortcuts overlay"
 msgstr ""
 
-#: includes/features.php:362
+#: includes/features.php:401
+msgid "Press ? for a list of keyboard shortcuts."
+msgstr ""
+
+#: includes/features.php:402
 msgid "Press ? in the builder to see a list of keyboard shortcuts, both the native ones and those added by this plugin."
 msgstr ""
 
-#: includes/features.php:368
+#: includes/features.php:408
 msgid "Unsaved-changes marker"
 msgstr ""
 
-#: includes/features.php:369
+#: includes/features.php:409
+msgid "An unsaved-changes marker beside the Save button."
+msgstr ""
+
+#: includes/features.php:410
 msgid "Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload."
 msgstr ""
 
-#: includes/features.php:375
+#: includes/features.php:416
 msgid "Save with Cmd/Ctrl+S"
 msgstr ""
 
-#: includes/features.php:376
+#: includes/features.php:417
+msgid "Cmd/Ctrl+S saves the template."
+msgstr ""
+
+#: includes/features.php:418
 msgid "Saves the template with Cmd/Ctrl+S, the shortcut every editor trains into your fingers, instead of opening the browser’s save-page dialog. It works wherever you are in the builder, including the code editors, just like the WordPress block editor."
 msgstr ""
 
-#: includes/features.php:382
-msgid "Second-tab warning"
-msgstr ""
-
-#: includes/features.php:383
-msgid "Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab."
-msgstr ""
-
-#: includes/features.php:389
-msgid "Preview resize handles"
-msgstr ""
-
-#: includes/features.php:390
-msgid "Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Experimental: above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself — a Builderius update could affect that."
-msgstr ""
-
-#: includes/features.php:397
-msgid "Resizable side panels"
-msgstr ""
-
-#: includes/features.php:398
-msgid "Adds a drag handle to the inner edge of each side panel so you can set their width. The settings panel and the Navigator share one width, so resizing either resizes both. Your chosen width is remembered. Replaces the old one-shot \"widen settings panel\" button."
-msgstr ""
-
-#: includes/features.php:404
-msgid "Preview overlay contrast fix"
-msgstr ""
-
-#: includes/features.php:405
-msgid "Fixes the label colours on the preview's hover and selection overlays, so you can tell the two apart and the labels meet WCAG AA contrast."
-msgstr ""
-
-#: includes/features.php:422
-msgid "Default theme"
-msgstr ""
-
 #: includes/features.php:424
-msgid "Auto (follows the operating system)"
+msgid "Keyboard access for the Save options menu"
 msgstr ""
 
 #: includes/features.php:425
-msgid "Light"
+msgid "Opt-in keyboard access for the Save options menu."
 msgstr ""
 
 #: includes/features.php:426
-msgid "Dark"
+msgid "Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then."
 msgstr ""
 
-#: includes/features.php:432
-msgid "Default density"
+#: includes/features.php:433
+msgid "Second-tab warning"
 msgstr ""
 
 #: includes/features.php:434
-msgid "Comfortable"
+msgid "An admin-bar edit link plus a second-tab warning."
 msgstr ""
 
 #: includes/features.php:435
+msgid "Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab."
+msgstr ""
+
+#: includes/features.php:441
+msgid "Preview resize handles"
+msgstr ""
+
+#: includes/features.php:442
+msgid "Drag handles to resize the preview canvas."
+msgstr ""
+
+#: includes/features.php:443
+msgid "Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Experimental: above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself — a Builderius update could affect that."
+msgstr ""
+
+#: includes/features.php:450
+msgid "Resizable side panels"
+msgstr ""
+
+#: includes/features.php:451
+msgid "Drag to set the side panels' width."
+msgstr ""
+
+#: includes/features.php:452
+msgid "Adds a drag handle to the inner edge of each side panel so you can set their width. The settings panel and the Navigator share one width, so resizing either resizes both. Your chosen width is remembered. Replaces the old one-shot \"widen settings panel\" button."
+msgstr ""
+
+#: includes/features.php:458
+msgid "Preview overlay contrast fix"
+msgstr ""
+
+#: includes/features.php:459
+msgid "Readable labels on the canvas hover and selection overlays."
+msgstr ""
+
+#: includes/features.php:460
+msgid "Fixes the label colours on the preview's hover and selection overlays, so you can tell the two apart and the labels meet WCAG AA contrast."
+msgstr ""
+
+#: includes/features.php:477
+msgid "Default theme"
+msgstr ""
+
+#: includes/features.php:479
+msgid "Auto (follows the operating system)"
+msgstr ""
+
+#: includes/features.php:480
+msgid "Light"
+msgstr ""
+
+#: includes/features.php:481
+msgid "Dark"
+msgstr ""
+
+#: includes/features.php:487
+msgid "Default density"
+msgstr ""
+
+#: includes/features.php:489
+msgid "Comfortable"
+msgstr ""
+
+#: includes/features.php:490
 msgid "Compact"
 msgstr ""
 
@@ -1625,72 +1821,78 @@ msgstr ""
 msgid "Builder Enhance"
 msgstr ""
 
-#: includes/settings-page.php:114
+#: includes/settings-page.php:120
 msgid "Pro"
 msgstr ""
 
-#: includes/settings-page.php:114
+#: includes/settings-page.php:120
 msgid ", requires Builderius Pro"
 msgstr ""
 
-#: includes/settings-page.php:117
+#: includes/settings-page.php:123
 msgid "Experimental"
 msgstr ""
 
-#: includes/settings-page.php:117
+#: includes/settings-page.php:123
 msgid ", experimental feature, off by default"
 msgstr ""
 
-#: includes/settings-page.php:123
+#. translators: %s: feature title.
+#: includes/settings-page.php:132
+#, php-format
+msgid "More about %s"
+msgstr ""
+
+#: includes/settings-page.php:148
 msgid "Builderius Pro isn’t active, so this feature stays off. Activate Builderius Pro to use it."
 msgstr ""
 
 #. translators: %s: link to the author's YouTube channel.
-#: includes/settings-page.php:182
+#: includes/settings-page.php:207
 #, php-format
 msgid "Daveden Builder Enhancements is a set of quality-of-life tweaks for the Builderius builder by %s: changes the community would like to see in the builder itself, each behind its own toggle."
 msgstr ""
 
-#: includes/settings-page.php:188
+#: includes/settings-page.php:213
 msgid "Everything here changes only the builder interface: nothing changes on the front end of the site, and switching a toggle off (or deactivating the plugin) leaves your templates exactly as they were. Each tweak is intended to be temporary; as native equivalents land in core Builderius, the corresponding toggles will be retired."
 msgstr ""
 
 #. translators: %s: plugin version number.
-#: includes/settings-page.php:194
+#: includes/settings-page.php:219
 #, php-format
 msgid "Version %s"
 msgstr ""
 
-#: includes/settings-page.php:200
+#: includes/settings-page.php:225
 msgid "GitHub repository"
 msgstr ""
 
-#: includes/settings-page.php:204
+#: includes/settings-page.php:229
 msgid "Daveden on YouTube"
 msgstr ""
 
-#: includes/settings-page.php:210
+#: includes/settings-page.php:235
 msgid "Introduction to Daveden Builder Enhancements (YouTube video)"
 msgstr ""
 
-#: includes/settings-page.php:216
+#: includes/settings-page.php:241
 msgid "Introduction to the plugin on the Daveden YouTube channel."
 msgstr ""
 
-#: includes/settings-page.php:218
+#: includes/settings-page.php:243
 msgid "Enabled features"
 msgstr ""
 
 #. translators: 1: enabled feature count, 2: total feature count.
-#: includes/settings-page.php:242
+#: includes/settings-page.php:267
 #, php-format
 msgid "%1$d of %2$d enabled"
 msgstr ""
 
-#: includes/settings-page.php:268
+#: includes/settings-page.php:293
 msgid "Enhancements for the Builderius builder UI. Each feature can be switched off independently; changes apply the next time the builder loads."
 msgstr ""
 
-#: includes/settings-page.php:302
+#: includes/settings-page.php:327
 msgid "Save changes"
 msgstr ""
