@@ -33,11 +33,19 @@ A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
 
 = 1.12.3 =
-A hotfix for the tree context menu's injected actions.
+Hotfixes for the tree context menu's actions and the light-theme toasts.
 * Fixed: choosing any of the plugin's context-menu actions (Auto-BEM,
   Rename, Reset label, Wrap in, Expand children and the rest) did nothing
   and left the menu open — a 1.12.0 refactor made the shared menu-close
   helper call itself. The helper now closes the menu again.
+* Fixed: Cut from the context menu did nothing, or occasionally pasted a
+  stray copy of the element. Driving the native menu straight after the
+  visible one could pick up the old, still-open dialog, where the shortcut
+  hints break the item match and a re-render can swap rows mid-click. The
+  driver now waits for the menu to fully close first.
+* Fixed: in the light theme, the notification toasts ("Template saved",
+  "Copied" and so on) drew almost-black text on a black card; the card now
+  uses the light theme's surface. The dark theme is unchanged.
 
 = 1.12.2 =
 A multisite activation fix, two favourites bar repairs, and screen-reader
