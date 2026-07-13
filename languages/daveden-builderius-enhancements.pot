@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-13T00:03:31+00:00\n"
+"POT-Creation-Date: 2026-07-13T09:35:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -42,15 +42,15 @@ msgstr ""
 msgid "https://daveden.co.uk"
 msgstr ""
 
-#: daveden-builderius-enhancements.php:133
+#: daveden-builderius-enhancements.php:149
 msgid "Daveden Builder Enhancements is a companion to Builderius and stays dormant until Builderius is active. Please activate Builderius to use its enhancements."
 msgstr ""
 
-#: daveden-builderius-enhancements.php:162
+#: daveden-builderius-enhancements.php:178
 msgid "Daveden Builder Enhancements requires the Builderius plugin. Please install and activate Builderius first, then activate this plugin."
 msgstr ""
 
-#: daveden-builderius-enhancements.php:166
+#: daveden-builderius-enhancements.php:182
 msgid "Builderius required"
 msgstr ""
 
@@ -81,8 +81,9 @@ msgid "Appearance"
 msgstr ""
 
 #: includes/features.php:24
-#: includes/i18n-builder.php:281
-#: includes/i18n-builder.php:359
+#: includes/i18n-builder.php:273
+#: includes/i18n-builder.php:289
+#: includes/i18n-builder.php:367
 msgid "Navigator"
 msgstr ""
 
@@ -215,7 +216,7 @@ msgid "Makes the bottom tool bar one Tab stop with arrow keys."
 msgstr ""
 
 #: includes/features.php:125
-msgid "Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list."
+msgid "Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled group, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list."
 msgstr ""
 
 #: includes/features.php:131
@@ -254,444 +255,456 @@ msgstr ""
 msgid "Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel's Content / Styles tabs and the Navigator's Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last)."
 msgstr ""
 
+#: includes/features.php:155
+msgid "Screen-reader landmarks"
+msgstr ""
+
+#: includes/features.php:156
+msgid "Named landmark regions for each part of the builder."
+msgstr ""
+
 #: includes/features.php:157
-msgid "HTML tag badges"
-msgstr ""
-
-#: includes/features.php:158
-msgid "Shows each element's HTML tag in the Navigator."
-msgstr ""
-
-#: includes/features.php:159
-msgid "Shows each element's HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class."
+msgid "Marks each part of the builder as a named landmark region for screen readers: the top toolbar, the element library / element settings panel, the canvas, the Navigator and the footer bar. You can then jump straight to a section from the screen reader's landmark list or with its region-jump keys, the way the WordPress block editor's regions work."
 msgstr ""
 
 #: includes/features.php:165
-msgid "Tidier Navigator icons"
+msgid "HTML tag badges"
 msgstr ""
 
 #: includes/features.php:166
-msgid "Hides repeated Navigator icons, keeping the meaningful ones."
+msgid "Shows each element's HTML tag in the Navigator."
 msgstr ""
 
 #: includes/features.php:167
-msgid "Hides the repeated element-type icons in the Navigator, keeping only the ones that carry meaning (Collections and Templates)."
+msgid "Shows each element's HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class."
 msgstr ""
 
 #: includes/features.php:173
-msgid "Collapse & expand buttons"
+msgid "Tidier Navigator icons"
 msgstr ""
 
 #: includes/features.php:174
-msgid "One-click expand or collapse of the whole tree."
+msgid "Hides repeated Navigator icons, keeping the meaningful ones."
 msgstr ""
 
 #: includes/features.php:175
-msgid "Adds two buttons to the Navigator header: one expands every row, the other collapses the tree down to its top-level sections."
+msgid "Hides the repeated element-type icons in the Navigator, keeping only the ones that carry meaning (Collections and Templates)."
+msgstr ""
+
+#: includes/features.php:181
+msgid "Collapse & expand buttons"
 msgstr ""
 
 #: includes/features.php:182
-msgid "Navigator search"
+msgid "One-click expand or collapse of the whole tree."
 msgstr ""
 
 #: includes/features.php:183
-msgid "A filter box for the Navigator tree."
+msgid "Adds two buttons to the Navigator header: one expands every row, the other collapses the tree down to its top-level sections."
 msgstr ""
 
-#: includes/features.php:184
-msgid "Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type."
+#: includes/features.php:190
+msgid "Navigator search"
 msgstr ""
 
 #: includes/features.php:191
-#: includes/i18n-builder.php:302
-msgid "Rearrange favourites"
+msgid "A filter box for the Navigator tree."
 msgstr ""
 
 #: includes/features.php:192
-msgid "Drag or arrow-key reordering of the favourites bar."
+msgid "Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type."
 msgstr ""
 
-#: includes/features.php:193
-msgid "Adds a rearrange button to the favourites bar. Drag the icons, or use the arrow keys, to put them in your preferred order; the order is remembered in your browser."
+#: includes/features.php:199
+#: includes/i18n-builder.php:310
+msgid "Rearrange favourites"
 msgstr ""
 
 #: includes/features.php:200
-msgid "Follow selection in the tree"
+msgid "Drag or arrow-key reordering of the favourites bar."
 msgstr ""
 
 #: includes/features.php:201
-msgid "The tree opens and scrolls to whatever you select."
-msgstr ""
-
-#: includes/features.php:202
-msgid "When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree."
+msgid "Adds a rearrange button to the favourites bar. Drag the icons, or use the arrow keys, to put them in your preferred order; the order is remembered in your browser."
 msgstr ""
 
 #: includes/features.php:208
-msgid "Navigator keyboard tree"
+msgid "Follow selection in the tree"
 msgstr ""
 
 #: includes/features.php:209
-msgid "Full arrow-key navigation of the tree, WordPress style."
+msgid "The tree opens and scrolls to whatever you select."
 msgstr ""
 
 #: includes/features.php:210
-msgid "Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position."
+msgid "When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree."
 msgstr ""
 
 #: includes/features.php:216
-msgid "Detachable Navigator"
+msgid "Navigator keyboard tree"
 msgstr ""
 
 #: includes/features.php:217
-msgid "Float the Navigator over the canvas."
+msgid "Full arrow-key navigation of the tree, WordPress style."
 msgstr ""
 
 #: includes/features.php:218
+msgid "Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position."
+msgstr ""
+
+#: includes/features.php:224
+msgid "Detachable Navigator"
+msgstr ""
+
+#: includes/features.php:225
+msgid "Float the Navigator over the canvas."
+msgstr ""
+
+#: includes/features.php:226
 msgid "Adds a detach button to the Navigator header so you can float the panel over the canvas. Drag it by its header, resize it from the bottom corner, and dock it again with the same button. Its position is remembered. Experimental: it floats the panel over the builder chrome, so a Builderius update could shift it."
 msgstr ""
 
-#: includes/features.php:227
+#: includes/features.php:235
 msgid "Right-click menu enhancements"
 msgstr ""
 
-#: includes/features.php:228
+#: includes/features.php:236
 msgid "A flatter, keyboard-friendly right-click menu."
 msgstr ""
 
-#: includes/features.php:229
+#: includes/features.php:237
 msgid "Reorganises the Navigator right-click menu into one flat, logically grouped list, so everyday actions are one click away. Includes full keyboard support (arrow keys, Home/End, Escape) and keeps submenus only where an action branches (Wrap in…, Save to…). Also adds a right-click copy and remove menu to the class chips in the Styles editor."
 msgstr ""
 
-#: includes/features.php:236
+#: includes/features.php:244
 msgid "Wrap in… / Unwrap"
 msgstr ""
 
-#: includes/features.php:237
+#: includes/features.php:245
 msgid "Wrap elements in a div, template or collection - and unwrap."
 msgstr ""
 
-#: includes/features.php:238
+#: includes/features.php:246
 msgid "Right-click an element to wrap it in a div, a template or a collection with template. Unwrap does the reverse: it moves the children up one level and removes the empty wrapper."
 msgstr ""
 
-#: includes/features.php:245
+#: includes/features.php:253
 msgid "Move & navigate elements"
 msgstr ""
 
-#: includes/features.php:246
+#: includes/features.php:254
 msgid "Move up, move down and select parent in the right-click menu."
 msgstr ""
 
-#: includes/features.php:247
+#: includes/features.php:255
 msgid "Adds Move up, Move down and Select parent to the right-click menu, so you can reorder an element among its siblings or step the selection up a level."
 msgstr ""
 
-#: includes/features.php:253
+#: includes/features.php:261
 msgid "Inline rename"
 msgstr ""
 
-#: includes/features.php:254
+#: includes/features.php:262
 msgid "Rename an element directly on its Navigator row."
 msgstr ""
 
-#: includes/features.php:255
+#: includes/features.php:263
 msgid "Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag)."
 msgstr ""
 
-#: includes/features.php:262
+#: includes/features.php:270
 msgid "Double-click to rename"
 msgstr ""
 
-#: includes/features.php:263
+#: includes/features.php:271
 msgid "Double-click a row to rename it."
 msgstr ""
 
-#: includes/features.php:264
+#: includes/features.php:272
 msgid "Double-click an element's Navigator row to rename it in place, without opening the right-click menu."
 msgstr ""
 
-#: includes/features.php:270
+#: includes/features.php:278
 msgid "Undo / redo add & delete"
 msgstr ""
 
-#: includes/features.php:271
+#: includes/features.php:279
 msgid "Cmd/Ctrl+Z restores deleted elements and undoes adds."
 msgstr ""
 
-#: includes/features.php:272
+#: includes/features.php:280
 msgid "Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered."
 msgstr ""
 
-#: includes/features.php:289
+#: includes/features.php:297
 msgid "Rearrange component properties"
 msgstr ""
 
-#: includes/features.php:290
+#: includes/features.php:298
 msgid "Drag or arrow-key reordering of component properties."
 msgstr ""
 
-#: includes/features.php:291
+#: includes/features.php:299
 msgid "Adds a rearrange button to a component's properties panel. Drag the properties, or use the arrow keys, to change their order; the new order is saved with the component."
 msgstr ""
 
-#: includes/features.php:297
+#: includes/features.php:305
 msgid "HTML attribute helpers"
 msgstr ""
 
-#: includes/features.php:298
+#: includes/features.php:306
 msgid "A ready-to-type attribute row plus common-name suggestions."
 msgstr ""
 
-#: includes/features.php:299
+#: includes/features.php:307
 msgid "Opens a blank, ready-to-type row when an element has no HTML attributes yet (it is removed again if left empty), and suggests common attribute names such as id, role, aria-* and data-*."
 msgstr ""
 
-#: includes/features.php:305
+#: includes/features.php:313
 msgid "Inserter keyboard navigation"
 msgstr ""
 
-#: includes/features.php:306
+#: includes/features.php:314
 msgid "Arrow-key navigation of the element Inserter."
 msgstr ""
 
-#: includes/features.php:307
+#: includes/features.php:315
 msgid "Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it."
 msgstr ""
 
-#: includes/features.php:313
+#: includes/features.php:321
 msgid "Accessible Builderius menu"
 msgstr ""
 
-#: includes/features.php:314
+#: includes/features.php:322
 msgid "Keyboard and screen-reader access for the Builderius menu."
 msgstr ""
 
-#: includes/features.php:315
+#: includes/features.php:323
 msgid "Makes the Builderius menu (the sidebar of templates, pages, components and admin links) usable from the keyboard and a screen reader. The menu button announces that it opens the menu, focus moves into it when it opens, and it is exposed as a tree: the arrow keys move between the collapsible category headings and their items, the right and left arrows open and close a category, Enter or Space toggles a heading or opens an item, Home and End jump to the ends, and Escape (or the panel’s Close button) closes the menu and returns focus to the button."
 msgstr ""
 
-#: includes/features.php:321
+#: includes/features.php:329
 msgid "Element keyboard shortcuts"
 msgstr ""
 
-#: includes/features.php:322
+#: includes/features.php:330
 msgid "Block-editor-style shortcuts for the selected element."
 msgstr ""
 
-#: includes/features.php:323
+#: includes/features.php:331
 msgid "Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired."
 msgstr ""
 
-#: includes/features.php:331
-#: includes/i18n-builder.php:365
-#: includes/i18n-builder.php:408
+#: includes/features.php:339
+#: includes/i18n-builder.php:373
+#: includes/i18n-builder.php:416
 msgid "Command palette"
 msgstr ""
 
-#: includes/features.php:332
+#: includes/features.php:340
 msgid "A searchable command palette on Cmd/Ctrl+Shift+K."
 msgstr ""
 
-#: includes/features.php:333
+#: includes/features.php:341
 msgid "Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental."
 msgstr ""
 
-#: includes/features.php:343
+#: includes/features.php:351
 msgid "CSS code editor by default"
 msgstr ""
 
-#: includes/features.php:344
+#: includes/features.php:352
 msgid "Opens the Styles tab straight into the CSS code editor."
 msgstr ""
 
-#: includes/features.php:345
+#: includes/features.php:353
 msgid "Opens the Styles tab straight into the CSS code editor and keeps the Content and Styles tabs visible while you are there. (To widen the panel for more room, use the Resizable side panels feature.) Requires Builderius Pro: the CSS code editor is a Pro feature, so this stays off (and the CSS-mode icon is left in place) when Pro is inactive."
 msgstr ""
 
-#: includes/features.php:352
+#: includes/features.php:360
 msgid "CSS scope bar"
 msgstr ""
 
-#: includes/features.php:353
+#: includes/features.php:361
 msgid "Shows and switches where CSS edits are saved."
 msgstr ""
 
-#: includes/features.php:354
+#: includes/features.php:362
 msgid "Shows where your CSS edits will be saved (local, global or template) and adds an instant Global/Template switch, directly in the Styles code editor. Also keeps the editor honest: it shows only the active scope’s rules for the selected class, so global and template CSS never look merged, and it hides the other scope’s rules (with a one-click switch) instead of letting you fork them by mistake. Adds an “All CSS” button that jumps to the full stylesheet for the active scope (the same view as Selectors → All CSS) and highlights where the current selector’s rules sit within it. Requires Builderius Pro: global and template CSS scopes, and the code editor it sits in, are Pro features."
 msgstr ""
 
-#: includes/features.php:362
+#: includes/features.php:370
 #: includes/i18n-builder.php:67
 msgid "Auto-BEM"
 msgstr ""
 
-#: includes/features.php:363
+#: includes/features.php:371
 msgid "Suggested BEM class names for an element and its children."
 msgstr ""
 
-#: includes/features.php:364
+#: includes/features.php:372
 msgid "Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go."
 msgstr ""
 
-#: includes/features.php:372
+#: includes/features.php:380
 msgid "Hide the code minimap"
 msgstr ""
 
-#: includes/features.php:373
+#: includes/features.php:381
 msgid "Removes the code editor's minimap strip."
 msgstr ""
 
-#: includes/features.php:374
+#: includes/features.php:382
 msgid "Removes the minimap (the small code-overview strip on the right of the CSS code editor) and reclaims the width Monaco reserves for it, so long lines run to the edge of the panel. It switches the editor option off inside the builder's bundled Monaco; if a Builderius update ever changes that, it falls back to simply hiding the minimap from view."
 msgstr ""
 
-#: includes/features.php:381
+#: includes/features.php:389
 msgid "Tidy selector hint"
 msgstr ""
 
-#: includes/features.php:382
+#: includes/features.php:390
 msgid "A compact, dismissable hint under the CSS editor."
 msgstr ""
 
-#: includes/features.php:384
+#: includes/features.php:392
 #, php-format
 msgid "Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them)."
 msgstr ""
 
-#: includes/features.php:392
+#: includes/features.php:400
 msgid "Tooltips & accessible names"
 msgstr ""
 
-#: includes/features.php:393
+#: includes/features.php:401
 msgid "Tooltips and names for the unlabelled icon buttons."
 msgstr ""
 
-#: includes/features.php:394
+#: includes/features.php:402
 msgid "Adds tooltips and accessible names to around 25 icon-only builder buttons that ship without either."
 msgstr ""
 
-#: includes/features.php:400
+#: includes/features.php:408
 msgid "Keyboard shortcuts overlay"
 msgstr ""
 
-#: includes/features.php:401
+#: includes/features.php:409
 msgid "Press ? for a list of keyboard shortcuts."
 msgstr ""
 
-#: includes/features.php:402
+#: includes/features.php:410
 msgid "Press ? in the builder to see a list of keyboard shortcuts, both the native ones and those added by this plugin."
 msgstr ""
 
-#: includes/features.php:408
+#: includes/features.php:416
 msgid "Unsaved-changes marker"
 msgstr ""
 
-#: includes/features.php:409
+#: includes/features.php:417
 msgid "An unsaved-changes marker beside the Save button."
 msgstr ""
 
-#: includes/features.php:410
+#: includes/features.php:418
 msgid "Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload."
 msgstr ""
 
-#: includes/features.php:416
+#: includes/features.php:424
 msgid "Save with Cmd/Ctrl+S"
 msgstr ""
 
-#: includes/features.php:417
+#: includes/features.php:425
 msgid "Cmd/Ctrl+S saves the template."
 msgstr ""
 
-#: includes/features.php:418
+#: includes/features.php:426
 msgid "Saves the template with Cmd/Ctrl+S, the shortcut every editor trains into your fingers, instead of opening the browser’s save-page dialog. It works wherever you are in the builder, including the code editors, just like the WordPress block editor."
 msgstr ""
 
-#: includes/features.php:424
+#: includes/features.php:432
 msgid "Keyboard access for the Save options menu"
 msgstr ""
 
-#: includes/features.php:425
+#: includes/features.php:433
 msgid "Opt-in keyboard access for the Save options menu."
 msgstr ""
 
-#: includes/features.php:426
+#: includes/features.php:434
 msgid "Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then."
 msgstr ""
 
-#: includes/features.php:433
+#: includes/features.php:441
 msgid "Second-tab warning"
 msgstr ""
 
-#: includes/features.php:434
+#: includes/features.php:442
 msgid "An admin-bar edit link plus a second-tab warning."
 msgstr ""
 
-#: includes/features.php:435
+#: includes/features.php:443
 msgid "Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab."
 msgstr ""
 
-#: includes/features.php:441
+#: includes/features.php:449
 msgid "Preview resize handles"
 msgstr ""
 
-#: includes/features.php:442
+#: includes/features.php:450
 msgid "Drag handles to resize the preview canvas."
 msgstr ""
 
-#: includes/features.php:443
+#: includes/features.php:451
 msgid "Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Experimental: above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself — a Builderius update could affect that."
 msgstr ""
 
-#: includes/features.php:450
+#: includes/features.php:458
 msgid "Resizable side panels"
 msgstr ""
 
-#: includes/features.php:451
+#: includes/features.php:459
 msgid "Drag to set the side panels' width."
 msgstr ""
 
-#: includes/features.php:452
+#: includes/features.php:460
 msgid "Adds a drag handle to the inner edge of each side panel so you can set their width. The settings panel and the Navigator share one width, so resizing either resizes both. Your chosen width is remembered. Replaces the old one-shot \"widen settings panel\" button."
 msgstr ""
 
-#: includes/features.php:458
+#: includes/features.php:466
 msgid "Preview overlay contrast fix"
 msgstr ""
 
-#: includes/features.php:459
+#: includes/features.php:467
 msgid "Readable labels on the canvas hover and selection overlays."
 msgstr ""
 
-#: includes/features.php:460
+#: includes/features.php:468
 msgid "Fixes the label colours on the preview's hover and selection overlays, so you can tell the two apart and the labels meet WCAG AA contrast."
 msgstr ""
 
-#: includes/features.php:477
+#: includes/features.php:485
 msgid "Default theme"
 msgstr ""
 
-#: includes/features.php:479
+#: includes/features.php:487
 msgid "Auto (follows the operating system)"
 msgstr ""
 
-#: includes/features.php:480
+#: includes/features.php:488
 msgid "Light"
 msgstr ""
 
-#: includes/features.php:481
+#: includes/features.php:489
 msgid "Dark"
 msgstr ""
 
-#: includes/features.php:487
+#: includes/features.php:495
 msgid "Default density"
 msgstr ""
 
-#: includes/features.php:489
+#: includes/features.php:497
 msgid "Comfortable"
 msgstr ""
 
-#: includes/features.php:490
+#: includes/features.php:498
 msgid "Compact"
 msgstr ""
 
@@ -769,7 +782,7 @@ msgid "Unwrapped %s elements"
 msgstr ""
 
 #: includes/i18n-builder.php:60
-#: includes/i18n-builder.php:355
+#: includes/i18n-builder.php:363
 msgid "Rename"
 msgstr ""
 
@@ -788,7 +801,7 @@ msgid "Label reset to <%s>"
 msgstr ""
 
 #: includes/i18n-builder.php:68
-#: includes/i18n-builder.php:372
+#: includes/i18n-builder.php:380
 msgid "Auto-BEM…"
 msgstr ""
 
@@ -1391,7 +1404,7 @@ msgid "Choose an agent"
 msgstr ""
 
 #: includes/i18n-builder.php:258
-#: includes/i18n-builder.php:342
+#: includes/i18n-builder.php:350
 msgid "Filter elements…"
 msgstr ""
 
@@ -1420,399 +1433,419 @@ msgid "First / last element"
 msgstr ""
 
 #: includes/i18n-builder.php:269
-msgid "Unsaved"
+msgid "Top toolbar"
+msgstr ""
+
+#: includes/i18n-builder.php:270
+msgid "Element library"
+msgstr ""
+
+#: includes/i18n-builder.php:271
+msgid "Element settings"
 msgstr ""
 
 #: includes/i18n-builder.php:272
+msgid "Canvas"
+msgstr ""
+
+#: includes/i18n-builder.php:274
+msgid "Footer bar"
+msgstr ""
+
+#: includes/i18n-builder.php:277
+msgid "Unsaved"
+msgstr ""
+
+#: includes/i18n-builder.php:280
 msgid "Save the template"
 msgstr ""
 
 #. translators: %s: CSS class name
-#: includes/i18n-builder.php:276
+#: includes/i18n-builder.php:284
 #, php-format
 msgid "Actions for %s"
 msgstr ""
 
-#: includes/i18n-builder.php:279
+#: includes/i18n-builder.php:287
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: includes/i18n-builder.php:280
+#: includes/i18n-builder.php:288
 msgid "General"
 msgstr ""
 
-#: includes/i18n-builder.php:282
+#: includes/i18n-builder.php:290
 msgid "Context menu"
 msgstr ""
 
-#: includes/i18n-builder.php:283
+#: includes/i18n-builder.php:291
 msgid "Open this shortcuts overlay"
 msgstr ""
 
-#: includes/i18n-builder.php:284
+#: includes/i18n-builder.php:292
 msgid "Close menus and dialogs; clear the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:285
+#: includes/i18n-builder.php:293
 msgid "Remove the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:286
+#: includes/i18n-builder.php:294
 msgid "Copy / paste the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:287
+#: includes/i18n-builder.php:295
 msgid "Restore the last deleted element"
 msgstr ""
 
-#: includes/i18n-builder.php:288
+#: includes/i18n-builder.php:296
 msgid "Redo the delete"
 msgstr ""
 
-#: includes/i18n-builder.php:289
+#: includes/i18n-builder.php:297
 msgid "Add or remove a row from the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:290
+#: includes/i18n-builder.php:298
 msgid "Select a range of rows"
 msgstr ""
 
-#: includes/i18n-builder.php:291
+#: includes/i18n-builder.php:299
 msgid "Open the context menu on the focused row"
 msgstr ""
 
-#: includes/i18n-builder.php:292
+#: includes/i18n-builder.php:300
 msgid "Move between items (wraps)"
 msgstr ""
 
-#: includes/i18n-builder.php:293
+#: includes/i18n-builder.php:301
 msgid "First / last item"
 msgstr ""
 
-#: includes/i18n-builder.php:294
+#: includes/i18n-builder.php:302
 msgid "Activate an item or open its submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:295
+#: includes/i18n-builder.php:303
 msgid "Open / close a submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:298
+#: includes/i18n-builder.php:306
 msgid "Resize preview canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:299
+#: includes/i18n-builder.php:307
 msgid "Resize panels"
 msgstr ""
 
-#: includes/i18n-builder.php:303
+#: includes/i18n-builder.php:311
 msgid "Rearrange properties"
 msgstr ""
 
-#: includes/i18n-builder.php:304
+#: includes/i18n-builder.php:312
 msgid "Rearrange"
 msgstr ""
 
 #. translators: %s: favourite element name.
-#: includes/i18n-builder.php:306
+#: includes/i18n-builder.php:314
 #, php-format
 msgid "%s (press up or down arrow to move, Escape to finish)"
 msgstr ""
 
-#: includes/i18n-builder.php:307
+#: includes/i18n-builder.php:315
 msgid "Rearrange mode on: drag the icons, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:308
+#: includes/i18n-builder.php:316
 msgid "Rearrange mode on: drag a property, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:309
+#: includes/i18n-builder.php:317
 msgid "Rearrange mode off: order saved"
 msgstr ""
 
 #. translators: 1: item name, 2: new position, 3: total items.
-#: includes/i18n-builder.php:311
+#: includes/i18n-builder.php:319
 #, php-format
 msgid "Moved %1$s to position %2$s of %3$s"
 msgstr ""
 
-#: includes/i18n-builder.php:312
+#: includes/i18n-builder.php:320
 msgid "Order changed on screen, but it could not be saved to the component"
 msgstr ""
 
-#: includes/i18n-builder.php:313
+#: includes/i18n-builder.php:321
 msgid "Property"
 msgstr ""
 
 #. translators: %s: number of elements moved.
-#: includes/i18n-builder.php:315
+#: includes/i18n-builder.php:323
 #, php-format
 msgid "Moved %s elements together"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:317
+#: includes/i18n-builder.php:325
 #, php-format
 msgid "Moved %1$s element (%2$s could not follow)"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:319
+#: includes/i18n-builder.php:327
 #, php-format
 msgid "Moved %1$s elements (%2$s could not follow)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:323
+#: includes/i18n-builder.php:331
 #, php-format
 msgid "Copy %s"
 msgstr ""
 
 #. translators: %s: class name without the leading dot.
-#: includes/i18n-builder.php:325
+#: includes/i18n-builder.php:333
 #, php-format
 msgid "Copy %s (no dot)"
 msgstr ""
 
 #. translators: %s: number of classes.
-#: includes/i18n-builder.php:327
+#: includes/i18n-builder.php:335
 #, php-format
 msgid "Copy all classes (%s)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:329
+#: includes/i18n-builder.php:337
 #, php-format
 msgid "Remove %s from element"
 msgstr ""
 
 #. translators: %s: the copied text.
-#: includes/i18n-builder.php:331
+#: includes/i18n-builder.php:339
 #, php-format
 msgid "Copied %s"
 msgstr ""
 
-#: includes/i18n-builder.php:332
+#: includes/i18n-builder.php:340
 msgid "Copy failed: clipboard unavailable"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:334
+#: includes/i18n-builder.php:342
 #, php-format
 msgid "Removed %s"
 msgstr ""
 
-#: includes/i18n-builder.php:337
-#: includes/i18n-builder.php:352
-#: includes/i18n-builder.php:375
+#: includes/i18n-builder.php:345
+#: includes/i18n-builder.php:360
+#: includes/i18n-builder.php:383
 msgid "Cut"
 msgstr ""
 
-#: includes/i18n-builder.php:338
-#: includes/i18n-builder.php:340
+#: includes/i18n-builder.php:346
+#: includes/i18n-builder.php:348
 msgid "Add element before"
 msgstr ""
 
-#: includes/i18n-builder.php:339
-#: includes/i18n-builder.php:341
+#: includes/i18n-builder.php:347
+#: includes/i18n-builder.php:349
 msgid "Add element after"
 msgstr ""
 
-#: includes/i18n-builder.php:343
+#: includes/i18n-builder.php:351
 msgid "No matching element"
 msgstr ""
 
-#: includes/i18n-builder.php:344
+#: includes/i18n-builder.php:352
 msgid "Duplicated element"
 msgstr ""
 
-#: includes/i18n-builder.php:345
+#: includes/i18n-builder.php:353
 msgid "Cut element"
 msgstr ""
 
 #. translators: %s: element/tag name just inserted.
-#: includes/i18n-builder.php:347
+#: includes/i18n-builder.php:355
 #, php-format
 msgid "Added %s"
 msgstr ""
 
-#: includes/i18n-builder.php:348
+#: includes/i18n-builder.php:356
 msgid "Select an element first"
 msgstr ""
 
-#: includes/i18n-builder.php:350
+#: includes/i18n-builder.php:358
 msgid "Selected element"
 msgstr ""
 
-#: includes/i18n-builder.php:351
-#: includes/i18n-builder.php:373
+#: includes/i18n-builder.php:359
+#: includes/i18n-builder.php:381
 msgid "Duplicate"
 msgstr ""
 
-#: includes/i18n-builder.php:353
+#: includes/i18n-builder.php:361
 msgid "Add an element before"
 msgstr ""
 
-#: includes/i18n-builder.php:354
+#: includes/i18n-builder.php:362
 msgid "Add an element after"
 msgstr ""
 
-#: includes/i18n-builder.php:356
+#: includes/i18n-builder.php:364
 msgid "Copy / paste / delete the element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:358
+#: includes/i18n-builder.php:366
 msgid "Move to area"
 msgstr ""
 
-#: includes/i18n-builder.php:360
+#: includes/i18n-builder.php:368
 msgid "Settings panel"
 msgstr ""
 
-#: includes/i18n-builder.php:361
+#: includes/i18n-builder.php:369
 msgid "Canvas / preview"
 msgstr ""
 
-#: includes/i18n-builder.php:362
+#: includes/i18n-builder.php:370
 msgid "Insert elements"
 msgstr ""
 
-#: includes/i18n-builder.php:366
+#: includes/i18n-builder.php:374
 msgid "Search commands…"
 msgstr ""
 
-#: includes/i18n-builder.php:367
+#: includes/i18n-builder.php:375
 msgid "No element selected — element commands are hidden"
 msgstr ""
 
-#: includes/i18n-builder.php:368
+#: includes/i18n-builder.php:376
 msgid "Add class…"
 msgstr ""
 
-#: includes/i18n-builder.php:369
+#: includes/i18n-builder.php:377
 msgid "Add attribute…"
 msgstr ""
 
-#: includes/i18n-builder.php:370
+#: includes/i18n-builder.php:378
 msgid "Add element (Emmet)…"
 msgstr ""
 
-#: includes/i18n-builder.php:371
+#: includes/i18n-builder.php:379
 msgid "Rename…"
 msgstr ""
 
-#: includes/i18n-builder.php:374
+#: includes/i18n-builder.php:382
 msgid "Copy"
 msgstr ""
 
-#: includes/i18n-builder.php:376
+#: includes/i18n-builder.php:384
 msgid "Delete"
 msgstr ""
 
-#: includes/i18n-builder.php:377
+#: includes/i18n-builder.php:385
 msgid "Wrap in div"
 msgstr ""
 
-#: includes/i18n-builder.php:378
+#: includes/i18n-builder.php:386
 msgid "Wrap in figure"
 msgstr ""
 
-#: includes/i18n-builder.php:379
+#: includes/i18n-builder.php:387
 msgid "Wrap in template"
 msgstr ""
 
-#: includes/i18n-builder.php:380
+#: includes/i18n-builder.php:388
 msgid "Wrap in collection"
 msgstr ""
 
-#: includes/i18n-builder.php:382
+#: includes/i18n-builder.php:390
 msgid "Add to element"
 msgstr ""
 
-#: includes/i18n-builder.php:383
+#: includes/i18n-builder.php:391
 msgid "Structure"
 msgstr ""
 
-#: includes/i18n-builder.php:384
+#: includes/i18n-builder.php:392
 msgid "Element"
 msgstr ""
 
-#: includes/i18n-builder.php:385
+#: includes/i18n-builder.php:393
 msgid "Go to"
 msgstr ""
 
-#: includes/i18n-builder.php:387
+#: includes/i18n-builder.php:395
 msgid "Del"
 msgstr ""
 
-#: includes/i18n-builder.php:388
+#: includes/i18n-builder.php:396
 msgid "Go to Navigator"
 msgstr ""
 
-#: includes/i18n-builder.php:389
+#: includes/i18n-builder.php:397
 msgid "Go to settings"
 msgstr ""
 
-#: includes/i18n-builder.php:390
+#: includes/i18n-builder.php:398
 msgid "Go to canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:391
+#: includes/i18n-builder.php:399
 msgid "Open Inserter"
 msgstr ""
 
-#: includes/i18n-builder.php:392
+#: includes/i18n-builder.php:400
 msgid "Copied element"
 msgstr ""
 
-#: includes/i18n-builder.php:393
+#: includes/i18n-builder.php:401
 msgid "Deleted element"
 msgstr ""
 
-#: includes/i18n-builder.php:394
+#: includes/i18n-builder.php:402
 msgid "class1 class2  (or .a.b)"
 msgstr ""
 
-#: includes/i18n-builder.php:395
+#: includes/i18n-builder.php:403
 msgid "name=value; name2=value2"
 msgstr ""
 
 #. translators: %s: attribute name.
-#: includes/i18n-builder.php:397
+#: includes/i18n-builder.php:405
 #, php-format
 msgid "Added attribute %s"
 msgstr ""
 
 #. translators: %s: number of attributes added.
-#: includes/i18n-builder.php:399
+#: includes/i18n-builder.php:407
 #, php-format
 msgid "Added %s attributes"
 msgstr ""
 
-#: includes/i18n-builder.php:400
+#: includes/i18n-builder.php:408
 msgid "Open the element settings to add an attribute"
 msgstr ""
 
 #. translators: %s: the text that could not be parsed.
-#: includes/i18n-builder.php:402
+#: includes/i18n-builder.php:410
 #, php-format
 msgid "Could not parse: %s"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:404
+#: includes/i18n-builder.php:412
 #, php-format
 msgid "Added %s element"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:406
+#: includes/i18n-builder.php:414
 #, php-format
 msgid "Added %s elements"
 msgstr ""
 
-#: includes/i18n-builder.php:409
+#: includes/i18n-builder.php:417
 msgid "Open the command palette (add class / attribute / element)"
 msgstr ""
 
