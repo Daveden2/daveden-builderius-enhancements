@@ -137,6 +137,19 @@ html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions {
     border-radius: var(--dbe-r-sm) !important;
 }
 
+/* Sonner toasts ("Template saved", "Copied", …): the card is the native
+   --contrast (#000) while the title/close text is --base-2, which the light
+   remap turns near-black — dark-on-dark. A token surface restores the pair;
+   the status border-left colours (green/amber) stay native, they read fine
+   on the light card. Dark theme untouched (native black card, light text). */
+html[data-dbe-theme="light"] .uniSonnerNotifications {
+    background: var(--dbe-l2) !important;
+    /* not the border shorthand — the left edge is the native status strip */
+    border-block: 1px solid var(--dbe-line) !important;
+    border-inline-end: 1px solid var(--dbe-line) !important;
+    box-shadow: 0 4px 12px var(--dbe-shadow) !important;
+}
+
 /* --- Leak audit pass 1 --- */
 .resizablePanels { background: var(--dbe-l1) !important; }
 .uniFooterPanel { background: var(--dbe-l1) !important; }
