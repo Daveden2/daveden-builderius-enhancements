@@ -289,6 +289,7 @@ function dbe_builder_strings() {
 		'scGroupContextMenu'      => __( 'Context menu', 'daveden-builderius-enhancements' ),
 		'scOpenOverlay'           => __( 'Open this shortcuts overlay', 'daveden-builderius-enhancements' ),
 		'scEscape'                => __( 'Close menus and dialogs; clear the multi-selection', 'daveden-builderius-enhancements' ),
+		'scEscapeClose'           => __( 'Close menus and dialogs', 'daveden-builderius-enhancements' ),
 		'scDelete'                => __( 'Remove the selected element (Builderius)', 'daveden-builderius-enhancements' ),
 		'scCopyPaste'             => __( 'Copy / paste the selected element (Builderius)', 'daveden-builderius-enhancements' ),
 		'scUndo'                  => __( 'Restore the last deleted element', 'daveden-builderius-enhancements' ),

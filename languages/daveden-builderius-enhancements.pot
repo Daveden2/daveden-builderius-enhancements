@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-13T21:03:56+00:00\n"
+"POT-Creation-Date: 2026-07-13T21:19:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -83,7 +83,7 @@ msgstr ""
 #: includes/features.php:24
 #: includes/i18n-builder.php:272
 #: includes/i18n-builder.php:288
-#: includes/i18n-builder.php:366
+#: includes/i18n-builder.php:367
 msgid "Navigator"
 msgstr ""
 
@@ -316,7 +316,7 @@ msgid "Adds a filter box above the tree that dims any row whose label or HTML ta
 msgstr ""
 
 #: includes/features.php:199
-#: includes/i18n-builder.php:309
+#: includes/i18n-builder.php:310
 msgid "Rearrange favourites"
 msgstr ""
 
@@ -497,8 +497,8 @@ msgid "Adds keyboard shortcuts, in the style of the WordPress block editor, for 
 msgstr ""
 
 #: includes/features.php:339
-#: includes/i18n-builder.php:372
-#: includes/i18n-builder.php:413
+#: includes/i18n-builder.php:373
+#: includes/i18n-builder.php:414
 msgid "Command palette"
 msgstr ""
 
@@ -782,7 +782,7 @@ msgid "Unwrapped %s elements"
 msgstr ""
 
 #: includes/i18n-builder.php:60
-#: includes/i18n-builder.php:362
+#: includes/i18n-builder.php:363
 msgid "Rename"
 msgstr ""
 
@@ -1399,7 +1399,7 @@ msgid "Choose an agent"
 msgstr ""
 
 #: includes/i18n-builder.php:257
-#: includes/i18n-builder.php:349
+#: includes/i18n-builder.php:350
 msgid "Filter elements…"
 msgstr ""
 
@@ -1482,361 +1482,365 @@ msgid "Close menus and dialogs; clear the multi-selection"
 msgstr ""
 
 #: includes/i18n-builder.php:292
-msgid "Remove the selected element (Builderius)"
+msgid "Close menus and dialogs"
 msgstr ""
 
 #: includes/i18n-builder.php:293
-msgid "Copy / paste the selected element (Builderius)"
+msgid "Remove the selected element (Builderius)"
 msgstr ""
 
 #: includes/i18n-builder.php:294
-msgid "Restore the last deleted element"
+msgid "Copy / paste the selected element (Builderius)"
 msgstr ""
 
 #: includes/i18n-builder.php:295
-msgid "Redo the delete"
+msgid "Restore the last deleted element"
 msgstr ""
 
 #: includes/i18n-builder.php:296
-msgid "Add or remove a row from the multi-selection"
+msgid "Redo the delete"
 msgstr ""
 
 #: includes/i18n-builder.php:297
-msgid "Select a range of rows"
+msgid "Add or remove a row from the multi-selection"
 msgstr ""
 
 #: includes/i18n-builder.php:298
-msgid "Open the context menu on the focused row"
+msgid "Select a range of rows"
 msgstr ""
 
 #: includes/i18n-builder.php:299
-msgid "Move between items (wraps)"
+msgid "Open the context menu on the focused row"
 msgstr ""
 
 #: includes/i18n-builder.php:300
-msgid "First / last item"
+msgid "Move between items (wraps)"
 msgstr ""
 
 #: includes/i18n-builder.php:301
-msgid "Activate an item or open its submenu"
+msgid "First / last item"
 msgstr ""
 
 #: includes/i18n-builder.php:302
+msgid "Activate an item or open its submenu"
+msgstr ""
+
+#: includes/i18n-builder.php:303
 msgid "Open / close a submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:305
+#: includes/i18n-builder.php:306
 msgid "Resize preview canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:306
+#: includes/i18n-builder.php:307
 msgid "Resize panels"
 msgstr ""
 
-#: includes/i18n-builder.php:310
+#: includes/i18n-builder.php:311
 msgid "Rearrange properties"
 msgstr ""
 
-#: includes/i18n-builder.php:311
+#: includes/i18n-builder.php:312
 msgid "Rearrange"
 msgstr ""
 
 #. translators: %s: favourite element name.
-#: includes/i18n-builder.php:313
+#: includes/i18n-builder.php:314
 #, php-format
 msgid "%s (press up or down arrow to move, Escape to finish)"
 msgstr ""
 
-#: includes/i18n-builder.php:314
+#: includes/i18n-builder.php:315
 msgid "Rearrange mode on: drag the icons, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:315
+#: includes/i18n-builder.php:316
 msgid "Rearrange mode on: drag a property, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:316
+#: includes/i18n-builder.php:317
 msgid "Rearrange mode off: order saved"
 msgstr ""
 
 #. translators: 1: item name, 2: new position, 3: total items.
-#: includes/i18n-builder.php:318
+#: includes/i18n-builder.php:319
 #, php-format
 msgid "Moved %1$s to position %2$s of %3$s"
 msgstr ""
 
-#: includes/i18n-builder.php:319
+#: includes/i18n-builder.php:320
 msgid "Order changed on screen, but it could not be saved to the component"
 msgstr ""
 
-#: includes/i18n-builder.php:320
+#: includes/i18n-builder.php:321
 msgid "Property"
 msgstr ""
 
 #. translators: %s: number of elements moved.
-#: includes/i18n-builder.php:322
+#: includes/i18n-builder.php:323
 #, php-format
 msgid "Moved %s elements together"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:324
+#: includes/i18n-builder.php:325
 #, php-format
 msgid "Moved %1$s element (%2$s could not follow)"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:326
+#: includes/i18n-builder.php:327
 #, php-format
 msgid "Moved %1$s elements (%2$s could not follow)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:330
+#: includes/i18n-builder.php:331
 #, php-format
 msgid "Copy %s"
 msgstr ""
 
 #. translators: %s: class name without the leading dot.
-#: includes/i18n-builder.php:332
+#: includes/i18n-builder.php:333
 #, php-format
 msgid "Copy %s (no dot)"
 msgstr ""
 
 #. translators: %s: number of classes.
-#: includes/i18n-builder.php:334
+#: includes/i18n-builder.php:335
 #, php-format
 msgid "Copy all classes (%s)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:336
+#: includes/i18n-builder.php:337
 #, php-format
 msgid "Remove %s from element"
 msgstr ""
 
 #. translators: %s: the copied text.
-#: includes/i18n-builder.php:338
+#: includes/i18n-builder.php:339
 #, php-format
 msgid "Copied %s"
 msgstr ""
 
-#: includes/i18n-builder.php:339
+#: includes/i18n-builder.php:340
 msgid "Copy failed: clipboard unavailable"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:341
+#: includes/i18n-builder.php:342
 #, php-format
 msgid "Removed %s"
 msgstr ""
 
-#: includes/i18n-builder.php:344
-#: includes/i18n-builder.php:359
-#: includes/i18n-builder.php:380
-msgid "Cut"
-msgstr ""
-
 #: includes/i18n-builder.php:345
-#: includes/i18n-builder.php:347
-msgid "Add element before"
+#: includes/i18n-builder.php:360
+#: includes/i18n-builder.php:381
+msgid "Cut"
 msgstr ""
 
 #: includes/i18n-builder.php:346
 #: includes/i18n-builder.php:348
+msgid "Add element before"
+msgstr ""
+
+#: includes/i18n-builder.php:347
+#: includes/i18n-builder.php:349
 msgid "Add element after"
 msgstr ""
 
-#: includes/i18n-builder.php:350
+#: includes/i18n-builder.php:351
 msgid "No matching element"
 msgstr ""
 
-#: includes/i18n-builder.php:351
+#: includes/i18n-builder.php:352
 msgid "Duplicated element"
 msgstr ""
 
-#: includes/i18n-builder.php:352
+#: includes/i18n-builder.php:353
 msgid "Cut element"
 msgstr ""
 
 #. translators: %s: element/tag name just inserted.
-#: includes/i18n-builder.php:354
+#: includes/i18n-builder.php:355
 #, php-format
 msgid "Added %s"
 msgstr ""
 
-#: includes/i18n-builder.php:355
+#: includes/i18n-builder.php:356
 msgid "Select an element first"
 msgstr ""
 
-#: includes/i18n-builder.php:357
+#: includes/i18n-builder.php:358
 msgid "Selected element"
 msgstr ""
 
-#: includes/i18n-builder.php:358
-#: includes/i18n-builder.php:378
+#: includes/i18n-builder.php:359
+#: includes/i18n-builder.php:379
 msgid "Duplicate"
 msgstr ""
 
-#: includes/i18n-builder.php:360
+#: includes/i18n-builder.php:361
 msgid "Add an element before"
 msgstr ""
 
-#: includes/i18n-builder.php:361
+#: includes/i18n-builder.php:362
 msgid "Add an element after"
 msgstr ""
 
-#: includes/i18n-builder.php:363
+#: includes/i18n-builder.php:364
 msgid "Copy / paste / delete the element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:365
+#: includes/i18n-builder.php:366
 msgid "Move to area"
 msgstr ""
 
-#: includes/i18n-builder.php:367
+#: includes/i18n-builder.php:368
 msgid "Settings panel"
 msgstr ""
 
-#: includes/i18n-builder.php:368
+#: includes/i18n-builder.php:369
 msgid "Canvas / preview"
 msgstr ""
 
-#: includes/i18n-builder.php:369
+#: includes/i18n-builder.php:370
 msgid "Insert elements"
 msgstr ""
 
-#: includes/i18n-builder.php:373
+#: includes/i18n-builder.php:374
 msgid "Search commands…"
 msgstr ""
 
-#: includes/i18n-builder.php:374
+#: includes/i18n-builder.php:375
 msgid "No element selected — element commands are hidden"
 msgstr ""
 
-#: includes/i18n-builder.php:375
+#: includes/i18n-builder.php:376
 msgid "Add classes"
 msgstr ""
 
-#: includes/i18n-builder.php:376
+#: includes/i18n-builder.php:377
 msgid "Add attributes"
 msgstr ""
 
-#: includes/i18n-builder.php:377
+#: includes/i18n-builder.php:378
 msgid "Add elements (Emmet)"
 msgstr ""
 
-#: includes/i18n-builder.php:379
+#: includes/i18n-builder.php:380
 msgid "Copy"
 msgstr ""
 
-#: includes/i18n-builder.php:381
+#: includes/i18n-builder.php:382
 msgid "Delete"
 msgstr ""
 
-#: includes/i18n-builder.php:382
+#: includes/i18n-builder.php:383
 msgid "Wrap in div"
 msgstr ""
 
-#: includes/i18n-builder.php:383
+#: includes/i18n-builder.php:384
 msgid "Wrap in figure"
 msgstr ""
 
-#: includes/i18n-builder.php:384
+#: includes/i18n-builder.php:385
 msgid "Wrap in template"
 msgstr ""
 
-#: includes/i18n-builder.php:385
+#: includes/i18n-builder.php:386
 msgid "Wrap in collection"
 msgstr ""
 
-#: includes/i18n-builder.php:387
+#: includes/i18n-builder.php:388
 msgid "Add to element"
 msgstr ""
 
-#: includes/i18n-builder.php:388
+#: includes/i18n-builder.php:389
 msgid "Structure"
 msgstr ""
 
-#: includes/i18n-builder.php:389
+#: includes/i18n-builder.php:390
 msgid "Element"
 msgstr ""
 
-#: includes/i18n-builder.php:390
+#: includes/i18n-builder.php:391
 msgid "Go to"
 msgstr ""
 
-#: includes/i18n-builder.php:392
+#: includes/i18n-builder.php:393
 msgid "Del"
 msgstr ""
 
-#: includes/i18n-builder.php:393
+#: includes/i18n-builder.php:394
 msgid "Go to Navigator"
 msgstr ""
 
-#: includes/i18n-builder.php:394
+#: includes/i18n-builder.php:395
 msgid "Go to settings"
 msgstr ""
 
-#: includes/i18n-builder.php:395
+#: includes/i18n-builder.php:396
 msgid "Go to canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:396
+#: includes/i18n-builder.php:397
 msgid "Open Inserter"
 msgstr ""
 
-#: includes/i18n-builder.php:397
+#: includes/i18n-builder.php:398
 msgid "Copied element"
 msgstr ""
 
-#: includes/i18n-builder.php:398
+#: includes/i18n-builder.php:399
 msgid "Deleted element"
 msgstr ""
 
-#: includes/i18n-builder.php:399
+#: includes/i18n-builder.php:400
 msgid "class1 class2  (or .a.b)"
 msgstr ""
 
-#: includes/i18n-builder.php:400
+#: includes/i18n-builder.php:401
 msgid "name=value; name2=value2"
 msgstr ""
 
 #. translators: %s: attribute name.
-#: includes/i18n-builder.php:402
+#: includes/i18n-builder.php:403
 #, php-format
 msgid "Added attribute %s"
 msgstr ""
 
 #. translators: %s: number of attributes added.
-#: includes/i18n-builder.php:404
+#: includes/i18n-builder.php:405
 #, php-format
 msgid "Added %s attributes"
 msgstr ""
 
-#: includes/i18n-builder.php:405
+#: includes/i18n-builder.php:406
 msgid "Open the element settings to add an attribute"
 msgstr ""
 
 #. translators: %s: the text that could not be parsed.
-#: includes/i18n-builder.php:407
+#: includes/i18n-builder.php:408
 #, php-format
 msgid "Could not parse: %s"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:409
+#: includes/i18n-builder.php:410
 #, php-format
 msgid "Added %s element"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:411
+#: includes/i18n-builder.php:412
 #, php-format
 msgid "Added %s elements"
 msgstr ""
 
-#: includes/i18n-builder.php:414
+#: includes/i18n-builder.php:415
 msgid "Open the command palette (add classes / attributes / elements)"
 msgstr ""
 

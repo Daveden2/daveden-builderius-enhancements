@@ -5110,7 +5110,11 @@
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
             ['?', dbeT('scOpenOverlay', 'Open this shortcuts overlay')],
-            ['Esc', dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection')],
+            // multi_select is withdrawn from the registry (see features.php);
+            // its rows and the Esc clause return with it via these gates.
+            ['Esc', on('multi_select') ?
+                dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection') :
+                dbeT('scEscapeClose', 'Close menus and dialogs')],
             ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
             [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }), dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
         ].concat(on('save_shortcut') ? [
@@ -5125,9 +5129,13 @@
             ] : [],
             [
                 [sc('Z', { cmd: true }), dbeT('scUndo', 'Restore the last deleted element')],
-                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')],
+                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')]
+            ],
+            on('multi_select') ? [
                 [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
-                [sc('click', { shift: true }), dbeT('scRange', 'Select a range of rows')],
+                [sc('click', { shift: true }), dbeT('scRange', 'Select a range of rows')]
+            ] : [],
+            [
                 [sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]
             ]
         )],

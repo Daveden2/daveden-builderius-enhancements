@@ -36,6 +36,11 @@ Navigator's canvas reclaim, plus community label polish.
   "Cmd/Ctrl+Alt" spelling. The settings-page feature description, which
   is server-rendered for every platform, keeps the dual convention but
   now says "Opt/Alt" (the Mac key is Option, not Alt).
+* Fixed: the shortcuts overlay still advertised the Cmd/Ctrl+click and
+  Shift+click multi-selection rows (and Esc's "clear the
+  multi-selection" clause) although multi_select was withdrawn from the
+  registry on 6 Jul 2026 — the rows described shortcuts that do
+  nothing. They are now gated on the feature and return with it.
 * Changed (#52): the Auto-BEM item in the elements context menu and all
   five command-palette entries drop their ellipses (community
   suggestion), and the palette's Add entries are pluralised — Add

@@ -47,6 +47,9 @@ Fixes for the CSS vars tab and the detachable Navigator, plus label polish.
 * Changed: the keyboard-shortcuts overlay now shows your own platform's
   keys — ⇧⌘D-style glyphs on a Mac, Ctrl+Shift+D elsewhere — instead of
   the dual "Cmd/Ctrl+Alt" spelling, matching the context-menu hints.
+* Fixed: the overlay no longer lists the multi-selection shortcuts,
+  which belong to the temporarily withdrawn multi-select feature; they
+  return with it.
 * Changed: following a community suggestion, the Auto-BEM context-menu
   item and the command palette entries drop their ellipses, and the
   palette's Add entries are pluralised (Add classes / Add attributes /
