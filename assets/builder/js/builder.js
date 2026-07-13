@@ -2092,7 +2092,7 @@
                 }
             }
 
-            // "Auto-BEM…" -> the class-naming dialog. Offered on any element that
+            // "Auto-BEM" -> the class-naming dialog. Offered on any element that
             // can hold a tagClass (decided from the module, not a canvas node, so
             // an unpainted element still qualifies); components / templates can't.
             if (!multiIds && on('auto_bem')) {
@@ -2102,7 +2102,7 @@
                     var bemLi = document.createElement('li');
                     bemLi.className = 'uniContextMenu__item dbe-ctx-item';
                     bemLi.setAttribute('role', 'menuitem');
-                    bemLi.textContent = dbeT('autoBemMenu', 'Auto-BEM…');
+                    bemLi.textContent = dbeT('autoBem', 'Auto-BEM');
                     bemLi.addEventListener('mousedown', function (ev) {
                         ev.preventDefault();
                         ev.stopPropagation();

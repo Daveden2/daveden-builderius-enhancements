@@ -65,7 +65,6 @@ function dbe_builder_strings() {
 
 		// Auto-BEM.
 		'autoBem'                 => __( 'Auto-BEM', 'daveden-builderius-enhancements' ),
-		'autoBemMenu'             => __( 'Auto-BEM…', 'daveden-builderius-enhancements' ),
 		'blockName'               => __( 'Block name', 'daveden-builderius-enhancements' ),
 		'elementsAndClassNames'   => __( 'Elements and class names', 'daveden-builderius-enhancements' ),
 		'addClassToElement'       => __( 'Add a class to this element', 'daveden-builderius-enhancements' ),
