@@ -122,7 +122,7 @@ function dbe_features() {
 		'footer_toolbar'      => array(
 			'title'       => __( 'Bottom-bar keyboard toolbar', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Makes the bottom tool bar one Tab stop with arrow keys.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled region, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled group, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -147,6 +147,14 @@ function dbe_features() {
 			'title'       => __( 'Accessible panel tabs', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Arrow-key tab strips in the settings panel and Navigator.', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last).', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => false,
+			'js'          => true,
+		),
+		'chrome_landmarks'    => array(
+			'title'       => __( 'Screen-reader landmarks', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Named landmark regions for each part of the builder.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Marks each part of the builder as a named landmark region for screen readers: the top toolbar, the element library / element settings panel, the canvas, the Navigator and the footer bar. You can then jump straight to a section from the screen reader\'s landmark list or with its region-jump keys, the way the WordPress block editor\'s regions work.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,

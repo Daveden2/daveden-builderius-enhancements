@@ -43,6 +43,32 @@
     overflow-y: auto !important;
 }
 
+/* The favourites strip is a flex column of fixed-size icon buttons down the
+ * right edge of the tree container, and it overflows visibly: when the panel
+ * loses height — most noticeably while the Sense AI or another footer panel
+ * is expanded — the icons cannot shrink, so they spill out of the strip, over
+ * the tree footer's delete and edit-favourites buttons and on under the
+ * footer bar. Let the strip scroll inside the remaining height instead; the
+ * items keep their size and the footer buttons stay clear. The strip is only
+ * ~31px wide, so an inset scrollbar would squeeze the 26px icons (and setting
+ * one overflow axis to auto computes the other to auto, adding a stray
+ * horizontal bar) — hide the scrollbar instead: wheel and drag still scroll,
+ * focus scrolls each icon into view, and the icon clipped at the edge shows
+ * there is more below. */
+.uniModTree__container > .uniModTree__favouritesList {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    min-height: 0 !important;
+    /* overflow ≠ visible also drops the strip's min-content width floor in
+     * the container's row layout — pin its width or the icons get squeezed. */
+    flex: 0 0 auto !important;
+    scrollbar-width: none;
+}
+
+.uniModTree__container > .uniModTree__favouritesList > li {
+    flex: 0 0 auto !important;
+}
+
 /* End-of-tree breathing room. The scroll viewport is a nested div with an
  * inline margin-bottom of -28px (Builderius' scrollbar-hiding trick), so at
  * full scroll the last row sits under the overlay-scrollbar zone. The lists

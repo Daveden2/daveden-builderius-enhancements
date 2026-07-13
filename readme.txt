@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.1
+Stable tag: 1.12.2
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,24 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.12.2 =
+A multisite activation fix, two favourites bar repairs, and screen-reader
+landmarks for the builder.
+* Fixed: on a multisite install with the plugin network-activated and
+  Builderius activated per site, the plugin wrongly reported Builderius as
+  inactive and stayed dormant on every subsite.
+* Fixed: in the light theme, every favourites bar icon carried a heavy dark
+  outline; the border now uses the theme's subtle hairline. The dark theme is
+  unchanged.
+* Fixed: while a footer panel (Sense AI, Custom CSS and so on) was open, the
+  favourites icons spilt over the Navigator's delete and edit-favourites
+  buttons. The strip now scrolls within the space available instead.
+* New: Screen-reader landmarks. Each major part of the builder (the top
+  toolbar, the element library / element settings panel, the canvas, the
+  Navigator and the footer bar) is exposed as a named landmark region, so
+  screen reader users can jump straight to a section from the landmark list,
+  the way the WordPress block editor's regions work.
 
 = 1.12.1 =
 Repairs around the native "hide side panels" toggle, an opt-in keyboard route

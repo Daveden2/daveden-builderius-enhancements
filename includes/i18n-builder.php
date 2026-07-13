@@ -265,6 +265,14 @@ function dbe_builder_strings() {
 		'scTreeCollapse'          => __( 'Close a branch, then step out to the parent', 'daveden-builderius-enhancements' ),
 		'scTreeFirstLast'         => __( 'First / last element', 'daveden-builderius-enhancements' ),
 
+		// Screen-reader landmarks (chrome_landmarks).
+		'regionTopBar'            => __( 'Top toolbar', 'daveden-builderius-enhancements' ),
+		'regionInserter'          => __( 'Element library', 'daveden-builderius-enhancements' ),
+		'regionSettings'          => __( 'Element settings', 'daveden-builderius-enhancements' ),
+		'regionCanvas'            => __( 'Canvas', 'daveden-builderius-enhancements' ),
+		'regionNavigator'         => __( 'Navigator', 'daveden-builderius-enhancements' ),
+		'regionFooter'            => __( 'Footer bar', 'daveden-builderius-enhancements' ),
+
 		// Save cue.
 		'unsaved'                 => __( 'Unsaved', 'daveden-builderius-enhancements' ),
 

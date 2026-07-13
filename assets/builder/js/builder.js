@@ -3914,9 +3914,13 @@
        disclosure buttons:
          - bar = role="toolbar" with roving arrow-key navigation over the tools;
          - each functional button = aria-expanded (true only when its panel is the
-           open one) + aria-controls on the shared panel region;
+           open one) + aria-controls on the shared panel;
          - locked buttons = aria-disabled with "(locked)" in the accessible name;
-         - the shared panel = a labelled role="region", named after the open tool.
+         - the shared panel = a labelled role="group", named after the open tool.
+           A group, not a region: the panel is part of the footer, not a landmark
+           of its own — chrome_landmarks marks the whole .uniFooterPanel as the
+           footer's landmark, and a second nested landmark would only clutter the
+           screen reader's region list. The name still announces on entry.
        The footer lives outside the panels the other observers watch, so it wires
        its own (attached once, lazily, when the bar first appears). */
     /* Shared by footer_toolbar and ai_terminal_tabs (previously each attached
@@ -3953,14 +3957,14 @@
         var tools = [].slice.call(bar.querySelectorAll('button.uniPanelIconButton--footer'));
         if (!tools.length) { return; }
 
-        var region = document.querySelector('.uniFooterPanelContent');
-        var regionId = 'dbe-footer-panel';
-        if (region) {
-            if (!region.id) { region.id = regionId; }
-            if (region.getAttribute('role') !== 'region') { region.setAttribute('role', 'region'); }
+        var panel = document.querySelector('.uniFooterPanelContent');
+        var panelId = 'dbe-footer-panel';
+        if (panel) {
+            if (!panel.id) { panel.id = panelId; }
+            if (panel.getAttribute('role') !== 'group') { panel.setAttribute('role', 'group'); }
         }
-        // The panel has no open/closed class; a visible content region means open.
-        var open = !!region && region.offsetHeight > 8;
+        // The panel has no open/closed class; visible content means open.
+        var open = !!panel && panel.offsetHeight > 8;
         var activeTool = tools.filter(function (b) { return b.classList.contains('uniPanelIconButton--active'); })[0];
 
         tools.forEach(function (b) {
@@ -3974,17 +3978,17 @@
             } else {
                 b.removeAttribute('aria-disabled');
                 if (b.getAttribute('aria-label')) { b.removeAttribute('aria-label'); } // fall back to the text name
-                if (region && b.getAttribute('aria-controls') !== regionId) { b.setAttribute('aria-controls', regionId); }
+                if (panel && b.getAttribute('aria-controls') !== panelId) { b.setAttribute('aria-controls', panelId); }
                 var expanded = (open && b === activeTool) ? 'true' : 'false';
                 if (b.getAttribute('aria-expanded') !== expanded) { b.setAttribute('aria-expanded', expanded); }
             }
         });
 
-        if (region) {
+        if (panel) {
             var rl = (open && activeTool)
                 ? dbeFmt(dbeT('footerPanelNamed', '%s panel'), (activeTool.textContent || '').trim())
                 : dbeT('footerToolsPanel', 'Editor tools panel');
-            if (region.getAttribute('aria-label') !== rl) { region.setAttribute('aria-label', rl); }
+            if (panel.getAttribute('aria-label') !== rl) { panel.setAttribute('aria-label', rl); }
         }
 
         // Toolbar semantics + roving arrow navigation over the tool buttons. Locked
@@ -7626,6 +7630,37 @@
         panel.dbeNavKeyBound = true;
     }
 
+    /* Screen-reader landmarks (chrome_landmarks). The builder chrome is one
+       long anonymous document to a screen reader: nothing marks where the top
+       toolbar ends and the settings panel or the Navigator begins, so the only
+       way around is element-by-element. Name each major part as a landmark
+       region — the way the WordPress block editor exposes "Editor top bar",
+       "Editor content" and friends — so the screen reader's landmark list (and
+       its region-jump keys) can move straight to a section. role="region" is
+       only exposed as a landmark when it has an accessible name, so every
+       stamp pairs the role with an aria-label. The left panel is contextual —
+       the element library (Inserter) and the element settings share it — so
+       its label is re-read from what it currently holds on every tick.
+       Attributes are only written when they differ, so the ticks stay free
+       under the MutationObservers that drive schedule(). */
+    function ensureChromeLandmarks() {
+        function stamp(el, label) {
+            if (!el || !label) { return; }
+            if (el.getAttribute('role') !== 'region') { el.setAttribute('role', 'region'); }
+            if (el.getAttribute('aria-label') !== label) { el.setAttribute('aria-label', label); }
+        }
+        stamp(document.querySelector('.uniTopPanel'), dbeT('regionTopBar', 'Top toolbar'));
+        var left = document.querySelector('.uniLeftPanelOuter') || document.querySelector('.uniLeftPanel');
+        if (left) {
+            stamp(left, left.querySelector('.uniModList')
+                ? dbeT('regionInserter', 'Element library')
+                : dbeT('regionSettings', 'Element settings'));
+        }
+        stamp(document.querySelector('.uniIframePanel'), dbeT('regionCanvas', 'Canvas'));
+        stamp(document.querySelector('.uniRightPanel'), dbeT('regionNavigator', 'Navigator'));
+        stamp(document.querySelector('.uniFooterPanel'), dbeT('regionFooter', 'Footer bar'));
+    }
+
     function schedule() {
         if (scheduled) { return; }
         scheduled = true;
@@ -7664,6 +7699,7 @@
                 try { applyTreeFilter(); } catch (e) {}
             }
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
+            if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
             if (on('panel_resize') || on('css_code_default')) { try { dbeSyncPanelsHidden(); } catch (e) {} }
@@ -7706,7 +7742,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
