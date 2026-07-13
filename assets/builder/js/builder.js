@@ -5137,16 +5137,16 @@
         [dbeT('scGroupElements', 'Selected element'), [
             ['Cmd/Ctrl+Shift+D', dbeT('scDuplicate', 'Duplicate')],
             ['Cmd/Ctrl+X', dbeT('scCut', 'Cut')],
-            ['Cmd/Ctrl+Alt+T', dbeT('scAddBefore', 'Add an element before')],
-            ['Cmd/Ctrl+Alt+Y', dbeT('scAddAfter', 'Add an element after')],
+            ['Cmd/Ctrl+Opt/Alt+T', dbeT('scAddBefore', 'Add an element before')],
+            ['Cmd/Ctrl+Opt/Alt+Y', dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
             ['Cmd/Ctrl+C · Cmd/Ctrl+V · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
         [dbeT('scGroupAreas', 'Move to area'), [
-            ['Cmd/Ctrl+Alt+O', dbeT('scGotoNavigator', 'Navigator')],
-            ['Cmd/Ctrl+Alt+S', dbeT('scGotoSettings', 'Settings panel')],
-            ['Cmd/Ctrl+Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
-            ['Cmd/Ctrl+Alt+N', dbeT('scGotoInserter', 'Insert elements')]
+            ['Cmd/Ctrl+Opt/Alt+O', dbeT('scGotoNavigator', 'Navigator')],
+            ['Cmd/Ctrl+Opt/Alt+S', dbeT('scGotoSettings', 'Settings panel')],
+            ['Cmd/Ctrl+Opt/Alt+P', dbeT('scGotoCanvas', 'Canvas / preview')],
+            ['Cmd/Ctrl+Opt/Alt+N', dbeT('scGotoInserter', 'Insert elements')]
         ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [

@@ -328,7 +328,7 @@ function dbe_features() {
 		'keyboard_shortcuts'  => array(
 			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Block-editor-style shortcuts for the selected element.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Alt+T / Cmd/Ctrl+Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
