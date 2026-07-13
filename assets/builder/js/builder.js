@@ -1631,7 +1631,8 @@
        injected item's activation ends with. One copy, so a fix to the close
        recipe can never miss a site again. */
     function closeCtxMenu() {
-        closeCtxMenu();
+        removeSubmenus();
+        try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (e) {}
     }
 
     function positionFlyout(fly, parentLi) {
