@@ -6,6 +6,21 @@
   'use strict';
 
   document.addEventListener('DOMContentLoaded', function () {
+    // Info disclosures: without JavaScript every full description is visible;
+    // with it, collapse them behind the (revealed) info buttons.
+    Array.prototype.slice.call(document.querySelectorAll('.dbe-info-btn')).forEach(function (btn) {
+      var more = document.getElementById(btn.getAttribute('aria-controls'));
+      if (!more) { return; }
+      more.hidden = true;
+      btn.hidden = false;
+      btn.setAttribute('aria-expanded', 'false');
+      btn.addEventListener('click', function () {
+        var open = more.hidden;
+        more.hidden = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
+
     var bar = document.querySelector('.dbe-tabbar');
     var tabs = bar ? Array.prototype.slice.call(bar.querySelectorAll('.dbe-tab')) : [];
     var panels = Array.prototype.slice.call(document.querySelectorAll('.dbe-panel'));
