@@ -3,6 +3,45 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.12.1
+Fixes around the native "hide side panels" toggle, an opt-in Save-menu
+keyboard route, and concise settings copy. PRs #41–#43.
+
+* Fixed: native "hide side panels" collapses both panel wrappers with INLINE
+  width/min/max-width: 0 — and two DBE stylesheets pinned exactly those
+  properties with !important (75-panel-resize.css deliberately beats the
+  native resize bar; 40-css-code-default.css clamps CSS-mode's 600px
+  auto-widen), so the toggle went inert. builder.js now mirrors the native
+  state onto html.dbe-panels-hidden (detected from the inline max-width: 0 on
+  .uniLeftPanelOuter — no class appears anywhere natively), synced whenever
+  panel_resize OR css_code_default is on, and every width pin in both files
+  is scoped to :not(.dbe-panels-hidden). The drag grips hide with the panels.
+* Fixed (preview_resize): while the panels are hidden, Builderius pins the
+  canvas to width:100% and IGNORES the numeric width channel (the readout and
+  breakpoint band update, the canvas never resizes) — handing the drag to
+  that channel below the widest breakpoint collapsed the canvas to nothing.
+  While hidden, dbeApplyPreviewWidth now owns the width across the whole
+  range through the inline+guard channel and keeps the breakpoint band in
+  step by clicking the button whose range covers the width.
+* New (save_split_button — experimental, OFF by default): the Save button's
+  dropdown trigger is a div INSIDE the <button> (invalid nesting, mouse-only,
+  reported upstream). Opt-in stopgap: a real sibling "Save options" menu
+  button (aria-haspopup + live aria-expanded, native caret svg, colours and
+  height mirrored from the Save button's computed box each tick, flex-pinned
+  against the top bar's 4px-gap row), the native strip hidden, the menu
+  dialog anchored right-aligned under the button (its native placement uses
+  the click event's clientX/Y — programmatic opens need coordinate-carrying
+  events), focus on the first enabled item, arrows/Home/End/Enter inside,
+  disabled items focusable and announced, Escape native. With the toggle off
+  the Save button is byte-for-byte native — the feature CSS is not even
+  emitted. Rode along: the Unsaved cue no longer rebaselines on caret clicks.
+* Improved: every registry entry gains a one-line `summary`; the settings
+  screen shows it under the title with the full description behind an info
+  disclosure (aria-expanded/aria-controls, 24px target, "More about <title>"
+  name). Progressive enhancement matches the tab bar: no JavaScript = full
+  descriptions visible, buttons hidden. aria-describedby now points at the
+  summary.
+
 ## 1.12.0
 Cmd/Ctrl+S to save, cacheable chrome-script delivery, the auto theme resolved
 at bootstrap, plugin-wide reduced-motion support, a hot-path performance pass,

@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.0
+Stable tag: 1.12.1
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -31,6 +31,27 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.12.1 =
+Repairs around the native "hide side panels" toggle, an opt-in keyboard route
+into the Save options menu, and a tidier settings screen.
+* Fixed: the builder's own "hide side panels" button looked dead — the
+  Resizable side panels and CSS-code-editor features were pinning the panels
+  open against it. Both now stand aside while the panels are hidden.
+* Fixed: with the side panels hidden, dragging the preview resize handles
+  collapsed the canvas partway through the range; the drag now works across
+  the full width, with the matching breakpoint still lighting up as you cross
+  it.
+* Fixed: opening the Save button's dropdown no longer clears the "Unsaved"
+  marker (opening the menu is not a save).
+* New (experimental, off by default): keyboard access for the Save options
+  menu. Builderius draws the dropdown trigger inside the Save button itself,
+  where no keyboard or screen reader can reach it; this optional stopgap
+  replaces it with a real "Save options" button beside Save. Off by default —
+  the Save button stays completely native unless you opt in, and the proper
+  fix has been reported to Builderius.
+* Improved: the settings screen now shows one concise line per feature, with
+  the full explanation behind a small info button next to each title.
 
 = 1.12.0 =
 A quality release across the board: Cmd/Ctrl+S to save, a faster and lighter
