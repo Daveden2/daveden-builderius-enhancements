@@ -1544,6 +1544,386 @@
         } catch (e) {}
     }
 
+    /* ============================ Edit as HTML ============================
+       (edit_as_html, Pro). Right-click an element -> "Edit as HTML" opens the
+       element and its subtree as readable, pretty-printed HTML in a dialog;
+       Apply parses the edited markup, sanitises it and reconciles it back
+       onto the module tree.
+
+       Identity: every serialised element carries a data-dbe-id marker. On
+       re-parse, a node whose marker matches a module in the ORIGINAL subtree
+       KEEPS that module — its id, label, conditions and every setting the
+       HTML doesn't express survive; only tag / id / class / attributes /
+       leading text are updated. Unmarked nodes become new HtmlElements;
+       original modules whose marker is gone are removed. A duplicated marker
+       counts only once (first in document order) — the copy becomes new.
+
+       Channels: kept nodes update via the addModule upsert; new nodes via
+       storeAddModule; ordering/reparenting via storeMoveModule; removals via
+       the native menu Remove (the only delete that repaints AND persists),
+       driven sequentially on the top-most removed nodes only (children go
+       with their parent). Removals run FIRST so the later index maths sees
+       the final sibling sets. dbeUndoBusy is held across the whole apply so
+       the undo stack records nothing (an Edit-as-HTML is not undoable — the
+       toast says so implicitly by reporting what changed).
+
+       Model limits (v1, by design): only subtrees made entirely of
+       HtmlElement modules are editable (no Collection / Template /
+       Component / HtmlCode inside — the menu item is disabled with a tip).
+       `content` (the module's raw leading text, which may carry [[tokens]]
+       or inline HTML) serialises raw; on re-parse only leading TEXT becomes
+       content again, so inline elements typed inside text become real child
+       elements, and text between elements becomes a span — same rendering,
+       more structure. */
+
+    var DBE_HTML_VOID = {
+        img: 1, input: 1, br: 1, hr: 1, area: 1, base: 1, col: 1, embed: 1,
+        link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1
+    };
+    var DBE_HTML_KNOWN_TAGS = ('a abbr address area article aside audio b bdi bdo blockquote br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr i img input ins kbd label legend li main mark menu meter nav ol optgroup option output p picture pre progress q rp rt ruby s samp search section select small source span strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul var video wbr')
+        .split(' ').reduce(function (m, t) { m[t] = 1; return m; }, {});
+
+    function dbeSettingVal(mod, name) {
+        var s = ((mod && mod.settings) || []).filter(function (x) { return x.name === name; })[0];
+        return s ? s.value : undefined;
+    }
+
+    /* Editable = the whole subtree is plain HtmlElements. */
+    function dbeHtmlEditable(rootId) {
+        var mods = modules() || {};
+        var idx = store().storeGet('indexes') || {};
+        var ok = true;
+        (function walk(id) {
+            if (!ok) { return; }
+            var m = mods[id];
+            if (!m || m.name !== 'HtmlElement') { ok = false; return; }
+            (idx[id] || []).forEach(walk);
+        })(rootId);
+        return ok;
+    }
+
+    function dbeHtmlEscapeAttr(v) {
+        return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
+    function dbeSerializeSubtree(rootId) {
+        var mods = modules() || {};
+        var idx = store().storeGet('indexes') || {};
+        function ser(id, depth) {
+            var m = mods[id];
+            if (!m) { return ''; }
+            var pad = new Array(depth + 1).join('  ');
+            var tag = String(dbeSettingVal(m, 'tag') || 'div').toLowerCase();
+            var open = '<' + tag;
+            var tagId = dbeSettingVal(m, 'tagId');
+            if (tagId) { open += ' id="' + dbeHtmlEscapeAttr(tagId) + '"'; }
+            var classes = dbeSettingVal(m, 'tagClass');
+            if (Array.isArray(classes) && classes.length) { open += ' class="' + dbeHtmlEscapeAttr(classes.join(' ')) + '"'; }
+            (dbeSettingVal(m, 'htmlAttribute') || []).forEach(function (a) {
+                if (!a || !a.name || a.name === 'data-dbe-id') { return; }
+                // A value-less entry (the panel's empty-attribute shape) round-trips as name="".
+                open += (a.value == null || a.value === '')
+                    ? ' ' + a.name + '=""'
+                    : ' ' + a.name + '="' + dbeHtmlEscapeAttr(a.value) + '"';
+            });
+            open += ' data-dbe-id="' + id + '">';
+            if (DBE_HTML_VOID[tag]) { return pad + open; }
+            var content = dbeSettingVal(m, 'content');
+            var text = content == null ? '' : String(content);
+            var kids = idx[id] || [];
+            if (!kids.length) {
+                if (text.length <= 70 && text.indexOf('\n') === -1) { return pad + open + text + '</' + tag + '>'; }
+                return pad + open + '\n' + pad + '  ' + text + '\n' + pad + '</' + tag + '>';
+            }
+            var lines = [pad + open];
+            if (text !== '') { lines.push(pad + '  ' + text); }
+            kids.forEach(function (k) { lines.push(ser(k, depth + 1)); });
+            lines.push(pad + '</' + tag + '>');
+            return lines.join('\n');
+        }
+        return ser(rootId, 0);
+    }
+
+    /* Parse + sanitise the edited markup into a plain tree of
+       {existingId, tag, tagId, classes, attrs, content, children}. Throws a
+       string message on a structural error; strips (and reports) anything
+       unsafe or unknown. origIds = the id set of the ORIGINAL subtree —
+       markers pointing anywhere else are ignored (you cannot capture another
+       part of the page from inside this dialog). */
+    function dbeParseHtmlTree(html, origIds) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var stripped = [];
+        var claimed = {};
+        var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, svg: 1, math: 1 };
+        var URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, 'xlink:href': 1 };
+        function convert(el) {
+            var tag = el.tagName.toLowerCase();
+            if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
+            if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
+            var node = { existingId: null, tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [] };
+            [].slice.call(el.attributes).forEach(function (a) {
+                var n = a.name.toLowerCase();
+                var v = a.value;
+                if (n === 'data-dbe-id') {
+                    if (origIds[v] && !claimed[v]) { claimed[v] = true; node.existingId = v; }
+                    return;
+                }
+                if (n.indexOf('on') === 0) { stripped.push(n); return; }
+                if (URL_ATTRS[n] && /^\s*javascript:/i.test(v)) { stripped.push(n + '="javascript:…"'); return; }
+                if (n === 'id') { node.tagId = v; return; }
+                if (n === 'class') { node.classes = v.split(/\s+/).filter(Boolean); return; }
+                node.attrs.push({ name: n, value: v });
+            });
+            var seenElement = false;
+            [].slice.call(el.childNodes).forEach(function (ch) {
+                if (ch.nodeType === 3) {
+                    var t = ch.textContent.replace(/\s+/g, ' ').trim();
+                    if (!t) { return; }
+                    if (!seenElement) { node.content += (node.content ? ' ' : '') + t; }
+                    else {
+                        // Text after an element has no home in the content-first
+                        // model — synthesise a span so nothing silently drops.
+                        node.children.push({ existingId: null, tag: 'span', tagId: '', classes: [], attrs: [], content: t, children: [] });
+                    }
+                    return;
+                }
+                if (ch.nodeType === 1) {
+                    var c = convert(ch);
+                    if (c) { node.children.push(c); seenElement = true; }
+                }
+            });
+            return node;
+        }
+        var roots = [].slice.call(doc.body.children).map(convert).filter(Boolean);
+        if (roots.length !== 1) {
+            throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
+        }
+        return { tree: roots[0], stripped: stripped };
+    }
+
+    function dbeNodeSettings(node) {
+        var s = [{ name: 'tag', value: node.tag }];
+        if (node.tagId) { s.push({ name: 'tagId', value: node.tagId }); }
+        if (node.classes.length) { s.push({ name: 'tagClass', value: node.classes.slice() }); }
+        if (node.attrs.length) { s.push({ name: 'htmlAttribute', value: node.attrs.slice() }); }
+        if (node.content) { s.push({ name: 'content', value: node.content }); }
+        return s;
+    }
+
+    /* Reconcile the parsed tree onto the live subtree. done(counts). */
+    function dbeApplyHtmlTree(rootId, tree, done) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        var idx = sf.storeGet('indexes') || {};
+        tree.existingId = rootId; // the root's identity is never negotiable
+
+        var kept = {};
+        (function mark(n) {
+            if (n.existingId) { kept[n.existingId] = true; }
+            n.children.forEach(mark);
+        })(tree);
+
+        var origIdsInOrder = [];
+        (function collect(id) {
+            origIdsInOrder.push(id);
+            (idx[id] || []).forEach(collect);
+        })(rootId);
+        var deleted = {};
+        origIdsInOrder.forEach(function (id) { if (!kept[id]) { deleted[id] = true; } });
+        // Only the top-most removed nodes need driving — children go with them.
+        var topDeleted = origIdsInOrder.filter(function (id) {
+            return deleted[id] && !deleted[(mods[id] && mods[id].parent) || ''];
+        });
+
+        var counts = { kept: 0, added: 0, removed: topDeleted.length };
+        var wasBusy = dbeUndoBusy;
+        dbeUndoBusy = true;
+
+        function build() {
+            var sf2 = store();
+            function place(node, parentId, index) {
+                var id;
+                if (node.existingId) {
+                    var live = sf2.storeGet('modules') || {};
+                    var m = live[node.existingId] && JSON.parse(JSON.stringify(live[node.existingId]));
+                    if (m) {
+                        // Replace only the HTML-expressible settings; everything
+                        // else (conditions, responsive settings…) rides along.
+                        var keep = (m.settings || []).filter(function (x) {
+                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content'].indexOf(x.name) === -1;
+                        });
+                        m.settings = keep.concat(dbeNodeSettings(node));
+                        sf2.storeSet('addModule', { module: m }); // existing id = upsert
+                        counts.kept += 1;
+                    }
+                    id = node.existingId;
+                    if (parentId !== null) { storeMoveModule(sf2, id, parentId, index); }
+                } else {
+                    var mod = {
+                        id: dbeMakeId(), name: 'HtmlElement',
+                        label: node.tag.charAt(0).toUpperCase() + node.tag.slice(1),
+                        settings: dbeNodeSettings(node)
+                    };
+                    storeAddModule(sf2, mod, parentId, index);
+                    counts.added += 1;
+                    id = mod.id;
+                }
+                node.children.forEach(function (c, i) { place(c, id, i); });
+            }
+            place(tree, null, 0); // null parent = the root stays where it is
+            dbeUndoBusy = wasBusy;
+            if (activeId() === rootId) { dbeReselectToRehydrate(rootId); }
+            done(counts);
+        }
+
+        // Removals first (sequential native-menu drives), then the rebuild.
+        (function removeNext(i) {
+            if (i >= topDeleted.length) { build(); return; }
+            driveContextMenuItem(topDeleted[i], 'Remove', function () {
+                setTimeout(function () { removeNext(i + 1); }, 150);
+            });
+        })(0);
+    }
+
+    var dbeHtmlBusy = false;
+
+    function openEditHtmlDialog(rootId) {
+        if (dbeHtmlBusy) { return; }
+        var mods = modules() || {};
+        if (!mods[rootId]) { return; }
+
+        var old = document.querySelector('dialog.dbe-html');
+        if (old) { old.remove(); }
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-html';
+        dlg.setAttribute('aria-label', dbeT('editAsHtml', 'Edit as HTML'));
+
+        var head = document.createElement('div');
+        head.className = 'dbe-html__head';
+        var title = document.createElement('h2');
+        title.className = 'dbe-html__title';
+        title.textContent = dbeFmt(dbeT('editAsHtmlTitle', 'Edit as HTML — %s'), mods[rootId].label || mods[rootId].name);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-html__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '✕';
+        close.addEventListener('click', function () { dlg.close(); });
+        head.appendChild(title);
+        head.appendChild(close);
+        dlg.appendChild(head);
+
+        var hint = document.createElement('p');
+        hint.className = 'dbe-html__hint';
+        var hintText = document.createElement('span');
+        hintText.textContent = dbeT('editAsHtmlHint',
+            'Keep an element’s data-dbe-id marker and its label, conditions and other settings survive the edit; elements without one are created fresh, and removed markers remove their elements. Scripts, event handlers and unknown tags are stripped.');
+        hint.appendChild(hintText);
+        dlg.appendChild(hint);
+
+        var editor = document.createElement('textarea');
+        editor.className = 'dbe-html__editor';
+        editor.spellcheck = false;
+        editor.setAttribute('aria-label', dbeT('editAsHtmlEditor', 'HTML markup'));
+        editor.value = dbeSerializeSubtree(rootId);
+        dlg.appendChild(editor);
+
+        var status = document.createElement('p');
+        status.className = 'dbe-html__status';
+        status.setAttribute('role', 'status');
+        dlg.appendChild(status);
+
+        var foot = document.createElement('div');
+        foot.className = 'dbe-html__foot';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'dbe-html__cancel';
+        cancel.textContent = dbeT('cancel', 'Cancel');
+        cancel.addEventListener('click', function () { dlg.close(); });
+        var apply = document.createElement('button');
+        apply.type = 'button';
+        apply.className = 'dbe-html__apply';
+        apply.textContent = dbeT('applyHtml', 'Apply HTML');
+        apply.addEventListener('click', function () {
+            var origIds = {};
+            var liveIdx = store().storeGet('indexes') || {};
+            (function collect(id) {
+                origIds[id] = true;
+                (liveIdx[id] || []).forEach(collect);
+            })(rootId);
+            var parsed;
+            try {
+                parsed = dbeParseHtmlTree(editor.value, origIds);
+            } catch (msg) {
+                status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
+                return;
+            }
+            // The dialog is showModal(): it must close before the apply queue
+            // can drive tree rows and the native Remove menu.
+            dlg.close();
+            dbeHtmlBusy = true;
+            expandSubtree(rootId); // removal drives need reachable rows
+            setTimeout(function () {
+                dbeApplyHtmlTree(rootId, parsed.tree, function (counts) {
+                    dbeHtmlBusy = false;
+                    var msg = dbeFmt(dbeT('htmlApplied', 'HTML applied: %1$s updated, %2$s added, %3$s removed'),
+                        counts.kept, counts.added, counts.removed);
+                    if (parsed.stripped.length) {
+                        var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                        msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+                    }
+                    undoToast(msg);
+                });
+            }, 120);
+        });
+        foot.appendChild(cancel);
+        foot.appendChild(apply);
+        dlg.appendChild(foot);
+
+        // Same isolation as the Auto-BEM dialog: keys and pointer events must
+        // not reach the builder's global handlers (Delete removes the selected
+        // element; an outside click handler reverts native control toggles).
+        dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        document.body.appendChild(dlg);
+        dlg.showModal();
+        editor.focus();
+        editor.setSelectionRange(0, 0);
+    }
+
+    /* ============================ Change tag ============================
+       (tag_change, Pro). "Change tag…" flyout on an element's right-click
+       menu: swaps the `tag` setting through the addModule upsert (repaint +
+       persist), and when the label was just the old tag it follows the new
+       one through the native rename channel. Void tags are excluded both as
+       source and target — an img's attributes make no sense on a div and
+       vice versa; the settings panel's own tag select handles those. */
+    var DBE_TAG_CHOICES = [
+        'div', 'span', 'section', 'article', 'aside', 'header', 'footer',
+        'nav', 'main', 'figure', 'figcaption', 'p',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'blockquote', 'a', 'button'
+    ];
+
+    function dbeChangeTag(id, newTag) {
+        var mods = modules() || {};
+        var m = mods[id];
+        if (!m) { return; }
+        var oldTag = String(dbeSettingVal(m, 'tag') || '').toLowerCase();
+        if (!oldTag || oldTag === newTag) { return; }
+        var labelWasDefault = (m.label || '').toLowerCase() === oldTag;
+        dbeUpdateModuleSettings(id, function (settings) {
+            var t = settings.filter(function (s) { return s.name === 'tag'; })[0];
+            if (t) { t.value = newTag; } else { settings.push({ name: 'tag', value: newTag }); }
+        });
+        // Follow-the-tag labels only; a custom label is the user's and stays.
+        if (labelWasDefault) { commitRename(id, newTag); }
+        undoToast(dbeFmt(dbeT('tagChangedTo', 'Tag changed to <%s>'), newTag));
+    }
+
     /* A menu row's label with any injected accel hint (.dbe-ctx-accel) left
        out. When a menu item drives the menu it was activated from (Cut =
        Copy then Remove), React can reuse the just-closed dialog still
@@ -2282,11 +2662,51 @@
                 addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
             }
 
+            // "Edit as HTML" (edit_as_html, Pro) — plain-element subtrees only;
+            // otherwise offered disabled with the reason as its tooltip.
+            var editHtmlLi = null;
+            if (!multiIds && on('edit_as_html') && lastCtxId) {
+                (function () {
+                    var ehId = lastCtxId;
+                    var ehMods = modules() || {};
+                    if (!ehMods[ehId]) { return; }
+                    var eligible = dbeHtmlEditable(ehId);
+                    editHtmlLi = makeCtxItem(dbeT('editAsHtml', 'Edit as HTML'), function () {
+                        // Let the menu dialog finish closing (showModal — while
+                        // open our own dialog could not take focus).
+                        setTimeout(function () { openEditHtmlDialog(ehId); }, 120);
+                    }, eligible ? {} : {
+                        disabled: true,
+                        tip: dbeT('editAsHtmlOnlyElements', 'Only subtrees of plain elements can be edited as HTML')
+                    });
+                })();
+            }
+
+            // "Change tag…" flyout (tag_change, Pro) — plain non-void elements.
+            var changeTagParent = null;
+            if (!multiIds && on('tag_change') && lastCtxId) {
+                (function () {
+                    var ctId = lastCtxId;
+                    var ctMods = modules() || {};
+                    var ctMod = ctMods[ctId];
+                    var curTag = ctMod && ctMod.name === 'HtmlElement'
+                        ? String(dbeSettingVal(ctMod, 'tag') || '').toLowerCase() : '';
+                    if (curTag && !DBE_HTML_VOID[curTag]) {
+                        changeTagParent = makeParent(dbeT('changeTag', 'Change tag…'), false, function () {
+                            return DBE_TAG_CHOICES.map(function (tg) {
+                                return makeCtxItem('<' + tg + '>', function () { dbeChangeTag(ctId, tg); },
+                                    tg === curTag ? { disabled: true } : {});
+                            });
+                        });
+                    }
+                })();
+            }
+
             /* --- Flat layout (context_menu off): append injected items after the
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -2310,6 +2730,7 @@
                     if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
+                if (changeTagParent) { container.appendChild(changeTagParent); }
                 // After the rows are placed: append shortcut hints to the native
                 // rows. Done last so it never mutates the textContent the layout
                 // above matches native items by (Remove-last, cluster detection).
@@ -2367,7 +2788,7 @@
                 natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                 nameItems,                                                       // Name & style
                 [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
-                [wrapParent, unwrapLi].filter(Boolean),                          // Structure
+                [changeTagParent, wrapParent, unwrapLi, editHtmlLi].filter(Boolean), // Structure
                 [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
                 multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
@@ -7867,7 +8288,7 @@
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts');
+    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('tag_change');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point

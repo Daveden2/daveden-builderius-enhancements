@@ -1,0 +1,115 @@
+/* Edit as HTML (edit_as_html): the markup-editing dialog. Pattern matches the
+   Auto-BEM dialog (33-auto-bem.css). */
+
+dialog.dbe-html {
+	inline-size: min(720px, 94vw);
+	max-block-size: 86vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--dbe-l1);
+	color: var(--dbe-text-2);
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	box-shadow: 0 12px 40px var(--dbe-shadow);
+	padding: 20px;
+	font: 400 13px/1.5 var(--dbe-ui-font);
+}
+dialog.dbe-html:not([open]) { display: none; }
+dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dbe-html__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-block-end: 10px;
+}
+.dbe-html__title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--dbe-text);
+	margin: 0;
+}
+.dbe-html__close {
+	border: 0;
+	background: transparent;
+	color: var(--dbe-muted);
+	font-size: 16px;
+	line-height: 1;
+	padding: 6px;
+	min-inline-size: 24px;
+	min-block-size: 24px;
+	border-radius: var(--dbe-r-sm);
+	cursor: pointer;
+}
+.dbe-html__close:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
+
+.dbe-html__hint {
+	margin: 0 0 10px;
+	font-size: 12px;
+	color: var(--dbe-muted);
+}
+.dbe-html__hint code {
+	font: 500 11px/1 var(--dbe-mono, monospace);
+	color: var(--dbe-text-2);
+	background: var(--dbe-l2);
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	padding: 1px 4px;
+}
+
+.dbe-html__editor {
+	flex: 1 1 auto;
+	min-block-size: 220px;
+	inline-size: 100%;
+	box-sizing: border-box;
+	resize: vertical;
+	background: var(--dbe-l2);
+	color: var(--dbe-text);
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	font: 400 12px/1.6 var(--dbe-mono, monospace);
+	padding: 10px 12px;
+	tab-size: 2;
+	white-space: pre;
+	overflow: auto;
+}
+.dbe-html__editor:focus { border-color: var(--dbe-accent); outline: none; }
+
+/* Parse errors keep the dialog open; the status line is an assertive-enough
+   cue right above the buttons the user just pressed. */
+.dbe-html__status {
+	margin: 8px 0 0;
+	font-size: 12px;
+	color: var(--dbe-danger);
+	min-block-size: 1.2em;
+}
+.dbe-html__status:empty { display: none; }
+
+.dbe-html__foot {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 12px;
+}
+.dbe-html__cancel,
+.dbe-html__apply {
+	border: 0;
+	border-radius: var(--dbe-r-sm);
+	font: 600 13px/1 var(--dbe-ui-font);
+	padding: 9px 14px;
+	min-block-size: 32px;
+	cursor: pointer;
+	transition: background var(--dbe-t), color var(--dbe-t);
+}
+.dbe-html__cancel {
+	background: transparent;
+	color: var(--dbe-text-2);
+	border: 1px solid var(--dbe-line-hi);
+}
+.dbe-html__cancel:hover { background: var(--dbe-hover-wash); color: var(--dbe-text); }
+.dbe-html__apply {
+	background: var(--dbe-accent-strong);
+	color: var(--dbe-on-accent-strong);
+}
+.dbe-html__apply:hover:not(:disabled) { filter: brightness(1.08); }
+.dbe-html__apply:disabled { opacity: .5; cursor: not-allowed; }

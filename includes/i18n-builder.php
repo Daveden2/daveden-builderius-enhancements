@@ -430,5 +430,23 @@ function dbe_builder_strings() {
 		// Shortcuts overlay — command palette.
 		'scGroupPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
 		'scOpenPalette'           => __( 'Open the command palette (add classes / attributes / elements)', 'daveden-builderius-enhancements' ),
+		// Edit as HTML.
+		'editAsHtml'              => __( 'Edit as HTML', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'editAsHtmlTitle'         => __( 'Edit as HTML — %s', 'daveden-builderius-enhancements' ),
+		'editAsHtmlHint'          => __( 'Keep an element’s data-dbe-id marker and its label, conditions and other settings survive the edit; elements without one are created fresh, and removed markers remove their elements. Scripts, event handlers and unknown tags are stripped.', 'daveden-builderius-enhancements' ),
+		'editAsHtmlEditor'        => __( 'HTML markup', 'daveden-builderius-enhancements' ),
+		'editAsHtmlOnlyElements'  => __( 'Only subtrees of plain elements can be edited as HTML', 'daveden-builderius-enhancements' ),
+		'applyHtml'               => __( 'Apply HTML', 'daveden-builderius-enhancements' ),
+		'htmlErrOneRoot'          => __( 'The HTML must have exactly one root element', 'daveden-builderius-enhancements' ),
+		'htmlErrParse'            => __( 'Could not parse the HTML', 'daveden-builderius-enhancements' ),
+		/* translators: 1: elements updated, 2: elements added, 3: elements removed. */
+		'htmlApplied'             => __( 'HTML applied: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
+		/* translators: %s: comma-separated list of stripped tags/attributes. */
+		'htmlStripped'            => __( '(stripped: %s)', 'daveden-builderius-enhancements' ),
+		// Change tag.
+		'changeTag'               => __( 'Change tag…', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the new HTML tag. */
+		'tagChangedTo'            => __( 'Tag changed to <%s>', 'daveden-builderius-enhancements' ),
 	);
 }
