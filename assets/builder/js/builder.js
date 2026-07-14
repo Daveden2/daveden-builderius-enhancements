@@ -4440,6 +4440,42 @@
             }
         });
 
+        // Multi-value picker (.builderiusMultiSelect — display-condition values
+        // and similar). The trigger is a plain div: no tab stop, no role, no
+        // keyboard open — mouse-only. Wire it as a combobox whose popup is a
+        // list of real checkboxes (natively focusable once open): the trigger
+        // becomes the tab stop, Enter/Space/ArrowDown open it via the native
+        // click path (the delegated key handler below), Escape closes and
+        // returns. Names: the trigger from its field title + shown values,
+        // each checkbox from its option row's text.
+        document.querySelectorAll('.builderiusMultiSelect').forEach(function (ms) {
+            var msTrigger = ms.querySelector('.builderiusMultiSelect__trigger');
+            if (!msTrigger) { return; }
+            if (msTrigger.getAttribute('tabindex') !== '0') { msTrigger.setAttribute('tabindex', '0'); }
+            if (msTrigger.getAttribute('role') !== 'combobox') { msTrigger.setAttribute('role', 'combobox'); }
+            if (msTrigger.getAttribute('aria-haspopup') !== 'listbox') { msTrigger.setAttribute('aria-haspopup', 'listbox'); }
+            var msExp = msTrigger.classList.contains('is-open') ? 'true' : 'false';
+            if (msTrigger.getAttribute('aria-expanded') !== msExp) { msTrigger.setAttribute('aria-expanded', msExp); }
+            var msTitle = dbeSSLabelEl(ms);
+            var msValue = ms.querySelector('.builderiusMultiSelect__value');
+            var msRef = [];
+            if (msTitle) { if (!msTitle.id) { msTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } msRef.push(msTitle.id); }
+            if (msValue) { if (!msValue.id) { msValue.id = 'dbe-ss-val-' + (++dbeSSId); } msRef.push(msValue.id); }
+            if (msRef.length) {
+                var mlb = msRef.join(' ');
+                if (msTrigger.getAttribute('aria-labelledby') !== mlb) { msTrigger.setAttribute('aria-labelledby', mlb); }
+            } else if (!msTrigger.getAttribute('aria-label')) {
+                msTrigger.setAttribute('aria-label', dbeT('condPickValues', 'Values'));
+            }
+            // The option checkboxes have no <label> association — name each
+            // from its row text so it is not an anonymous checkbox.
+            ms.querySelectorAll('.builderiusMultiSelect__option').forEach(function (opt) {
+                var cb = opt.querySelector('input[type="checkbox"]');
+                var t = (opt.textContent || '').trim();
+                if (cb && t && cb.getAttribute('aria-label') !== t) { cb.setAttribute('aria-label', t); }
+            });
+        });
+
         var dd = dbeSSOpenDropdown();
         if (!dd) { return; }
         var search = dd.querySelector('.uniSystemSelect__search input') || dd.querySelector('input');
@@ -4751,6 +4787,54 @@
             else if (e.key === 'Enter' || e.key === ' ') { take(); closeVia(idx >= 0 ? items[idx] : current()); trigger.focus(); }
             else if (e.key === 'Escape') { take(); closeVia(current()); trigger.focus(); }   // keep value; don't also close the dialog
             else if (e.key === 'Tab') { closeVia(current()); }                               // close, let focus move on
+        }, true);
+
+        // Multi-value picker keyboard support (.builderiusMultiSelect). The
+        // trigger div opens through the same click path a mouse uses; once the
+        // popup is open its options are real checkboxes, so Tab and Space are
+        // native — only open/close and Up/Down between options need wiring.
+        document.addEventListener('keydown', function (e) {
+            var t = e.target;
+            if (!t || !t.classList) { return; }
+            if (t.classList.contains('builderiusMultiSelect__trigger')) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!t.classList.contains('is-open')) { clickSeq(t); }
+                    waitFor(function () {
+                        var ms = t.closest('.builderiusMultiSelect');
+                        return (ms && ms.querySelector('.builderiusMultiSelect__option input[type="checkbox"]')) || null;
+                    }, function (cb) {
+                        if (cb) { try { cb.focus(); } catch (err) {} }
+                    });
+                } else if (e.key === 'Escape' && t.classList.contains('is-open')) {
+                    e.preventDefault();
+                    e.stopPropagation(); // close the popup, not the panel/dialog
+                    clickSeq(t);
+                }
+                return;
+            }
+            var msWrap = t.closest && t.closest('.builderiusMultiSelect');
+            if (!msWrap) { return; }
+            var msTrig = msWrap.querySelector('.builderiusMultiSelect__trigger');
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (msTrig) {
+                    if (msTrig.classList.contains('is-open')) { clickSeq(msTrig); }
+                    try { msTrig.focus(); } catch (err) {}
+                }
+                return;
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                var cbs = [].slice.call(msWrap.querySelectorAll('.builderiusMultiSelect__option input[type="checkbox"]'));
+                var ci = cbs.indexOf(document.activeElement);
+                if (ci === -1) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var ni = e.key === 'ArrowDown' ? Math.min(ci + 1, cbs.length - 1) : Math.max(ci - 1, 0);
+                try { cbs[ni].focus(); } catch (err) {}
+            }
         }, true);
 
         // The native fake-input selects — the element HTML-tag field
@@ -6823,6 +6907,235 @@
         });
     }
 
+    /* ---- Display-condition helpers (condition_helpers) ----------------------
+       Three things for the settings panel's conditions mode (.uniElementConditions):
+       1. A11y names: the per-card remove button, the operator <select>, the
+          value inputs and the free-input toggles all ship nameless (icon- or
+          placeholder-only) — stamp real labels each tick.
+       2. Blank-card seeding, the attr_helpers pattern: when the view opens on
+          an element with no conditions, add the first card ready to choose.
+          CAUTION: the native "New condition" click writes a placeholder rule
+          ({type:true}) into the module's visibilityCondition SETTING at once
+          (verified) — so a seeded card that is still typeless when focus
+          settles elsewhere is removed again through its own X, which cleanly
+          nulls the setting. (If the view unmounts in the same instant the X
+          is gone; that residue is identical to a user clicking New condition
+          and saving, which native allows anyway.)
+       3. Cues where conditions exist: a dot + count on the conditions-mode
+          header button, and a dot + screen-reader suffix on the Navigator
+          rows of elements that carry conditions. The row spans are re-added
+          each tick after React re-renders (the tag-badge precedent); (nk)'s
+          role stamping never descends into row buttons, so they are safe. */
+    var dbeCondSeededFor = null;   // element id the blank card was seeded for
+    var dbeCondSeededCard = null;  // the seeded card node, until settled
+    var dbeCondViewWas = false;    // view presence last tick (seed on opening edge)
+
+    function condVisValue(id) {
+        var m = (modules() || {})[id];
+        var st = m && m.settings;
+        if (!st) { return null; }
+        for (var i = 0; i < st.length; i++) {
+            if (st[i].name === 'visibilityCondition') { return st[i].value || null; }
+        }
+        return null;
+    }
+    // Count COMPLETE leaf rules (a leaf without a `name` is the just-added
+    // blank card, not a condition yet).
+    function condCountValue(v) {
+        var n = 0;
+        (function walk(node) {
+            if (!node) { return; }
+            if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
+            if (node.name) { n++; }
+        })(v);
+        return n;
+    }
+    function condCount(id) { return condCountValue(condVisValue(id)); }
+    // True while the element's whole conditions value is one typeless leaf —
+    // exactly what a fresh "New condition" click leaves behind.
+    function condBlankOnly(id) {
+        var v = condVisValue(id);
+        if (!v) { return false; }
+        var leaves = [];
+        (function walk(node) {
+            if (!node) { return; }
+            if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
+            leaves.push(node);
+        })(v);
+        return leaves.length === 1 && !leaves[0].name;
+    }
+
+    function condA11y(view) {
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemActions .uniIconButton')).forEach(function (b) {
+            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condRemove', 'Remove condition')); }
+        });
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemEdit, .uniElementConditions_item')).forEach(function (item) {
+            // First <select> in a card is the comparison operator; any later
+            // one picks the value.
+            [].slice.call(item.querySelectorAll('.uniElementConditions_itemFields select')).forEach(function (s, i) {
+                var want = i === 0 ? dbeT('condOperator', 'Comparison') : dbeT('condValue', 'Value');
+                if (s.getAttribute('aria-label') !== want) { s.setAttribute('aria-label', want); }
+            });
+        });
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemFields input:not([type="hidden"])')).forEach(function (inp) {
+            if (inp.getAttribute('aria-label')) { return; }
+            if (inp.classList.contains('uniSystemSelect__search') || inp.classList.contains('uniSystemSelect__hiddenField')) { return; }
+            inp.setAttribute('aria-label', inp.placeholder || dbeT('condValue', 'Value'));
+        });
+        [].slice.call(view.querySelectorAll('.uniSystemSelect__freeInputBtn, .builderiusSelectFreeInputToggle')).forEach(function (b) {
+            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condFreeInput', 'Type a custom value')); }
+        });
+    }
+
+    // React replaces the card node on re-render; while the seed is still the
+    // single typeless rule, the current edit card IS the seed — re-point.
+    function condSeedResolve() {
+        if (dbeCondSeededCard && dbeCondSeededCard.isConnected) { return dbeCondSeededCard; }
+        dbeCondSeededCard = (dbeCondSeededFor && condBlankOnly(dbeCondSeededFor))
+            ? document.querySelector('.uniElementConditions_itemEdit')
+            : null;
+        return dbeCondSeededCard;
+    }
+
+    /* Fallback cleanup when the seeded card's DOM is already gone (the element
+       was switched before focusout's timer ran, so there is no X to drive):
+       strip the placeholder through the settings upsert channel — the same
+       one attr_helpers uses for its orphaned blank rows. No-op unless the
+       element's whole conditions value is still the single typeless leaf. */
+    function dbeRemoveBlankCondition(id) {
+        if (!condBlankOnly(id)) { return; }
+        dbeUpdateModuleSettings(id, function (settings) {
+            for (var i = settings.length - 1; i >= 0; i--) {
+                if (settings[i].name === 'visibilityCondition') { settings.splice(i, 1); }
+            }
+        });
+    }
+
+    // Settle a seeded card once focus is elsewhere: still typeless → remove
+    // it via its own X (returns the store to "no conditions"); typed → keep.
+    function condSeedClean() {
+        var id = dbeCondSeededFor;
+        var card = condSeedResolve();
+        if (!card) {
+            if (id && condBlankOnly(id)) { try { dbeRemoveBlankCondition(id); } catch (e) {} }
+            dbeCondSeededCard = null;
+            return;
+        }
+        if (card.contains(document.activeElement)) { return; }
+        if (id && condBlankOnly(id)) {
+            var x = card.querySelector('.uniElementConditions_itemActions .uniIconButton');
+            if (x) { clickSeq(x); }
+        }
+        card.classList.remove('dbe-cond-seeded');
+        dbeCondSeededCard = null;
+    }
+    function bindCondAutoClean() {
+        if (document.dbeCondCleanBound) { return; }
+        document.dbeCondCleanBound = true;
+        document.addEventListener('focusout', function () {
+            if (!dbeCondSeededCard) { return; }
+            setTimeout(condSeedClean, 60);
+        }, true);
+    }
+
+    function condSeedBlank(view) {
+        var id = activeId();
+        if (!id || dbeCondSeededFor === id) { return; }
+        if (view.querySelector('.uniElementConditions_itemEdit, .uniElementConditions_item')) { dbeCondSeededFor = id; return; }
+        if (condVisValue(id)) { dbeCondSeededFor = id; return; }
+        var add = view.querySelector('.uniElementConditions_addNewBtn');
+        if (!add) { return; }
+        dbeCondSeededFor = id;
+        clickSeq(add);
+        waitFor(function () {
+            return view.querySelector('.uniElementConditions_itemEdit') || null;
+        }, function (card) {
+            if (!card) { return; }
+            dbeCondSeededCard = card;
+            card.classList.add('dbe-cond-seeded');
+            // Ready to choose: focus the condition-type combobox — but only
+            // when the user is already working in the settings panel (they
+            // just opened the mode from its header icon). Never steal focus
+            // from the Navigator or the canvas.
+            var left = document.querySelector('.uniLeftPanelOuter') || document.querySelector('.uniLeftPanel');
+            if (left && left.contains(document.activeElement)) {
+                var typeSel = card.querySelector('.uniSystemSelect');
+                if (typeSel) { try { typeSel.focus(); } catch (e) {} }
+            }
+        });
+    }
+
+    function condCues() {
+        var mods = modules() || {};
+        var withCond = {};
+        for (var k in mods) {
+            var st = mods[k].settings, v = null;
+            if (st) {
+                for (var i = 0; i < st.length; i++) {
+                    if (st[i].name === 'visibilityCondition') { v = st[i].value || null; break; }
+                }
+            }
+            if (v && condCountValue(v) > 0) { withCond[k] = true; }
+        }
+        var icon = document.querySelector('.uniIconConditionsMode');
+        if (icon) {
+            var id = activeId();
+            var n = id ? condCount(id) : 0;
+            var has = n > 0;
+            if (icon.classList.contains('dbe-has-cond') !== has) { icon.classList.toggle('dbe-has-cond', has); }
+            var want = has
+                ? dbeFmt(dbeT('condIconCount', 'Dynamic data conditions (%s set)'), n)
+                : dbeT('conditionsMode', 'Dynamic data conditions');
+            if (icon.getAttribute('aria-label') !== want) { icon.setAttribute('aria-label', want); }
+            if (icon.getAttribute('data-dbe-tip') !== want) { icon.setAttribute('data-dbe-tip', want); }
+        }
+        [].slice.call(document.querySelectorAll('.uniRightPanel button.uniModTree__item')).forEach(function (btn) {
+            var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
+            var has2 = !!(m && withCond[m[1]]);
+            var dot = btn.querySelector('.dbe-cond-dot');
+            if (has2 && !dot) {
+                var d = document.createElement('span');
+                d.className = 'dbe-cond-dot';
+                d.setAttribute('aria-hidden', 'true');
+                var sr = document.createElement('span');
+                sr.className = 'dbe-visually-hidden dbe-cond-sr';
+                sr.textContent = dbeT('condTreeSuffix', ', has display conditions');
+                btn.appendChild(d);
+                btn.appendChild(sr);
+            } else if (!has2 && dot) {
+                dot.remove();
+                var sr2 = btn.querySelector('.dbe-cond-sr');
+                if (sr2) { sr2.remove(); }
+            }
+        });
+    }
+
+    function ensureConditionHelpers() {
+        bindCondAutoClean();
+        condCues();
+        var view = document.querySelector('.uniLeftPanel .uniElementConditions') || document.querySelector('.uniElementConditions');
+        if (!view) {
+            dbeCondViewWas = false;
+            if (dbeCondSeededCard) { condSeedClean(); }
+            return;
+        }
+        condA11y(view);
+        // The user picked a type: the seed did its job, stand down.
+        if (dbeCondSeededCard && dbeCondSeededFor && !condBlankOnly(dbeCondSeededFor)) {
+            if (dbeCondSeededCard.isConnected) { dbeCondSeededCard.classList.remove('dbe-cond-seeded'); }
+            dbeCondSeededCard = null;
+        }
+        // Keep the seeded mark on the LIVE card node across React re-renders.
+        var seeded = condSeedResolve();
+        if (seeded && !seeded.classList.contains('dbe-cond-seeded')) { seeded.classList.add('dbe-cond-seeded'); }
+        // Seed only on the view's OPENING edge. The conditions view is sticky
+        // across element selections, and the native add writes a placeholder
+        // rule to the store — seeding per selection would dirty every element
+        // the user merely arrows past in the tree.
+        if (!dbeCondViewWas) { condSeedBlank(view); }
+        dbeCondViewWas = true;
+    }
+
     /* ---- Component properties reorder (properties_reorder) -----------------
        A rearrange toggle on a component's created-properties list (the DEFINE
        panel — .uniSettingComponentTmplProperties — not the per-instance value
@@ -8158,6 +8471,7 @@
             }
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
+            if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
@@ -8192,7 +8506,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions') || on('condition_helpers')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
@@ -8201,7 +8515,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });

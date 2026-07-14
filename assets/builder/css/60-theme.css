@@ -732,3 +732,57 @@ html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="date"]
 html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="time"]::-webkit-calendar-picker-indicator {
     filter: none !important;
 }
+
+/* The builderiusSelect / builderiusMultiSelect / free-input family (the
+   condition operator "Equals…" select, the multi-select value pickers and
+   their type-your-own variants) hard-codes the dark scale the same way:
+   --black-alt-1 fills with --primary-2/3 borders, so every one of these
+   controls renders near-black on the light panel. Repaint the family from
+   the theme tokens wherever it appears. */
+html[data-dbe-theme="light"] .builderiusSelect select,
+html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput,
+html[data-dbe-theme="light"] .uniSystemSelect--freeInput,
+html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelect select option {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__value {
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelectFreeInputToggle {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelectFreeInputToggle:hover {
+    background: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__dropdown {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__option {
+    color: var(--dbe-text-2) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__option:hover,
+html[data-dbe-theme="light"] .builderiusMultiSelect__option.is-selected {
+    background-color: var(--dbe-accent-tint) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__checkbox {
+    accent-color: var(--dbe-accent) !important;
+}
+/* The family's native focus cue is a mid-tone --accent-normal border —
+   under 3:1 against the light surface, so it fails 1.4.11 there. Pin the
+   focused/open border to the light theme's darker accent. (These come after
+   the base repaint above so they win its !important border.) */
+html[data-dbe-theme="light"] .builderiusSelect select:focus,
+html[data-dbe-theme="light"] .uniSystemSelect--freeInput:focus-within,
+html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput:focus,
+html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger.is-open {
+    border-color: var(--dbe-accent) !important;
+}

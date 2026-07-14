@@ -61,6 +61,41 @@ keyboard and screen-reader users get the same shortcut.
   A new leak-audit pass in 60-theme.css repaints those surfaces from the
   theme tokens, pins the chip's accent hover to the light-legible accent,
   and un-inverts the date/time picker glyph. The dark theme is untouched.
+* Fixed: the conditions-view light-theme pass now also covers the field
+  controls a chosen condition reveals — the `builderiusSelect` operator
+  select ("Equals…", computed to roughly 1.5:1 on its native near-black
+  fill), the `builderiusMultiSelect` value pickers and their dropdown
+  lists, the select-with-free-input variants and their toggles. The
+  family's native focus cue (a mid-tone accent border, under 3:1 on light
+  surfaces) is pinned to the light theme's darker accent.
+* Added (#54 follow-up): a **Display-condition helpers** feature (Editing
+  tab, on by default), the attr_helpers pattern applied to conditions:
+  - Opening the conditions mode on an element with none seeds a blank,
+    ready-to-choose condition card (focused only when you are already
+    working in the settings panel — never stolen from the Navigator).
+    The native "New condition" click writes a placeholder rule into the
+    element's `visibilityCondition` setting immediately, so an abandoned
+    typeless card is removed again: through its own X while it is still
+    mounted, or through the settings upsert channel when the panel moved
+    on first — either way the element is left exactly as it was.
+    Seeding fires only when the view opens, never while browsing
+    elements with the (sticky) view already open.
+  - Every condition field gets a real accessible name: the per-card
+    remove button ("Remove condition"), the comparison select, the value
+    inputs (from their placeholder), the free-input toggles, and each
+    checkbox in the multi-value pickers (from its option's text).
+  - The multi-value pickers (`builderiusMultiSelect`) were mouse-only —
+    an unfocusable div trigger. They are now wired as comboboxes: the
+    trigger is a tab stop announcing its field and chosen values,
+    Enter/Space/ArrowDown open it and focus the first option, the
+    options are real checkboxes (Space ticks, Tab or arrows move), and
+    Escape closes and returns to the trigger.
+  - Elements that carry conditions are marked: the conditions-mode
+    header button gains a dot and announces the count ("Dynamic data
+    conditions (2 set)"), and their Navigator rows gain a dot with a
+    visually-hidden ", has display conditions" suffix for screen
+    readers. The row marks survive React re-renders (re-applied per
+    tick, the tag-badge precedent).
 * Docs: readme.txt reorganised to the WordPress plugin handbook layout —
   proper header fields (Tags, License URI), a ≤150-character short
   description, Description / Installation / FAQ / Upgrade Notice sections,

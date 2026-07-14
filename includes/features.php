@@ -318,6 +318,14 @@ function dbe_features() {
 			'css'         => array( '34-attr-helpers.css' ),
 			'js'          => true,
 		),
+		'condition_helpers'     => array(
+			'title'       => __( 'Display-condition helpers', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'A ready blank condition, labelled fields, and cues where conditions exist.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Helps with an element\'s display conditions (the settings panel\'s conditions mode). Opens a blank, ready-to-choose condition when an element has none yet (it is removed again if left empty), gives every condition field a proper screen-reader label, makes the multi-value pickers keyboard-operable, and marks elements that carry conditions: a dot on the conditions button and on their Navigator rows, announced to screen readers.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '36-conditions.css' ),
+			'js'          => true,
+		),
 		'inserter_keyboard'     => array(
 			'title'       => __( 'Inserter keyboard navigation', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Arrow-key navigation of the element Inserter.', 'daveden-builderius-enhancements' ),

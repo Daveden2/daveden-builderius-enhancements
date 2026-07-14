@@ -1,0 +1,43 @@
+/* Display-condition helpers (condition_helpers).
+
+   Visual cues for elements that carry display conditions, and a subtle mark
+   on the auto-seeded blank condition card. The theme-layer repaint of the
+   conditions view itself lives in 60-theme.css (leak-audit pass 17). */
+
+/* The conditions-mode header button when the selected element has at least
+   one condition: a small accent dot pinned to the icon's corner. The count
+   is carried in the button's accessible name (builder.js updates it). */
+.uniIconConditionsMode.dbe-has-cond {
+	position: relative;
+}
+.uniIconConditionsMode.dbe-has-cond::after {
+	content: "";
+	position: absolute;
+	inset-block-start: 1px;
+	inset-inline-end: 1px;
+	inline-size: 7px;
+	block-size: 7px;
+	border-radius: 50%;
+	background: var(--dbe-accent-strong);
+	border: 1px solid var(--dbe-l1);
+}
+
+/* Navigator rows for elements with conditions: a matching dot after the
+   label. The row is a flex button, so the dot sits in the text flow; the
+   screen-reader suffix is a separate visually-hidden span (builder.js). */
+.uniModTree__item .dbe-cond-dot {
+	flex: 0 0 auto;
+	display: inline-block;
+	inline-size: 6px;
+	block-size: 6px;
+	margin-inline-start: 6px;
+	border-radius: 50%;
+	background: var(--dbe-accent-strong);
+}
+
+/* The auto-seeded blank card, until the user picks a type or it is
+   removed again: the same quiet accent cue the seeded attribute row uses. */
+.uniElementConditions_itemEdit.dbe-cond-seeded {
+	outline: 1px solid var(--dbe-accent-tint-hi);
+	outline-offset: 1px;
+}
