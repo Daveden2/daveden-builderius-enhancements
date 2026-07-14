@@ -74,10 +74,14 @@ keyboard and screen-reader users get the same shortcut.
     ready-to-choose condition card (focused only when you are already
     working in the settings panel — never stolen from the Navigator).
     The native "New condition" click writes a placeholder rule into the
-    element's `visibilityCondition` setting immediately, so an abandoned
-    typeless card is removed again: through its own X while it is still
-    mounted, or through the settings upsert channel when the panel moved
-    on first — either way the element is left exactly as it was.
+    element's `visibilityCondition` setting immediately, so a seeded card
+    the user never interacted with is removed again on leaving: through
+    its own X while it is still mounted, or through the settings upsert
+    channel when the panel moved on first — either way the element is
+    left exactly as it was. Any pointer or key interaction inside the
+    card disarms the auto-clean (the store test alone raced the async
+    type commit — observed with Dynamic data, whose chosen card was
+    briefly indistinguishable from an untouched one and got removed).
     Seeding fires only when the view opens, never while browsing
     elements with the (sticky) view already open.
   - Every condition field gets a real accessible name: the per-card

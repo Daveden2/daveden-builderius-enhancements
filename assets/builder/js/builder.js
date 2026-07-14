@@ -6929,6 +6929,7 @@
     var dbeCondSeededFor = null;   // element id the blank card was seeded for
     var dbeCondSeededCard = null;  // the seeded card node, until settled
     var dbeCondViewWas = false;    // view presence last tick (seed on opening edge)
+    var dbeCondSeedEngaged = false; // the user interacted with the seeded card
 
     function condVisValue(id) {
         var m = (modules() || {})[id];
@@ -6939,20 +6940,24 @@
         }
         return null;
     }
-    // Count COMPLETE leaf rules (a leaf without a `name` is the just-added
-    // blank card, not a condition yet).
+    // Count the chosen leaf rules. Anything except the untouched {type: true}
+    // placeholder counts — a leaf's other fields vary by condition type
+    // (Dynamic data has no `name` at all), but every chosen type replaces the
+    // placeholder's `true` with its own type string.
     function condCountValue(v) {
         var n = 0;
         (function walk(node) {
             if (!node) { return; }
             if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
-            if (node.name) { n++; }
+            if (node.type !== true) { n++; }
         })(v);
         return n;
     }
     function condCount(id) { return condCountValue(condVisValue(id)); }
-    // True while the element's whole conditions value is one typeless leaf —
-    // exactly what a fresh "New condition" click leaves behind.
+    // True while the element's whole conditions value is the single untouched
+    // placeholder a fresh "New condition" click writes — EXACTLY {type: true}.
+    // Never key this off a missing `name`: some condition types (Dynamic data)
+    // legitimately have none, and a looser test removed a just-chosen card.
     function condBlankOnly(id) {
         var v = condVisValue(id);
         if (!v) { return false; }
@@ -6962,7 +6967,7 @@
             if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
             leaves.push(node);
         })(v);
-        return leaves.length === 1 && !leaves[0].name;
+        return leaves.length === 1 && leaves[0].type === true;
     }
 
     function condA11y(view) {
@@ -7011,10 +7016,21 @@
         });
     }
 
-    // Settle a seeded card once focus is elsewhere: still typeless → remove
-    // it via its own X (returns the store to "no conditions"); typed → keep.
+    // Settle a seeded card once focus is elsewhere: still untouched → remove
+    // it via its own X (returns the store to "no conditions"); engaged with in
+    // ANY way → it is the user's card now, keep it. The engagement flag is the
+    // primary signal — the store test alone races the async commit of a chosen
+    // type (observed with Dynamic data: the focusout timer fired before the
+    // type write landed, and the cleaner removed a card the user had just
+    // configured).
     function condSeedClean() {
         var id = dbeCondSeededFor;
+        if (dbeCondSeedEngaged) {
+            var kept = condSeedResolve();
+            if (kept) { kept.classList.remove('dbe-cond-seeded'); }
+            dbeCondSeededCard = null;
+            return;
+        }
         var card = condSeedResolve();
         if (!card) {
             if (id && condBlankOnly(id)) { try { dbeRemoveBlankCondition(id); } catch (e) {} }
@@ -7036,6 +7052,16 @@
             if (!dbeCondSeededCard) { return; }
             setTimeout(condSeedClean, 60);
         }, true);
+        // Any pointer or key interaction inside the seeded card disarms the
+        // auto-clean — including clicks in the type select's dropdown, which
+        // the uniSystemSelect renders inside the card.
+        var engage = function (e) {
+            if (!dbeCondSeededCard || dbeCondSeedEngaged) { return; }
+            var card = condSeedResolve();
+            if (card && e.target && card.contains(e.target)) { dbeCondSeedEngaged = true; }
+        };
+        document.addEventListener('pointerdown', engage, true);
+        document.addEventListener('keydown', engage, true);
     }
 
     function condSeedBlank(view) {
@@ -7046,6 +7072,7 @@
         var add = view.querySelector('.uniElementConditions_addNewBtn');
         if (!add) { return; }
         dbeCondSeededFor = id;
+        dbeCondSeedEngaged = false;
         clickSeq(add);
         waitFor(function () {
             return view.querySelector('.uniElementConditions_itemEdit') || null;
@@ -7125,9 +7152,13 @@
             if (dbeCondSeededCard.isConnected) { dbeCondSeededCard.classList.remove('dbe-cond-seeded'); }
             dbeCondSeededCard = null;
         }
-        // Keep the seeded mark on the LIVE card node across React re-renders.
+        // Keep the seeded mark on the LIVE card node across React re-renders —
+        // until the user engages with the card, when the mark stands down.
         var seeded = condSeedResolve();
-        if (seeded && !seeded.classList.contains('dbe-cond-seeded')) { seeded.classList.add('dbe-cond-seeded'); }
+        if (seeded) {
+            var mark = !dbeCondSeedEngaged;
+            if (seeded.classList.contains('dbe-cond-seeded') !== mark) { seeded.classList.toggle('dbe-cond-seeded', mark); }
+        }
         // Seed only on the view's OPENING edge. The conditions view is sticky
         // across element selections, and the native add writes a placeholder
         // rule to the store — seeding per selection would dirty every element

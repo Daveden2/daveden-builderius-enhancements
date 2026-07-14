@@ -63,7 +63,7 @@ Navigator row quick actions. Props to TRẦN ĐỨC LƯƠNG (@evanscliff) for th
 * Delete asks for a confirming second press (the button turns solid red and renames to "Confirm delete") and remains undoable with Ctrl/Cmd+Z while Undo delete is on.
 * A sub-setting can pin the buttons to the selected row instead of showing them on hover.
 * Fixed: in the light theme, an element's display-conditions view (the settings panel's conditions mode) rendered dark-on-dark — the "New condition" button, the condition cards, the separators, the date/time fields, and the comparison, value and multi-value pickers all kept their native dark surfaces. All now follow the light theme; dark is unchanged.
-* New: Display-condition helpers (Editing tab, on by default) — opens a blank, ready-to-choose condition when an element has none yet (removed again if left empty), gives every condition field a proper screen-reader label, and marks elements that carry conditions: a dot and count on the conditions button, and a dot on their Navigator rows that screen readers announce.
+* New: Display-condition helpers (Editing tab, on by default) — opens a blank, ready-to-choose condition when an element has none yet (removed again if you leave without touching it), gives every condition field a proper screen-reader label, and marks elements that carry conditions: a dot and count on the conditions button, and a dot on their Navigator rows that screen readers announce.
 * Improved: the multi-value condition pickers are now keyboard-operable — the picker is focusable and announces itself, Enter or the arrows open it, Space ticks a value, and Escape closes and returns.
 
 = 1.12.4 =
