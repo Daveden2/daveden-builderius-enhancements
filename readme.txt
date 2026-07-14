@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 1.13.0
+Stable tag: 1.13.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -55,6 +55,10 @@ Open an issue on the GitHub repository. Suggestions that ship are credited in th
 == Changelog ==
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
+
+= 1.13.1 =
+A canvas-loading fix for remembered panel widths.
+* Fixed: with Resizable side panels on and a remembered panel width, the canvas painted at the default width and then visibly snapped narrower or wider about a second into loading the builder. The remembered width is now applied before the first paint, so the canvas opens at its final size.
 
 = 1.13.0 =
 Navigator row quick actions. Props to TRẦN ĐỨC LƯƠNG (@evanscliff) for the suggestion.

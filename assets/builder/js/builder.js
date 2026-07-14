@@ -6231,9 +6231,14 @@
         dbeSyncPanelHandlesAria();
     }
 
-    /* Seed --dbe-panel-width from the stored value before the handles mount, so
-       the panels open at the remembered width (the CSS carries a 320px fallback
-       for the first-ever run). */
+    /* Seed --dbe-panel-width from the stored value before the handles mount.
+       The FIRST-paint seed actually happens earlier, in the wp_head bootstrap
+       (output-builder.php), inline on <html> — this script only runs once the
+       SPA has mounted, ~1s after the canvas painted, and seeding only here
+       made a stored width visibly snap the canvas. This body-level write
+       remains the live channel the drag handles use, and a belt-and-braces
+       re-seed in case head output was filtered away. Clamp mirrors the
+       bootstrap's. */
     function applyStoredPanelWidth() {
         var v;
         try { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); } catch (e) {}
