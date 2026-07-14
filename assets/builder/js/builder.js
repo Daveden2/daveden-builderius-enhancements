@@ -509,6 +509,79 @@
         });
     }
 
+    /* (im) Image defaults (image_defaults). A fresh Image element is an
+       HtmlElement seeded with only tag=img — no src, no alt — so it renders as
+       an invisible empty <img> the user has to hunt for on the canvas, and it
+       ships without an alt attribute at all. Builderius' media picker fills
+       both when an image is chosen (alt from the attachment's alt text), but
+       it only ADDS alt when that text is non-empty — and it never strips an
+       existing alt — so seeding the element at insert time closes both gaps:
+       src = an inline data: SVG placeholder (something to see and click),
+       alt = "" (present from birth; empty reads as decorative until real text
+       is written, and survives picking an image whose alt text is blank).
+       Applied through the addModule upsert (the repaint-and-persist channel);
+       dbeUndoBusy is held across the upsert so the settings write is not
+       captured as a second undo step, and restores/undo re-adds (which run
+       under dbeUndoBusy) are left untouched.
+       Verified live (Builderius 1.3.x): the settings panel normalises an
+       empty-valued attribute row to {name:'alt'} with NO value key when it
+       re-commits — that entry still renders on the front end as a bare `alt`
+       (formatHtmlAttributes emits the name alone for null/empty values),
+       which is HTML-equivalent to alt="". The builder canvas alone omits it.
+       The media picker replaces src outright and fills alt from the
+       attachment's alt text; it never strips an existing alt, so the seeded
+       one survives picking an image whose alt text is blank. */
+    var DBE_IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+        // width/height give the img an intrinsic size (a viewBox alone can
+        // collapse to 0x0 in a flex/grid slot), so the placeholder is visible
+        // and clickable before any sizing CSS exists.
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">' +
+        '<rect width="1200" height="800" fill="#d7dbe2"/>' +
+        '<circle cx="912" cy="228" r="84" fill="#a8b0bd"/>' +
+        '<path d="M0 800 336 396l228 276 168-132 468 260z" fill="#a8b0bd"/>' +
+        '<path d="M0 800l264-228 252 228z" fill="#8b94a4"/>' +
+        '</svg>'
+    );
+    function dbeApplyImageDefaults(id) {
+        var m = (modules() || {})[id];
+        if (!m || m.name !== 'HtmlElement') { return; }
+        var tag = ((m.settings || []).filter(function (s) { return s.name === 'tag'; })[0] || {}).value;
+        if (tag !== 'img') { return; }
+        // An attribute entry can exist WITHOUT a value key (the builder's own
+        // attribute rows commit {name:'alt'} until something is typed), and a
+        // value-less entry renders nothing — so only a present value counts,
+        // and a value-less entry is filled in place rather than duplicated.
+        var attrs = ((m.settings || []).filter(function (s) { return s.name === 'htmlAttribute'; })[0] || {}).value || [];
+        var hasSrc = attrs.some(function (a) { return a && a.name === 'src' && a.value; });
+        var hasAlt = attrs.some(function (a) { return a && a.name === 'alt' && a.value != null; });
+        if (hasSrc && hasAlt) { return; }
+        var wasBusy = dbeUndoBusy;
+        dbeUndoBusy = true;
+        try {
+            dbeUpdateModuleSettings(id, function (settings) {
+                var attr = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+                if (!attr) { attr = { name: 'htmlAttribute', value: [] }; settings.push(attr); }
+                if (!Array.isArray(attr.value)) { attr.value = []; }
+                if (!hasSrc) { attr.value.push({ name: 'src', value: DBE_IMG_PLACEHOLDER }); }
+                if (!hasAlt) {
+                    var alt = attr.value.filter(function (a) { return a && a.name === 'alt'; })[0];
+                    if (alt) { alt.value = ''; } else { attr.value.push({ name: 'alt', value: '' }); }
+                }
+            });
+        } finally { dbeUndoBusy = wasBusy; }
+    }
+    function hookImageDefaults() {
+        try {
+            window.Builderius.API.hooks.addAction('builderius.Module.added', 'dbeImageDefaults', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
+                // Defer out of the dispatch so the add settles first. The
+                // upsert re-fires this hook, but by then src and alt exist and
+                // the second pass is a no-op, so it cannot loop.
+                setTimeout(function () { try { dbeApplyImageDefaults(p.id); } catch (e) {} }, 0);
+            });
+        } catch (e) {}
+    }
+
     /* (d1) Move the target element up or down among its siblings via the builder's
        own move action (the repaint-and-persist channel). `to` is the desired final
        position in the sibling order; if a Builderius version treats newIndex as
@@ -3898,6 +3971,75 @@
                     var active = live && live.querySelector(sel + '.active');
                     if (active) { active.focus(); }
                 }, 0);
+            });
+        });
+    }
+
+    /* (sa) Settings-group accordions (settings_accordions). The element
+       settings panel's collapsible groups (Primary, Advanced, Attributes…) are
+       mouse-only: each heading is a plain <div> at tabindex -1 with no role,
+       no aria-expanded and no key handling, and a COLLAPSED group renders no
+       field DOM at all — its settings do not exist in the document, so a
+       keyboard or screen-reader user can never reach them. Worse, the
+       collapsed state persists globally per group name, so "everything after
+       the tag selector is unreachable" is a normal panel state. Wire each
+       heading as an APG disclosure button: a real Tab stop (one per heading,
+       like the block editor's panel headings — no roving needed for 2-3
+       groups), role=button, aria-expanded mirrored from whether the group's
+       items wrapper is mounted, and Enter/Space toggling through the
+       builder's own click path (clickSeq — React owns the toggle, so a bare
+       synthetic click does not fire it). The open group's body gets
+       role=region + aria-labelledby so the fields announce which group they
+       belong to. The toggle remounts the heading, so focus is re-asserted by
+       group NAME after the re-render settles — the text is the only identity
+       that survives. Scoped to the left panel: the Inserter and the context
+       menu reuse .uniCatTitle but have their own keyboard features. */
+    var dbeAccSeq = 0;
+    function dbeAccName(head) {
+        var span = head.querySelector('span');
+        return ((span ? span.textContent : head.textContent) || '').trim();
+    }
+    function dbeAccRefocus(name) {
+        // Two frames: the first re-render swaps the heading node, the group
+        // body mounts on the next. Re-stamp the fresh nodes before focusing so
+        // the landing heading already announces its new expanded state.
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+            try { ensureSettingsAccordions(); } catch (e) {}
+            var heads = document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper__catTitle');
+            for (var i = 0; i < heads.length; i++) {
+                if (dbeAccName(heads[i]) === name) { heads[i].focus(); return; }
+            }
+        }); });
+    }
+    function ensureSettingsAccordions() {
+        document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper').forEach(function (wrap) {
+            var head = wrap.querySelector('.uniModCssCatWrapper__catTitle');
+            if (!head) { return; }
+            var items = wrap.querySelector('.uniModCssCatWrapper__items');
+            if (head.getAttribute('role') !== 'button') { head.setAttribute('role', 'button'); }
+            if (head.getAttribute('tabindex') !== '0') { head.setAttribute('tabindex', '0'); }
+            var expanded = items ? 'true' : 'false';
+            if (head.getAttribute('aria-expanded') !== expanded) { head.setAttribute('aria-expanded', expanded); }
+            if (!head.id) { head.id = 'dbe-acc-head-' + (++dbeAccSeq); }
+            if (items) {
+                if (!items.id) { items.id = 'dbe-acc-panel-' + (++dbeAccSeq); }
+                if (items.getAttribute('role') !== 'region') { items.setAttribute('role', 'region'); }
+                if (items.getAttribute('aria-labelledby') !== head.id) { items.setAttribute('aria-labelledby', head.id); }
+                if (head.getAttribute('aria-controls') !== items.id) { head.setAttribute('aria-controls', items.id); }
+            } else if (head.hasAttribute('aria-controls')) {
+                // A collapsed group unmounts its body node entirely, so the
+                // reference would dangle — drop it until the body exists again.
+                head.removeAttribute('aria-controls');
+            }
+            if (head.dbeAccBound) { return; }
+            head.dbeAccBound = true;
+            head.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var name = dbeAccName(head);
+                clickSeq(head);
+                dbeAccRefocus(name);
             });
         });
     }
@@ -8497,6 +8639,7 @@
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
+            if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
@@ -8551,7 +8694,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -8648,6 +8791,9 @@
             hookHistoryCapture();
             bindUndoKeys();
         }
+
+        // Seed new Image elements with a placeholder src and an empty alt.
+        if (on('image_defaults')) { hookImageDefaults(); }
 
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }

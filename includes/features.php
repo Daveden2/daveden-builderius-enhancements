@@ -151,6 +151,14 @@ function dbe_features() {
 			'css'         => false,
 			'js'          => true,
 		),
+		'settings_accordions'   => array(
+			'title'       => __( 'Accessible settings groups', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Keyboard and screen-reader access for the settings-panel groups.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element settings panel\'s collapsible groups (Primary, Advanced, Attributes and so on) usable from the keyboard and a screen reader. Each group heading becomes a real Tab stop that announces itself as a button and whether its group is open, and Enter or Space opens and closes it. Without this the headings cannot take keyboard focus at all, so the settings inside a collapsed group are unreachable without a mouse.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '84-settings-accordions.css' ),
+			'js'          => true,
+		),
 		'chrome_landmarks'      => array(
 			'title'       => __( 'Screen-reader landmarks', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Named landmark regions for each part of the builder.', 'daveden-builderius-enhancements' ),
@@ -316,6 +324,14 @@ function dbe_features() {
 			'description' => __( 'Opens a blank, ready-to-type row when an element has no HTML attributes yet (it is removed again if left empty), and suggests common attribute names such as id, role, aria-* and data-*.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '34-attr-helpers.css' ),
+			'js'          => true,
+		),
+		'image_defaults'        => array(
+			'title'       => __( 'Image placeholder & default alt', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'New Image elements get a visible placeholder and an alt attribute.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Gives a newly inserted Image element a built-in placeholder graphic (an inline SVG, no file involved) so it is visible on the canvas straight away, and an empty alt attribute so the image is never missing one — empty alt marks it as decorative until you write the real text. Choosing an image from the media library replaces the placeholder, and the alt attribute is filled from the media library\'s alt text when one is set.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array(),
 			'js'          => true,
 		),
 		'condition_helpers'     => array(

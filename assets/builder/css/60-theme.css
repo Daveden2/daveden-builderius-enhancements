@@ -866,3 +866,34 @@ html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput:focus,
 html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger.is-open {
     border-color: var(--dbe-accent) !important;
 }
+
+/* --- Leak audit pass 19: setting description boxes (infoMsg) --- */
+/* Every settings field renders its description (the schema's infoMsg) as
+   .uniFormField__boxInfo — natively a --primary-2 (near-black) tile with
+   --primary-4 text. The palette remap darkens the text to --dbe-muted while
+   the tile keeps its native dark fill, so in the light theme every
+   description reads dark-on-dark (~1.6:1): the Template element's custom-name
+   note and the Collection's Interactive Rendering note are the visible
+   casualties, but the same class carries all the other field descriptions
+   too. Repaint the tile as a light card like the other --primary-2 tiles
+   (passes 9/15); the text on it takes the secondary token. Dark is left
+   alone — the native pairing is already correct there. */
+html[data-dbe-theme="light"] .uniFormField__boxInfo {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniFormField__boxInfo p,
+html[data-dbe-theme="light"] .uniFormField__boxInfo span,
+html[data-dbe-theme="light"] .uniFormField__boxInfo a {
+    color: var(--dbe-text-2) !important;
+}
+
+/* Switch fields label themselves with the INLINE variant of the setting
+   label; its toggled-on state paints the native mid-tone --accent-normal
+   (~2.2:1 on light chrome). Pass 7 pinned the block variant
+   (.uniFormField__settingLabel.nonEmptyValue) but missed this one — pin it
+   to the theme accent the same way so an enabled switch (e.g. the
+   Collection's Interactive Rendering) keeps a legible label. */
+html[data-dbe-theme="light"] .uniFormField__settingLabelInline.nonEmptyValue {
+    color: var(--dbe-accent) !important;
+}

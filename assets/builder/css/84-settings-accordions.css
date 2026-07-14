@@ -1,0 +1,15 @@
+/* Accessible settings groups (settings_accordions).
+
+   The group headings carry tabindex="0" and receive real DOM focus, so the
+   keyboard cursor must be visible even when the separate "Focus visibility"
+   feature is off. Inset ring, matching the Navigator keyboard tree. */
+.uniLeftPanel .uniModCssCatWrapper__catTitle:focus-visible {
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: -2px !important;
+}
+
+/* Keep the ring visible even in the rare browsers that fall back to :focus. */
+.uniLeftPanel .uniModCssCatWrapper__catTitle:focus:not(:focus-visible) {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -2px;
+}
