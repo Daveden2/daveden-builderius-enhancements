@@ -3,6 +3,23 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.13.1
+A canvas-loading fix for remembered panel widths.
+
+* Fixed: with Resizable side panels on and a stored panel width, the
+  canvas painted at the stylesheet's 320px fallback and then visibly
+  snapped (~120px with the width at the 260px minimum) about a second
+  later, when builder.js finally applied the stored value after the
+  builder SPA mounted — boot() retries until the Navigator exists, so
+  its "before first paint" seeding only ever preceded the resize
+  handles' paint, not the canvas's. The wp_head bootstrap (the same
+  pre-paint channel that resolves the theme) now seeds
+  `--dbe-panel-width` inline on `<html>` from localStorage, clamped to
+  the same 260–600 range as builder.js, so the first paint is already
+  at the remembered width. The body-level write remains the drag
+  handles' live channel and a fallback re-seed. Present since the
+  feature shipped in 1.7.0, not a 1.13.0 regression.
+
 ## 1.13.0
 Navigator row quick actions (issue #54) — inline Duplicate and Delete on
 Navigator rows, requested as the Bricks-style hover icons but built so
