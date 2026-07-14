@@ -3,7 +3,7 @@ Contributors: daveden2
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.4
+Stable tag: 1.13.0
 License: GPLv2 or later
 
 Quality-of-life, theming and accessibility enhancements for the Builderius
@@ -24,6 +24,7 @@ community. Thank you:
 * Detachable Navigator — Tim Gray
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
+* Navigator row quick actions — TRẦN ĐỨC LƯƠNG
 
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
@@ -31,6 +32,18 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 A short summary of each release. The full, detailed notes live in CHANGELOG.md
 in the plugin repository.
+
+= 1.13.0 =
+Navigator row quick actions: Duplicate and Delete on the row under your
+pointer or keyboard focus.
+* New: Duplicate and Delete buttons appear at the right edge of a Navigator
+  row when you point at it or move keyboard focus onto it (Navigator tab; on
+  by default). From a focused row, Tab reaches the buttons and Escape returns
+  to the row; after duplicating, focus lands on the copy, and after deleting
+  it moves to a neighbouring row. Each button announces its target ("Delete
+  “Hero”") to assistive technology, and deleting is undoable with Ctrl/Cmd+Z
+  while Undo delete is on. A sub-setting can pin the buttons to the selected
+  row instead of showing them on hover.
 
 = 1.12.4 =
 Fixes for the CSS vars tab and the detachable Navigator, plus label polish.

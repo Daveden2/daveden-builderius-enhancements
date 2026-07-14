@@ -3,6 +3,50 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.13.0
+Navigator row quick actions (issue #54) — inline Duplicate and Delete on
+Navigator rows, requested as the Bricks-style hover icons but built so
+keyboard and screen-reader users get the same shortcut.
+
+* Added (#54): a new **Navigator row quick actions** feature (Navigator tab,
+  on by default). Duplicate and Delete buttons appear at the right edge of a
+  Navigator row on pointer hover or keyboard focus. Both actions drive the
+  native context-menu channels (`Duplicate` / `Remove`), so rendering, save
+  state and the undo-delete capture behave exactly as if the menu had been
+  used; deletes stay undoable with Ctrl/Cmd+Z while Undo delete is on.
+* The implementation deliberately differs from the Bricks reference (mouse-
+  only list items injected inside every row, no roles, no keyboard path):
+  Builderius rows are themselves `<button>` elements inside the ARIA tree the
+  Navigator keyboard feature maintains, so per-row injection would nest
+  buttons inside buttons and pollute the tree semantics, and React re-renders
+  would wipe the injected nodes. Instead ONE floating cluster of two real
+  buttons lives after the tree scroller in DOM order — Tab from a focused row
+  reaches Duplicate then Delete, Escape returns to the row — and is overlaid
+  on the target row's right edge.
+* Positioning is a progressive enhancement: browsers with CSS anchor
+  positioning track the row (and tree scrolling, via `position-visibility`)
+  natively; others take a `getBoundingClientRect` fallback with a scroll
+  clamp that blanks the cluster while its row is outside the scrollport.
+* Accessible names carry the target element's label ("Duplicate “Hero”",
+  read from the store, not the badge-decorated row text) and update as the
+  target changes; outcomes are announced through the existing polite status
+  toast ("Duplicated element" / "Deleted element"); nothing is announced on
+  mere show/hide. After duplicating, focus lands on the copy's row; after
+  deleting, on the next row outside the removed subtree (else the previous
+  row, else the parent), matching the WordPress list-view shape.
+* A **Show the buttons** sub-setting picks between "On hover or keyboard
+  focus" (default) and "Always, on the selected row", which keeps the cluster
+  pinned to the selection.
+* The cluster yields to the real right-click menu, hides during row drags and
+  while inline rename is active, and survives React re-renders by re-resolving
+  its target row by node id on every tick. New `--dbe-danger` token (both
+  themes, AA on the raised surface) gives Delete its destructive hover/focus
+  state.
+* With the Navigator keyboard tree feature off, rows are still natively
+  focusable so the buttons still appear on focus; without the roving tab stop,
+  Tab only reaches the cluster after the last row — turn Navigator keyboard
+  tree on for the intended row → Tab → actions flow.
+
 ## 1.12.4
 Repairs for the CSS vars tab (a 1.12.1 regression) and the detachable
 Navigator's canvas reclaim, plus community label polish.
