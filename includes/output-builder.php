@@ -125,10 +125,11 @@ function dbe_print_builder_head() {
 		return;
 	}
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) ) {
 		$bootstrap = array(
-			'theme'   => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
-			'density' => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
+			'theme'      => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
+			'density'    => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
+			'panelWidth' => dbe_enabled( 'panel_resize' ),
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
@@ -163,6 +164,21 @@ function dbe_print_builder_head() {
 				} catch (e) {}
 			}
 			if (cfg.density) { d.dataset.dbeDensity = pick('dbeBuilderDensity', cfg.density); }
+			/*
+			 * Panel width, seeded pre-paint for the same reason as the theme:
+			 * builder.js can only write it once the SPA has mounted (~1s in),
+			 * and by then the canvas has painted at the stylesheet's 320px
+			 * fallback — restoring a stored width later made the canvas
+			 * visibly snap. Set inline on <html>, which the panel rules'
+			 * var() resolves through, so the FIRST paint is already at the
+			 * stored width. Clamp mirrors DBE_PANEL_MIN/MAX in builder.js.
+			 */
+			if (cfg.panelWidth) {
+				var pw = parseInt(pick('dbeBuilderPanelWidth', ''), 10);
+				if (!isNaN(pw)) {
+					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
+				}
+			}
 		})(document.documentElement);
 		</script>
 		<?php
