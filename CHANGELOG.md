@@ -100,6 +100,15 @@ keyboard and screen-reader users get the same shortcut.
     visually-hidden ", has display conditions" suffix for screen
     readers. The row marks survive React re-renders (re-applied per
     tick, the tag-badge precedent).
+* Fixed: the dynamic data picker — the floating `.uniAdvancedDialogMenu`
+  the stack icon opens, shared by the Dynamic data list, the CSS vars
+  list and the transformation-functions list — rendered black-on-black
+  in the light theme everywhere in the builder: a `--black-alt-1` card
+  with a `#000` search field, dark "parents" chips and dark expanded
+  rows under the remapped (dark) foreground, with the search text in the
+  native green that is illegible on a light field. Leak-audit pass 18
+  repaints the card, search, chips, expanded rows and their form
+  controls from the theme tokens; the dark theme is untouched.
 * Docs: readme.txt reorganised to the WordPress plugin handbook layout —
   proper header fields (Tags, License URI), a ≤150-character short
   description, Description / Installation / FAQ / Upgrade Notice sections,

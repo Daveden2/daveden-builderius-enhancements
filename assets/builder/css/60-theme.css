@@ -733,6 +733,60 @@ html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="time"]
     filter: none !important;
 }
 
+/* --- Leak audit pass 18: advanced dialog menus (the dynamic data picker) ---
+   The floating picker the stack icon opens — .uniAdvancedDialogMenu, shared
+   by the Dynamic data list, the CSS vars list and the transformation
+   functions list, so this repaint covers all three wherever they pop up.
+   Natively the card is --black-alt-1 with a #000 (--contrast) search field,
+   --primary-2 "parents" chips and --primary-1 expanded rows; the remapped
+   foreground goes light-theme dark on top of them — black on black. The
+   item labels, category headings and icons already read from the remapped
+   --base-2/--primary-4, so only the surfaces (and the search text, natively
+   the green --accent-special, illegible on a light field) need repainting. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__inner {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__searchWrapper .uniAdvancedDialogMenu__searchInner,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__searchWrapper input.uniAdvancedDialogMenu__search {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable .btnItem__content .parents,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm .btnItem__content .parents {
+    background: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded {
+    background-color: var(--dbe-l1) !important;
+    border-top-color: var(--dbe-line) !important;
+    border-bottom-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form input,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form select,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form input,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form select {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form input:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form select:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form input:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form select:focus-within {
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form ul li button:hover,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form ul li button:hover {
+    background-color: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form .fieldWrapper .uniIconButton,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form .fieldWrapper .uniIconButton {
+    background: var(--dbe-l2-hi) !important;
+}
+
 /* The builderiusSelect / builderiusMultiSelect / free-input family (the
    condition operator "Equals…" select, the multi-select value pickers and
    their type-your-own variants) hard-codes the dark scale the same way:

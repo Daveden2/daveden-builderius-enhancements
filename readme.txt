@@ -65,6 +65,7 @@ Navigator row quick actions. Props to TRẦN ĐỨC LƯƠNG (@evanscliff) for th
 * Fixed: in the light theme, an element's display-conditions view (the settings panel's conditions mode) rendered dark-on-dark — the "New condition" button, the condition cards, the separators, the date/time fields, and the comparison, value and multi-value pickers all kept their native dark surfaces. All now follow the light theme; dark is unchanged.
 * New: Display-condition helpers (Editing tab, on by default) — opens a blank, ready-to-choose condition when an element has none yet (removed again if you leave without touching it), gives every condition field a proper screen-reader label, and marks elements that carry conditions: a dot and count on the conditions button, and a dot on their Navigator rows that screen readers announce.
 * Improved: the multi-value condition pickers are now keyboard-operable — the picker is focusable and announces itself, Enter or the arrows open it, Space ticks a value, and Escape closes and returns.
+* Fixed: the dynamic data picker (the stack-icon pop-up, shared with the CSS vars and transformation-function lists) rendered black-on-black in the light theme wherever it appeared; it now follows the theme, dark unchanged.
 
 = 1.12.4 =
 Fixes for the CSS vars tab and the detachable Navigator, plus label polish.
