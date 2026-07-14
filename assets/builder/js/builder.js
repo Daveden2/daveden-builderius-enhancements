@@ -1644,13 +1644,15 @@
         return ser(rootId, 0);
     }
 
-    /* Parse + sanitise the edited markup into a plain tree of
-       {existingId, tag, tagId, classes, attrs, content, children}. Throws a
-       string message on a structural error; strips (and reports) anything
-       unsafe or unknown. origIds = the id set of the ORIGINAL subtree —
-       markers pointing anywhere else are ignored (you cannot capture another
-       part of the page from inside this dialog). */
-    function dbeParseHtmlTree(html, origIds) {
+    /* Parse + sanitise markup into plain trees of
+       {existingId, tag, tagId, classes, attrs, content, children}. Returns
+       {roots, stripped} — a fragment may have several sibling roots (the
+       Import flow); the Edit flow enforces exactly one on top. Strips (and
+       reports) anything unsafe or unknown. origIds = the id set the
+       data-dbe-id markers may claim — pass {} to treat every element as new
+       (markers pointing anywhere else are always ignored, so a dialog can
+       never capture another part of the page). */
+    function dbeParseHtmlFragment(html, origIds) {
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var stripped = [];
         var claimed = {};
@@ -1695,10 +1697,16 @@
             return node;
         }
         var roots = [].slice.call(doc.body.children).map(convert).filter(Boolean);
-        if (roots.length !== 1) {
+        return { roots: roots, stripped: stripped };
+    }
+
+    /* The Edit-as-HTML shape: one root, or a structural error. */
+    function dbeParseHtmlTree(html, origIds) {
+        var parsed = dbeParseHtmlFragment(html, origIds);
+        if (parsed.roots.length !== 1) {
             throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
         }
-        return { tree: roots[0], stripped: stripped };
+        return { tree: parsed.roots[0], stripped: parsed.stripped };
     }
 
     function dbeNodeSettings(node) {
@@ -1892,6 +1900,218 @@
         dlg.showModal();
         editor.focus();
         editor.setSelectionRange(0, 0);
+    }
+
+    /* ============================ Import HTML ============================
+       (import_html, Pro). "Import HTML…" on an element's right-click menu:
+       paste markup into a dialog, watch a live preview of the elements it
+       will create, then insert them — into the target as its last children,
+       or, when the target is a void element (img, hr…), after it as
+       siblings (the same slot rule as the Emmet palette). Parsing and
+       sanitisation are Edit-as-HTML's (dbeParseHtmlFragment with an empty
+       marker set, so every pasted element becomes a NEW module — stray
+       data-dbe-id markers in pasted markup are ignored). Multiple sibling
+       roots are fine here. The insert runs under dbeUndoBusy: one import is
+       one action, and per-module undo records would only let Cmd+Z pick it
+       apart node by node from the wrong end. */
+
+    function dbeInsertParsedNode(sf, node, parentId, index) {
+        var mod = {
+            id: dbeMakeId(), name: 'HtmlElement',
+            label: node.tag.charAt(0).toUpperCase() + node.tag.slice(1),
+            settings: dbeNodeSettings(node)
+        };
+        storeAddModule(sf, mod, parentId, index);
+        var count = 1;
+        node.children.forEach(function (c, i) { count += dbeInsertParsedNode(sf, c, mod.id, i); });
+        return count;
+    }
+
+    /* Where pasted roots land relative to targetId: inside (last children)
+       for a normal element, after it (siblings) for a void one. */
+    function dbeImportSlot(targetId) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[targetId]) { return null; }
+        var tag = String(dbeSettingVal(mods[targetId], 'tag') || '').toLowerCase();
+        var indexes = sf.storeGet('indexes') || {};
+        if (!DBE_HTML_VOID[tag]) {
+            return { parentId: targetId, index: (indexes[targetId] || []).length, into: true };
+        }
+        var parentId = mods[targetId].parent || '';
+        var sibs = [].concat(indexes[parentId || 'root'] || []);
+        return { parentId: parentId, index: sibs.indexOf(targetId) + 1, into: false };
+    }
+
+    function dbePreviewLines(roots) {
+        var lines = [];
+        function walk(n, d) {
+            var line = new Array(d + 1).join('  ') + '<' + n.tag + '>';
+            if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
+            if (n.content) {
+                var t = n.content.length > 34 ? n.content.slice(0, 34) + '…' : n.content;
+                line += ' “' + t + '”';
+            }
+            lines.push(line);
+            n.children.forEach(function (c) { walk(c, d + 1); });
+        }
+        roots.forEach(function (r) { walk(r, 0); });
+        return lines;
+    }
+
+    function openImportHtmlDialog(targetId) {
+        if (dbeHtmlBusy) { return; }
+        var mods = modules() || {};
+        if (!mods[targetId]) { return; }
+
+        var old = document.querySelector('dialog.dbe-html');
+        if (old) { old.remove(); }
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-html dbe-html--import';
+        dlg.setAttribute('aria-label', dbeT('importHtml', 'Import HTML'));
+
+        var head = document.createElement('div');
+        head.className = 'dbe-html__head';
+        var title = document.createElement('h2');
+        title.className = 'dbe-html__title';
+        var slot = dbeImportSlot(targetId);
+        title.textContent = dbeFmt(
+            slot && slot.into
+                ? dbeT('importHtmlTitleInto', 'Import HTML into %s')
+                : dbeT('importHtmlTitleAfter', 'Import HTML after %s'),
+            mods[targetId].label || mods[targetId].name);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-html__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '✕';
+        close.addEventListener('click', function () { dlg.close(); });
+        head.appendChild(title);
+        head.appendChild(close);
+        dlg.appendChild(head);
+
+        var hint = document.createElement('p');
+        hint.className = 'dbe-html__hint';
+        hint.textContent = dbeT('importHtmlHint',
+            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine.');
+        dlg.appendChild(hint);
+
+        var editor = document.createElement('textarea');
+        editor.className = 'dbe-html__editor';
+        editor.spellcheck = false;
+        editor.setAttribute('aria-label', dbeT('importHtmlEditor', 'HTML to import'));
+        dlg.appendChild(editor);
+
+        var previewLabel = document.createElement('p');
+        previewLabel.className = 'dbe-html__preview-label';
+        previewLabel.textContent = dbeT('importHtmlPreview', 'Preview');
+        dlg.appendChild(previewLabel);
+        var preview = document.createElement('pre');
+        preview.className = 'dbe-html__preview';
+        preview.setAttribute('aria-label', dbeT('importHtmlPreview', 'Preview'));
+        dlg.appendChild(preview);
+
+        var status = document.createElement('p');
+        status.className = 'dbe-html__status';
+        status.setAttribute('role', 'status');
+        dlg.appendChild(status);
+
+        var foot = document.createElement('div');
+        foot.className = 'dbe-html__foot';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'dbe-html__cancel';
+        cancel.textContent = dbeT('cancel', 'Cancel');
+        cancel.addEventListener('click', function () { dlg.close(); });
+        var insert = document.createElement('button');
+        insert.type = 'button';
+        insert.className = 'dbe-html__apply';
+        insert.textContent = dbeT('insertHtml', 'Insert');
+        insert.disabled = true;
+        foot.appendChild(cancel);
+        foot.appendChild(insert);
+        dlg.appendChild(foot);
+
+        var parsed = null;
+        var previewTimer = null;
+        function refreshPreview() {
+            var html = editor.value;
+            parsed = null;
+            insert.disabled = true;
+            status.textContent = '';
+            if (!html.trim()) {
+                preview.textContent = dbeT('importHtmlEmpty', 'Nothing to preview yet.');
+                return;
+            }
+            var p = dbeParseHtmlFragment(html, {});
+            if (!p.roots.length) {
+                preview.textContent = '';
+                status.textContent = dbeT('htmlErrNoElements', 'No usable elements found in that HTML');
+                return;
+            }
+            parsed = p;
+            preview.textContent = dbePreviewLines(p.roots).join('\n');
+            var total = dbePreviewLines(p.roots).length;
+            var note = dbeFmt(dbeTn(total,
+                'importCountOne', '%s element will be created.',
+                'importCountMany', '%s elements will be created.'), total);
+            if (p.stripped.length) {
+                var uniq = p.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                note += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            status.textContent = note;
+            insert.disabled = false;
+        }
+        editor.addEventListener('input', function () {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(refreshPreview, 250);
+        });
+
+        insert.addEventListener('click', function () {
+            if (!parsed || !parsed.roots.length) { return; }
+            var liveSlot = dbeImportSlot(targetId); // re-read: the tree may have moved on
+            if (!liveSlot) { status.textContent = dbeT('importHtmlTargetGone', 'The target element no longer exists'); return; }
+            var roots = parsed.roots;
+            dlg.close();
+            var wasBusy = dbeUndoBusy;
+            dbeUndoBusy = true;
+            var count = 0;
+            var firstId = null;
+            try {
+                var sf = store();
+                roots.forEach(function (r, i) {
+                    var before = firstId;
+                    var mod = {
+                        id: dbeMakeId(), name: 'HtmlElement',
+                        label: r.tag.charAt(0).toUpperCase() + r.tag.slice(1),
+                        settings: dbeNodeSettings(r)
+                    };
+                    storeAddModule(sf, mod, liveSlot.parentId, liveSlot.index + i);
+                    count += 1;
+                    r.children.forEach(function (c, k) { count += dbeInsertParsedNode(sf, c, mod.id, k); });
+                    if (before === null) { firstId = mod.id; }
+                });
+            } finally { dbeUndoBusy = wasBusy; }
+            undoToast(dbeFmt(dbeTn(count,
+                'htmlImportedOne', 'Imported %s element',
+                'htmlImportedMany', 'Imported %s elements'), count));
+            // Land the selection on the first imported root, like wrap() does.
+            if (firstId) {
+                waitFor(function () {
+                    return document.querySelector('.uniRightPanel .uni-tree-node-' + firstId) || null;
+                }, function (row) { if (row) { clickSeq(row); } });
+            }
+        });
+
+        dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        document.body.appendChild(dlg);
+        dlg.showModal();
+        refreshPreview();
+        editor.focus();
     }
 
     /* ============================ Change tag ============================
@@ -2682,6 +2902,26 @@
                 })();
             }
 
+            // "Import HTML…" (import_html, Pro) — paste markup, preview, insert.
+            // Any plain element target works (voids take the pasted roots as
+            // siblings); other module types are offered disabled with the why.
+            var importHtmlLi = null;
+            if (!multiIds && on('import_html') && lastCtxId) {
+                (function () {
+                    var ihId = lastCtxId;
+                    var ihMods = modules() || {};
+                    var ihMod = ihMods[ihId];
+                    if (!ihMod) { return; }
+                    var ok = ihMod.name === 'HtmlElement';
+                    importHtmlLi = makeCtxItem(dbeT('importHtmlEllipsis', 'Import HTML…'), function () {
+                        setTimeout(function () { openImportHtmlDialog(ihId); }, 120);
+                    }, ok ? {} : {
+                        disabled: true,
+                        tip: dbeT('importHtmlOnlyElements', 'HTML can only be imported into a plain element')
+                    });
+                })();
+            }
+
             // "Change tag…" flyout (tag_change, Pro) — plain non-void elements.
             var changeTagParent = null;
             if (!multiIds && on('tag_change') && lastCtxId) {
@@ -2706,7 +2946,7 @@
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, importHtmlLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -2788,7 +3028,7 @@
                 natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                 nameItems,                                                       // Name & style
                 [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
-                [changeTagParent, wrapParent, unwrapLi, editHtmlLi].filter(Boolean), // Structure
+                [changeTagParent, wrapParent, unwrapLi, editHtmlLi, importHtmlLi].filter(Boolean), // Structure
                 [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
                 multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
@@ -8288,7 +8528,7 @@
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('tag_change');
+    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point

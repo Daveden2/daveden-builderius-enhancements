@@ -444,6 +444,29 @@ function dbe_builder_strings() {
 		'htmlApplied'             => __( 'HTML applied: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
 		/* translators: %s: comma-separated list of stripped tags/attributes. */
 		'htmlStripped'            => __( '(stripped: %s)', 'daveden-builderius-enhancements' ),
+		// Import HTML.
+		'importHtml'              => __( 'Import HTML', 'daveden-builderius-enhancements' ),
+		'importHtmlEllipsis'      => __( 'Import HTML…', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'importHtmlTitleInto'     => __( 'Import HTML into %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'importHtmlTitleAfter'    => __( 'Import HTML after %s', 'daveden-builderius-enhancements' ),
+		'importHtmlHint'          => __( 'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine.', 'daveden-builderius-enhancements' ),
+		'importHtmlEditor'        => __( 'HTML to import', 'daveden-builderius-enhancements' ),
+		'importHtmlPreview'       => __( 'Preview', 'daveden-builderius-enhancements' ),
+		'importHtmlEmpty'         => __( 'Nothing to preview yet.', 'daveden-builderius-enhancements' ),
+		'importHtmlOnlyElements'  => __( 'HTML can only be imported into a plain element', 'daveden-builderius-enhancements' ),
+		'importHtmlTargetGone'    => __( 'The target element no longer exists', 'daveden-builderius-enhancements' ),
+		'insertHtml'              => __( 'Insert', 'daveden-builderius-enhancements' ),
+		'htmlErrNoElements'       => __( 'No usable elements found in that HTML', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements to be created. */
+		'importCountOne'          => __( '%s element will be created.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements to be created. */
+		'importCountMany'         => __( '%s elements will be created.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements imported. */
+		'htmlImportedOne'         => __( 'Imported %s element', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of elements imported. */
+		'htmlImportedMany'        => __( 'Imported %s elements', 'daveden-builderius-enhancements' ),
 		// Change tag.
 		'changeTag'               => __( 'Change tag…', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the new HTML tag. */

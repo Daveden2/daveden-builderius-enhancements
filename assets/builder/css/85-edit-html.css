@@ -75,6 +75,31 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-html__editor:focus { border-color: var(--dbe-accent); outline: none; }
 
+/* Import flow: the live preview of the elements the pasted markup will
+   create. The editor cedes some height to it. */
+.dbe-html--import .dbe-html__editor { min-block-size: 140px; }
+.dbe-html__preview-label {
+	margin: 10px 0 4px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--dbe-muted);
+}
+.dbe-html__preview {
+	margin: 0;
+	max-block-size: 180px;
+	min-block-size: 48px;
+	overflow: auto;
+	background: var(--dbe-l2);
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	padding: 8px 12px;
+	font: 400 12px/1.6 var(--dbe-mono, monospace);
+	color: var(--dbe-text-2);
+	white-space: pre;
+}
+
 /* Parse errors keep the dialog open; the status line is an assertive-enough
    cue right above the buttons the user just pressed. */
 .dbe-html__status {

@@ -379,6 +379,17 @@ function dbe_features() {
 			'requires_pro' => true,
 			'experimental' => true,
 		),
+		'import_html'           => array(
+			'title'        => __( 'Import HTML', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'Paste HTML and turn it into real elements.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped before anything is created. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array( '85-edit-html.css' ),
+			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
+			'js'           => true,
+			'requires_pro' => true,
+			'experimental' => true,
+		),
 		'tag_change'            => array(
 			'title'        => __( 'Change HTML tag from the Navigator', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Swap an element\'s HTML tag from the right-click menu.', 'daveden-builderius-enhancements' ),
