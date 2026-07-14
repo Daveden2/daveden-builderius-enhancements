@@ -207,12 +207,13 @@ function dbe_print_builder_footer() {
 	}
 
 	$config = array(
-		'features'  => $flags,
-		'theme'     => array( 'default' => dbe_setting( 'theme_default' ) ),
-		'density'   => array( 'default' => dbe_setting( 'density_default' ) ),
-		'heartbeat' => dbe_heartbeat_config(),
-		'i18n'      => dbe_builder_strings(),
-		'version'   => DBE_VERSION,
+		'features'   => $flags,
+		'theme'      => array( 'default' => dbe_setting( 'theme_default' ) ),
+		'density'    => array( 'default' => dbe_setting( 'density_default' ) ),
+		'rowActions' => array( 'mode' => dbe_setting( 'row_actions_mode' ) ),
+		'heartbeat'  => dbe_heartbeat_config(),
+		'i18n'       => dbe_builder_strings(),
+		'version'    => DBE_VERSION,
 	);
 
 	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );

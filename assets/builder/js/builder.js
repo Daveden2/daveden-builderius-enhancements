@@ -4440,6 +4440,42 @@
             }
         });
 
+        // Multi-value picker (.builderiusMultiSelect — display-condition values
+        // and similar). The trigger is a plain div: no tab stop, no role, no
+        // keyboard open — mouse-only. Wire it as a combobox whose popup is a
+        // list of real checkboxes (natively focusable once open): the trigger
+        // becomes the tab stop, Enter/Space/ArrowDown open it via the native
+        // click path (the delegated key handler below), Escape closes and
+        // returns. Names: the trigger from its field title + shown values,
+        // each checkbox from its option row's text.
+        document.querySelectorAll('.builderiusMultiSelect').forEach(function (ms) {
+            var msTrigger = ms.querySelector('.builderiusMultiSelect__trigger');
+            if (!msTrigger) { return; }
+            if (msTrigger.getAttribute('tabindex') !== '0') { msTrigger.setAttribute('tabindex', '0'); }
+            if (msTrigger.getAttribute('role') !== 'combobox') { msTrigger.setAttribute('role', 'combobox'); }
+            if (msTrigger.getAttribute('aria-haspopup') !== 'listbox') { msTrigger.setAttribute('aria-haspopup', 'listbox'); }
+            var msExp = msTrigger.classList.contains('is-open') ? 'true' : 'false';
+            if (msTrigger.getAttribute('aria-expanded') !== msExp) { msTrigger.setAttribute('aria-expanded', msExp); }
+            var msTitle = dbeSSLabelEl(ms);
+            var msValue = ms.querySelector('.builderiusMultiSelect__value');
+            var msRef = [];
+            if (msTitle) { if (!msTitle.id) { msTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } msRef.push(msTitle.id); }
+            if (msValue) { if (!msValue.id) { msValue.id = 'dbe-ss-val-' + (++dbeSSId); } msRef.push(msValue.id); }
+            if (msRef.length) {
+                var mlb = msRef.join(' ');
+                if (msTrigger.getAttribute('aria-labelledby') !== mlb) { msTrigger.setAttribute('aria-labelledby', mlb); }
+            } else if (!msTrigger.getAttribute('aria-label')) {
+                msTrigger.setAttribute('aria-label', dbeT('condPickValues', 'Values'));
+            }
+            // The option checkboxes have no <label> association — name each
+            // from its row text so it is not an anonymous checkbox.
+            ms.querySelectorAll('.builderiusMultiSelect__option').forEach(function (opt) {
+                var cb = opt.querySelector('input[type="checkbox"]');
+                var t = (opt.textContent || '').trim();
+                if (cb && t && cb.getAttribute('aria-label') !== t) { cb.setAttribute('aria-label', t); }
+            });
+        });
+
         var dd = dbeSSOpenDropdown();
         if (!dd) { return; }
         var search = dd.querySelector('.uniSystemSelect__search input') || dd.querySelector('input');
@@ -4751,6 +4787,54 @@
             else if (e.key === 'Enter' || e.key === ' ') { take(); closeVia(idx >= 0 ? items[idx] : current()); trigger.focus(); }
             else if (e.key === 'Escape') { take(); closeVia(current()); trigger.focus(); }   // keep value; don't also close the dialog
             else if (e.key === 'Tab') { closeVia(current()); }                               // close, let focus move on
+        }, true);
+
+        // Multi-value picker keyboard support (.builderiusMultiSelect). The
+        // trigger div opens through the same click path a mouse uses; once the
+        // popup is open its options are real checkboxes, so Tab and Space are
+        // native — only open/close and Up/Down between options need wiring.
+        document.addEventListener('keydown', function (e) {
+            var t = e.target;
+            if (!t || !t.classList) { return; }
+            if (t.classList.contains('builderiusMultiSelect__trigger')) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!t.classList.contains('is-open')) { clickSeq(t); }
+                    waitFor(function () {
+                        var ms = t.closest('.builderiusMultiSelect');
+                        return (ms && ms.querySelector('.builderiusMultiSelect__option input[type="checkbox"]')) || null;
+                    }, function (cb) {
+                        if (cb) { try { cb.focus(); } catch (err) {} }
+                    });
+                } else if (e.key === 'Escape' && t.classList.contains('is-open')) {
+                    e.preventDefault();
+                    e.stopPropagation(); // close the popup, not the panel/dialog
+                    clickSeq(t);
+                }
+                return;
+            }
+            var msWrap = t.closest && t.closest('.builderiusMultiSelect');
+            if (!msWrap) { return; }
+            var msTrig = msWrap.querySelector('.builderiusMultiSelect__trigger');
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (msTrig) {
+                    if (msTrig.classList.contains('is-open')) { clickSeq(msTrig); }
+                    try { msTrig.focus(); } catch (err) {}
+                }
+                return;
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                var cbs = [].slice.call(msWrap.querySelectorAll('.builderiusMultiSelect__option input[type="checkbox"]'));
+                var ci = cbs.indexOf(document.activeElement);
+                if (ci === -1) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var ni = e.key === 'ArrowDown' ? Math.min(ci + 1, cbs.length - 1) : Math.max(ci - 1, 0);
+                try { cbs[ni].focus(); } catch (err) {}
+            }
         }, true);
 
         // The native fake-input selects — the element HTML-tag field
@@ -6823,6 +6907,266 @@
         });
     }
 
+    /* ---- Display-condition helpers (condition_helpers) ----------------------
+       Three things for the settings panel's conditions mode (.uniElementConditions):
+       1. A11y names: the per-card remove button, the operator <select>, the
+          value inputs and the free-input toggles all ship nameless (icon- or
+          placeholder-only) — stamp real labels each tick.
+       2. Blank-card seeding, the attr_helpers pattern: when the view opens on
+          an element with no conditions, add the first card ready to choose.
+          CAUTION: the native "New condition" click writes a placeholder rule
+          ({type:true}) into the module's visibilityCondition SETTING at once
+          (verified) — so a seeded card that is still typeless when focus
+          settles elsewhere is removed again through its own X, which cleanly
+          nulls the setting. (If the view unmounts in the same instant the X
+          is gone; that residue is identical to a user clicking New condition
+          and saving, which native allows anyway.)
+       3. Cues where conditions exist: a dot + count on the conditions-mode
+          header button, and a dot + screen-reader suffix on the Navigator
+          rows of elements that carry conditions. The row spans are re-added
+          each tick after React re-renders (the tag-badge precedent); (nk)'s
+          role stamping never descends into row buttons, so they are safe. */
+    var dbeCondSeededFor = null;   // element id the blank card was seeded for
+    var dbeCondSeededCard = null;  // the seeded card node, until settled
+    var dbeCondViewWas = false;    // view presence last tick (seed on opening edge)
+    var dbeCondSeedEngaged = false; // the user interacted with the seeded card
+
+    function condVisValue(id) {
+        var m = (modules() || {})[id];
+        var st = m && m.settings;
+        if (!st) { return null; }
+        for (var i = 0; i < st.length; i++) {
+            if (st[i].name === 'visibilityCondition') { return st[i].value || null; }
+        }
+        return null;
+    }
+    // Count the chosen leaf rules. Anything except the untouched {type: true}
+    // placeholder counts — a leaf's other fields vary by condition type
+    // (Dynamic data has no `name` at all), but every chosen type replaces the
+    // placeholder's `true` with its own type string.
+    function condCountValue(v) {
+        var n = 0;
+        (function walk(node) {
+            if (!node) { return; }
+            if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
+            if (node.type !== true) { n++; }
+        })(v);
+        return n;
+    }
+    function condCount(id) { return condCountValue(condVisValue(id)); }
+    // True while the element's whole conditions value is the single untouched
+    // placeholder a fresh "New condition" click writes — EXACTLY {type: true}.
+    // Never key this off a missing `name`: some condition types (Dynamic data)
+    // legitimately have none, and a looser test removed a just-chosen card.
+    function condBlankOnly(id) {
+        var v = condVisValue(id);
+        if (!v) { return false; }
+        var leaves = [];
+        (function walk(node) {
+            if (!node) { return; }
+            if (node.type === 'group') { (node.rules || []).forEach(walk); return; }
+            leaves.push(node);
+        })(v);
+        return leaves.length === 1 && leaves[0].type === true;
+    }
+
+    function condA11y(view) {
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemActions .uniIconButton')).forEach(function (b) {
+            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condRemove', 'Remove condition')); }
+        });
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemEdit, .uniElementConditions_item')).forEach(function (item) {
+            // First <select> in a card is the comparison operator; any later
+            // one picks the value.
+            [].slice.call(item.querySelectorAll('.uniElementConditions_itemFields select')).forEach(function (s, i) {
+                var want = i === 0 ? dbeT('condOperator', 'Comparison') : dbeT('condValue', 'Value');
+                if (s.getAttribute('aria-label') !== want) { s.setAttribute('aria-label', want); }
+            });
+        });
+        [].slice.call(view.querySelectorAll('.uniElementConditions_itemFields input:not([type="hidden"])')).forEach(function (inp) {
+            if (inp.getAttribute('aria-label')) { return; }
+            if (inp.classList.contains('uniSystemSelect__search') || inp.classList.contains('uniSystemSelect__hiddenField')) { return; }
+            inp.setAttribute('aria-label', inp.placeholder || dbeT('condValue', 'Value'));
+        });
+        [].slice.call(view.querySelectorAll('.uniSystemSelect__freeInputBtn, .builderiusSelectFreeInputToggle')).forEach(function (b) {
+            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condFreeInput', 'Type a custom value')); }
+        });
+    }
+
+    // React replaces the card node on re-render; while the seed is still the
+    // single typeless rule, the current edit card IS the seed — re-point.
+    function condSeedResolve() {
+        if (dbeCondSeededCard && dbeCondSeededCard.isConnected) { return dbeCondSeededCard; }
+        dbeCondSeededCard = (dbeCondSeededFor && condBlankOnly(dbeCondSeededFor))
+            ? document.querySelector('.uniElementConditions_itemEdit')
+            : null;
+        return dbeCondSeededCard;
+    }
+
+    /* Fallback cleanup when the seeded card's DOM is already gone (the element
+       was switched before focusout's timer ran, so there is no X to drive):
+       strip the placeholder through the settings upsert channel — the same
+       one attr_helpers uses for its orphaned blank rows. No-op unless the
+       element's whole conditions value is still the single typeless leaf. */
+    function dbeRemoveBlankCondition(id) {
+        if (!condBlankOnly(id)) { return; }
+        dbeUpdateModuleSettings(id, function (settings) {
+            for (var i = settings.length - 1; i >= 0; i--) {
+                if (settings[i].name === 'visibilityCondition') { settings.splice(i, 1); }
+            }
+        });
+    }
+
+    // Settle a seeded card once focus is elsewhere: still untouched → remove
+    // it via its own X (returns the store to "no conditions"); engaged with in
+    // ANY way → it is the user's card now, keep it. The engagement flag is the
+    // primary signal — the store test alone races the async commit of a chosen
+    // type (observed with Dynamic data: the focusout timer fired before the
+    // type write landed, and the cleaner removed a card the user had just
+    // configured).
+    function condSeedClean() {
+        var id = dbeCondSeededFor;
+        if (dbeCondSeedEngaged) {
+            var kept = condSeedResolve();
+            if (kept) { kept.classList.remove('dbe-cond-seeded'); }
+            dbeCondSeededCard = null;
+            return;
+        }
+        var card = condSeedResolve();
+        if (!card) {
+            if (id && condBlankOnly(id)) { try { dbeRemoveBlankCondition(id); } catch (e) {} }
+            dbeCondSeededCard = null;
+            return;
+        }
+        if (card.contains(document.activeElement)) { return; }
+        if (id && condBlankOnly(id)) {
+            var x = card.querySelector('.uniElementConditions_itemActions .uniIconButton');
+            if (x) { clickSeq(x); }
+        }
+        card.classList.remove('dbe-cond-seeded');
+        dbeCondSeededCard = null;
+    }
+    function bindCondAutoClean() {
+        if (document.dbeCondCleanBound) { return; }
+        document.dbeCondCleanBound = true;
+        document.addEventListener('focusout', function () {
+            if (!dbeCondSeededCard) { return; }
+            setTimeout(condSeedClean, 60);
+        }, true);
+        // Any pointer or key interaction inside the seeded card disarms the
+        // auto-clean — including clicks in the type select's dropdown, which
+        // the uniSystemSelect renders inside the card.
+        var engage = function (e) {
+            if (!dbeCondSeededCard || dbeCondSeedEngaged) { return; }
+            var card = condSeedResolve();
+            if (card && e.target && card.contains(e.target)) { dbeCondSeedEngaged = true; }
+        };
+        document.addEventListener('pointerdown', engage, true);
+        document.addEventListener('keydown', engage, true);
+    }
+
+    function condSeedBlank(view) {
+        var id = activeId();
+        if (!id || dbeCondSeededFor === id) { return; }
+        if (view.querySelector('.uniElementConditions_itemEdit, .uniElementConditions_item')) { dbeCondSeededFor = id; return; }
+        if (condVisValue(id)) { dbeCondSeededFor = id; return; }
+        var add = view.querySelector('.uniElementConditions_addNewBtn');
+        if (!add) { return; }
+        dbeCondSeededFor = id;
+        dbeCondSeedEngaged = false;
+        clickSeq(add);
+        waitFor(function () {
+            return view.querySelector('.uniElementConditions_itemEdit') || null;
+        }, function (card) {
+            if (!card) { return; }
+            dbeCondSeededCard = card;
+            card.classList.add('dbe-cond-seeded');
+            // Ready to choose: focus the condition-type combobox — but only
+            // when the user is already working in the settings panel (they
+            // just opened the mode from its header icon). Never steal focus
+            // from the Navigator or the canvas.
+            var left = document.querySelector('.uniLeftPanelOuter') || document.querySelector('.uniLeftPanel');
+            if (left && left.contains(document.activeElement)) {
+                var typeSel = card.querySelector('.uniSystemSelect');
+                if (typeSel) { try { typeSel.focus(); } catch (e) {} }
+            }
+        });
+    }
+
+    function condCues() {
+        var mods = modules() || {};
+        var withCond = {};
+        for (var k in mods) {
+            var st = mods[k].settings, v = null;
+            if (st) {
+                for (var i = 0; i < st.length; i++) {
+                    if (st[i].name === 'visibilityCondition') { v = st[i].value || null; break; }
+                }
+            }
+            if (v && condCountValue(v) > 0) { withCond[k] = true; }
+        }
+        var icon = document.querySelector('.uniIconConditionsMode');
+        if (icon) {
+            var id = activeId();
+            var n = id ? condCount(id) : 0;
+            var has = n > 0;
+            if (icon.classList.contains('dbe-has-cond') !== has) { icon.classList.toggle('dbe-has-cond', has); }
+            var want = has
+                ? dbeFmt(dbeT('condIconCount', 'Dynamic data conditions (%s set)'), n)
+                : dbeT('conditionsMode', 'Dynamic data conditions');
+            if (icon.getAttribute('aria-label') !== want) { icon.setAttribute('aria-label', want); }
+            if (icon.getAttribute('data-dbe-tip') !== want) { icon.setAttribute('data-dbe-tip', want); }
+        }
+        [].slice.call(document.querySelectorAll('.uniRightPanel button.uniModTree__item')).forEach(function (btn) {
+            var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
+            var has2 = !!(m && withCond[m[1]]);
+            var dot = btn.querySelector('.dbe-cond-dot');
+            if (has2 && !dot) {
+                var d = document.createElement('span');
+                d.className = 'dbe-cond-dot';
+                d.setAttribute('aria-hidden', 'true');
+                var sr = document.createElement('span');
+                sr.className = 'dbe-visually-hidden dbe-cond-sr';
+                sr.textContent = dbeT('condTreeSuffix', ', has display conditions');
+                btn.appendChild(d);
+                btn.appendChild(sr);
+            } else if (!has2 && dot) {
+                dot.remove();
+                var sr2 = btn.querySelector('.dbe-cond-sr');
+                if (sr2) { sr2.remove(); }
+            }
+        });
+    }
+
+    function ensureConditionHelpers() {
+        bindCondAutoClean();
+        condCues();
+        var view = document.querySelector('.uniLeftPanel .uniElementConditions') || document.querySelector('.uniElementConditions');
+        if (!view) {
+            dbeCondViewWas = false;
+            if (dbeCondSeededCard) { condSeedClean(); }
+            return;
+        }
+        condA11y(view);
+        // The user picked a type: the seed did its job, stand down.
+        if (dbeCondSeededCard && dbeCondSeededFor && !condBlankOnly(dbeCondSeededFor)) {
+            if (dbeCondSeededCard.isConnected) { dbeCondSeededCard.classList.remove('dbe-cond-seeded'); }
+            dbeCondSeededCard = null;
+        }
+        // Keep the seeded mark on the LIVE card node across React re-renders —
+        // until the user engages with the card, when the mark stands down.
+        var seeded = condSeedResolve();
+        if (seeded) {
+            var mark = !dbeCondSeedEngaged;
+            if (seeded.classList.contains('dbe-cond-seeded') !== mark) { seeded.classList.toggle('dbe-cond-seeded', mark); }
+        }
+        // Seed only on the view's OPENING edge. The conditions view is sticky
+        // across element selections, and the native add writes a placeholder
+        // rule to the store — seeding per selection would dirty every element
+        // the user merely arrows past in the tree.
+        if (!dbeCondViewWas) { condSeedBlank(view); }
+        dbeCondViewWas = true;
+    }
+
     /* ---- Component properties reorder (properties_reorder) -----------------
        A rearrange toggle on a component's created-properties list (the DEFINE
        panel — .uniSettingComponentTmplProperties — not the per-instance value
@@ -7702,6 +8046,392 @@
         panel.dbeNavKeyBound = true;
     }
 
+    /* (ra) Navigator row quick actions (navigator_row_actions). Duplicate and
+       Delete buttons on the hovered/focused Navigator row, without opening the
+       right-click menu (issue #54).
+
+       ONE floating cluster of two real <button>s, never injected into the
+       rows: a row is itself a <button> (buttons cannot nest), the tree is
+       React-rendered (injected children die on every re-render), and (nk)
+       exposes it as a strict ARIA tree that stray buttons inside would break.
+       The cluster lives in .uniModTree__container AFTER the row scroller, so
+       from a focused row Tab reaches Duplicate, then Delete, and its fixed
+       position overlays the target row's right edge.
+
+       Positioning is progressive enhancement: browsers with CSS anchor
+       positioning get anchor-name stamped inline on the target row and track
+       scrolling natively (position-visibility hides the cluster when the row
+       leaves the scrollport); the rest take a getBoundingClientRect path with
+       a capture-phase scroll reposition. Both actions go through the proven
+       native channel — driveContextMenuItem — so behaviour (render, save,
+       undo capture) is exactly the context menu's. */
+    var RA_MODE = (CFG.rowActions && CFG.rowActions.mode) === 'always' ? 'always' : 'hover';
+    var RA_CAN_ANCHOR = !!(window.CSS && CSS.supports && CSS.supports('anchor-name: --a'));
+    var raBox = null;          // the cluster (module-level singleton: the same
+    var raDup = null;          // node is re-inserted after a re-render, so its
+    var raDel = null;          // listeners survive)
+    var raId = null;           // target row's module id
+    var raStampedRow = null;   // the row node currently carrying class/anchor
+    var raHideT = null;
+    var raSuppressed = false;  // during a native row drag
+    var raScrollQueued = false;
+    var raDelArmed = false;    // Delete is two-step: arm, then confirm
+    var raDelArmT = null;
+
+    function raBuild() {
+        if (raBox) { return raBox; }
+        raBox = document.createElement('div');
+        raBox.className = 'dbe-row-actions';
+        raBox.hidden = true;
+        raDup = document.createElement('button');
+        raDup.type = 'button';
+        raDup.className = 'dbe-row-actions__btn dbe-row-actions__dup';
+        raDup.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<rect x="3.9" y="3.9" width="6.6" height="6.6" rx="1.2" stroke="currentColor" stroke-width="1.3"/>' +
+            '<path d="M8.1 2.3v-.2A1.6 1.6 0 0 0 6.5.5H2.1A1.6 1.6 0 0 0 .5 2.1v4.4a1.6 1.6 0 0 0 1.6 1.6h.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
+            '</svg>';
+        raDel = document.createElement('button');
+        raDel.type = 'button';
+        raDel.className = 'dbe-row-actions__btn dbe-row-actions__del';
+        raDel.innerHTML = '<svg width="12" height="13" viewBox="0 0 12 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<path d="M1 3h10M4.2 3V1.9c0-.5.4-.9.9-.9h1.8c.5 0 .9.4.9.9V3M2.2 3l.6 8.2c0 .5.4.8.9.8h4.6c.5 0 .9-.3.9-.8L9.8 3M4.8 5.4v4M7.2 5.4v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '</svg>';
+        raDup.addEventListener('click', raDuplicate);
+        raDel.addEventListener('click', raDelete);
+        raBox.addEventListener('keydown', raOnKeydown);
+        raBox.appendChild(raDup);
+        raBox.appendChild(raDel);
+        return raBox;
+    }
+
+    // Accessible names carry the target so the buttons make sense wherever
+    // focus finds them ("Duplicate "Hero"", not a bare "Duplicate"). Labels
+    // come from the STORE, not the row text — tag badges write into the row.
+    function raSetNames(id) {
+        var m = (modules() || {})[id];
+        var label = (m && (m.label || m.name)) || dbeT('element', 'element');
+        var dup = dbeFmt(dbeT('rowActionDuplicate', 'Duplicate “%s”'), label);
+        var del = raDelArmed
+            ? dbeFmt(dbeT('rowActionDeleteConfirm', 'Confirm delete “%s”'), label)
+            : dbeFmt(dbeT('rowActionDelete', 'Delete “%s”'), label);
+        if (raDup.getAttribute('aria-label') !== dup) {
+            raDup.setAttribute('aria-label', dup);
+            raDup.setAttribute('data-dbe-tip', dup);
+        }
+        if (raDel.getAttribute('aria-label') !== del) {
+            raDel.setAttribute('aria-label', del);
+            raDel.setAttribute('data-dbe-tip', del);
+        }
+    }
+
+    function raUnstamp() {
+        if (!raStampedRow) { return; }
+        raStampedRow.classList.remove('dbe-row-actions-on');
+        if (RA_CAN_ANCHOR) { raStampedRow.style.removeProperty('anchor-name'); }
+        raStampedRow = null;
+    }
+
+    function raStamp(row) {
+        if (raStampedRow === row) { return; }
+        raUnstamp();
+        row.classList.add('dbe-row-actions-on');
+        if (RA_CAN_ANCHOR) { row.style.setProperty('anchor-name', '--dbe-row-actions'); }
+        raStampedRow = row;
+    }
+
+    function raPosition(row) {
+        if (RA_CAN_ANCHOR) {
+            raBox.classList.add('dbe-anchored');
+            raBox.style.left = '';
+            raBox.style.top = '';
+            return;
+        }
+        var r = row.getBoundingClientRect();
+        var b = raBox.getBoundingClientRect();
+        var w = b.width || 54, h = b.height || 26;
+        // Right-aligned inside the row's rect (so pointer travel row → cluster
+        // never leaves the union), clamped so a short, deeply nested row cannot
+        // push the cluster past its own left edge.
+        raBox.style.left = Math.round(Math.max(r.left + 2, r.right - w - 4)) + 'px';
+        raBox.style.top = Math.round(r.top + r.height / 2 - h / 2) + 'px';
+    }
+
+    // Stand the armed Delete down and restore its resting name/state.
+    function raDisarmDelete() {
+        if (!raDelArmed) { return; }
+        raDelArmed = false;
+        clearTimeout(raDelArmT);
+        raDel.classList.remove('dbe-row-actions__del--armed');
+        if (raId) { raSetNames(raId); }
+    }
+
+    function raHide() {
+        raDisarmDelete();
+        clearTimeout(raHideT);
+        var lastRow = raStampedRow;
+        raId = null;
+        raUnstamp();
+        if (raBox && !raBox.hidden) {
+            // Never strand focus in a display:none subtree — hand it back to
+            // the tree first.
+            if (raBox.contains(document.activeElement)) {
+                var row = (lastRow && lastRow.isConnected && lastRow.offsetParent !== null)
+                    ? lastRow : navVisibleRows()[0];
+                if (row) { try { row.focus(); } catch (e) {} }
+            }
+            raBox.hidden = true;
+        }
+    }
+
+    function raShow(id) {
+        clearTimeout(raHideT);
+        if (!id || raSuppressed) { return; }
+        // A REAL open context menu owns the row — do not paint over it. (Our
+        // own invisible auto-driven menus are marked html.dbe-auto-ctx.)
+        if (document.querySelector('dialog.uniBuilderContextMenu[open]') &&
+            !document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+        var row = navRowById(id);
+        if (!row || row.offsetParent === null) { return; }
+        if (id !== raId) { raDisarmDelete(); } // a retarget invalidates the armed state
+        raId = id;
+        raSetNames(id);
+        raStamp(row);
+        if (raBox.hidden) { raBox.hidden = false; }
+        raPosition(row);
+    }
+
+    // Leaving the row/cluster union: stay with a row that still holds keyboard
+    // focus, else in "always" mode fall back to the selected row, else hide.
+    function raRelease() {
+        var ae = document.activeElement;
+        var focusedRow = ae && ae.closest && ae.closest(NAV_ROW_SEL);
+        if (focusedRow && focusedRow.offsetParent !== null) { raShow(navRowId(focusedRow)); return; }
+        if (RA_MODE === 'always') {
+            var sel = activeId();
+            var row = sel ? navRowById(sel) : null;
+            if (row && row.offsetParent !== null) { raShow(sel); return; }
+        }
+        raHide();
+    }
+
+    // Re-render reconciliation, run from every schedule() tick: the row node
+    // behind raId may have been replaced (re-stamp the fresh node) or be gone/
+    // hidden entirely (release). In "always" mode this is also what makes the
+    // cluster follow selection — the class mutations selection causes already
+    // drive schedule().
+    function raSync() {
+        if (!raBox) { return; }
+        if (raSuppressed) { return; }
+        if (raId) {
+            var row = navRowById(raId);
+            if (!row || row.offsetParent === null) { raRelease(); return; }
+            raSetNames(raId);
+            raStamp(row);
+            if (!raBox.hidden) { raPosition(row); }
+            return;
+        }
+        if (RA_MODE === 'always' && !raBox.contains(document.activeElement)) { raRelease(); }
+    }
+
+    function raInUnion(node) {
+        if (!node || node.nodeType !== 1) { return false; }
+        if (raBox && raBox.contains(node)) { return true; }
+        var btn = node.closest && node.closest(NAV_ROW_SEL);
+        return !!(btn && raId && navRowId(btn) === raId);
+    }
+
+    function raPointerOver(e) {
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        if (btn) {
+            clearTimeout(raHideT);
+            var id = navRowId(btn);
+            if (id && id !== raId) { raShow(id); } else { raShow(raId); }
+            return;
+        }
+        if (raBox && raBox.contains(e.target)) { clearTimeout(raHideT); }
+    }
+
+    function raPointerOut(e) {
+        if (!raId) { return; }
+        if (raInUnion(e.relatedTarget)) { return; }
+        // Keep the cluster while a keyboard user is inside it — a stray
+        // pointerout (e.g. the row re-rendering under a parked pointer) must
+        // not steal it from under their focus.
+        if (raBox.contains(document.activeElement)) { return; }
+        clearTimeout(raHideT);
+        raHideT = setTimeout(raRelease, 150); // grace for diagonal/subpixel exits
+    }
+
+    function raFocusIn(e) {
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        if (btn) {
+            clearTimeout(raHideT);
+            raShow(navRowId(btn));
+        } else if (raBox && raBox.contains(e.target)) {
+            clearTimeout(raHideT);
+        }
+    }
+
+    function raFocusOut(e) {
+        if (!raId) { return; }
+        if (raInUnion(e.relatedTarget)) { return; }
+        raRelease();
+    }
+
+    function raOnScroll() {
+        if (RA_CAN_ANCHOR || !raId || raScrollQueued) { return; }
+        raScrollQueued = true;
+        requestAnimationFrame(function () {
+            raScrollQueued = false;
+            var row = raId && navRowById(raId);
+            if (!row) { return; }
+            // Blank the box while the row is outside the scrollport WITHOUT
+            // releasing the target (the anchor path gets exactly this from
+            // position-visibility) — the row may still hold keyboard focus,
+            // and scrolling back brings the cluster with it. Never blank it
+            // out from under focus, though: display:none would strand the
+            // keyboard user on <body>.
+            var sc = row.closest('.uniModTree__container');
+            var rr = row.getBoundingClientRect();
+            var sr = sc ? sc.getBoundingClientRect() : null;
+            var out = !!(sr && (rr.bottom < sr.top || rr.top > sr.bottom));
+            if (out && !raBox.contains(document.activeElement)) {
+                if (!raBox.hidden) { raBox.hidden = true; }
+                return;
+            }
+            if (raBox.hidden) { raBox.hidden = false; }
+            raPosition(row);
+        });
+    }
+
+    function raOnKeydown(e) {
+        if (e.key !== 'Escape') { return; }
+        e.preventDefault();
+        e.stopPropagation(); // the builder's own Escape handlers must not also fire
+        if (raDelArmed) { raDisarmDelete(); return; } // first Escape only stands Delete down
+        var row = raId && navRowById(raId);
+        if (!row) { raRelease(); return; }
+        if (on('navigator_keyboard')) { navFocus(row); } else { row.focus(); }
+    }
+
+    function raFocusRow(row) {
+        if (!row) { return; }
+        if (on('navigator_keyboard')) { navFocus(row); } else { row.focus(); }
+    }
+
+    function raDuplicate(e) {
+        e.stopPropagation();
+        raDisarmDelete();
+        var id = raId;
+        if (!id || raDup.disabled) { return; }
+        var before = Object.keys(modules() || {});
+        var parent = ((modules() || {})[id] || {}).parent || '';
+        raDup.disabled = true;
+        driveContextMenuItem(id, 'Duplicate', function (ok) {
+            raDup.disabled = false;
+            if (!ok) { return; }
+            undoToast(dbeT('duplicated', 'Duplicated element'));
+            // Land focus on the copy: the new id is whatever appeared in the
+            // store under the same parent (the dbeRestoreOp diff pattern).
+            waitFor(function () {
+                var mods = modules() || {};
+                return Object.keys(mods).find(function (nid) {
+                    return before.indexOf(nid) === -1 && (mods[nid].parent || '') === parent;
+                }) || null;
+            }, function (newId) {
+                var row = navRowById(newId || id);
+                if (!row) { return; }
+                raFocusRow(row);
+                raShow(navRowId(row));
+            });
+        });
+    }
+
+    function raDelete(e) {
+        e.stopPropagation();
+        var id = raId;
+        var row = id && navRowById(id);
+        if (!id || !row || raDel.disabled) { return; }
+        // Two-step, matching the native footer delete: the first activation
+        // arms (renames to "Confirm delete", paints solid red, announces via
+        // the status toast), the second performs it. Disarms after 4s, on
+        // retarget, on Escape, or when the cluster hides.
+        if (!raDelArmed) {
+            raDelArmed = true;
+            raDel.classList.add('dbe-row-actions__del--armed');
+            raSetNames(id);
+            undoToast(dbeT('rowActionDeleteArmed', 'Press again to confirm'));
+            clearTimeout(raDelArmT);
+            raDelArmT = setTimeout(raDisarmDelete, 4000);
+            return;
+        }
+        raDisarmDelete();
+        // Pick the landing row BEFORE the subtree disappears: next visible row
+        // outside the doomed subtree, else the previous one, else the parent —
+        // the WordPress list-view shape. (Deletion is captured by (u)'s
+        // builderius.Module.deleted hook, so Ctrl/Cmd+Z restores it.)
+        var rows = navVisibleRows();
+        var i = rows.indexOf(row);
+        var li = navRowLi(row);
+        var next = rows.slice(i + 1).filter(function (b) { return !li || !li.contains(b); })[0]
+            || (i > 0 ? rows[i - 1] : null)
+            || navParentRow(row);
+        var nextId = next ? navRowId(next) : null;
+        raDel.disabled = true;
+        driveContextMenuItem(id, 'Remove', function (ok) {
+            raDel.disabled = false;
+            if (!ok) { return; }
+            undoToast(dbeT('deletedElement', 'Deleted element'));
+            // Move focus off the cluster onto the landing row straight away
+            // (its node usually still exists pre-re-render), so raHide has no
+            // stranded focus to rescue, then re-assert once the tree settles.
+            var landing = nextId && navRowById(nextId);
+            if (landing) { try { landing.focus(); } catch (e2) {} }
+            raHide();
+            if (!nextId) { return; }
+            waitFor(function () {
+                var r = navRowById(nextId);
+                return (r && r.offsetParent !== null) ? r : null;
+            }, function (r) {
+                if (r) { raFocusRow(r); }
+            });
+        });
+    }
+
+    function ensureRowActions() {
+        var container = document.querySelector('.uniRightPanel .uniModTree__container');
+        if (!container) { return; }
+        var box = raBuild();
+        if (box.parentElement !== container) {
+            // After the row scroller (the container's unclassed first child) and
+            // before the favourites strip: Tab order runs rows → Duplicate →
+            // Delete → favourites. position:fixed keeps it out of the layout.
+            var scroller = container.firstElementChild;
+            container.insertBefore(box, scroller ? scroller.nextElementSibling : null);
+        }
+        raSync();
+        var panel = document.querySelector('.uniRightPanel');
+        if (!panel || panel.dbeRowActionsBound) { return; }
+        panel.addEventListener('pointerover', raPointerOver);
+        panel.addEventListener('pointerout', raPointerOut);
+        panel.addEventListener('focusin', raFocusIn);
+        panel.addEventListener('focusout', raFocusOut);
+        panel.addEventListener('scroll', raOnScroll, true); // the scroller is a nested div
+        panel.dbeRowActionsBound = true;
+        // A native drag means the row rects are about to churn — get out of the
+        // way until it settles. Document-level: dragstart fires on the row <li>.
+        document.addEventListener('dragstart', function () { raSuppressed = true; raHide(); });
+        document.addEventListener('dragend', function () { raSuppressed = false; });
+        document.addEventListener('drop', function () { raSuppressed = false; });
+        // A REAL context menu on a row supersedes the cluster; our own invisible
+        // auto-driven menus (html.dbe-auto-ctx) must not knock it out mid-action.
+        try {
+            window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeRowActionsYield', function () {
+                if (!document.documentElement.classList.contains('dbe-auto-ctx')) { raHide(); }
+            });
+        } catch (e) {}
+    }
+
     /* Screen-reader landmarks (chrome_landmarks). The builder chrome is one
        long anonymous document to a screen reader: nothing marks where the top
        toolbar ends and the settings panel or the Navigator begins, so the only
@@ -7771,6 +8501,8 @@
                 try { applyTreeFilter(); } catch (e) {}
             }
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
+            if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
+            if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
@@ -7805,7 +8537,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions') || on('condition_helpers')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
@@ -7814,7 +8546,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });

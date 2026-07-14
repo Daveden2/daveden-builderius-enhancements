@@ -354,6 +354,23 @@ function dbe_builder_strings() {
 		/* translators: %s: element/tag name just inserted. */
 		'addedElement'            => __( 'Added %s', 'daveden-builderius-enhancements' ),
 		'noElementSelected'       => __( 'Select an element first', 'daveden-builderius-enhancements' ),
+		// Display-condition helpers.
+		'condRemove'              => __( 'Remove condition', 'daveden-builderius-enhancements' ),
+		'condOperator'            => __( 'Comparison', 'daveden-builderius-enhancements' ),
+		'condValue'               => __( 'Value', 'daveden-builderius-enhancements' ),
+		'condFreeInput'           => __( 'Type a custom value', 'daveden-builderius-enhancements' ),
+		'condPickValues'          => __( 'Values', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of display conditions. */
+		'condIconCount'           => __( 'Dynamic data conditions (%s set)', 'daveden-builderius-enhancements' ),
+		'condTreeSuffix'          => __( ', has display conditions', 'daveden-builderius-enhancements' ),
+		// Navigator row quick actions.
+		/* translators: %s: element label. */
+		'rowActionDuplicate'      => __( 'Duplicate “%s”', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'rowActionDelete'         => __( 'Delete “%s”', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'rowActionDeleteConfirm'  => __( 'Confirm delete “%s”', 'daveden-builderius-enhancements' ),
+		'rowActionDeleteArmed'    => __( 'Press again to confirm', 'daveden-builderius-enhancements' ),
 		// Shortcuts overlay — Elements group.
 		'scGroupElements'         => __( 'Selected element', 'daveden-builderius-enhancements' ),
 		'scDuplicate'             => __( 'Duplicate', 'daveden-builderius-enhancements' ),

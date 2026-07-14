@@ -3,6 +3,129 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.13.0
+Navigator row quick actions (issue #54) — inline Duplicate and Delete on
+Navigator rows, requested as the Bricks-style hover icons but built so
+keyboard and screen-reader users get the same shortcut.
+
+* Added (#54): a new **Navigator row quick actions** feature (Navigator tab,
+  on by default). Duplicate and Delete buttons appear at the right edge of a
+  Navigator row on pointer hover or keyboard focus. Both actions drive the
+  native context-menu channels (`Duplicate` / `Remove`), so rendering, save
+  state and the undo-delete capture behave exactly as if the menu had been
+  used; deletes stay undoable with Ctrl/Cmd+Z while Undo delete is on.
+* The implementation deliberately differs from the Bricks reference (mouse-
+  only list items injected inside every row, no roles, no keyboard path):
+  Builderius rows are themselves `<button>` elements inside the ARIA tree the
+  Navigator keyboard feature maintains, so per-row injection would nest
+  buttons inside buttons and pollute the tree semantics, and React re-renders
+  would wipe the injected nodes. Instead ONE floating cluster of two real
+  buttons lives after the tree scroller in DOM order — Tab from a focused row
+  reaches Duplicate then Delete, Escape returns to the row — and is overlaid
+  on the target row's right edge.
+* Positioning is a progressive enhancement: browsers with CSS anchor
+  positioning track the row (and tree scrolling, via `position-visibility`)
+  natively; others take a `getBoundingClientRect` fallback with a scroll
+  clamp that blanks the cluster while its row is outside the scrollport.
+* Accessible names carry the target element's label ("Duplicate “Hero”",
+  read from the store, not the badge-decorated row text) and update as the
+  target changes; outcomes are announced through the existing polite status
+  toast ("Duplicated element" / "Deleted element"); nothing is announced on
+  mere show/hide. After duplicating, focus lands on the copy's row; after
+  deleting, on the next row outside the removed subtree (else the previous
+  row, else the parent), matching the WordPress list-view shape.
+* Delete is two-step, matching the native footer delete's arm-then-confirm
+  pattern: the first activation renames the button to "Confirm delete “X”",
+  paints it solid red and announces "Press again to confirm" through the
+  status toast; the second performs the delete. It stands down after four
+  seconds, when the cluster retargets or hides, or on Escape (a second
+  Escape then returns focus to the row as usual).
+* A **Show the buttons** sub-setting picks between "On hover or keyboard
+  focus" (default) and "Always, on the selected row", which keeps the cluster
+  pinned to the selection.
+* The cluster yields to the real right-click menu, hides during row drags and
+  while inline rename is active, and survives React re-renders by re-resolving
+  its target row by node id on every tick. New `--dbe-danger` token (both
+  themes, AA on the raised surface) gives Delete its destructive hover/focus
+  state.
+* With the Navigator keyboard tree feature off, rows are still natively
+  focusable so the buttons still appear on focus; without the roving tab stop,
+  Tab only reaches the cluster after the last row — turn Navigator keyboard
+  tree on for the intended row → Tab → actions flow.
+* Fixed (#57): in the light theme, an element's display-conditions view (the
+  settings panel's conditions mode) rendered dark-on-dark: the "New
+  condition" button, the condition cards (resting and editing), the
+  group/rule separator bars and the date/time inputs all kept their native
+  dark-scale surfaces (`--primary-1/2`, `--black-alt-1`) while the remapped
+  foreground went light-theme dark (the button computed to roughly 1.1:1).
+  A new leak-audit pass in 60-theme.css repaints those surfaces from the
+  theme tokens, pins the chip's accent hover to the light-legible accent,
+  and un-inverts the date/time picker glyph. The dark theme is untouched.
+* Fixed (#57): the conditions-view light-theme pass now also covers the field
+  controls a chosen condition reveals — the `builderiusSelect` operator
+  select ("Equals…", computed to roughly 1.5:1 on its native near-black
+  fill), the `builderiusMultiSelect` value pickers and their dropdown
+  lists, the select-with-free-input variants and their toggles. The
+  family's native focus cue (a mid-tone accent border, under 3:1 on light
+  surfaces) is pinned to the light theme's darker accent.
+* Added (#54 follow-up): a **Display-condition helpers** feature (Editing
+  tab, on by default), the attr_helpers pattern applied to conditions:
+  - Opening the conditions mode on an element with none seeds a blank,
+    ready-to-choose condition card (focused only when you are already
+    working in the settings panel — never stolen from the Navigator).
+    The native "New condition" click writes a placeholder rule into the
+    element's `visibilityCondition` setting immediately, so a seeded card
+    the user never interacted with is removed again on leaving: through
+    its own X while it is still mounted, or through the settings upsert
+    channel when the panel moved on first — either way the element is
+    left exactly as it was. Any pointer or key interaction inside the
+    card disarms the auto-clean (the store test alone raced the async
+    type commit — observed with Dynamic data, whose chosen card was
+    briefly indistinguishable from an untouched one and got removed).
+    Seeding fires only when the view opens, never while browsing
+    elements with the (sticky) view already open.
+  - Every condition field gets a real accessible name: the per-card
+    remove button ("Remove condition"), the comparison select, the value
+    inputs (from their placeholder), the free-input toggles, and each
+    checkbox in the multi-value pickers (from its option's text).
+  - The multi-value pickers (`builderiusMultiSelect`) were mouse-only —
+    an unfocusable div trigger. They are now wired as comboboxes: the
+    trigger is a tab stop announcing its field and chosen values,
+    Enter/Space/ArrowDown open it and focus the first option, the
+    options are real checkboxes (Space ticks, Tab or arrows move), and
+    Escape closes and returns to the trigger.
+  - Elements that carry conditions are marked: the conditions-mode
+    header button gains a dot and announces the count ("Dynamic data
+    conditions (2 set)"), and their Navigator rows gain a dot with a
+    visually-hidden ", has display conditions" suffix for screen
+    readers. The row marks survive React re-renders (re-applied per
+    tick, the tag-badge precedent).
+* Fixed: the dynamic data picker — the floating `.uniAdvancedDialogMenu`
+  the stack icon opens, shared by the Dynamic data list, the CSS vars
+  list and the transformation-functions list — rendered black-on-black
+  in the light theme everywhere in the builder: a `--black-alt-1` card
+  with a `#000` search field, dark "parents" chips and dark expanded
+  rows under the remapped (dark) foreground, with the search text in the
+  native green that is illegible on a light field. Leak-audit pass 18
+  repaints the card, search, chips, expanded rows and their form
+  controls from the theme tokens; the dark theme is untouched.
+  The interaction states were equally broken in light: item hover and
+  keyboard focus both paint the native dark `--primary-2` fill (hover
+  under the remapped dark label, ~1.2:1; focus additionally recolours
+  the text to the mid-tone `--accent-normal`, illegible either way).
+  Hover now uses the light wash, focus an accent-tinted wash with the
+  light-legible accent for text and icons. And the picker's controls
+  had NO visible focus ring in either theme: the focus-visibility
+  feature scopes its ring to the five chrome panels, and the picker is
+  a position:fixed overlay at body level outside all of them —
+  `.uniAdvancedDialogMenu` is now in the scope list.
+* Docs: readme.txt reorganised to the WordPress plugin handbook layout —
+  proper header fields (Tags, License URI), a ≤150-character short
+  description, Description / Installation / FAQ / Upgrade Notice sections,
+  and a changelog trimmed to recent releases (this file remains the full
+  history). Feature suggestions now carry props, starting with
+  TRẦN ĐỨC LƯƠNG (@evanscliff) for the row quick actions.
+
 ## 1.12.4
 Repairs for the CSS vars tab (a 1.12.1 regression) and the detachable
 Navigator's canvas reclaim, plus community label polish.

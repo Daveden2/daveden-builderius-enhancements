@@ -676,3 +676,193 @@ html[data-dbe-theme="light"] .uniSettingHtmlAttribute_addNewBtn:hover {
 html[data-dbe-theme="light"] .uniModTree__favouritesListItem {
     border-color: var(--dbe-line) !important;
 }
+
+/* --- Leak audit pass 17: element display-conditions view --- */
+/* The per-element display-conditions view (the settings panel's conditions
+   mode) keeps its native dark-scale surfaces: the "New condition" chip, the
+   condition cards (resting and editing), the group/rule separator bars and
+   the date/time inputs all paint on --primary-1/2 / --black-alt-1
+   near-blacks, while the remapped foreground goes light-theme dark — so the
+   whole view renders dark-on-dark. Repaint the surfaces from the theme
+   tokens, and give the chip's accent hover the light-legible accent (native
+   --accent-normal is a mid-tone that fails as text on light surfaces). Dark
+   is left alone — its native values are already correct. */
+html[data-dbe-theme="light"] .uniElementConditions {
+    border-top-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_addNewBtn {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    color: var(--dbe-text-2) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_addNewBtn:hover,
+html[data-dbe-theme="light"] .uniElementConditions_addNewBtn:focus-within {
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_item,
+html[data-dbe-theme="light"] .uniElementConditions_itemEdit {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_itemInner .actions .uniIconButton {
+    background-color: var(--dbe-l2-hi) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_itemInner .actions .uniIconButton.activated {
+    background-color: var(--dbe-accent-tint) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_groupSeparator,
+html[data-dbe-theme="light"] .uniElementConditions_rulesSeparator {
+    background: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_groupSeparator > .uniElementConditions_addNewSiblingBtn,
+html[data-dbe-theme="light"] .uniElementConditions_rulesSeparator > .uniElementConditions_addNewSiblingBtn {
+    background-color: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="date"],
+html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="time"] {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+/* The native picker glyph is inverted to suit the dark input; on the light
+   input the un-inverted glyph is the legible one. */
+html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-dbe-theme="light"] .uniElementConditions_itemFields input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: none !important;
+}
+
+/* --- Leak audit pass 18: advanced dialog menus (the dynamic data picker) ---
+   The floating picker the stack icon opens — .uniAdvancedDialogMenu, shared
+   by the Dynamic data list, the CSS vars list and the transformation
+   functions list, so this repaint covers all three wherever they pop up.
+   Natively the card is --black-alt-1 with a #000 (--contrast) search field,
+   --primary-2 "parents" chips and --primary-1 expanded rows; the remapped
+   foreground goes light-theme dark on top of them — black on black. The
+   item labels, category headings and icons already read from the remapped
+   --base-2/--primary-4, so only the surfaces (and the search text, natively
+   the green --accent-special, illegible on a light field) need repainting. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__inner {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__searchWrapper .uniAdvancedDialogMenu__searchInner,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__searchWrapper input.uniAdvancedDialogMenu__search {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable .btnItem__content .parents,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm .btnItem__content .parents {
+    background: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+/* Item hover paints the native dark --primary-2 fill under the remapped
+   (dark) label — dark-on-dark. A light wash keeps the hover readable; the
+   native hover label colour is the remapped --base-1, already correct. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:not(.expanded):hover,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:not(.expanded):hover {
+    background-color: var(--dbe-hover-wash) !important;
+}
+/* Item keyboard focus paints the same dark fill and turns the item's text
+   the mid-tone --accent-normal — twice illegible on light. An accent-tinted
+   wash (distinct from plain hover) with the light-legible accent for the
+   text and icons; the "parents" chip keeps its dark-on-grey pair from the
+   base rule above. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:not(.expanded):focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:not(.expanded):focus-within {
+    background-color: var(--dbe-accent-tint) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within .btnItem__content .label,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within .btnItem__variable span,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within .btnItem__content .label,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within .btnItem__variable span {
+    color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within svg path,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within svg path {
+    fill: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded {
+    background-color: var(--dbe-l1) !important;
+    border-top-color: var(--dbe-line) !important;
+    border-bottom-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form input,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form select,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form input,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form select {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form input:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form select:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form input:focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form select:focus-within {
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form ul li button:hover,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form ul li button:hover {
+    background-color: var(--dbe-hover-wash) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded .form .fieldWrapper .uniIconButton,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded .form .fieldWrapper .uniIconButton {
+    background: var(--dbe-l2-hi) !important;
+}
+
+/* The builderiusSelect / builderiusMultiSelect / free-input family (the
+   condition operator "Equals…" select, the multi-select value pickers and
+   their type-your-own variants) hard-codes the dark scale the same way:
+   --black-alt-1 fills with --primary-2/3 borders, so every one of these
+   controls renders near-black on the light panel. Repaint the family from
+   the theme tokens wherever it appears. */
+html[data-dbe-theme="light"] .builderiusSelect select,
+html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput,
+html[data-dbe-theme="light"] .uniSystemSelect--freeInput,
+html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelect select option {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__value {
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelectFreeInputToggle {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .builderiusSelectFreeInputToggle:hover {
+    background: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__dropdown {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__option {
+    color: var(--dbe-text-2) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__option:hover,
+html[data-dbe-theme="light"] .builderiusMultiSelect__option.is-selected {
+    background-color: var(--dbe-accent-tint) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .builderiusMultiSelect__checkbox {
+    accent-color: var(--dbe-accent) !important;
+}
+/* The family's native focus cue is a mid-tone --accent-normal border —
+   under 3:1 against the light surface, so it fails 1.4.11 there. Pin the
+   focused/open border to the light theme's darker accent. (These come after
+   the base repaint above so they win its !important border.) */
+html[data-dbe-theme="light"] .builderiusSelect select:focus,
+html[data-dbe-theme="light"] .uniSystemSelect--freeInput:focus-within,
+html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput:focus,
+html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger.is-open {
+    border-color: var(--dbe-accent) !important;
+}

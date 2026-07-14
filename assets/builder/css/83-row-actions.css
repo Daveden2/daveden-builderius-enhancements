@@ -1,0 +1,89 @@
+/* Navigator row quick actions (navigator_row_actions).
+
+   ONE floating cluster of two real buttons (Duplicate, Delete) overlaid on the
+   right edge of the hovered/focused Navigator row — never injected into the
+   row itself: rows are <button> elements inside a strict ARIA tree, so nested
+   buttons would be invalid HTML and would break the tree semantics (and React
+   re-renders would wipe them anyway). The cluster lives after the tree
+   scroller in DOM order, so Tab from a focused row reaches Duplicate, then
+   Delete. See builder.js §(ra). */
+
+.dbe-row-actions {
+	position: fixed; /* escapes the tree scroller's clipping */
+	z-index: 30;
+	display: flex;
+	gap: 2px;
+	padding: 2px;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l2);
+	box-shadow: 0 2px 8px var(--dbe-shadow);
+}
+
+/* hidden = gone from layout AND the accessibility tree; no aria-hidden
+   juggling, no focusable-but-invisible risk. */
+.dbe-row-actions[hidden] { display: none !important; }
+
+.dbe-row-actions__btn {
+	display: grid;
+	place-items: center;
+	inline-size: 22px;
+	block-size: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--dbe-muted);
+	cursor: pointer;
+	transition: background var(--dbe-t), color var(--dbe-t);
+}
+.dbe-row-actions__btn:hover {
+	background: var(--dbe-hover-wash);
+	color: var(--dbe-text);
+}
+.dbe-row-actions__btn:focus-visible {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -1px;
+}
+
+/* Destructive cue on Delete — red only as hover/focus feedback, muted at
+   rest so the cluster stays quiet while just passing over rows. */
+.dbe-row-actions__del:hover,
+.dbe-row-actions__del:focus-visible {
+	background: color-mix(in srgb, var(--dbe-danger) 14%, transparent);
+	color: var(--dbe-danger);
+}
+
+/* Armed (first activation happened, awaiting confirm): solid red so the
+   second press is unmistakably the destructive one. --dbe-on-accent pairs
+   with the danger tone in both themes (dark icon on the light-ish dark-theme
+   red, white on the deeper light-theme red). */
+.dbe-row-actions__del--armed,
+.dbe-row-actions__del--armed:hover,
+.dbe-row-actions__del--armed:focus-visible {
+	background: var(--dbe-danger);
+	color: var(--dbe-on-accent);
+}
+
+/* The cluster is not a DOM descendant of its row, so the row loses :hover
+   while the pointer sits on the buttons. builder.js stamps this class on the
+   active row; paint it with the same wash as the native hover state. */
+.uniRightPanel .uniModTree__item.dbe-row-actions-on {
+	background-color: var(--dbe-accent-tint);
+}
+
+/* Progressive enhancement: CSS anchor positioning. builder.js stamps
+   anchor-name: --dbe-row-actions inline on the active row and adds
+   .dbe-anchored; the browser then tracks tree scrolling itself and hides the
+   cluster whenever the row leaves the scrollport. Browsers without anchor
+   support take the JS getBoundingClientRect path instead (inline left/top,
+   no .dbe-anchored class). */
+@supports (anchor-name: --a) {
+	.dbe-row-actions.dbe-anchored {
+		position-anchor: --dbe-row-actions;
+		top: anchor(center);
+		left: anchor(right);
+		translate: calc(-100% - 4px) -50%;
+		position-visibility: anchors-visible;
+	}
+}
