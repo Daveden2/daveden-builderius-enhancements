@@ -223,7 +223,7 @@ function dbe_features() {
 		'navigator_row_actions' => array(
 			'title'       => __( 'Navigator row quick actions', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Duplicate and Delete buttons on the hovered or focused row.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Shows Duplicate and Delete buttons at the right edge of a Navigator row when you point at it or move keyboard focus onto it. From a focused row, Tab reaches the buttons and Escape returns to the row; after duplicating, focus lands on the copy, and after deleting it moves to a neighbouring row. Deleting is immediate but undoable with Ctrl/Cmd+Z while Undo delete is on. Can also be set to sit permanently on the selected row.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Shows Duplicate and Delete buttons at the right edge of a Navigator row when you point at it or move keyboard focus onto it. From a focused row, Tab reaches the buttons and Escape returns to the row; after duplicating, focus lands on the copy, and after deleting it moves to a neighbouring row. Delete asks for a confirming second press, and remains undoable with Ctrl/Cmd+Z while Undo delete is on. Can also be set to sit permanently on the selected row.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '83-row-actions.css' ),
 			'shared_css'  => array( '01-infra.css' ),

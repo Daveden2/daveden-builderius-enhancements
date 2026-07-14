@@ -54,6 +54,17 @@
 	color: var(--dbe-danger);
 }
 
+/* Armed (first activation happened, awaiting confirm): solid red so the
+   second press is unmistakably the destructive one. --dbe-on-accent pairs
+   with the danger tone in both themes (dark icon on the light-ish dark-theme
+   red, white on the deeper light-theme red). */
+.dbe-row-actions__del--armed,
+.dbe-row-actions__del--armed:hover,
+.dbe-row-actions__del--armed:focus-visible {
+	background: var(--dbe-danger);
+	color: var(--dbe-on-accent);
+}
+
 /* The cluster is not a DOM descendant of its row, so the row loses :hover
    while the pointer sits on the buttons. builder.js stamps this class on the
    active row; paint it with the same wash as the native hover state. */

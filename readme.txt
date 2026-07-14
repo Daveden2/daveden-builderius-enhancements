@@ -41,9 +41,10 @@ pointer or keyboard focus.
   by default). From a focused row, Tab reaches the buttons and Escape returns
   to the row; after duplicating, focus lands on the copy, and after deleting
   it moves to a neighbouring row. Each button announces its target ("Delete
-  “Hero”") to assistive technology, and deleting is undoable with Ctrl/Cmd+Z
-  while Undo delete is on. A sub-setting can pin the buttons to the selected
-  row instead of showing them on hover.
+  “Hero”") to assistive technology. Delete asks for a confirming second press
+  (the button turns solid red and renames to "Confirm delete"), and remains
+  undoable with Ctrl/Cmd+Z while Undo delete is on. A sub-setting can pin the
+  buttons to the selected row instead of showing them on hover.
 
 = 1.12.4 =
 Fixes for the CSS vars tab and the detachable Navigator, plus label polish.

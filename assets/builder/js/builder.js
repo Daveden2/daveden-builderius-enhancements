@@ -7731,6 +7731,8 @@
     var raHideT = null;
     var raSuppressed = false;  // during a native row drag
     var raScrollQueued = false;
+    var raDelArmed = false;    // Delete is two-step: arm, then confirm
+    var raDelArmT = null;
 
     function raBuild() {
         if (raBox) { return raBox; }
@@ -7765,7 +7767,9 @@
         var m = (modules() || {})[id];
         var label = (m && (m.label || m.name)) || dbeT('element', 'element');
         var dup = dbeFmt(dbeT('rowActionDuplicate', 'Duplicate “%s”'), label);
-        var del = dbeFmt(dbeT('rowActionDelete', 'Delete “%s”'), label);
+        var del = raDelArmed
+            ? dbeFmt(dbeT('rowActionDeleteConfirm', 'Confirm delete “%s”'), label)
+            : dbeFmt(dbeT('rowActionDelete', 'Delete “%s”'), label);
         if (raDup.getAttribute('aria-label') !== dup) {
             raDup.setAttribute('aria-label', dup);
             raDup.setAttribute('data-dbe-tip', dup);
@@ -7808,7 +7812,17 @@
         raBox.style.top = Math.round(r.top + r.height / 2 - h / 2) + 'px';
     }
 
+    // Stand the armed Delete down and restore its resting name/state.
+    function raDisarmDelete() {
+        if (!raDelArmed) { return; }
+        raDelArmed = false;
+        clearTimeout(raDelArmT);
+        raDel.classList.remove('dbe-row-actions__del--armed');
+        if (raId) { raSetNames(raId); }
+    }
+
     function raHide() {
+        raDisarmDelete();
         clearTimeout(raHideT);
         var lastRow = raStampedRow;
         raId = null;
@@ -7834,6 +7848,7 @@
             !document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
         var row = navRowById(id);
         if (!row || row.offsetParent === null) { return; }
+        if (id !== raId) { raDisarmDelete(); } // a retarget invalidates the armed state
         raId = id;
         raSetNames(id);
         raStamp(row);
@@ -7949,6 +7964,7 @@
         if (e.key !== 'Escape') { return; }
         e.preventDefault();
         e.stopPropagation(); // the builder's own Escape handlers must not also fire
+        if (raDelArmed) { raDisarmDelete(); return; } // first Escape only stands Delete down
         var row = raId && navRowById(raId);
         if (!row) { raRelease(); return; }
         if (on('navigator_keyboard')) { navFocus(row); } else { row.focus(); }
@@ -7961,6 +7977,7 @@
 
     function raDuplicate(e) {
         e.stopPropagation();
+        raDisarmDelete();
         var id = raId;
         if (!id || raDup.disabled) { return; }
         var before = Object.keys(modules() || {});
@@ -7991,6 +8008,20 @@
         var id = raId;
         var row = id && navRowById(id);
         if (!id || !row || raDel.disabled) { return; }
+        // Two-step, matching the native footer delete: the first activation
+        // arms (renames to "Confirm delete", paints solid red, announces via
+        // the status toast), the second performs it. Disarms after 4s, on
+        // retarget, on Escape, or when the cluster hides.
+        if (!raDelArmed) {
+            raDelArmed = true;
+            raDel.classList.add('dbe-row-actions__del--armed');
+            raSetNames(id);
+            undoToast(dbeT('rowActionDeleteArmed', 'Press again to confirm'));
+            clearTimeout(raDelArmT);
+            raDelArmT = setTimeout(raDisarmDelete, 4000);
+            return;
+        }
+        raDisarmDelete();
         // Pick the landing row BEFORE the subtree disappears: next visible row
         // outside the doomed subtree, else the previous one, else the parent —
         // the WordPress list-view shape. (Deletion is captured by (u)'s

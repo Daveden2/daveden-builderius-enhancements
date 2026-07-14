@@ -34,6 +34,12 @@ keyboard and screen-reader users get the same shortcut.
   mere show/hide. After duplicating, focus lands on the copy's row; after
   deleting, on the next row outside the removed subtree (else the previous
   row, else the parent), matching the WordPress list-view shape.
+* Delete is two-step, matching the native footer delete's arm-then-confirm
+  pattern: the first activation renames the button to "Confirm delete “X”",
+  paints it solid red and announces "Press again to confirm" through the
+  status toast; the second performs the delete. It stands down after four
+  seconds, when the cluster retargets or hides, or on Escape (a second
+  Escape then returns focus to the row as usual).
 * A **Show the buttons** sub-setting picks between "On hover or keyboard
   focus" (default) and "Always, on the selected row", which keeps the cluster
   pinned to the selection.

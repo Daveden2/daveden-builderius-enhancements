@@ -359,6 +359,9 @@ function dbe_builder_strings() {
 		'rowActionDuplicate'      => __( 'Duplicate “%s”', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
 		'rowActionDelete'         => __( 'Delete “%s”', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'rowActionDeleteConfirm'  => __( 'Confirm delete “%s”', 'daveden-builderius-enhancements' ),
+		'rowActionDeleteArmed'    => __( 'Press again to confirm', 'daveden-builderius-enhancements' ),
 		// Shortcuts overlay — Elements group.
 		'scGroupElements'         => __( 'Selected element', 'daveden-builderius-enhancements' ),
 		'scDuplicate'             => __( 'Duplicate', 'daveden-builderius-enhancements' ),
