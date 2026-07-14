@@ -52,7 +52,7 @@ keyboard and screen-reader users get the same shortcut.
   focusable so the buttons still appear on focus; without the roving tab stop,
   Tab only reaches the cluster after the last row — turn Navigator keyboard
   tree on for the intended row → Tab → actions flow.
-* Fixed: in the light theme, an element's display-conditions view (the
+* Fixed (#57): in the light theme, an element's display-conditions view (the
   settings panel's conditions mode) rendered dark-on-dark: the "New
   condition" button, the condition cards (resting and editing), the
   group/rule separator bars and the date/time inputs all kept their native
@@ -61,7 +61,7 @@ keyboard and screen-reader users get the same shortcut.
   A new leak-audit pass in 60-theme.css repaints those surfaces from the
   theme tokens, pins the chip's accent hover to the light-legible accent,
   and un-inverts the date/time picker glyph. The dark theme is untouched.
-* Fixed: the conditions-view light-theme pass now also covers the field
+* Fixed (#57): the conditions-view light-theme pass now also covers the field
   controls a chosen condition reveals — the `builderiusSelect` operator
   select ("Equals…", computed to roughly 1.5:1 on its native near-black
   fill), the `builderiusMultiSelect` value pickers and their dropdown
