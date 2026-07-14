@@ -4,6 +4,14 @@
     "no-descending-specificity": null,
     "no-duplicate-selectors": null,
     "selector-class-pattern": null,
-    "declaration-property-value-keyword-no-deprecated": null
+    "declaration-property-value-keyword-no-deprecated": null,
+    "declaration-property-value-no-unknown": [
+      true,
+      {
+        "ignoreProperties": {
+          "position-visibility": ["anchors-visible"]
+        }
+      }
+    ]
   }
 }

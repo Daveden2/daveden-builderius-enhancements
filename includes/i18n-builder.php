@@ -354,6 +354,11 @@ function dbe_builder_strings() {
 		/* translators: %s: element/tag name just inserted. */
 		'addedElement'            => __( 'Added %s', 'daveden-builderius-enhancements' ),
 		'noElementSelected'       => __( 'Select an element first', 'daveden-builderius-enhancements' ),
+		// Navigator row quick actions.
+		/* translators: %s: element label. */
+		'rowActionDuplicate'      => __( 'Duplicate “%s”', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'rowActionDelete'         => __( 'Delete “%s”', 'daveden-builderius-enhancements' ),
 		// Shortcuts overlay — Elements group.
 		'scGroupElements'         => __( 'Selected element', 'daveden-builderius-enhancements' ),
 		'scDuplicate'             => __( 'Duplicate', 'daveden-builderius-enhancements' ),

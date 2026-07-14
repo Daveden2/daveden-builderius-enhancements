@@ -7702,6 +7702,361 @@
         panel.dbeNavKeyBound = true;
     }
 
+    /* (ra) Navigator row quick actions (navigator_row_actions). Duplicate and
+       Delete buttons on the hovered/focused Navigator row, without opening the
+       right-click menu (issue #54).
+
+       ONE floating cluster of two real <button>s, never injected into the
+       rows: a row is itself a <button> (buttons cannot nest), the tree is
+       React-rendered (injected children die on every re-render), and (nk)
+       exposes it as a strict ARIA tree that stray buttons inside would break.
+       The cluster lives in .uniModTree__container AFTER the row scroller, so
+       from a focused row Tab reaches Duplicate, then Delete, and its fixed
+       position overlays the target row's right edge.
+
+       Positioning is progressive enhancement: browsers with CSS anchor
+       positioning get anchor-name stamped inline on the target row and track
+       scrolling natively (position-visibility hides the cluster when the row
+       leaves the scrollport); the rest take a getBoundingClientRect path with
+       a capture-phase scroll reposition. Both actions go through the proven
+       native channel — driveContextMenuItem — so behaviour (render, save,
+       undo capture) is exactly the context menu's. */
+    var RA_MODE = (CFG.rowActions && CFG.rowActions.mode) === 'always' ? 'always' : 'hover';
+    var RA_CAN_ANCHOR = !!(window.CSS && CSS.supports && CSS.supports('anchor-name: --a'));
+    var raBox = null;          // the cluster (module-level singleton: the same
+    var raDup = null;          // node is re-inserted after a re-render, so its
+    var raDel = null;          // listeners survive)
+    var raId = null;           // target row's module id
+    var raStampedRow = null;   // the row node currently carrying class/anchor
+    var raHideT = null;
+    var raSuppressed = false;  // during a native row drag
+    var raScrollQueued = false;
+
+    function raBuild() {
+        if (raBox) { return raBox; }
+        raBox = document.createElement('div');
+        raBox.className = 'dbe-row-actions';
+        raBox.hidden = true;
+        raDup = document.createElement('button');
+        raDup.type = 'button';
+        raDup.className = 'dbe-row-actions__btn dbe-row-actions__dup';
+        raDup.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<rect x="3.9" y="3.9" width="6.6" height="6.6" rx="1.2" stroke="currentColor" stroke-width="1.3"/>' +
+            '<path d="M8.1 2.3v-.2A1.6 1.6 0 0 0 6.5.5H2.1A1.6 1.6 0 0 0 .5 2.1v4.4a1.6 1.6 0 0 0 1.6 1.6h.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
+            '</svg>';
+        raDel = document.createElement('button');
+        raDel.type = 'button';
+        raDel.className = 'dbe-row-actions__btn dbe-row-actions__del';
+        raDel.innerHTML = '<svg width="12" height="13" viewBox="0 0 12 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<path d="M1 3h10M4.2 3V1.9c0-.5.4-.9.9-.9h1.8c.5 0 .9.4.9.9V3M2.2 3l.6 8.2c0 .5.4.8.9.8h4.6c.5 0 .9-.3.9-.8L9.8 3M4.8 5.4v4M7.2 5.4v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '</svg>';
+        raDup.addEventListener('click', raDuplicate);
+        raDel.addEventListener('click', raDelete);
+        raBox.addEventListener('keydown', raOnKeydown);
+        raBox.appendChild(raDup);
+        raBox.appendChild(raDel);
+        return raBox;
+    }
+
+    // Accessible names carry the target so the buttons make sense wherever
+    // focus finds them ("Duplicate "Hero"", not a bare "Duplicate"). Labels
+    // come from the STORE, not the row text — tag badges write into the row.
+    function raSetNames(id) {
+        var m = (modules() || {})[id];
+        var label = (m && (m.label || m.name)) || dbeT('element', 'element');
+        var dup = dbeFmt(dbeT('rowActionDuplicate', 'Duplicate “%s”'), label);
+        var del = dbeFmt(dbeT('rowActionDelete', 'Delete “%s”'), label);
+        if (raDup.getAttribute('aria-label') !== dup) {
+            raDup.setAttribute('aria-label', dup);
+            raDup.setAttribute('data-dbe-tip', dup);
+        }
+        if (raDel.getAttribute('aria-label') !== del) {
+            raDel.setAttribute('aria-label', del);
+            raDel.setAttribute('data-dbe-tip', del);
+        }
+    }
+
+    function raUnstamp() {
+        if (!raStampedRow) { return; }
+        raStampedRow.classList.remove('dbe-row-actions-on');
+        if (RA_CAN_ANCHOR) { raStampedRow.style.removeProperty('anchor-name'); }
+        raStampedRow = null;
+    }
+
+    function raStamp(row) {
+        if (raStampedRow === row) { return; }
+        raUnstamp();
+        row.classList.add('dbe-row-actions-on');
+        if (RA_CAN_ANCHOR) { row.style.setProperty('anchor-name', '--dbe-row-actions'); }
+        raStampedRow = row;
+    }
+
+    function raPosition(row) {
+        if (RA_CAN_ANCHOR) {
+            raBox.classList.add('dbe-anchored');
+            raBox.style.left = '';
+            raBox.style.top = '';
+            return;
+        }
+        var r = row.getBoundingClientRect();
+        var b = raBox.getBoundingClientRect();
+        var w = b.width || 54, h = b.height || 26;
+        // Right-aligned inside the row's rect (so pointer travel row → cluster
+        // never leaves the union), clamped so a short, deeply nested row cannot
+        // push the cluster past its own left edge.
+        raBox.style.left = Math.round(Math.max(r.left + 2, r.right - w - 4)) + 'px';
+        raBox.style.top = Math.round(r.top + r.height / 2 - h / 2) + 'px';
+    }
+
+    function raHide() {
+        clearTimeout(raHideT);
+        var lastRow = raStampedRow;
+        raId = null;
+        raUnstamp();
+        if (raBox && !raBox.hidden) {
+            // Never strand focus in a display:none subtree — hand it back to
+            // the tree first.
+            if (raBox.contains(document.activeElement)) {
+                var row = (lastRow && lastRow.isConnected && lastRow.offsetParent !== null)
+                    ? lastRow : navVisibleRows()[0];
+                if (row) { try { row.focus(); } catch (e) {} }
+            }
+            raBox.hidden = true;
+        }
+    }
+
+    function raShow(id) {
+        clearTimeout(raHideT);
+        if (!id || raSuppressed) { return; }
+        // A REAL open context menu owns the row — do not paint over it. (Our
+        // own invisible auto-driven menus are marked html.dbe-auto-ctx.)
+        if (document.querySelector('dialog.uniBuilderContextMenu[open]') &&
+            !document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+        var row = navRowById(id);
+        if (!row || row.offsetParent === null) { return; }
+        raId = id;
+        raSetNames(id);
+        raStamp(row);
+        if (raBox.hidden) { raBox.hidden = false; }
+        raPosition(row);
+    }
+
+    // Leaving the row/cluster union: stay with a row that still holds keyboard
+    // focus, else in "always" mode fall back to the selected row, else hide.
+    function raRelease() {
+        var ae = document.activeElement;
+        var focusedRow = ae && ae.closest && ae.closest(NAV_ROW_SEL);
+        if (focusedRow && focusedRow.offsetParent !== null) { raShow(navRowId(focusedRow)); return; }
+        if (RA_MODE === 'always') {
+            var sel = activeId();
+            var row = sel ? navRowById(sel) : null;
+            if (row && row.offsetParent !== null) { raShow(sel); return; }
+        }
+        raHide();
+    }
+
+    // Re-render reconciliation, run from every schedule() tick: the row node
+    // behind raId may have been replaced (re-stamp the fresh node) or be gone/
+    // hidden entirely (release). In "always" mode this is also what makes the
+    // cluster follow selection — the class mutations selection causes already
+    // drive schedule().
+    function raSync() {
+        if (!raBox) { return; }
+        if (raSuppressed) { return; }
+        if (raId) {
+            var row = navRowById(raId);
+            if (!row || row.offsetParent === null) { raRelease(); return; }
+            raSetNames(raId);
+            raStamp(row);
+            if (!raBox.hidden) { raPosition(row); }
+            return;
+        }
+        if (RA_MODE === 'always' && !raBox.contains(document.activeElement)) { raRelease(); }
+    }
+
+    function raInUnion(node) {
+        if (!node || node.nodeType !== 1) { return false; }
+        if (raBox && raBox.contains(node)) { return true; }
+        var btn = node.closest && node.closest(NAV_ROW_SEL);
+        return !!(btn && raId && navRowId(btn) === raId);
+    }
+
+    function raPointerOver(e) {
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        if (btn) {
+            clearTimeout(raHideT);
+            var id = navRowId(btn);
+            if (id && id !== raId) { raShow(id); } else { raShow(raId); }
+            return;
+        }
+        if (raBox && raBox.contains(e.target)) { clearTimeout(raHideT); }
+    }
+
+    function raPointerOut(e) {
+        if (!raId) { return; }
+        if (raInUnion(e.relatedTarget)) { return; }
+        // Keep the cluster while a keyboard user is inside it — a stray
+        // pointerout (e.g. the row re-rendering under a parked pointer) must
+        // not steal it from under their focus.
+        if (raBox.contains(document.activeElement)) { return; }
+        clearTimeout(raHideT);
+        raHideT = setTimeout(raRelease, 150); // grace for diagonal/subpixel exits
+    }
+
+    function raFocusIn(e) {
+        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
+        if (btn) {
+            clearTimeout(raHideT);
+            raShow(navRowId(btn));
+        } else if (raBox && raBox.contains(e.target)) {
+            clearTimeout(raHideT);
+        }
+    }
+
+    function raFocusOut(e) {
+        if (!raId) { return; }
+        if (raInUnion(e.relatedTarget)) { return; }
+        raRelease();
+    }
+
+    function raOnScroll() {
+        if (RA_CAN_ANCHOR || !raId || raScrollQueued) { return; }
+        raScrollQueued = true;
+        requestAnimationFrame(function () {
+            raScrollQueued = false;
+            var row = raId && navRowById(raId);
+            if (!row) { return; }
+            // Blank the box while the row is outside the scrollport WITHOUT
+            // releasing the target (the anchor path gets exactly this from
+            // position-visibility) — the row may still hold keyboard focus,
+            // and scrolling back brings the cluster with it. Never blank it
+            // out from under focus, though: display:none would strand the
+            // keyboard user on <body>.
+            var sc = row.closest('.uniModTree__container');
+            var rr = row.getBoundingClientRect();
+            var sr = sc ? sc.getBoundingClientRect() : null;
+            var out = !!(sr && (rr.bottom < sr.top || rr.top > sr.bottom));
+            if (out && !raBox.contains(document.activeElement)) {
+                if (!raBox.hidden) { raBox.hidden = true; }
+                return;
+            }
+            if (raBox.hidden) { raBox.hidden = false; }
+            raPosition(row);
+        });
+    }
+
+    function raOnKeydown(e) {
+        if (e.key !== 'Escape') { return; }
+        e.preventDefault();
+        e.stopPropagation(); // the builder's own Escape handlers must not also fire
+        var row = raId && navRowById(raId);
+        if (!row) { raRelease(); return; }
+        if (on('navigator_keyboard')) { navFocus(row); } else { row.focus(); }
+    }
+
+    function raFocusRow(row) {
+        if (!row) { return; }
+        if (on('navigator_keyboard')) { navFocus(row); } else { row.focus(); }
+    }
+
+    function raDuplicate(e) {
+        e.stopPropagation();
+        var id = raId;
+        if (!id || raDup.disabled) { return; }
+        var before = Object.keys(modules() || {});
+        var parent = ((modules() || {})[id] || {}).parent || '';
+        raDup.disabled = true;
+        driveContextMenuItem(id, 'Duplicate', function (ok) {
+            raDup.disabled = false;
+            if (!ok) { return; }
+            undoToast(dbeT('duplicated', 'Duplicated element'));
+            // Land focus on the copy: the new id is whatever appeared in the
+            // store under the same parent (the dbeRestoreOp diff pattern).
+            waitFor(function () {
+                var mods = modules() || {};
+                return Object.keys(mods).find(function (nid) {
+                    return before.indexOf(nid) === -1 && (mods[nid].parent || '') === parent;
+                }) || null;
+            }, function (newId) {
+                var row = navRowById(newId || id);
+                if (!row) { return; }
+                raFocusRow(row);
+                raShow(navRowId(row));
+            });
+        });
+    }
+
+    function raDelete(e) {
+        e.stopPropagation();
+        var id = raId;
+        var row = id && navRowById(id);
+        if (!id || !row || raDel.disabled) { return; }
+        // Pick the landing row BEFORE the subtree disappears: next visible row
+        // outside the doomed subtree, else the previous one, else the parent —
+        // the WordPress list-view shape. (Deletion is captured by (u)'s
+        // builderius.Module.deleted hook, so Ctrl/Cmd+Z restores it.)
+        var rows = navVisibleRows();
+        var i = rows.indexOf(row);
+        var li = navRowLi(row);
+        var next = rows.slice(i + 1).filter(function (b) { return !li || !li.contains(b); })[0]
+            || (i > 0 ? rows[i - 1] : null)
+            || navParentRow(row);
+        var nextId = next ? navRowId(next) : null;
+        raDel.disabled = true;
+        driveContextMenuItem(id, 'Remove', function (ok) {
+            raDel.disabled = false;
+            if (!ok) { return; }
+            undoToast(dbeT('deletedElement', 'Deleted element'));
+            // Move focus off the cluster onto the landing row straight away
+            // (its node usually still exists pre-re-render), so raHide has no
+            // stranded focus to rescue, then re-assert once the tree settles.
+            var landing = nextId && navRowById(nextId);
+            if (landing) { try { landing.focus(); } catch (e2) {} }
+            raHide();
+            if (!nextId) { return; }
+            waitFor(function () {
+                var r = navRowById(nextId);
+                return (r && r.offsetParent !== null) ? r : null;
+            }, function (r) {
+                if (r) { raFocusRow(r); }
+            });
+        });
+    }
+
+    function ensureRowActions() {
+        var container = document.querySelector('.uniRightPanel .uniModTree__container');
+        if (!container) { return; }
+        var box = raBuild();
+        if (box.parentElement !== container) {
+            // After the row scroller (the container's unclassed first child) and
+            // before the favourites strip: Tab order runs rows → Duplicate →
+            // Delete → favourites. position:fixed keeps it out of the layout.
+            var scroller = container.firstElementChild;
+            container.insertBefore(box, scroller ? scroller.nextElementSibling : null);
+        }
+        raSync();
+        var panel = document.querySelector('.uniRightPanel');
+        if (!panel || panel.dbeRowActionsBound) { return; }
+        panel.addEventListener('pointerover', raPointerOver);
+        panel.addEventListener('pointerout', raPointerOut);
+        panel.addEventListener('focusin', raFocusIn);
+        panel.addEventListener('focusout', raFocusOut);
+        panel.addEventListener('scroll', raOnScroll, true); // the scroller is a nested div
+        panel.dbeRowActionsBound = true;
+        // A native drag means the row rects are about to churn — get out of the
+        // way until it settles. Document-level: dragstart fires on the row <li>.
+        document.addEventListener('dragstart', function () { raSuppressed = true; raHide(); });
+        document.addEventListener('dragend', function () { raSuppressed = false; });
+        document.addEventListener('drop', function () { raSuppressed = false; });
+        // A REAL context menu on a row supersedes the cluster; our own invisible
+        // auto-driven menus (html.dbe-auto-ctx) must not knock it out mid-action.
+        try {
+            window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeRowActionsYield', function () {
+                if (!document.documentElement.classList.contains('dbe-auto-ctx')) { raHide(); }
+            });
+        } catch (e) {}
+    }
+
     /* Screen-reader landmarks (chrome_landmarks). The builder chrome is one
        long anonymous document to a screen reader: nothing marks where the top
        toolbar ends and the settings panel or the Navigator begins, so the only
@@ -7771,6 +8126,7 @@
                 try { applyTreeFilter(); } catch (e) {}
             }
             if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
+            if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
@@ -7805,7 +8161,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 

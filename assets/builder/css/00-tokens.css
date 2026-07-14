@@ -86,6 +86,8 @@ html[data-dbe-theme="dark"] {
 
     --dbe-shadow: rgba(0, 0, 0, 0.45); /* floating chrome shadow colour */
 
+    --dbe-danger: #e0655a; /* destructive cue (row-actions Delete) — 4.5:1 on --dbe-l2 */
+
     /* CSS scope levels (Styles editor scope bar + badges) */
     --dbe-lvl-local: #5ea0ed;    /* element-scoped (%local%) — the neutral accent */
     --dbe-lvl-global: #e0a94a;   /* site-wide — amber = "affects every template" */
@@ -122,6 +124,8 @@ html[data-dbe-theme="light"] {
     --dbe-focus: #1d5cb0;
 
     --dbe-shadow: rgba(16, 24, 40, 0.16);
+
+    --dbe-danger: #b3261e; /* destructive cue — 6.6:1 on --dbe-l2 */
 
     --dbe-lvl-local: #2a6ecb;
     --dbe-lvl-global: #9a6b12;
