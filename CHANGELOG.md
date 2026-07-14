@@ -52,6 +52,12 @@ keyboard and screen-reader users get the same shortcut.
   focusable so the buttons still appear on focus; without the roving tab stop,
   Tab only reaches the cluster after the last row — turn Navigator keyboard
   tree on for the intended row → Tab → actions flow.
+* Docs: readme.txt reorganised to the WordPress plugin handbook layout —
+  proper header fields (Tags, License URI), a ≤150-character short
+  description, Description / Installation / FAQ / Upgrade Notice sections,
+  and a changelog trimmed to recent releases (this file remains the full
+  history). Feature suggestions now carry props, starting with
+  TRẦN ĐỨC LƯƠNG (@evanscliff) for the row quick actions.
 
 ## 1.12.4
 Repairs for the CSS vars tab (a 1.12.1 regression) and the detachable
