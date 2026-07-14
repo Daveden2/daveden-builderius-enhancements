@@ -220,6 +220,14 @@ function dbe_features() {
 			'css'         => array( '79-navigator-keyboard.css' ),
 			'js'          => true,
 		),
+		'navigator_row_actions' => array(
+			'title'       => __( 'Navigator row action icons', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Shows duplicate and delete icons on Navigator rows.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds duplicate and delete icon buttons on Navigator rows, so you can perform those actions directly without opening the right-click menu.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'navigator',
+			'css'         => array( '15-row-actions.css' ),
+			'js'          => true,
+		),
 		'panel_detach'        => array(
 			'title'        => __( 'Detachable Navigator', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Float the Navigator over the canvas.', 'daveden-builderius-enhancements' ),

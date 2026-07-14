@@ -29,6 +29,7 @@
     var ROW_SEL = '.uniRightPanel .uniModTree__item';
     var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
+    var ROW_ACTION_SEL = '.dbe-row-actions';
 
     function store() { return window.__builderiusStoreFns; }
     function modules() { try { return store().storeGet('modules'); } catch (e) { return null; } }
@@ -100,6 +101,77 @@
         } catch (e) { return null; }
     }
 
+    function treeRowId(row) {
+        var m = row && row.className && row.className.toString().match(/uni-tree-node-(\w+)/);
+        return m ? m[1] : '';
+    }
+
+    function rowActionIcon(type) {
+        if (type === 'duplicate') {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="10" height="10" rx="2" ry="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>';
+        }
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>';
+    }
+
+    function runRowAction(action, row) {
+        var id = treeRowId(row);
+        if (!id) { return; }
+        if (action === 'duplicate') {
+            driveContextMenuItem(id, 'Duplicate', function (ok) {
+                if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); }
+            });
+            return;
+        }
+        driveContextMenuItem(id, 'Remove', function (ok) {
+            if (!ok) { return; }
+            dbeMultiSel.delete(id);
+            undoToast(dbeT('deletedElement', 'Deleted element'));
+            schedule();
+        });
+    }
+
+    function makeRowActionButton(type) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dbe-row-action dbe-row-action--' + type;
+        btn.tabIndex = -1;
+        btn.setAttribute('aria-label', type === 'duplicate'
+            ? dbeT('duplicateElement', 'Duplicate element')
+            : dbeT('deleteElement', 'Delete element'));
+        btn.innerHTML = rowActionIcon(type);
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'dblclick', 'contextmenu']
+            .forEach(function (eventName) {
+                btn.addEventListener(eventName, function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                });
+            });
+        btn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            runRowAction(type, btn.closest('.uniModTree__item'));
+        });
+        return btn;
+    }
+
+    function syncRowActions(row, id, mods) {
+        var mod = mods && mods[id];
+        var hasActions = !!mod;
+        var actions = row.querySelector(ROW_ACTION_SEL);
+        if (!hasActions) {
+            row.classList.remove('dbe-has-row-actions');
+            if (actions) { actions.remove(); }
+            return;
+        }
+        row.classList.add('dbe-has-row-actions');
+        if (actions) { return; }
+        actions = document.createElement('span');
+        actions.className = 'dbe-row-actions';
+        actions.appendChild(makeRowActionButton('duplicate'));
+        actions.appendChild(makeRowActionButton('delete'));
+        row.appendChild(actions);
+    }
+
     /* (a) tag + label, (b) keep-icon flag, (c) selected-row accent flag —
        each part gated on its own toggle. */
     function decorateTree() {
@@ -137,6 +209,10 @@
             }
             if (on('multi_select')) {
                 btn.classList.toggle('dbe-multi-selected', dbeMultiSel.has(id));
+            }
+
+            if (on('navigator_row_actions')) {
+                syncRowActions(btn, id, mods);
             }
 
             // Keep-icon flag for Collection / Template module types
@@ -7373,7 +7449,7 @@
     }
 
     /* Which feature groups need which wiring. */
-    var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
+    var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select') || on('navigator_row_actions');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
     var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts');

@@ -142,6 +142,8 @@ function dbe_builder_strings() {
 		'collapseSubtreesTip'     => __( 'Collapse subtrees (keeps top-level elements open)', 'daveden-builderius-enhancements' ),
 		'expandAll'               => __( 'Expand all', 'daveden-builderius-enhancements' ),
 		'expandAllElements'       => __( 'Expand all elements', 'daveden-builderius-enhancements' ),
+		'duplicateElement'        => __( 'Duplicate element', 'daveden-builderius-enhancements' ),
+		'deleteElement'           => __( 'Delete element', 'daveden-builderius-enhancements' ),
 		'detachPanel'             => __( 'Detach panel', 'daveden-builderius-enhancements' ),
 		'dockPanel'               => __( 'Dock panel', 'daveden-builderius-enhancements' ),
 		'resizePanel'             => __( 'Resize panel', 'daveden-builderius-enhancements' ),

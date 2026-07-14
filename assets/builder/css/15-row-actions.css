@@ -1,0 +1,56 @@
+/* Quick actions on Navigator rows (navigator_row_actions):
+   duplicate + delete icons, revealed on row hover/focus. */
+.uniModTree__item.dbe-has-row-actions {
+    position: relative !important;
+    padding-inline-end: 62px !important;
+}
+.dbe-row-actions {
+    position: absolute !important;
+    inset-inline-end: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: inline-flex !important;
+    gap: 4px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity var(--dbe-t) !important;
+}
+.uniModTree__item.dbe-has-row-actions:hover .dbe-row-actions,
+.uniModTree__item.dbe-has-row-actions:focus-within .dbe-row-actions {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+.dbe-row-action {
+    width: 22px !important;
+    height: 22px !important;
+    border: 1px solid transparent !important;
+    border-radius: 4px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    color: var(--dbe-muted) !important;
+    cursor: pointer !important;
+}
+.dbe-row-action:hover,
+.dbe-row-action:focus-visible {
+    color: var(--dbe-text) !important;
+    border-color: var(--dbe-line-hi) !important;
+    background: var(--dbe-surface-2) !important;
+}
+.dbe-row-action--delete:hover,
+.dbe-row-action--delete:focus-visible {
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, .45) !important;
+    background: rgba(239, 68, 68, .12) !important;
+}
+.dbe-row-action svg {
+    width: 14px !important;
+    height: 14px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
