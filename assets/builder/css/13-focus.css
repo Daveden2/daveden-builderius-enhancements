@@ -1,7 +1,11 @@
-/* Visible focus indicator on every interactive control (WCAG 2.4.7/2.4.13). */
+/* Visible focus indicator on every interactive control (WCAG 2.4.7/2.4.13).
+   .uniAdvancedDialogMenu is the floating dynamic-data / CSS-vars /
+   transformation picker — a position:fixed overlay mounted at body level,
+   OUTSIDE the five chrome panels, so it needs listing explicitly. */
 .uniLeftPanel :focus-visible, .uniRightPanel :focus-visible,
 .uniTopPanel :focus-visible, .uniFooterPanel :focus-visible,
-.uniFooterPanelBar :focus-visible {
+.uniFooterPanelBar :focus-visible,
+.uniAdvancedDialogMenu :focus-visible {
     outline: 2px solid var(--dbe-focus) !important;
     outline-offset: 1px !important;
 }

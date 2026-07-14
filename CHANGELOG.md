@@ -109,6 +109,16 @@ keyboard and screen-reader users get the same shortcut.
   native green that is illegible on a light field. Leak-audit pass 18
   repaints the card, search, chips, expanded rows and their form
   controls from the theme tokens; the dark theme is untouched.
+  The interaction states were equally broken in light: item hover and
+  keyboard focus both paint the native dark `--primary-2` fill (hover
+  under the remapped dark label, ~1.2:1; focus additionally recolours
+  the text to the mid-tone `--accent-normal`, illegible either way).
+  Hover now uses the light wash, focus an accent-tinted wash with the
+  light-legible accent for text and icons. And the picker's controls
+  had NO visible focus ring in either theme: the focus-visibility
+  feature scopes its ring to the five chrome panels, and the picker is
+  a position:fixed overlay at body level outside all of them —
+  `.uniAdvancedDialogMenu` is now in the scope list.
 * Docs: readme.txt reorganised to the WordPress plugin handbook layout —
   proper header fields (Tags, License URI), a ≤150-character short
   description, Description / Installation / FAQ / Upgrade Notice sections,

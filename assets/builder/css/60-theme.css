@@ -757,6 +757,32 @@ html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithFo
     background: var(--dbe-line-hi) !important;
     color: var(--dbe-text) !important;
 }
+/* Item hover paints the native dark --primary-2 fill under the remapped
+   (dark) label — dark-on-dark. A light wash keeps the hover readable; the
+   native hover label colour is the remapped --base-1, already correct. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:not(.expanded):hover,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:not(.expanded):hover {
+    background-color: var(--dbe-hover-wash) !important;
+}
+/* Item keyboard focus paints the same dark fill and turns the item's text
+   the mid-tone --accent-normal — twice illegible on light. An accent-tinted
+   wash (distinct from plain hover) with the light-legible accent for the
+   text and icons; the "parents" chip keeps its dark-on-grey pair from the
+   base rule above. */
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:not(.expanded):focus-within,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:not(.expanded):focus-within {
+    background-color: var(--dbe-accent-tint) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within .btnItem__content .label,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within .btnItem__variable span,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within .btnItem__content .label,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within .btnItem__variable span {
+    color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable:focus-within svg path,
+html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm:focus-within svg path {
+    fill: var(--dbe-accent) !important;
+}
 html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariable.expanded,
 html[data-dbe-theme="light"] .uniAdvancedDialogMenu__list .btnItemVariableWithForm.expanded {
     background-color: var(--dbe-l1) !important;
