@@ -62,6 +62,7 @@ Navigator row quick actions. Props to TRẦN ĐỨC LƯƠNG (@evanscliff) for th
 * Focus follows the action: to the copy after duplicating, to a neighbouring row after deleting.
 * Delete asks for a confirming second press (the button turns solid red and renames to "Confirm delete") and remains undoable with Ctrl/Cmd+Z while Undo delete is on.
 * A sub-setting can pin the buttons to the selected row instead of showing them on hover.
+* Fixed: in the light theme, an element's display-conditions view (the settings panel's conditions mode) rendered dark-on-dark — the "New condition" button, the condition cards, the separators and the date/time fields kept their native dark surfaces. All now follow the light theme; dark is unchanged.
 
 = 1.12.4 =
 Fixes for the CSS vars tab and the detachable Navigator, plus label polish.

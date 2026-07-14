@@ -52,6 +52,15 @@ keyboard and screen-reader users get the same shortcut.
   focusable so the buttons still appear on focus; without the roving tab stop,
   Tab only reaches the cluster after the last row — turn Navigator keyboard
   tree on for the intended row → Tab → actions flow.
+* Fixed: in the light theme, an element's display-conditions view (the
+  settings panel's conditions mode) rendered dark-on-dark: the "New
+  condition" button, the condition cards (resting and editing), the
+  group/rule separator bars and the date/time inputs all kept their native
+  dark-scale surfaces (`--primary-1/2`, `--black-alt-1`) while the remapped
+  foreground went light-theme dark (the button computed to roughly 1.1:1).
+  A new leak-audit pass in 60-theme.css repaints those surfaces from the
+  theme tokens, pins the chip's accent hover to the light-legible accent,
+  and un-inverts the date/time picker glyph. The dark theme is untouched.
 * Docs: readme.txt reorganised to the WordPress plugin handbook layout —
   proper header fields (Tags, License URI), a ≤150-character short
   description, Description / Installation / FAQ / Upgrade Notice sections,
