@@ -33,6 +33,10 @@ Cmd/Ctrl+Z while *Undo / redo add & delete* is on.
 | `>` | Step down: the next element is a child | `ul>li` |
 | `+` | Stay level: the next element is a sibling | `h2{Title}+p{Lead}` |
 | `*N` | Repeat the element N times (capped at 50) | `li{Item}*4` |
+| `collection` | Reserved word: a Collection module (div tag, interactive off) | `collection>template>li` |
+| `collection:tag` | The same, rendered as that HTML tag | `collection:ul>template>li` |
+| `subcollection` | Reserved word: a SubCollection module (`:tag` works too) | `subcollection>template>li` |
+| `template` | Reserved word: a Template module | `template>div.card` |
 
 Details worth knowing:
 
@@ -49,6 +53,17 @@ Details worth knowing:
   `li{[[title]]}` or `img[src={{{url}}} alt={{alt}}]`.
 - **Labels.** Each element's Navigator label is its capitalised tag
   (`Section`, `Li`) — rename afterwards as usual.
+- **Reserved words.** `collection`, `subcollection` and `template` build the
+  dynamic modules instead of elements. Classes, `#id` and `[attr=value]`
+  apply to them as usual (so `collection[data-b-context=…]` binds inline);
+  `{text}` has no rendering channel on any of them and is dropped. A
+  collection renders as a `div` unless you name its tag with a colon suffix
+  — `collection:ul`, `collection:section` — validated against the same
+  known-tag list as everything else. A collection may only hold `template`
+  children — the palette refuses the expression otherwise, and likewise
+  refuses non-template roots when the *selected* element is a Collection.
+  There is no real `<collection>` HTML element, so nothing is lost; a real
+  `<template>` *element* is what the Template module renders as anyway.
 
 ## Worked examples
 
@@ -77,9 +92,6 @@ A labelled form field, association included.
 - Grouping `()`, climb-up `^`, item numbering `$`, implicit tag names from
   context, and abbreviation expansion (`!`, `link:css`…). Keep expressions
   as a single `>`/`+` chain; run the palette twice for a second branch.
-- Collection / Template modules. Emmet builds plain elements only (for now);
-  use *Wrap in… Collection + template*, or *Import HTML* with a
-  `data-b-context` attribute, to create dynamic lists.
 
 ## Safety: the shared attribute gate
 
@@ -104,5 +116,16 @@ different syntax:
 - **Add attributes**: semicolon-separated pairs (`name=value; name2=value2`)
   — no Emmet, same sanitisation.
 
-*Last updated: July 2026 (attribute support added on the
-`explore/html-converter` branch).*
+## Worked example — a dynamic list in one line
+
+```text
+collection:ul.testimonials[data-b-context=testimonials]>template>li.quote{[[content]]}
+```
+
+A bound Collection rendered as a `ul`, whose Template holds the repeating
+list item. Without the `data-b-context` attribute the collection still
+builds; bind it afterwards in its settings. Without `:ul` it renders as a
+`div`.
+
+*Last updated: July 2026 (attribute support and the collection/template
+reserved words added on the `explore/html-converter` branch).*

@@ -359,9 +359,16 @@
         var s = (str || '').trim();
         var i = 0;
         function parseElement() {
-            var node = { tag: '', id: '', classes: [], attrs: [], text: null, count: 1, children: [] };
-            var tm = /^[A-Za-z][A-Za-z0-9]*/.exec(s.slice(i));
-            if (tm) { node.tag = tm[0]; i += tm[0].length; }
+            var node = { tag: '', subTag: null, id: '', classes: [], attrs: [], text: null, count: 1, children: [] };
+            // name:name — the colon suffix is the rendered tag for the
+            // collection reserved words (collection:ul); semantic checks
+            // (reserved word only, known non-void tag) happen after parsing.
+            var tm = /^([A-Za-z][A-Za-z0-9]*)(?::([A-Za-z][A-Za-z0-9]*))?/.exec(s.slice(i));
+            if (tm && tm[0]) {
+                node.tag = tm[1];
+                if (tm[2] != null) { node.subTag = tm[2]; }
+                i += tm[0].length;
+            }
             while (i < s.length) {
                 var c = s[i];
                 if (c === '#') {
@@ -405,9 +412,72 @@
         return roots;
     }
 
+    /* Reserved Emmet words: `collection`, `subcollection` and `template`
+       build the dynamic modules instead of elements. Shaping mirrors the
+       HTML import: classes/id/attrs apply; {text} has no rendering channel
+       on any of them, so it drops. A Collection gets the native insert
+       defaults (interactive off; div tag unless `collection:ul` names the
+       rendered tag) — bind it afterwards, or pass [data-b-context=…]
+       inline. */
+    var DBE_EMMET_WORDS = { collection: 'Collection', subcollection: 'SubCollection', template: 'Template' };
+
     function dbeEmmetNodeToModule(node) {
+        var word = DBE_EMMET_WORDS[(node.tag || '').toLowerCase()];
+        if (word) {
+            var settings = [];
+            if (word !== 'Template') {
+                settings.push({ name: 'interactiveMode', value: false });
+                settings.push({ name: 'tag', value: (node.subTag && dbeCleanTagInput(node.subTag)) || 'div' });
+            }
+            if (node.id) { settings.push({ name: 'tagId', value: node.id }); }
+            if (node.classes.length) { settings.push({ name: 'tagClass', value: node.classes.slice() }); }
+            var attrList = [];
+            (node.attrs || []).forEach(function (a) {
+                if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as elements
+                attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+            });
+            if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
+            return { id: dbeMakeId(), name: word, label: word, settings: settings };
+        }
         var tag = node.tag || ((node.text != null && !node.classes.length && !node.id) ? 'span' : 'div');
         return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text, attrs: node.attrs });
+    }
+
+    /* The collection>template structural rule, applied to a parsed Emmet
+       tree BEFORE anything inserts (the HTML dialogs enforce the same rule
+       live in their previews): a collection may only hold templates — as
+       children in the expression, and as roots when the insertion target is
+       itself a Collection. Returns an error string or null. */
+    function dbeEmmetStructureError(targetId, roots) {
+        function isTpl(n) { return (n.tag || '').toLowerCase() === 'template'; }
+        var err = null;
+        (function walk(list) {
+            list.forEach(function (n) {
+                if (err) { return; }
+                var w = DBE_EMMET_WORDS[(n.tag || '').toLowerCase()];
+                if ((w === 'Collection' || w === 'SubCollection')
+                    && (n.text != null || n.children.some(function (c) { return !isTpl(c); }))) {
+                    err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
+                    return;
+                }
+                // The :tag suffix belongs to the collection words only, and
+                // must name a known non-void tag (collection:ul, not
+                // collection:script or div:foo).
+                if (n.subTag != null
+                    && (!(w === 'Collection' || w === 'SubCollection') || !dbeCleanTagInput(n.subTag))) {
+                    err = dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), n.tag + ':' + n.subTag);
+                    return;
+                }
+                walk(n.children);
+            });
+        })(roots);
+        if (!err && targetId) {
+            var tm = (modules() || {})[targetId];
+            if (tm && (tm.name === 'Collection' || tm.name === 'SubCollection') && !roots.every(isTpl)) {
+                err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
+            }
+        }
+        return err;
     }
 
     /* Insert a parsed Emmet tree relative to targetId: as its last children when it
@@ -1626,9 +1696,11 @@
        ordinary data-b-context attribute and its tag/classes are ordinary
        settings, and a Template is purely a type boundary that serialises as
        a real <template> element — everything HTML can't say (interactiveMode,
-       rendering conditions) rides along on the kept-marker upsert. Still
-       excluded: Components, HtmlCode/SvgCode and the composites. */
-    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1 };
+       rendering conditions) rides along on the kept-marker upsert. SvgCode
+       is a LEAF: it serialises as its raw contentSvg markup and an <svg> in
+       pasted markup becomes one. Still excluded: Components, HtmlCode and
+       the composites. */
+    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1, SvgCode: 1 };
 
     /* Editable = every module in the subtree is a type the dialogs express. */
     function dbeHtmlEditable(rootId) {
@@ -1655,6 +1727,14 @@
             var m = mods[id];
             if (!m) { return ''; }
             var pad = new Array(depth + 1).join('  ');
+            // An SvgCode module serialises as its raw markup; the identity
+            // marker rides on the <svg> tag itself (the markup IS the
+            // contentSvg setting — there is no separate tag to carry it).
+            if (m.name === 'SvgCode') {
+                var svg = String(dbeSettingVal(m, 'contentSvg') || '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+                svg = svg.replace(/<svg\b/i, '<svg data-dbe-id="' + id + '"');
+                return svg.split('\n').map(function (l) { return pad + l; }).join('\n');
+            }
             // A Template module has no tag setting: it IS the <template>
             // boundary. Collections carry a normal tag setting (ul, div…).
             var tag = m.name === 'Template'
@@ -1702,10 +1782,53 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var stripped = [];
         var claimed = {};
-        var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, svg: 1, math: 1 };
+        var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
         var URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, 'xlink:href': 1 };
+        /* An <svg> becomes an SvgCode module carrying its raw markup — the
+           module renders `contentSvg` raw (twig |raw), so the same entry
+           gate applies INSIDE the subtree before it is stored: script
+           elements, on* handlers and javascript: URLs are cut out. A
+           data-dbe-id on the <svg> itself keeps its module like any other
+           element (the serialiser plants it there); markers deeper inside
+           are just removed — the inner markup is one opaque setting. */
+        function convertSvg(el) {
+            var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '' };
+            var marker = el.getAttribute('data-dbe-id');
+            if (marker && origIds[marker] && !claimed[marker]) { claimed[marker] = true; node.existingId = marker; }
+            [].slice.call(el.querySelectorAll('script')).forEach(function (s) {
+                stripped.push('<script>');
+                s.parentNode.removeChild(s);
+            });
+            [el].concat([].slice.call(el.querySelectorAll('*'))).forEach(function (d) {
+                [].slice.call(d.attributes).forEach(function (a) {
+                    var n = a.name.toLowerCase();
+                    if (n === 'data-dbe-id' || n === 'data-dbe-module') { d.removeAttribute(a.name); return; }
+                    if (n.indexOf('on') === 0) { stripped.push(n); d.removeAttribute(a.name); return; }
+                    if (URL_ATTRS[n] && /^\s*javascript:/i.test(a.value)) {
+                        stripped.push(n + '="javascript:…"');
+                        d.removeAttribute(a.name);
+                    }
+                });
+            });
+            // Dedent: the serialiser indents the whole block to its tree
+            // depth, and outerHTML keeps that inner whitespace — strip the
+            // common indent so repeated edit round-trips don't stack it up.
+            var svgLines = el.outerHTML.split('\n');
+            if (svgLines.length > 1) {
+                var indents = svgLines.slice(1).filter(function (l) { return l.trim(); })
+                    .map(function (l) { return /^\s*/.exec(l)[0].length; });
+                var minIndent = indents.length ? Math.min.apply(null, indents) : 0;
+                node.svg = [svgLines[0]].concat(svgLines.slice(1).map(function (l) {
+                    return l.slice(minIndent);
+                })).join('\n');
+            } else {
+                node.svg = svgLines[0];
+            }
+            return node;
+        }
         function convert(el) {
             var tag = el.tagName.toLowerCase();
+            if (tag === 'svg') { return convertSvg(el); }
             if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [] };
@@ -1777,6 +1900,10 @@
        no rendering channel, so it is dropped rather than stored dead. */
     function dbeNodeSettings(node) {
         var moduleName = node.module || 'HtmlElement';
+        // An SvgCode module IS its markup — one opaque setting, nothing else
+        // (the module excludes tagClass/tagId/htmlAttribute; id and class
+        // live inside the markup string).
+        if (moduleName === 'SvgCode') { return [{ name: 'contentSvg', value: node.svg || '' }]; }
         var s = [];
         if (moduleName !== 'Template') { s.push({ name: 'tag', value: node.tag }); }
         if (node.tagId) { s.push({ name: 'tagId', value: node.tagId }); }
@@ -1857,7 +1984,7 @@
                         // Replace only the HTML-expressible settings; everything
                         // else (conditions, interactiveMode…) rides along.
                         var keep = (m.settings || []).filter(function (x) {
-                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content'].indexOf(x.name) === -1;
+                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg'].indexOf(x.name) === -1;
                         });
                         m.settings = keep.concat(dbeNodeSettings(node));
                         sf2.storeSet('addModule', { module: m }); // existing id = upsert
@@ -2321,13 +2448,36 @@
        persist), and when the label was just the old tag it follows the new
        one through the native rename channel. Void tags are excluded both as
        source and target — an img's attributes make no sense on a div and
-       vice versa; the settings panel's own tag select handles those. */
+       vice versa; the settings panel's own tag select handles those.
+       Collections and SubCollections carry the same real `tag` setting, so
+       they are taggable too; a Template has no tag at all. The command
+       palette's "Change tag" takes a TYPED tag instead of the curated
+       flyout list — anything on the known-tag list (the one the HTML
+       dialogs accept, so script/style/iframe are already off it) goes. */
+    var DBE_TAG_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1 };
     var DBE_TAG_CHOICES = [
         'div', 'span', 'section', 'article', 'aside', 'header', 'footer',
         'nav', 'main', 'figure', 'figcaption', 'p',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'blockquote', 'a', 'button'
     ];
+
+    /* The current tag when `id` can change tag (a taggable module type with
+       a non-void tag), else ''. */
+    function dbeChangeTagEligible(id) {
+        var m = (modules() || {})[id];
+        var tag = m && DBE_TAG_MODULES[m.name]
+            ? String(dbeSettingVal(m, 'tag') || '').toLowerCase() : '';
+        return (tag && !DBE_HTML_VOID[tag]) ? tag : '';
+    }
+
+    /* Normalise a typed tag ("H2", "<h2>") and validate it: known tag,
+       non-void. Returns the clean tag, or null when it must be refused. */
+    function dbeCleanTagInput(v) {
+        var t = String(v || '').trim().toLowerCase().replace(/^</, '').replace(/>$/, '').trim();
+        if (!/^[a-z][a-z0-9]*$/.test(t)) { return null; }
+        return (DBE_HTML_KNOWN_TAGS[t] && !DBE_HTML_VOID[t]) ? t : null;
+    }
 
     function dbeChangeTag(id, newTag) {
         var mods = modules() || {};
@@ -3113,7 +3263,8 @@
                     var ihMods = modules() || {};
                     var ihMod = ihMods[ihId];
                     if (!ihMod) { return; }
-                    var ok = !!DBE_HTML_MODULES[ihMod.name];
+                    // SvgCode is expressible but a leaf — nothing imports INTO it.
+                    var ok = !!DBE_HTML_MODULES[ihMod.name] && ihMod.name !== 'SvgCode';
                     importHtmlLi = makeCtxItem(dbeT('importHtmlEllipsis', 'Import HTML…'), function () {
                         setTimeout(function () { openImportHtmlDialog(ihId); }, 120);
                     }, ok ? {} : {
@@ -3123,16 +3274,14 @@
                 })();
             }
 
-            // "Change tag…" flyout (tag_change, Pro) — plain non-void elements.
+            // "Change tag…" flyout (tag_change, Pro) — non-void taggable
+            // modules (plain elements and Collections; a Template has no tag).
             var changeTagParent = null;
             if (!multiIds && on('tag_change') && lastCtxId) {
                 (function () {
                     var ctId = lastCtxId;
-                    var ctMods = modules() || {};
-                    var ctMod = ctMods[ctId];
-                    var curTag = ctMod && ctMod.name === 'HtmlElement'
-                        ? String(dbeSettingVal(ctMod, 'tag') || '').toLowerCase() : '';
-                    if (curTag && !DBE_HTML_VOID[curTag]) {
+                    var curTag = dbeChangeTagEligible(ctId);
+                    if (curTag) {
                         changeTagParent = makeParent(dbeT('changeTag', 'Change tag…'), false, function () {
                             return DBE_TAG_CHOICES.map(function (tg) {
                                 return makeCtxItem('<' + tg + '>', function () { dbeChangeTag(ctId, tg); },
@@ -6615,6 +6764,8 @@
                 { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
                     try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
+                    var structErr = dbeEmmetStructureError(id, roots);
+                    if (structErr) { undoToast(structErr); return; }
                     runClose(function () {
                         var n = dbeEmmetInsert(id, roots);
                         undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
@@ -6642,6 +6793,26 @@
             if (on('auto_bem')) {
                 commands.push(
                     { group: 'element', label: dbeT('autoBem', 'Auto-BEM'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
+                );
+            }
+            // Change tag by TYPING the tag — the flyout's curated list is a
+            // mouse affordance; here any known non-void tag goes.
+            if (on('tag_change') && dbeChangeTagEligible(id)) {
+                commands.push(
+                    { group: 'element', label: dbeT('paletteChangeTag', 'Change tag'), input: true,
+                        ph: dbeFmt(dbeT('phTag', 'section, h2, figure…  (now <%s>)'), dbeChangeTagEligible(id)),
+                        run: function (v) {
+                            var tg = dbeCleanTagInput(v);
+                            if (!tg) {
+                                undoToast(dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), String(v || '').trim() || '—'));
+                                return;
+                            }
+                            if (tg === dbeChangeTagEligible(id)) {
+                                undoToast(dbeFmt(dbeT('tagAlready', 'Already <%s>'), tg));
+                                return;
+                            }
+                            runClose(function () { dbeChangeTag(id, tg); });
+                        } }
                 );
             }
             commands.push(
