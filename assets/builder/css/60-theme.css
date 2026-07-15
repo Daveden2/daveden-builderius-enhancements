@@ -53,13 +53,19 @@ html[data-dbe-theme="light"] .uniPanelButtonQuaternary { background: var(--dbe-l
 html[data-dbe-theme="light"] .uniPanelButtonQuaternary:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-accent) !important; }
 /* --primary-4 as a surface: the applied-class chips ("others" in the class
    picker) + the idle Save button ("nothing to save" grey; the green
-   .saveBtnShouldSave state uses --accent-special and is untouched). Light grey
-   chip; pair it with the strongest text token so the label clears AA with
-   margin — --dbe-text-2 on --dbe-line-hi was only ~6:1, --dbe-text lifts it to
-   ~9.4:1. */
+   .saveBtnShouldSave state uses --accent-special and is untouched). The chips
+   first went dark-text-on---dbe-line-hi (~9.4:1 — passes, but the mid-grey
+   fill read as muddy); repainted as a raised light chip with a hairline so
+   they read as quiet, clickable tokens instead. Hover steps the fill down one
+   grey (~12:1 with --dbe-text) as the affordance the !important pin would
+   otherwise swallow. */
 html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li {
-    background: var(--dbe-line-hi) !important;
+    background: var(--dbe-l2-hi) !important;
     color: var(--dbe-text) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-line);
+}
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li:hover {
+    background: var(--dbe-line) !important;
 }
 html[data-dbe-theme="light"] .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave) { background: var(--dbe-line-hi) !important; }
 
@@ -80,6 +86,30 @@ html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected,
 html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected span,
 html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions {
     color: var(--dbe-on-accent-strong) !important;
+}
+
+/* The chip action buttons (the active chip's caret, the applied chips' X)
+   are native icon-buttons whose SVGs rely on a fill="currentColor"
+   presentation attribute. The colour rules above never reach them: the
+   buttons carry their own native color (--base-2 — near-black after the
+   light remap), and the attribute's currentColor resolves against that in
+   Chrome and against the document colour in Firefox, so both glyphs painted
+   near-black on their blue fills (the caret ~2.3:1 on --dbe-accent-strong;
+   the X ~3.9:1 on the native --accent-normal hover pill — a technical
+   1.4.11 pass that reads as muddy as the caret). Pin both overlays to the
+   strong accent with white glyphs — the active-chip treatment — and restate
+   the fill as a real CSS declaration so it beats the attribute and tracks
+   the pinned colour in every browser. */
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions {
+    background: var(--dbe-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions .uniIconButton,
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions .uniIconButton {
+    color: var(--dbe-on-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions svg path,
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions svg path {
+    fill: currentColor;
 }
 
 /* --- Core surfaces --- */
