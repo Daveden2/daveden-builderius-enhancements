@@ -8,8 +8,11 @@ elsewhere in the plugin.
 ## Where to type it
 
 1. Open the builder and select an element in the Navigator (or on the canvas).
-2. Press **Cmd/Ctrl+Shift+K** to open the command palette
-   (requires the *Command palette* feature, Editing tab — experimental).
+2. Press **Cmd/Ctrl+K**, or click the palette button in the top bar, to open
+   the command palette (requires the *Command palette* feature, Editing tab,
+   experimental). The shortcut is changeable in the feature's settings; the
+   old Ctrl+Shift+K default is reserved by Firefox on Windows and Linux for
+   the DevTools console, so it is no longer the default.
 3. Choose **Add elements (Emmet)**, type an expression, press **Enter**.
 
 Where the new elements land follows the same slot rule everywhere in DBE:
