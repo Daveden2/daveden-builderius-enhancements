@@ -459,6 +459,8 @@ function dbe_builder_strings() {
 		'importHtmlTargetGone'    => __( 'The target element no longer exists', 'daveden-builderius-enhancements' ),
 		'insertHtml'              => __( 'Insert', 'daveden-builderius-enhancements' ),
 		'htmlErrNoElements'       => __( 'No usable elements found in that HTML', 'daveden-builderius-enhancements' ),
+		'htmlErrCollectionChildren' => __( 'A collection may only contain <template> elements', 'daveden-builderius-enhancements' ),
+		'htmlErrTemplatesOnly'    => __( 'Only <template> elements can be imported into a collection', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements to be created. */
 		'importCountOne'          => __( '%s element will be created.', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements to be created. */

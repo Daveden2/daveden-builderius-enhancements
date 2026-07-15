@@ -310,10 +310,24 @@
         }).join('');
     }
 
-    /* Build an HtmlElement module object for a tag, with optional classes/id/text.
-       Mirrors the native insert shape used by wrap() — the tag lives in a `tag`
-       setting, classes in a `tagClass` array setting. (id/text handling for the
-       Emmet palette is resolved in phase 3 against the live settings shape.) */
+    /* Shared attribute gate for every markup-entry channel (the Import/Edit
+       HTML dialogs and the Emmet palette). Builderius renders htmlAttribute
+       values raw (twig |raw), so sanitisation has to happen here, at entry.
+       Returns a short reason string when the attribute must not be stored,
+       null when it is fine. The dbe markers are blocked as stored attributes
+       everywhere — the dialogs consume them as identity before this gate. */
+    function dbeAttrBlocked(name, value) {
+        var n = String(name || '').toLowerCase();
+        if (!n || n === 'data-dbe-id' || n === 'data-dbe-module') { return n || 'attribute'; }
+        if (n.indexOf('on') === 0) { return n; }
+        if ((n === 'href' || n === 'src' || n === 'action' || n === 'formaction' || n === 'xlink:href')
+            && /^\s*javascript:/i.test(String(value))) { return n + '="javascript:…"'; }
+        return null;
+    }
+
+    /* Build an HtmlElement module object for a tag, with optional
+       classes/id/text/attrs. Mirrors the native insert shape used by wrap() —
+       the tag lives in a `tag` setting, classes in a `tagClass` array setting. */
     function dbeElementModule(tag, opts) {
         opts = opts || {};
         var settings = [{ name: 'tag', value: tag }];
@@ -323,20 +337,29 @@
         // class/attr driving.
         if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: opts.text }); }
         if (opts.classes && opts.classes.length) { settings.push({ name: 'tagClass', value: opts.classes.slice() }); }
-        if (opts.id) { settings.push({ name: 'htmlAttribute', value: [{ name: 'id', value: opts.id }] }); }
+        var attrList = [];
+        if (opts.id) { attrList.push({ name: 'id', value: opts.id }); }
+        (opts.attrs || []).forEach(function (a) {
+            if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as the HTML dialogs
+            attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+        });
+        if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
         var label = tag.charAt(0).toUpperCase() + tag.slice(1);
         return { id: dbeMakeId(), name: 'HtmlElement', label: label, settings: settings };
     }
 
-    /* Minimal Emmet parser (command_palette): tag, .class, #id, > child, + sibling,
-       * multiply, {text}. No grouping (), climb-up ^, numbering $ or [attr].
-       Returns an array of root nodes {tag,id,classes,text,count,children}; throws
-       (a plain value) on a parse error. */
+    /* Minimal Emmet parser (command_palette): tag, .class, #id, [attr=value],
+       > child, + sibling, * multiply, {text}. No grouping (), climb-up ^ or
+       numbering $. Attribute values may be bare, "double" or 'single' quoted
+       ([href=/contact/ target=_blank], [aria-label="Main menu"]); a bare name
+       ([hidden]) stores an empty value, which renders as the bare attribute.
+       Returns an array of root nodes {tag,id,classes,attrs,text,count,children};
+       throws (a plain value) on a parse error. */
     function dbeEmmetParse(str) {
         var s = (str || '').trim();
         var i = 0;
         function parseElement() {
-            var node = { tag: '', id: '', classes: [], text: null, count: 1, children: [] };
+            var node = { tag: '', id: '', classes: [], attrs: [], text: null, count: 1, children: [] };
             var tm = /^[A-Za-z][A-Za-z0-9]*/.exec(s.slice(i));
             if (tm) { node.tag = tm[0]; i += tm[0].length; }
             while (i < s.length) {
@@ -347,12 +370,22 @@
                 } else if (c === '.') {
                     i++; var cm = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!cm) { throw 0; }
                     node.classes.push(cm[0]); i += cm[0].length;
+                } else if (c === '[') {
+                    var abEnd = s.indexOf(']', i); if (abEnd < 0) { throw 0; }
+                    var inner = s.slice(i + 1, abEnd);
+                    var re = /([A-Za-z_:][-A-Za-z0-9_:.]*)(?:=("([^"]*)"|'([^']*)'|[^\s\]]+))?/g;
+                    var am;
+                    while ((am = re.exec(inner))) {
+                        var av = am[3] != null ? am[3] : (am[4] != null ? am[4] : (am[2] != null ? am[2] : ''));
+                        node.attrs.push({ name: am[1], value: av });
+                    }
+                    i = abEnd + 1;
                 } else if (c === '{') {
                     var end = s.indexOf('}', i); if (end < 0) { throw 0; }
                     node.text = s.slice(i + 1, end); i = end + 1;
                 } else { break; }
             }
-            if (!node.tag && !node.classes.length && !node.id && node.text == null) { throw 0; }
+            if (!node.tag && !node.classes.length && !node.id && node.text == null && !node.attrs.length) { throw 0; }
             if (s[i] === '*') {
                 i++; var nm = /^[0-9]+/.exec(s.slice(i)); if (!nm) { throw 0; }
                 node.count = Math.max(1, Math.min(50, parseInt(nm[0], 10))); i += nm[0].length;
@@ -374,7 +407,7 @@
 
     function dbeEmmetNodeToModule(node) {
         var tag = node.tag || ((node.text != null && !node.classes.length && !node.id) ? 'span' : 'div');
-        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text });
+        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text, attrs: node.attrs });
     }
 
     /* Insert a parsed Emmet tree relative to targetId: as its last children when it
@@ -1588,7 +1621,16 @@
         return s ? s.value : undefined;
     }
 
-    /* Editable = the whole subtree is plain HtmlElements. */
+    /* The module types the HTML dialogs can express. Collections and
+       Templates joined once verified live: a Collection's data binding is an
+       ordinary data-b-context attribute and its tag/classes are ordinary
+       settings, and a Template is purely a type boundary that serialises as
+       a real <template> element — everything HTML can't say (interactiveMode,
+       rendering conditions) rides along on the kept-marker upsert. Still
+       excluded: Components, HtmlCode/SvgCode and the composites. */
+    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1 };
+
+    /* Editable = every module in the subtree is a type the dialogs express. */
     function dbeHtmlEditable(rootId) {
         var mods = modules() || {};
         var idx = store().storeGet('indexes') || {};
@@ -1596,7 +1638,7 @@
         (function walk(id) {
             if (!ok) { return; }
             var m = mods[id];
-            if (!m || m.name !== 'HtmlElement') { ok = false; return; }
+            if (!m || !DBE_HTML_MODULES[m.name]) { ok = false; return; }
             (idx[id] || []).forEach(walk);
         })(rootId);
         return ok;
@@ -1613,7 +1655,11 @@
             var m = mods[id];
             if (!m) { return ''; }
             var pad = new Array(depth + 1).join('  ');
-            var tag = String(dbeSettingVal(m, 'tag') || 'div').toLowerCase();
+            // A Template module has no tag setting: it IS the <template>
+            // boundary. Collections carry a normal tag setting (ul, div…).
+            var tag = m.name === 'Template'
+                ? 'template'
+                : String(dbeSettingVal(m, 'tag') || 'div').toLowerCase();
             var open = '<' + tag;
             var tagId = dbeSettingVal(m, 'tagId');
             if (tagId) { open += ' id="' + dbeHtmlEscapeAttr(tagId) + '"'; }
@@ -1662,7 +1708,8 @@
             var tag = el.tagName.toLowerCase();
             if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
-            var node = { existingId: null, tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [] };
+            var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [] };
+            if (tag === 'template') { node.module = 'Template'; }
             [].slice.call(el.attributes).forEach(function (a) {
                 var n = a.name.toLowerCase();
                 var v = a.value;
@@ -1670,14 +1717,29 @@
                     if (origIds[v] && !claimed[v]) { claimed[v] = true; node.existingId = v; }
                     return;
                 }
+                // Explicit module marker for NEW nodes (kept nodes take their
+                // type from the live module regardless). Consumed, never stored.
+                if (n === 'data-dbe-module') {
+                    var mv = String(v).toLowerCase();
+                    if (mv === 'collection') { node.module = 'Collection'; }
+                    else if (mv === 'subcollection') { node.module = 'SubCollection'; }
+                    return;
+                }
                 if (n.indexOf('on') === 0) { stripped.push(n); return; }
                 if (URL_ATTRS[n] && /^\s*javascript:/i.test(v)) { stripped.push(n + '="javascript:…"'); return; }
                 if (n === 'id') { node.tagId = v; return; }
                 if (n === 'class') { node.classes = v.split(/\s+/).filter(Boolean); return; }
+                // A data binding implies a Collection: data-b-context is how a
+                // Collection stores what it loops over, and it stays a stored
+                // attribute (verified live on the gallery Collection).
+                if (n === 'data-b-context' && node.module === 'HtmlElement') { node.module = 'Collection'; }
                 node.attrs.push({ name: n, value: v });
             });
             var seenElement = false;
-            [].slice.call(el.childNodes).forEach(function (ch) {
+            // DOMParser parks a <template> element's children in its .content
+            // fragment, not .childNodes — read from wherever they actually are.
+            var kidsHost = (tag === 'template' && el.content) ? el.content : el;
+            [].slice.call(kidsHost.childNodes).forEach(function (ch) {
                 if (ch.nodeType === 3) {
                     var t = ch.textContent.replace(/\s+/g, ' ').trim();
                     if (!t) { return; }
@@ -1709,13 +1771,46 @@
         return { tree: parsed.roots[0], stripped: parsed.stripped };
     }
 
+    /* Settings for a parsed node, shaped by its module type: a Template has
+       no tag setting (the <template> boundary IS its identity) and neither
+       Templates nor Collections take content — leading text inside them has
+       no rendering channel, so it is dropped rather than stored dead. */
     function dbeNodeSettings(node) {
-        var s = [{ name: 'tag', value: node.tag }];
+        var moduleName = node.module || 'HtmlElement';
+        var s = [];
+        if (moduleName !== 'Template') { s.push({ name: 'tag', value: node.tag }); }
         if (node.tagId) { s.push({ name: 'tagId', value: node.tagId }); }
         if (node.classes.length) { s.push({ name: 'tagClass', value: node.classes.slice() }); }
         if (node.attrs.length) { s.push({ name: 'htmlAttribute', value: node.attrs.slice() }); }
-        if (node.content) { s.push({ name: 'content', value: node.content }); }
+        if (node.content && moduleName === 'HtmlElement') { s.push({ name: 'content', value: node.content }); }
         return s;
+    }
+
+    /* Structural rules the module model imposes on parsed trees. liveMods
+       resolves kept markers to their real types. Returns an error string or
+       null. Rule: a Collection may only hold Template children (its
+       containerFor in core), and no loose text. Templates are fine anywhere
+       (standalone Templates with rendering conditions are a real pattern). */
+    function dbeValidateParsedRoots(roots, liveMods) {
+        var err = null;
+        function typeOf(n) {
+            if (n.existingId && liveMods[n.existingId]) { return liveMods[n.existingId].name; }
+            return n.module || 'HtmlElement';
+        }
+        function walk(n) {
+            if (err) { return; }
+            var t = typeOf(n);
+            if (t === 'Collection' || t === 'SubCollection') {
+                var badChild = n.children.some(function (c) { return typeOf(c) !== 'Template'; });
+                if (badChild || n.content) {
+                    err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
+                    return;
+                }
+            }
+            n.children.forEach(walk);
+        }
+        roots.forEach(walk);
+        return err;
     }
 
     /* Reconcile the parsed tree onto the live subtree. done(counts). */
@@ -1755,8 +1850,12 @@
                     var live = sf2.storeGet('modules') || {};
                     var m = live[node.existingId] && JSON.parse(JSON.stringify(live[node.existingId]));
                     if (m) {
+                        // The live module's TYPE always wins over whatever the
+                        // markup guessed, and shapes which settings we write
+                        // (a kept Template never gets a tag setting back).
+                        node.module = m.name;
                         // Replace only the HTML-expressible settings; everything
-                        // else (conditions, responsive settings…) rides along.
+                        // else (conditions, interactiveMode…) rides along.
                         var keep = (m.settings || []).filter(function (x) {
                             return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content'].indexOf(x.name) === -1;
                         });
@@ -1767,9 +1866,12 @@
                     id = node.existingId;
                     if (parentId !== null) { storeMoveModule(sf2, id, parentId, index); }
                 } else {
+                    var moduleName = node.module || 'HtmlElement';
                     var mod = {
-                        id: dbeMakeId(), name: 'HtmlElement',
-                        label: node.tag.charAt(0).toUpperCase() + node.tag.slice(1),
+                        id: dbeMakeId(), name: moduleName,
+                        label: moduleName === 'HtmlElement'
+                            ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
+                            : moduleName,
                         settings: dbeNodeSettings(node)
                     };
                     storeAddModule(sf2, mod, parentId, index);
@@ -1866,6 +1968,8 @@
                 status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
                 return;
             }
+            var verr = dbeValidateParsedRoots([parsed.tree], modules() || {});
+            if (verr) { status.textContent = verr; return; }
             // The dialog is showModal(): it must close before the apply queue
             // can drive tree rows and the native Remove menu.
             dlg.close();
@@ -1916,15 +2020,18 @@
        apart node by node from the wrong end. */
 
     function dbeInsertParsedNode(sf, node, parentId, index) {
+        var moduleName = node.module || 'HtmlElement';
         var mod = {
-            id: dbeMakeId(), name: 'HtmlElement',
-            label: node.tag.charAt(0).toUpperCase() + node.tag.slice(1),
+            id: dbeMakeId(), name: moduleName,
+            label: moduleName === 'HtmlElement'
+                ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
+                : moduleName,
             settings: dbeNodeSettings(node)
         };
         storeAddModule(sf, mod, parentId, index);
         var count = 1;
-        node.children.forEach(function (c, i) { count += dbeInsertParsedNode(sf, c, mod.id, i); });
-        return count;
+        node.children.forEach(function (c, i) { count += dbeInsertParsedNode(sf, c, mod.id, i).count; });
+        return { id: mod.id, count: count };
     }
 
     /* Where pasted roots land relative to targetId: inside (last children)
@@ -1947,6 +2054,7 @@
         var lines = [];
         function walk(n, d) {
             var line = new Array(d + 1).join('  ') + '<' + n.tag + '>';
+            if ((n.module || 'HtmlElement') !== 'HtmlElement') { line += ' [' + n.module + ']'; }
             if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
             if (n.content) {
                 var t = n.content.length > 34 ? n.content.slice(0, 34) + '…' : n.content;
@@ -2049,6 +2157,12 @@
                 status.textContent = dbeT('htmlErrNoElements', 'No usable elements found in that HTML');
                 return;
             }
+            var verr = dbeValidateParsedRoots(p.roots, {});
+            if (verr) {
+                preview.textContent = dbePreviewLines(p.roots).join('\n');
+                status.textContent = verr;
+                return;
+            }
             parsed = p;
             preview.textContent = dbePreviewLines(p.roots).join('\n');
             var total = dbePreviewLines(p.roots).length;
@@ -2072,6 +2186,15 @@
             var liveSlot = dbeImportSlot(targetId); // re-read: the tree may have moved on
             if (!liveSlot) { status.textContent = dbeT('importHtmlTargetGone', 'The target element no longer exists'); return; }
             var roots = parsed.roots;
+            // Landing INSIDE a collection means every pasted root must be a
+            // template — its module model allows nothing else.
+            var liveMods = store().storeGet('modules') || {};
+            var parentMod = liveSlot.parentId ? liveMods[liveSlot.parentId] : null;
+            if (parentMod && (parentMod.name === 'Collection' || parentMod.name === 'SubCollection')
+                && roots.some(function (r) { return (r.module || 'HtmlElement') !== 'Template'; })) {
+                status.textContent = dbeT('htmlErrTemplatesOnly', 'Only <template> elements can be imported into a collection');
+                return;
+            }
             dlg.close();
             var wasBusy = dbeUndoBusy;
             dbeUndoBusy = true;
@@ -2080,16 +2203,9 @@
             try {
                 var sf = store();
                 roots.forEach(function (r, i) {
-                    var before = firstId;
-                    var mod = {
-                        id: dbeMakeId(), name: 'HtmlElement',
-                        label: r.tag.charAt(0).toUpperCase() + r.tag.slice(1),
-                        settings: dbeNodeSettings(r)
-                    };
-                    storeAddModule(sf, mod, liveSlot.parentId, liveSlot.index + i);
-                    count += 1;
-                    r.children.forEach(function (c, k) { count += dbeInsertParsedNode(sf, c, mod.id, k); });
-                    if (before === null) { firstId = mod.id; }
+                    var res = dbeInsertParsedNode(sf, r, liveSlot.parentId, liveSlot.index + i);
+                    count += res.count;
+                    if (firstId === null) { firstId = res.id; }
                 });
             } finally { dbeUndoBusy = wasBusy; }
             undoToast(dbeFmt(dbeTn(count,
@@ -2912,7 +3028,7 @@
                     var ihMods = modules() || {};
                     var ihMod = ihMods[ihId];
                     if (!ihMod) { return; }
-                    var ok = ihMod.name === 'HtmlElement';
+                    var ok = !!DBE_HTML_MODULES[ihMod.name];
                     importHtmlLi = makeCtxItem(dbeT('importHtmlEllipsis', 'Import HTML…'), function () {
                         setTimeout(function () { openImportHtmlDialog(ihId); }, 120);
                     }, ok ? {} : {

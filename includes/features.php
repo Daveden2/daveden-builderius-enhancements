@@ -371,7 +371,7 @@ function dbe_features() {
 		'edit_as_html'          => array(
 			'title'        => __( 'Edit as HTML', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Edit an element and its children as HTML markup.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds Edit as HTML to the right-click menu: the element and everything inside it open as readable HTML in a dialog, and applying your edits converts the markup back into real elements. Each existing element carries a data-dbe-id marker; keep the marker and that element\'s label, conditions and other settings survive the edit. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped on apply. Offered only on subtrees made of plain elements (no collections, templates or components inside). Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Edit as HTML to the right-click menu: the element and everything inside it open as readable HTML in a dialog, and applying your edits converts the markup back into real elements. Each existing element carries a data-dbe-id marker; keep the marker and that element\'s label, conditions and other settings survive the edit. Collections and templates are included: a collection appears as its real tag with its data-b-context binding, a template as a real <template> element, and both keep their bindings and settings through the edit. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped on apply. Not offered on subtrees containing components or code blocks. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -382,7 +382,7 @@ function dbe_features() {
 		'import_html'           => array(
 			'title'        => __( 'Import HTML', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Paste HTML and turn it into real elements.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped before anything is created. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Pasted <template> elements become Template modules, and an element carrying a data-b-context attribute (or data-dbe-module="collection") becomes a Collection, so dynamic lists can be imported ready to bind. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped before anything is created. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -404,7 +404,7 @@ function dbe_features() {
 		'command_palette'       => array(
 			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+Shift+K.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}, including attributes: a.btn[href=/contact/ target=_blank]{Contact}), plus run the element actions and jump between the builder’s regions. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
