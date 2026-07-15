@@ -2050,6 +2050,66 @@
         return { parentId: parentId, index: sibs.indexOf(targetId) + 1, into: false };
     }
 
+    /* ---- Repetition detection (import_html) ----
+       Real-world pasted markup usually carries N rendered copies of what
+       should be ONE template: a ul of lookalike lis, a grid of identical
+       cards, a tbody of matching rows. Spot those and offer to collapse
+       each group into a Collection whose Template holds the first copy.
+
+       Similarity = a recursive structural signature (tag + sorted classes +
+       the children's signatures); text and attribute VALUES are ignored, so
+       "the same card with different words" matches. Guards against false
+       positives: a plain container needs at least TWO matching items, and
+       unless it is a ul/ol the item itself must have structure (classes or
+       children) — three bare <p>s are prose, not a list. A container
+       already marked as a Collection (data-b-context / data-dbe-module)
+       qualifies from ONE plain item: the binding already declares the
+       intent, and wrapping the static children in a <template> is exactly
+       what makes that markup valid. */
+    function dbeNodeSignature(n) {
+        return n.tag + '[' + n.classes.slice().sort().join('.') + '](' +
+            n.children.map(dbeNodeSignature).join(',') + ')';
+    }
+    function dbeRepeatCandidate(n) {
+        var moduleName = n.module || 'HtmlElement';
+        var declared = moduleName === 'Collection' || moduleName === 'SubCollection';
+        if (!declared && moduleName !== 'HtmlElement') { return false; }
+        var kids = n.children;
+        if (kids.length < (declared ? 1 : 2)) { return false; }
+        if (!kids.every(function (c) { return (c.module || 'HtmlElement') === 'HtmlElement'; })) { return false; }
+        var sig = dbeNodeSignature(kids[0]);
+        if (!kids.every(function (c) { return dbeNodeSignature(c) === sig; })) { return false; }
+        if (!declared && n.tag !== 'ul' && n.tag !== 'ol'
+            && !kids[0].classes.length && !kids[0].children.length) { return false; }
+        return true;
+    }
+    function dbeFindRepeats(roots) {
+        var found = [];
+        function walk(n) {
+            if (dbeRepeatCandidate(n)) { found.push(n); }
+            n.children.forEach(walk);
+        }
+        roots.forEach(walk);
+        return found;
+    }
+    /* A collapsed COPY of the parsed roots: each candidate container becomes
+       a Collection holding one Template that wraps its first item; the other
+       copies drop. Nested candidates inside the kept item still collapse
+       (the clone's node objects are mutated in place). */
+    function dbeCollapseRepeats(roots) {
+        var clone = JSON.parse(JSON.stringify(roots));
+        dbeFindRepeats(clone).forEach(function (n) {
+            if ((n.module || 'HtmlElement') === 'HtmlElement') { n.module = 'Collection'; }
+            n.content = '';
+            n.children = [{
+                existingId: null, module: 'Template', tag: 'template',
+                tagId: '', classes: [], attrs: [], content: '',
+                children: [n.children[0]]
+            }];
+        });
+        return clone;
+    }
+
     function dbePreviewLines(roots) {
         var lines = [];
         function walk(n, d) {
@@ -2110,6 +2170,18 @@
         editor.setAttribute('aria-label', dbeT('importHtmlEditor', 'HTML to import'));
         dlg.appendChild(editor);
 
+        // Repetition offer — shown only when the parsed markup contains
+        // groups of structurally identical siblings (see dbeFindRepeats).
+        var optionRow = document.createElement('label');
+        optionRow.className = 'dbe-html__option';
+        optionRow.style.display = 'none';
+        var collapseCheck = document.createElement('input');
+        collapseCheck.type = 'checkbox';
+        var optionText = document.createElement('span');
+        optionRow.appendChild(collapseCheck);
+        optionRow.appendChild(optionText);
+        dlg.appendChild(optionRow);
+
         var previewLabel = document.createElement('p');
         previewLabel.className = 'dbe-html__preview-label';
         previewLabel.textContent = dbeT('importHtmlPreview', 'Preview');
@@ -2154,24 +2226,36 @@
             var p = dbeParseHtmlFragment(html, {});
             if (!p.roots.length) {
                 preview.textContent = '';
+                optionRow.style.display = 'none';
                 status.textContent = dbeT('htmlErrNoElements', 'No usable elements found in that HTML');
                 return;
             }
-            var verr = dbeValidateParsedRoots(p.roots, {});
+            var repeats = dbeFindRepeats(p.roots).length;
+            optionRow.style.display = repeats ? '' : 'none';
+            if (repeats) {
+                optionText.textContent = dbeFmt(dbeTn(repeats,
+                    'importCollapseOne', 'Collapse %s repeated group into a collection',
+                    'importCollapseMany', 'Collapse %s repeated groups into collections'), repeats);
+            }
+            var roots = (repeats && collapseCheck.checked) ? dbeCollapseRepeats(p.roots) : p.roots;
+            var verr = dbeValidateParsedRoots(roots, {});
             if (verr) {
-                preview.textContent = dbePreviewLines(p.roots).join('\n');
+                preview.textContent = dbePreviewLines(roots).join('\n');
                 status.textContent = verr;
                 return;
             }
-            parsed = p;
-            preview.textContent = dbePreviewLines(p.roots).join('\n');
-            var total = dbePreviewLines(p.roots).length;
+            parsed = { roots: roots, stripped: p.stripped };
+            preview.textContent = dbePreviewLines(roots).join('\n');
+            var total = dbePreviewLines(roots).length;
             var note = dbeFmt(dbeTn(total,
                 'importCountOne', '%s element will be created.',
                 'importCountMany', '%s elements will be created.'), total);
             if (p.stripped.length) {
                 var uniq = p.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
                 note += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            if (repeats && collapseCheck.checked) {
+                note += ' ' + dbeT('importCollapseBindNote', 'New collections still need their data binding.');
             }
             status.textContent = note;
             insert.disabled = false;
@@ -2180,6 +2264,7 @@
             clearTimeout(previewTimer);
             previewTimer = setTimeout(refreshPreview, 250);
         });
+        collapseCheck.addEventListener('change', refreshPreview);
 
         insert.addEventListener('click', function () {
             if (!parsed || !parsed.roots.length) { return; }

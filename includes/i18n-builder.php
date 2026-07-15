@@ -465,6 +465,11 @@ function dbe_builder_strings() {
 		'importCountOne'          => __( '%s element will be created.', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements to be created. */
 		'importCountMany'         => __( '%s elements will be created.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of repeated groups detected. */
+		'importCollapseOne'       => __( 'Collapse %s repeated group into a collection', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of repeated groups detected. */
+		'importCollapseMany'      => __( 'Collapse %s repeated groups into collections', 'daveden-builderius-enhancements' ),
+		'importCollapseBindNote'  => __( 'New collections still need their data binding.', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements imported. */
 		'htmlImportedOne'         => __( 'Imported %s element', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements imported. */
