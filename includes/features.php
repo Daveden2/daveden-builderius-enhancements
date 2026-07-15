@@ -370,8 +370,8 @@ function dbe_features() {
 		),
 		'command_palette'       => array(
 			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
-			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+Shift+K.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+K, with a top-bar button.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -540,6 +540,20 @@ function dbe_enum_settings() {
 				'always' => __( 'Always, on the selected row', 'daveden-builderius-enhancements' ),
 			),
 			'default' => 'hover',
+		),
+		// Ctrl+Shift+K, the palette's original shortcut, is reserved by Firefox
+		// on Windows and Linux for the DevTools Web Console — the browser handles
+		// it before the page ever sees the event, so it cannot be intercepted.
+		// The default is now the widespread command-palette convention Cmd/Ctrl+K.
+		'palette_shortcut' => array(
+			'parent'  => 'command_palette',
+			'title'   => __( 'Keyboard shortcut', 'daveden-builderius-enhancements' ),
+			'choices' => array(
+				'mod-k'       => __( 'Cmd/Ctrl+K (recommended)', 'daveden-builderius-enhancements' ),
+				'mod-slash'   => __( 'Cmd/Ctrl+/', 'daveden-builderius-enhancements' ),
+				'mod-shift-k' => __( 'Cmd/Ctrl+Shift+K (the old default; Firefox on Windows and Linux reserves it for the DevTools console)', 'daveden-builderius-enhancements' ),
+			),
+			'default' => 'mod-k',
 		),
 	);
 }

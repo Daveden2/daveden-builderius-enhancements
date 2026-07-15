@@ -5652,13 +5652,33 @@
         }
     }
 
-    /* (cp) Command palette (command_palette). Cmd/Ctrl+Shift+K opens a searchable
-       command list (modelled on openAutoBemDialog's isolation contract). With an
-       element selected it offers add-class, add-attribute and add-element (minimal
-       Emmet), the element ops and the area jumps. Any command that drives the tree
-       or a native picker CLOSES the dialog first (showModal makes the page inert),
-       then runs. */
+    /* (cp) Command palette (command_palette). A configurable shortcut (the
+       palette_shortcut setting, default Cmd/Ctrl+K) or the top-bar button opens a
+       searchable command list (modelled on openAutoBemDialog's isolation contract).
+       With an element selected it offers add-class, add-attribute and add-element
+       (minimal Emmet), the element ops and the area jumps. Any command that drives
+       the tree or a native picker CLOSES the dialog first (showModal makes the page
+       inert), then runs. */
     var dbePaletteKeyBound = false;
+
+    /* The shortcut choices mirror dbe_enum_settings() in PHP. Ctrl+Shift+K, the
+       original default, is reserved by Firefox on Windows/Linux for the DevTools
+       Web Console — browser chrome consumes it before the page sees the event —
+       so it survives only as an opt-in legacy choice. mod-slash matches on e.key
+       rather than e.code (with no shift check) so it works on layouts where "/"
+       itself needs Shift. */
+    var DBE_PALETTE_KEYS = {
+        'mod-k':       { code: 'KeyK', shift: false, label: 'K' },
+        'mod-shift-k': { code: 'KeyK', shift: true, label: 'K' },
+        'mod-slash':   { key: '/', label: '/' }
+    };
+    function dbePaletteKey() {
+        return DBE_PALETTE_KEYS[(CFG.palette || {}).shortcut] || DBE_PALETTE_KEYS['mod-k'];
+    }
+    function dbePaletteAccel() {
+        var k = dbePaletteKey();
+        return dbeAccel(k.label, { cmd: true, shift: !!k.shift });
+    }
 
     /* Add (or update) one or more HTML attributes on an existing element through
        the settings upsert (a single upsert for the whole batch — no native-control
@@ -5910,7 +5930,9 @@
     }
 
     function dbePaletteKeydown(e) {
-        if (e.code !== 'KeyK' || !e.shiftKey || e.altKey) { return; }
+        var k = dbePaletteKey();
+        if (k.key ? e.key !== k.key : (e.code !== k.code || e.shiftKey !== k.shift)) { return; }
+        if (e.altKey) { return; }
         if (!(dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey))) { return; }
         if (renameActive()) { return; }
         var t = e.target;
@@ -5918,6 +5940,34 @@
         if (document.querySelector('dialog[open]')) { return; }
         e.preventDefault(); e.stopPropagation();
         openCommandPalette();
+    }
+
+    /* Top-bar palette button: a pointer-visible way into the palette, and the
+       shortcut's discovery surface (the tooltip and accessible name carry the
+       current combo). Same uniPanelButton recipe as the theme/density toggles;
+       sits with them at the start of the right column. */
+    function ensurePaletteButton() {
+        var col = document.querySelector('.uniTopPanel__rightCol');
+        if (!col || col.querySelector('.dbe-palette-btn')) { return; }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'uniPanelButton dbe-palette-btn';
+        var span = document.createElement('span');
+        span.innerHTML =
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<path d="M2.2 3.2l3.2 3.3-3.2 3.3M7.6 10.8h4.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        btn.appendChild(span);
+        var tip = dbeFmt(dbeT('paletteTip', 'Command palette (%s)'), dbePaletteAccel());
+        setTip(btn, tip);
+        btn.setAttribute('aria-label', tip);
+        btn.addEventListener('click', function () {
+            if (document.querySelector('dialog[open]')) { return; } // a non-modal dialog is up — same guard as the shortcut
+            openCommandPalette();
+        });
+        // After our other mode buttons when present, else first in the column.
+        var siblings = col.querySelectorAll('.dbe-theme-btn, .dbe-density-btn');
+        var last = siblings.length ? siblings[siblings.length - 1] : null;
+        col.insertBefore(btn, last ? last.nextSibling : col.firstChild);
     }
 
     /* Preview resize handles (preview_resize): drag either edge of the canvas
@@ -8635,6 +8685,7 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
+            if (on('command_palette')) { try { ensurePaletteButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
@@ -8702,9 +8753,9 @@
         }
 
         // Top bar too — breakpoint buttons and the breakpoints modal mount
-        // there; labelChromeIcons(), the theme/density buttons and the save
-        // cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
+        // there; labelChromeIcons(), the theme/density/palette buttons and the
+        // save cue must reach it when it re-renders.
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
@@ -8823,7 +8874,7 @@
             document.addEventListener('keydown', dbeElementShortcutsKeydown, true);
         }
 
-        // Command palette (Cmd/Ctrl+Shift+K).
+        // Command palette (shortcut from the palette_shortcut setting; default Cmd/Ctrl+K).
         if (on('command_palette') && !dbePaletteKeyBound) {
             dbePaletteKeyBound = true;
             document.addEventListener('keydown', dbePaletteKeydown, true);
