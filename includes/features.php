@@ -101,6 +101,7 @@ function dbe_features() {
 			'description' => __( 'Adds a top-bar button that switches the builder between light and dark themes, or follows your operating system automatically.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '60-theme.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'density_toggle'        => array(
@@ -109,6 +110,7 @@ function dbe_features() {
 			'description' => __( 'Adds a top-bar button that switches panel and Navigator spacing between comfortable and compact.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '62-density.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'topbar_toolbar'        => array(
@@ -125,6 +127,7 @@ function dbe_features() {
 			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled group, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
+			'shared_css'  => array( '04-menu-anchor.css' ),
 			'js'          => true,
 		),
 		'select_combobox'       => array(
@@ -149,6 +152,14 @@ function dbe_features() {
 			'description' => __( 'Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
+			'js'          => true,
+		),
+		'settings_accordions'   => array(
+			'title'       => __( 'Accessible settings groups', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Keyboard and screen-reader access for the settings-panel groups.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element settings panel\'s collapsible groups (Primary, Advanced, Attributes and so on) usable from the keyboard and a screen reader. Each group heading becomes a real Tab stop that announces itself as a button and whether its group is open, and Enter or Space opens and closes it. Without this the headings cannot take keyboard focus at all, so the settings inside a collapsed group are unreachable without a mouse.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array( '84-settings-accordions.css' ),
 			'js'          => true,
 		),
 		'chrome_landmarks'      => array(
@@ -318,6 +329,14 @@ function dbe_features() {
 			'css'         => array( '34-attr-helpers.css' ),
 			'js'          => true,
 		),
+		'image_defaults'        => array(
+			'title'       => __( 'Image placeholder & default alt', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'New Image elements get a visible placeholder and an alt attribute.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Gives a newly inserted Image element a built-in placeholder graphic (an inline SVG, no file involved) so it is visible on the canvas straight away, and an empty alt attribute so the image is never missing one — empty alt marks it as decorative until you write the real text. Choosing an image from the media library replaces the placeholder, and the alt attribute is filled from the media library\'s alt text when one is set.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array(),
+			'js'          => true,
+		),
 		'condition_helpers'     => array(
 			'title'       => __( 'Display-condition helpers', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'A ready blank condition, labelled fields, and cues where conditions exist.', 'daveden-builderius-enhancements' ),
@@ -354,11 +373,11 @@ function dbe_features() {
 		),
 		'command_palette'       => array(
 			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
-			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+Shift+K.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Press Cmd/Ctrl+Shift+K for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+K, with a top-bar button.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), plus run the element actions and jump between the builder’s regions. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
-			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
+			'shared_css'   => array( '01-infra.css', '03-topbar-layout.css', '30-context-menu.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
@@ -435,6 +454,7 @@ function dbe_features() {
 			'description' => __( 'Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array( '72-save-cue.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'save_shortcut'         => array(
@@ -451,6 +471,7 @@ function dbe_features() {
 			'description'  => __( 'Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'workflow',
 			'css'          => array( '35-save-menu.css' ),
+			'shared_css'   => array( '03-topbar-layout.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
@@ -524,6 +545,20 @@ function dbe_enum_settings() {
 				'always' => __( 'Always, on the selected row', 'daveden-builderius-enhancements' ),
 			),
 			'default' => 'hover',
+		),
+		// Ctrl+Shift+K, the palette's original shortcut, is reserved by Firefox
+		// on Windows and Linux for the DevTools Web Console — the browser handles
+		// it before the page ever sees the event, so it cannot be intercepted.
+		// The default is now the widespread command-palette convention Cmd/Ctrl+K.
+		'palette_shortcut' => array(
+			'parent'  => 'command_palette',
+			'title'   => __( 'Keyboard shortcut', 'daveden-builderius-enhancements' ),
+			'choices' => array(
+				'mod-k'       => __( 'Cmd/Ctrl+K (recommended)', 'daveden-builderius-enhancements' ),
+				'mod-slash'   => __( 'Cmd/Ctrl+/', 'daveden-builderius-enhancements' ),
+				'mod-shift-k' => __( 'Cmd/Ctrl+Shift+K (the old default; Firefox on Windows and Linux reserves it for the DevTools console)', 'daveden-builderius-enhancements' ),
+			),
+			'default' => 'mod-k',
 		),
 	);
 }

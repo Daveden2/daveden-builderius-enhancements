@@ -39,6 +39,22 @@ Switches purpose by context:
 - **Settings** for the selected element: the Content / Styles / Attributes tabs
   (`.uniPanelTabs`), with `.uniPanelHeader`. The class picker lives in the Styles
   view (`.uniSystemSelectClasses`).
+  - Setting groups (Primary / Advanced / Attributes) are
+    `.uniModCssCatWrapper`: header `.uniCatTitle.uniModCssCatWrapper__catTitle`
+    (a plain div, mouse-only natively — the settings_accordions feature
+    retrofits the disclosure-button semantics) + `.uniModCssCatWrapper__items`,
+    which is **lazy-rendered**: a collapsed group has no items node at all,
+    and the collapsed state persists globally per group name.
+  - Field anatomy: `.uniFormField` rows; block labels
+    `.uniFormField__settingLabel`, switch/inline labels
+    `.uniFormField__settingLabelInline` (both gain `.nonEmptyValue` in the
+    native accent when set); the description tile for a field's `infoMsg` is
+    `.uniFormField__boxInfo` (natively `--primary-2` fill + `--primary-4`
+    text — repainted for light theme in 60-theme.css pass 19).
+  - The media library (Select image flow) opens over the canvas as
+    `.uniMediaLibrary`: tiles `.uniMediaLibrary__item` (click → `active` +
+    a `.uniMediaLibrary__sidebar` with size picker and an **Insert** button
+    that actually applies src/alt — selection alone changes nothing).
 
 ### Canvas (preview) — `.uniIframePanel`
 

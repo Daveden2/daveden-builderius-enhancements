@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 1.13.1
+Stable tag: 1.14.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -55,6 +55,17 @@ Open an issue on the GitHub repository. Suggestions that ship are credited in th
 == Changelog ==
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
+
+= 1.14.0 =
+Accessible settings groups and image defaults, an assignable command-palette shortcut, and a round of accessibility and light-theme fixes across the footer tools and top bar.
+* New: Settings groups (Editing tab, on by default) — the settings panel's collapsible group headings become real keyboard stops that announce whether they are open and toggle with Enter or Space. Collapsed groups render none of their fields, so this is the only keyboard route to those settings.
+* New: Image defaults (Editing tab, on by default) — a newly added Image element starts with a visible built-in placeholder and an empty alt attribute instead of rendering as a broken, invisible image; picking a real image replaces the placeholder and keeps the alt.
+* New: the command palette's keyboard shortcut is assignable. The default moves to the conventional Cmd/Ctrl+K (Firefox on Windows and Linux reserves the old Ctrl+Shift+K for its DevTools console), with Cmd/Ctrl+/ and the old combination as alternatives — and a top-bar button now opens the palette too, its tooltip showing the current shortcut.
+* Improved: the JavaScript and Dynamic Data tools' configure panel is now accessible — the Enabled switch is a proper labelled switch with an on/off glyph in both themes (previously a black pill in light mode), every field label is wired to its control, the per-item actions button has a name, and the actions menu is fully keyboard-operable.
+* Improved: that actions menu opens anchored to its row's button instead of wherever the pointer happened to be — for keyboard and mouse alike, in every browser; where the browser supports CSS anchor positioning it stays attached while open.
+* Fixed: at narrower window sizes the plugin's top-bar buttons (theme, density, palette, the unsaved marker) overlapped the canvas width field and breakpoint buttons; the bar now reflows below 1280px so nothing overlaps.
+* Fixed: another round of light-theme contrast — the footer snippet/variable panels and their configure column, the Run and Get data buttons, the New JS Snippet / New Data Variable popup, the class chips' caret and remove controls, the Navigator's New variable button, the component "Exit properties" bar, and the settings' description tiles.
+* Fixed: SOON badges in native menus no longer sit on top of the row labels.
 
 = 1.13.1 =
 A canvas-loading fix for remembered panel widths.

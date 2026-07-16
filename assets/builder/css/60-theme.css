@@ -53,13 +53,19 @@ html[data-dbe-theme="light"] .uniPanelButtonQuaternary { background: var(--dbe-l
 html[data-dbe-theme="light"] .uniPanelButtonQuaternary:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-accent) !important; }
 /* --primary-4 as a surface: the applied-class chips ("others" in the class
    picker) + the idle Save button ("nothing to save" grey; the green
-   .saveBtnShouldSave state uses --accent-special and is untouched). Light grey
-   chip; pair it with the strongest text token so the label clears AA with
-   margin — --dbe-text-2 on --dbe-line-hi was only ~6:1, --dbe-text lifts it to
-   ~9.4:1. */
+   .saveBtnShouldSave state uses --accent-special and is untouched). The chips
+   first went dark-text-on---dbe-line-hi (~9.4:1 — passes, but the mid-grey
+   fill read as muddy); repainted as a raised light chip with a hairline so
+   they read as quiet, clickable tokens instead. Hover steps the fill down one
+   grey (~12:1 with --dbe-text) as the affordance the !important pin would
+   otherwise swallow. */
 html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li {
-    background: var(--dbe-line-hi) !important;
+    background: var(--dbe-l2-hi) !important;
     color: var(--dbe-text) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-line);
+}
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li:hover {
+    background: var(--dbe-line) !important;
 }
 html[data-dbe-theme="light"] .uniPanelButtonPrimary.saveBtn:not(.saveBtnShouldSave) { background: var(--dbe-line-hi) !important; }
 
@@ -80,6 +86,30 @@ html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected,
 html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected span,
 html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions {
     color: var(--dbe-on-accent-strong) !important;
+}
+
+/* The chip action buttons (the active chip's caret, the applied chips' X)
+   are native icon-buttons whose SVGs rely on a fill="currentColor"
+   presentation attribute. The colour rules above never reach them: the
+   buttons carry their own native color (--base-2 — near-black after the
+   light remap), and the attribute's currentColor resolves against that in
+   Chrome and against the document colour in Firefox, so both glyphs painted
+   near-black on their blue fills (the caret ~2.3:1 on --dbe-accent-strong;
+   the X ~3.9:1 on the native --accent-normal hover pill — a technical
+   1.4.11 pass that reads as muddy as the caret). Pin both overlays to the
+   strong accent with white glyphs — the active-chip treatment — and restate
+   the fill as a real CSS declaration so it beats the attribute and tracks
+   the pinned colour in every browser. */
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions {
+    background: var(--dbe-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions .uniIconButton,
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions .uniIconButton {
+    color: var(--dbe-on-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniModuleCssSelectorItemSelected .actions svg path,
+html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions svg path {
+    fill: currentColor;
 }
 
 /* --- Core surfaces --- */
@@ -644,6 +674,12 @@ html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemName,
 html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemValue,
 html[data-dbe-theme="light"] .uniSettingHtmlAttribute_item input,
 html[data-dbe-theme="light"] .uniSettingHtmlAttribute_itemEdit input {
+    /* The background matters in the footer panels (a JS snippet's Custom HTML
+       attributes): there the inputs keep the global .uniFormField near-black
+       fill because the 12-controls repaint only reaches the left/right
+       panels. In the settings panel this restates the value 12-controls
+       already applies, so nothing changes there. */
+    background: var(--dbe-l2) !important;
     color: var(--dbe-text) !important;
     border-color: var(--dbe-line-hi) !important;
 }
@@ -865,4 +901,268 @@ html[data-dbe-theme="light"] .uniSystemSelect--freeInput:focus-within,
 html[data-dbe-theme="light"] .builderiusSelectWithFreeInput .uniCssInput:focus,
 html[data-dbe-theme="light"] .builderiusMultiSelect .builderiusMultiSelect__trigger.is-open {
     border-color: var(--dbe-accent) !important;
+}
+
+/* --- Leak audit pass 19: setting description boxes (infoMsg) --- */
+/* Every settings field renders its description (the schema's infoMsg) as
+   .uniFormField__boxInfo — natively a --primary-2 (near-black) tile with
+   --primary-4 text. The palette remap darkens the text to --dbe-muted while
+   the tile keeps its native dark fill, so in the light theme every
+   description reads dark-on-dark (~1.6:1): the Template element's custom-name
+   note and the Collection's Interactive Rendering note are the visible
+   casualties, but the same class carries all the other field descriptions
+   too. Repaint the tile as a light card like the other --primary-2 tiles
+   (passes 9/15); the text on it takes the secondary token. Dark is left
+   alone — the native pairing is already correct there. */
+html[data-dbe-theme="light"] .uniFormField__boxInfo {
+    background: var(--dbe-l2) !important;
+    border: 1px solid var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniFormField__boxInfo p,
+html[data-dbe-theme="light"] .uniFormField__boxInfo span,
+html[data-dbe-theme="light"] .uniFormField__boxInfo a {
+    color: var(--dbe-text-2) !important;
+}
+
+/* Switch fields label themselves with the INLINE variant of the setting
+   label; its toggled-on state paints the native mid-tone --accent-normal
+   (~2.2:1 on light chrome). Pass 7 pinned the block variant
+   (.uniFormField__settingLabel.nonEmptyValue) but missed this one — pin it
+   to the theme accent the same way so an enabled switch (e.g. the
+   Collection's Interactive Rendering) keeps a legible label. */
+html[data-dbe-theme="light"] .uniFormField__settingLabelInline.nonEmptyValue {
+    color: var(--dbe-accent) !important;
+}
+
+/* --- Leak audit pass 20: footer-tab action buttons + the mini-modal --- */
+/* The JavaScript/Dynamic Data tabs' action buttons (Run, Get data) are
+   .uniPanelButtonSecondary OUTSIDE .uniModal, so the modal-button repaint
+   never reached them: enabled they sit on the native mid-tone
+   --accent-normal with near-black text, and disabled on --primary-4 — which
+   the palette remap turns into --dbe-muted, a dark grey under the same
+   near-black text (~1.9:1). The Navigator's "New variable" (CSS vars tab)
+   and "New selector" (Selectors tab) buttons in the .uniSearchSelectors row
+   are the same family with worse states of their own: hover swaps to a
+   near-black --primary-1 / --contrast fill with the mid-tone accent as text,
+   keyboard focus (:focus-within) to a --primary-2 fill the same way, and the
+   icon glyph is pinned to fill: var(--contrast) — black — whatever the label
+   colour does. Repaint the enabled state as the light theme's filled accent
+   (white on --dbe-accent-strong, the class-chip treatment, stepping to the
+   lighter accent on hover — both AA for the 12px labels) and the disabled
+   state as the same quiet grey the modal buttons use. The base rule's
+   !important also pins the native :focus-within/:active recolours to the
+   same white-on-accent pair, so every state stays AA; the focus CUE is the
+   2px --dbe-focus ring from 13-focus.css, offset over the panel surface
+   (≥3:1 against it in both themes). The icon takes currentColor so it
+   tracks the label in every state. */
+html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary,
+html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar,
+html[data-dbe-theme="light"] .uniSearchSelectors .newSelector {
+    background: var(--dbe-accent-strong) !important;
+    border-color: var(--dbe-accent-strong) !important;
+    color: var(--dbe-on-accent-strong) !important;
+}
+html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary:hover:not(:disabled),
+html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar:hover:not(:disabled),
+html[data-dbe-theme="light"] .uniSearchSelectors .newSelector:hover:not(:disabled) {
+    background: var(--dbe-accent) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary:disabled,
+html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar:disabled,
+html[data-dbe-theme="light"] .uniSearchSelectors .newSelector:disabled {
+    background: var(--dbe-line-hi) !important;
+    border-color: var(--dbe-line-hi) !important;
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary svg path,
+html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar svg path,
+html[data-dbe-theme="light"] .uniSearchSelectors .newSelector svg path {
+    fill: currentColor !important;
+}
+
+/* The "New JS Snippet" / "New Data Variable" popup (dialog.uniMiniModal,
+   opened from the footer tabs' New snippet / Variable buttons) had no theme
+   rules at all: the card keeps its native near-black fill while the remap
+   darkens the header text and the Save & Edit outline button sitting on it —
+   black on black. Repaint it as a raised light card like the other floating
+   chrome (menus, the selector rename card), with the name input recessed one
+   level the way the rename card's is. Dark keeps the native pairing. */
+html[data-dbe-theme="light"] .uniMiniModal {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line) !important;
+    box-shadow: 0 10px 40px var(--dbe-shadow) !important;
+}
+html[data-dbe-theme="light"] .uniMiniModal input {
+    background: var(--dbe-l1) !important;
+    color: var(--dbe-text) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniMiniModal input::placeholder {
+    color: var(--dbe-muted) !important;
+}
+
+/* --- Leak audit pass 21: footer snippet/variable panels (uniTabDataVars) --- */
+/* The JavaScript and Dynamic Data footer tabs share the uniTabDataVars
+   component, and once a snippet or variable actually exists it exposes chrome
+   that keeps the native dark scale: the snippet configure column
+   (.uniTabDataVars__configurePanel, opened by Save & Edit) fills with
+   --primary-1 while its uniPanelField controls paint --primary-2 /
+   --black-alt-1 surfaces and --primary-2/3 borders; the list/strip separators
+   are --primary-2 near-blacks; and the editor-corner language chip
+   ("JavaScript" / "GraphQl") is a --primary-1 tile. The palette remap darkens
+   every label on top of them, so in the light theme the whole column renders
+   dark-on-dark. Repaint the surfaces and separators from the theme tokens.
+   Dark is left alone — its native values are already correct. */
+html[data-dbe-theme="light"] .uniTabDataVars__configurePanel {
+    background: var(--dbe-l1) !important;
+}
+html[data-dbe-theme="light"] .uniTabDataVars__configurePanelHeader,
+html[data-dbe-theme="light"] .uniTabDataVars__configurePanelBody,
+html[data-dbe-theme="light"] .uniTabDataVars__configurePanelTitle,
+html[data-dbe-theme="light"] .uniTabDataVars__newVarInner,
+html[data-dbe-theme="light"] .uniTabDataVars__tabsControls,
+html[data-dbe-theme="light"] .uniTabDataVars__varsList {
+    border-color: var(--dbe-line) !important;
+}
+
+/* uniPanelField inputs/textareas: natively transparent on the dark column
+   with a --primary-2 near-black border; the disabled/read-only state (the
+   snippet Title, renamed via the list menu instead) fills --black-alt-1.
+   Raised light field, quiet grey when it can't be edited. */
+html[data-dbe-theme="light"] .uniPanelField__input,
+html[data-dbe-theme="light"] .uniPanelField__textarea {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__input:focus,
+html[data-dbe-theme="light"] .uniPanelField__textarea:focus {
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__input[read-only],
+html[data-dbe-theme="light"] .uniPanelField__input[disabled],
+html[data-dbe-theme="light"] .uniPanelField__textarea[read-only],
+html[data-dbe-theme="light"] .uniPanelField__textarea[disabled] {
+    background: var(--dbe-l2-hi) !important;
+    color: var(--dbe-muted) !important;
+}
+
+/* uniPanelField radio options (Snippet type, Where to insert, Loading):
+   native --primary-2 cards with --primary-3 borders; checked fills
+   --black-alt-1 behind an --accent-normal border (a mid-tone that fails
+   1.4.11 on light chrome, as does the radio dot it also colours) and the
+   plain variant's hover recolours the label --accent-normal too. Light
+   cards, the segmented-radio checked treatment from 12-controls, and dark
+   text pinned on hover so no state drops below AA. Hover excludes the
+   checked card so selecting doesn't wash out on the pointer's way off. */
+html[data-dbe-theme="light"] .uniPanelField__radioItem {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__radioItem:hover:not(:has(input:checked)) {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-line-hi) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__radioItem:hover:not(:has(input:checked)) span {
+    color: var(--dbe-text) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__radioItem:has(input:checked) {
+    background: var(--dbe-accent-tint-hi) !important;
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__radioItem input[type="radio"]:checked {
+    border-color: var(--dbe-accent) !important;
+}
+html[data-dbe-theme="light"] .uniPanelField__radioItem input[type="radio"]::before {
+    background: var(--dbe-accent) !important;
+}
+
+/* Snippet/variable list items: native near-black --primary-2 border (the
+   heavy-outline problem from pass 16) and a --primary-2 fill on
+   hover/focus/active under the remapped dark text. Their resting fill is
+   var(--primary-alt-2) — a variable Builderius never defines, so it computes
+   to transparent; give the rows the real card fill the other lists use.
+   The active border pins to the theme accent (native --accent-normal is
+   under 3:1 on light surfaces). */
+html[data-dbe-theme="light"] .uniTabDataVars__varsList ul li {
+    background: var(--dbe-l2) !important;
+    border-color: var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniTabDataVars__varsList ul li:hover {
+    background: var(--dbe-l2-hi) !important;
+}
+html[data-dbe-theme="light"] .uniTabDataVars__varsList ul li:focus-within,
+html[data-dbe-theme="light"] .uniTabDataVars__varsList ul li.active {
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-accent) !important;
+}
+
+/* The editor-corner language chip and the Get-data preview pane: --primary-1
+   tiles whose text the remap darkens — dark-on-dark. The chip becomes a light
+   card with a hairline so it still reads as a floating label; the preview
+   pane's own Monaco inverts to light with the rest of the editor, this just
+   catches the pane's padding around it. */
+html[data-dbe-theme="light"] .uniTabDataVars__editorItem .editorLabel,
+html[data-dbe-theme="light"] .uniTabDataVars__preview .editorLabel {
+    background: var(--dbe-l2) !important;
+    color: var(--dbe-muted) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniTabDataVars__preview,
+html[data-dbe-theme="light"] .uniTabDataVars__previewItem {
+    background-color: var(--dbe-l1) !important;
+}
+
+/* The editor pane itself fills with --contrast (#000) to match Monaco's
+   vs-dark background, but in the light theme Monaco is pixel-INVERTED
+   (pass 3) while the pane behind it is not, so the pane's padding shows as
+   a black band above the code. Match the pane to the inverted editor. The
+   :has() guard keeps the free-plan warning frame
+   (.uniTabDataVars__editorMark's --accent-warning fill) untouched. */
+html[data-dbe-theme="light"] .uniTabDataVars__editor:not(:has(.uniTabDataVars__editorMark)),
+html[data-dbe-theme="light"] .uniTabDataVars__editorItem {
+    background-color: var(--dbe-l1) !important;
+}
+
+/* --- Leak audit pass 22: the "Exit properties" bar in component editing --- */
+/* Editing a component's properties adds .uniPrePanelHeader above the settings
+   panel — natively a --primary-3 near-black band with the label and close
+   glyph in --accent-special, the component green tuned for dark surfaces. The
+   light theme never repainted it, leaving green-on-black floating in a light
+   panel. A raised light card with the theme's component green (the same token
+   the Navigator's component rows use, 5.3:1 on white) keeps the "you are
+   inside a component" colour identity; dark keeps the native pairing. */
+html[data-dbe-theme="light"] .uniPrePanelHeader {
+    background: var(--dbe-l2) !important;
+    border-block-end: 1px solid var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniPrePanelHeader > span {
+    color: var(--dbe-component) !important;
+}
+html[data-dbe-theme="light"] .uniPrePanelHeader .uniIconButton svg path {
+    fill: var(--dbe-component) !important;
+}
+
+/* --- Leak audit pass 23: the snippet/variable "Enabled" switch --- */
+/* The .uniPanelField--switch checkbox keeps its native dark colours in the
+   light theme: a #3A3F47 track with a #202022 knob — a black pill on the
+   light configure panel, with the knob invisible against its own track
+   (~1.4:1). 12-controls.css rebuilds the control as the admin switch
+   pattern when Controls styling is on; this repaint covers the theme on
+   its own, recolouring the native geometry with the SAME tokens and
+   longhand properties so the two files compose to one result when both
+   are active. Checked keeps no ring — var(--dbe-accent) already passes
+   3:1 against the panel; unchecked needs the muted ring because the
+   track fill alone is too close to the surface (1.4.11). */
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"] {
+    background-color: var(--dbe-l2-hi) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-muted) !important;
+}
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"]:checked {
+    background-color: var(--dbe-accent) !important;
+    box-shadow: none !important;
+}
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"]::before {
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.12) !important;
 }

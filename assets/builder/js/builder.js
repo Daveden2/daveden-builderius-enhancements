@@ -509,6 +509,79 @@
         });
     }
 
+    /* (im) Image defaults (image_defaults). A fresh Image element is an
+       HtmlElement seeded with only tag=img — no src, no alt — so it renders as
+       an invisible empty <img> the user has to hunt for on the canvas, and it
+       ships without an alt attribute at all. Builderius' media picker fills
+       both when an image is chosen (alt from the attachment's alt text), but
+       it only ADDS alt when that text is non-empty — and it never strips an
+       existing alt — so seeding the element at insert time closes both gaps:
+       src = an inline data: SVG placeholder (something to see and click),
+       alt = "" (present from birth; empty reads as decorative until real text
+       is written, and survives picking an image whose alt text is blank).
+       Applied through the addModule upsert (the repaint-and-persist channel);
+       dbeUndoBusy is held across the upsert so the settings write is not
+       captured as a second undo step, and restores/undo re-adds (which run
+       under dbeUndoBusy) are left untouched.
+       Verified live (Builderius 1.3.x): the settings panel normalises an
+       empty-valued attribute row to {name:'alt'} with NO value key when it
+       re-commits — that entry still renders on the front end as a bare `alt`
+       (formatHtmlAttributes emits the name alone for null/empty values),
+       which is HTML-equivalent to alt="". The builder canvas alone omits it.
+       The media picker replaces src outright and fills alt from the
+       attachment's alt text; it never strips an existing alt, so the seeded
+       one survives picking an image whose alt text is blank. */
+    var DBE_IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+        // width/height give the img an intrinsic size (a viewBox alone can
+        // collapse to 0x0 in a flex/grid slot), so the placeholder is visible
+        // and clickable before any sizing CSS exists.
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">' +
+        '<rect width="1200" height="800" fill="#d7dbe2"/>' +
+        '<circle cx="912" cy="228" r="84" fill="#a8b0bd"/>' +
+        '<path d="M0 800 336 396l228 276 168-132 468 260z" fill="#a8b0bd"/>' +
+        '<path d="M0 800l264-228 252 228z" fill="#8b94a4"/>' +
+        '</svg>'
+    );
+    function dbeApplyImageDefaults(id) {
+        var m = (modules() || {})[id];
+        if (!m || m.name !== 'HtmlElement') { return; }
+        var tag = ((m.settings || []).filter(function (s) { return s.name === 'tag'; })[0] || {}).value;
+        if (tag !== 'img') { return; }
+        // An attribute entry can exist WITHOUT a value key (the builder's own
+        // attribute rows commit {name:'alt'} until something is typed), and a
+        // value-less entry renders nothing — so only a present value counts,
+        // and a value-less entry is filled in place rather than duplicated.
+        var attrs = ((m.settings || []).filter(function (s) { return s.name === 'htmlAttribute'; })[0] || {}).value || [];
+        var hasSrc = attrs.some(function (a) { return a && a.name === 'src' && a.value; });
+        var hasAlt = attrs.some(function (a) { return a && a.name === 'alt' && a.value != null; });
+        if (hasSrc && hasAlt) { return; }
+        var wasBusy = dbeUndoBusy;
+        dbeUndoBusy = true;
+        try {
+            dbeUpdateModuleSettings(id, function (settings) {
+                var attr = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
+                if (!attr) { attr = { name: 'htmlAttribute', value: [] }; settings.push(attr); }
+                if (!Array.isArray(attr.value)) { attr.value = []; }
+                if (!hasSrc) { attr.value.push({ name: 'src', value: DBE_IMG_PLACEHOLDER }); }
+                if (!hasAlt) {
+                    var alt = attr.value.filter(function (a) { return a && a.name === 'alt'; })[0];
+                    if (alt) { alt.value = ''; } else { attr.value.push({ name: 'alt', value: '' }); }
+                }
+            });
+        } finally { dbeUndoBusy = wasBusy; }
+    }
+    function hookImageDefaults() {
+        try {
+            window.Builderius.API.hooks.addAction('builderius.Module.added', 'dbeImageDefaults', function (p) {
+                if (dbeUndoBusy || !p || !p.id) { return; }
+                // Defer out of the dispatch so the add settles first. The
+                // upsert re-fires this hook, but by then src and alt exist and
+                // the second pass is a no-op, so it cannot loop.
+                setTimeout(function () { try { dbeApplyImageDefaults(p.id); } catch (e) {} }, 0);
+            });
+        } catch (e) {}
+    }
+
     /* (d1) Move the target element up or down among its siblings via the builder's
        own move action (the repaint-and-persist channel). `to` is the desired final
        position in the sibling order; if a Builderius version treats newIndex as
@@ -2317,6 +2390,79 @@
         });
     }
 
+    /* The snippet/variable list menu (Rename / Configure / Delete / Move,
+       data-menu-id="var_actions_<title>") opens through the same native
+       dialog machinery as the element menu, but onContextMenuShow never
+       touches it (it recognises element menus by their Duplicate / Create
+       Component rows) — so its items are unfocusable and arrows do nothing.
+       Stamp the shared menu keyboard model on it, and name the menu after
+       the item it acts on (the menu-id suffix is the item's title). Runs
+       under footer_toolbar — the footer tools' accessibility feature — via
+       its own hook registration, so it never drags the element-menu
+       machinery in. */
+    function onVarMenuShow() {
+        requestAnimationFrame(function () {
+            var menu = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'))
+                .filter(function (m) { return m.offsetParent !== null; })[0];
+            if (!menu) { return; }
+            var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
+            if (!menu.getAttribute('aria-label')) {
+                menu.setAttribute('aria-label', title
+                    ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
+                    : dbeT('tipItemActionsFallback', 'Item actions'));
+            }
+            var container = menu.querySelector('ul') || menu;
+            setupMenuKeyboard(container);
+            dbeAnchorVarMenu(menu, title);
+        });
+    }
+
+    /* Anchor the snippet/variable menu to the row button that owns it,
+       instead of the click coordinates the native dialog positions itself
+       from (a keyboard open otherwise lands at the synthesised event's
+       coordinates, and a pointer open wherever the mouse was). The trigger
+       is resolved from the menu-id suffix — it is the row's title — against
+       the visible list, so it works however the menu was opened. Where CSS
+       anchor positioning exists, the trigger is stamped as the anchor and
+       04-menu-anchor.css tethers the dialog through relayout; elsewhere the
+       dialog's inline position is overwritten once (the dbeAnchorSaveMenu
+       technique): below the button with right edges aligned, flipped above
+       when the footer leaves no room below — which, for the bottom-of-screen
+       list, is the common case. An unmatched title leaves the native
+       placement alone. */
+    var dbeVarMenuAnchorBtn = null;
+    function dbeAnchorVarMenu(menu, title) {
+        var dlg = menu.closest('dialog');
+        if (!dlg || !title) { return; }
+        var btn = null;
+        [].slice.call(document.querySelectorAll('.uniTabDataVars__varsList li')).forEach(function (row) {
+            if (btn || row.offsetParent === null) { return; }
+            var t = row.querySelector('button.varTitle');
+            if (t && (t.textContent || '').trim() === title) { btn = row.querySelector('button.iconBoxWrapper'); }
+        });
+        if (!btn) { return; }
+        if (window.CSS && CSS.supports && CSS.supports('anchor-name: --a')) {
+            // One anchor at a time: duplicate anchor-names resolve to the last
+            // element in DOM order, which need not be the clicked row's button.
+            if (dbeVarMenuAnchorBtn && dbeVarMenuAnchorBtn !== btn) {
+                dbeVarMenuAnchorBtn.style.removeProperty('anchor-name');
+            }
+            btn.style.setProperty('anchor-name', '--dbe-menu-anchor');
+            dbeVarMenuAnchorBtn = btn;
+            dlg.classList.add('dbe-menu-anchored');
+            return;
+        }
+        // The dialog node is reused across opens; make sure a class stamped
+        // by the CSS path on an earlier open cannot linger into this one.
+        dlg.classList.remove('dbe-menu-anchored');
+        var br = btn.getBoundingClientRect();
+        var dr = dlg.getBoundingClientRect();
+        var top = Math.round(br.bottom + 4);
+        if (top + dr.height > window.innerHeight - 8) { top = Math.round(br.top - dr.height - 4); }
+        dlg.style.left = Math.max(8, Math.round(br.right - dr.width)) + 'px';
+        dlg.style.top = Math.max(8, top) + 'px';
+    }
+
     /* (e) "Collapse subtrees" Navigator header icon. The stock header button
        collapses EVERYTHING, including the top-level rows; this one closes only
        the levels below them (e.g. the sections inside <main>), leaving the
@@ -2465,6 +2611,21 @@
             document.querySelectorAll(pair[0]).forEach(function (el) { setTip(el, pair[1]); });
         });
         adoptNativeTips();
+        // Snippet/variable list rows (the JavaScript and Dynamic Data footer
+        // tools): the sliders button that opens the Rename/Configure/Delete
+        // menu is icon-only with no name anywhere (4.1.2). Name it after the
+        // row's own title, and declare the menu it pops open. Renaming
+        // re-renders the row, so a stale name cannot outlive its item.
+        document.querySelectorAll('.uniTabDataVars__varsList ul li').forEach(function (row) {
+            var btn = row.querySelector('button.iconBoxWrapper');
+            if (!btn) { return; }
+            var title = row.querySelector('button.varTitle');
+            title = title ? (title.textContent || '').trim() : '';
+            setTip(btn, title
+                ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
+                : dbeT('tipItemActionsFallback', 'Item actions'));
+            if (btn.getAttribute('aria-haspopup') !== 'menu') { btn.setAttribute('aria-haspopup', 'menu'); }
+        });
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
         // base first, then large-to-small), falling back to the static list.
@@ -3902,6 +4063,75 @@
         });
     }
 
+    /* (sa) Settings-group accordions (settings_accordions). The element
+       settings panel's collapsible groups (Primary, Advanced, Attributes…) are
+       mouse-only: each heading is a plain <div> at tabindex -1 with no role,
+       no aria-expanded and no key handling, and a COLLAPSED group renders no
+       field DOM at all — its settings do not exist in the document, so a
+       keyboard or screen-reader user can never reach them. Worse, the
+       collapsed state persists globally per group name, so "everything after
+       the tag selector is unreachable" is a normal panel state. Wire each
+       heading as an APG disclosure button: a real Tab stop (one per heading,
+       like the block editor's panel headings — no roving needed for 2-3
+       groups), role=button, aria-expanded mirrored from whether the group's
+       items wrapper is mounted, and Enter/Space toggling through the
+       builder's own click path (clickSeq — React owns the toggle, so a bare
+       synthetic click does not fire it). The open group's body gets
+       role=region + aria-labelledby so the fields announce which group they
+       belong to. The toggle remounts the heading, so focus is re-asserted by
+       group NAME after the re-render settles — the text is the only identity
+       that survives. Scoped to the left panel: the Inserter and the context
+       menu reuse .uniCatTitle but have their own keyboard features. */
+    var dbeAccSeq = 0;
+    function dbeAccName(head) {
+        var span = head.querySelector('span');
+        return ((span ? span.textContent : head.textContent) || '').trim();
+    }
+    function dbeAccRefocus(name) {
+        // Two frames: the first re-render swaps the heading node, the group
+        // body mounts on the next. Re-stamp the fresh nodes before focusing so
+        // the landing heading already announces its new expanded state.
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+            try { ensureSettingsAccordions(); } catch (e) {}
+            var heads = document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper__catTitle');
+            for (var i = 0; i < heads.length; i++) {
+                if (dbeAccName(heads[i]) === name) { heads[i].focus(); return; }
+            }
+        }); });
+    }
+    function ensureSettingsAccordions() {
+        document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper').forEach(function (wrap) {
+            var head = wrap.querySelector('.uniModCssCatWrapper__catTitle');
+            if (!head) { return; }
+            var items = wrap.querySelector('.uniModCssCatWrapper__items');
+            if (head.getAttribute('role') !== 'button') { head.setAttribute('role', 'button'); }
+            if (head.getAttribute('tabindex') !== '0') { head.setAttribute('tabindex', '0'); }
+            var expanded = items ? 'true' : 'false';
+            if (head.getAttribute('aria-expanded') !== expanded) { head.setAttribute('aria-expanded', expanded); }
+            if (!head.id) { head.id = 'dbe-acc-head-' + (++dbeAccSeq); }
+            if (items) {
+                if (!items.id) { items.id = 'dbe-acc-panel-' + (++dbeAccSeq); }
+                if (items.getAttribute('role') !== 'region') { items.setAttribute('role', 'region'); }
+                if (items.getAttribute('aria-labelledby') !== head.id) { items.setAttribute('aria-labelledby', head.id); }
+                if (head.getAttribute('aria-controls') !== items.id) { head.setAttribute('aria-controls', items.id); }
+            } else if (head.hasAttribute('aria-controls')) {
+                // A collapsed group unmounts its body node entirely, so the
+                // reference would dangle — drop it until the body exists again.
+                head.removeAttribute('aria-controls');
+            }
+            if (head.dbeAccBound) { return; }
+            head.dbeAccBound = true;
+            head.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                var name = dbeAccName(head);
+                clickSeq(head);
+                dbeAccRefocus(name);
+            });
+        });
+    }
+
     function ensureTopbarToolbars() {
         // Breakpoint buttons carry no text, so a radio with no name is useless.
         // The tooltips feature labels them (setTip), but topbar_toolbar must not
@@ -3960,7 +4190,7 @@
        observer dies with the old node and the feature would go silently dead.
        The panel is retried independently of the bar: it can mount later, and
        the old code never re-checked once the bar was seen. */
-    var dbeFooterBarNode = null, dbeFooterPanelNode = null;
+    var dbeFooterBarNode = null, dbeFooterPanelNode = null, dbeFooterScopeContentNode = null;
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
         if (!window.MutationObserver) { return; }
@@ -3978,6 +4208,18 @@
             try {
                 new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
                 dbeFooterPanelNode = fp;
+            } catch (e) {}
+        }
+        // Scope content: the snippet/variable configure panel mounts and
+        // unmounts as a DIRECT child (list menu -> Configure), which the
+        // shallow panel observer above cannot see. childList-only, so the
+        // Monaco editors deeper inside still do not spam it. Node-tracked:
+        // the content remounts when the tool or scope switches.
+        var sc = document.querySelector('.uniFooterTabScopeContent');
+        if (sc && sc !== dbeFooterScopeContentNode) {
+            try {
+                new MutationObserver(schedule).observe(sc, { childList: true });
+                dbeFooterScopeContentNode = sc;
             } catch (e) {}
         }
     }
@@ -4028,6 +4270,7 @@
         dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
 
         dbeEnsureFooterScopeTabs();
+        dbeEnsurePanelFieldLabels();
     }
 
     /* (tf2) Global / Template scope tabs inside the JavaScript and Dynamic Data
@@ -4071,6 +4314,51 @@
             try {
                 new MutationObserver(schedule).observe(scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
             } catch (e) { scope.dbeScopeObserved = false; }
+        }
+    }
+
+    /* (tf3) Field labels in the snippet/variable configure panel. Every plain
+       .uniPanelField renders its <label class="uniPanelField__label"> as a
+       SIBLING of the control with no for/id pair — the Enabled switch, Title,
+       Description and Priority fields all announce as unnamed controls
+       (1.3.1 / 4.1.2), and clicking a label does nothing. Wire for/id (native
+       association — no ARIA needed); radio fields already wrap each option in
+       its own <label>, so there the caption instead names the option group
+       (role=radiogroup + aria-labelledby — the one place ARIA is required,
+       since HTML's fieldset/legend cannot be retrofitted onto React's DOM).
+       React re-creates these nodes on state changes (toggling the switch
+       re-renders the field), which drops our ids — the configure-panel
+       observer below re-runs this pass, and ids are only (re)assigned when
+       missing, so the wiring self-heals. */
+    var dbePanelFieldSeq = 0;
+    function dbeEnsurePanelFieldLabels() {
+        [].slice.call(document.querySelectorAll('.uniPanelField')).forEach(function (field) {
+            var label = field.querySelector('.uniPanelField__label');
+            if (!label) { return; }
+            var group = field.querySelector('.uniPanelField__radioGroup');
+            if (group) {
+                if (!label.id) { label.id = 'dbe-panel-field-label-' + (++dbePanelFieldSeq); }
+                if (group.getAttribute('role') !== 'radiogroup') { group.setAttribute('role', 'radiogroup'); }
+                if (group.getAttribute('aria-labelledby') !== label.id) { group.setAttribute('aria-labelledby', label.id); }
+                return;
+            }
+            var control = field.querySelector('input, textarea, select');
+            // Controls inside their own wrapping <label> are already named.
+            if (!control || control.closest('label')) { return; }
+            if (!control.id) { control.id = 'dbe-panel-field-' + (++dbePanelFieldSeq); }
+            if (label.getAttribute('for') !== control.id) { label.setAttribute('for', control.id); }
+        });
+        // The configure panel mounts on demand (list menu -> Configure) as a
+        // child of the scope content, outside every observer above — and its
+        // fields re-render on edit. Watch it while it exists; node-tracked so
+        // a React-replaced panel is re-observed, and childList-only so our own
+        // attribute writes never retrigger the pass.
+        var cfg = document.querySelector('.uniTabDataVars__configurePanel');
+        if (cfg && !cfg.dbeFieldsObserved) {
+            cfg.dbeFieldsObserved = true;
+            try {
+                new MutationObserver(schedule).observe(cfg, { childList: true, subtree: true });
+            } catch (e) { cfg.dbeFieldsObserved = false; }
         }
     }
 
@@ -5510,13 +5798,33 @@
         }
     }
 
-    /* (cp) Command palette (command_palette). Cmd/Ctrl+Shift+K opens a searchable
-       command list (modelled on openAutoBemDialog's isolation contract). With an
-       element selected it offers add-class, add-attribute and add-element (minimal
-       Emmet), the element ops and the area jumps. Any command that drives the tree
-       or a native picker CLOSES the dialog first (showModal makes the page inert),
-       then runs. */
+    /* (cp) Command palette (command_palette). A configurable shortcut (the
+       palette_shortcut setting, default Cmd/Ctrl+K) or the top-bar button opens a
+       searchable command list (modelled on openAutoBemDialog's isolation contract).
+       With an element selected it offers add-class, add-attribute and add-element
+       (minimal Emmet), the element ops and the area jumps. Any command that drives
+       the tree or a native picker CLOSES the dialog first (showModal makes the page
+       inert), then runs. */
     var dbePaletteKeyBound = false;
+
+    /* The shortcut choices mirror dbe_enum_settings() in PHP. Ctrl+Shift+K, the
+       original default, is reserved by Firefox on Windows/Linux for the DevTools
+       Web Console — browser chrome consumes it before the page sees the event —
+       so it survives only as an opt-in legacy choice. mod-slash matches on e.key
+       rather than e.code (with no shift check) so it works on layouts where "/"
+       itself needs Shift. */
+    var DBE_PALETTE_KEYS = {
+        'mod-k':       { code: 'KeyK', shift: false, label: 'K' },
+        'mod-shift-k': { code: 'KeyK', shift: true, label: 'K' },
+        'mod-slash':   { key: '/', label: '/' }
+    };
+    function dbePaletteKey() {
+        return DBE_PALETTE_KEYS[(CFG.palette || {}).shortcut] || DBE_PALETTE_KEYS['mod-k'];
+    }
+    function dbePaletteAccel() {
+        var k = dbePaletteKey();
+        return dbeAccel(k.label, { cmd: true, shift: !!k.shift });
+    }
 
     /* Add (or update) one or more HTML attributes on an existing element through
        the settings upsert (a single upsert for the whole batch — no native-control
@@ -5768,7 +6076,9 @@
     }
 
     function dbePaletteKeydown(e) {
-        if (e.code !== 'KeyK' || !e.shiftKey || e.altKey) { return; }
+        var k = dbePaletteKey();
+        if (k.key ? e.key !== k.key : (e.code !== k.code || e.shiftKey !== k.shift)) { return; }
+        if (e.altKey) { return; }
         if (!(dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey))) { return; }
         if (renameActive()) { return; }
         var t = e.target;
@@ -5776,6 +6086,34 @@
         if (document.querySelector('dialog[open]')) { return; }
         e.preventDefault(); e.stopPropagation();
         openCommandPalette();
+    }
+
+    /* Top-bar palette button: a pointer-visible way into the palette, and the
+       shortcut's discovery surface (the tooltip and accessible name carry the
+       current combo). Same uniPanelButton recipe as the theme/density toggles;
+       sits with them at the start of the right column. */
+    function ensurePaletteButton() {
+        var col = document.querySelector('.uniTopPanel__rightCol');
+        if (!col || col.querySelector('.dbe-palette-btn')) { return; }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'uniPanelButton dbe-palette-btn';
+        var span = document.createElement('span');
+        span.innerHTML =
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<path d="M2.2 3.2l3.2 3.3-3.2 3.3M7.6 10.8h4.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        btn.appendChild(span);
+        var tip = dbeFmt(dbeT('paletteTip', 'Command palette (%s)'), dbePaletteAccel());
+        setTip(btn, tip);
+        btn.setAttribute('aria-label', tip);
+        btn.addEventListener('click', function () {
+            if (document.querySelector('dialog[open]')) { return; } // a non-modal dialog is up — same guard as the shortcut
+            openCommandPalette();
+        });
+        // After our other mode buttons when present, else first in the column.
+        var siblings = col.querySelectorAll('.dbe-theme-btn, .dbe-density-btn');
+        var last = siblings.length ? siblings[siblings.length - 1] : null;
+        col.insertBefore(btn, last ? last.nextSibling : col.firstChild);
     }
 
     /* Preview resize handles (preview_resize): drag either edge of the canvas
@@ -8493,10 +8831,12 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
+            if (on('command_palette')) { try { ensurePaletteButton(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
+            if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
@@ -8551,7 +8891,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -8559,9 +8899,9 @@
         }
 
         // Top bar too — breakpoint buttons and the breakpoints modal mount
-        // there; labelChromeIcons(), the theme/density buttons and the save
-        // cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
+        // there; labelChromeIcons(), the theme/density/palette buttons and the
+        // save cue must reach it when it re-renders.
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
@@ -8633,6 +8973,12 @@
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus); } catch (e) {}
         }
 
+        // The snippet/variable list menu in the footer panels gets its
+        // keyboard model under footer_toolbar, independent of NEED_CTX_MENU.
+        if (on('footer_toolbar')) {
+            try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow); } catch (e) {}
+        }
+
         // Copy menu on the Styles editor's class chips.
         if (on('context_menu')) { bindChipMenu(); }
 
@@ -8648,6 +8994,9 @@
             hookHistoryCapture();
             bindUndoKeys();
         }
+
+        // Seed new Image elements with a placeholder src and an empty alt.
+        if (on('image_defaults')) { hookImageDefaults(); }
 
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }
@@ -8677,7 +9026,7 @@
             document.addEventListener('keydown', dbeElementShortcutsKeydown, true);
         }
 
-        // Command palette (Cmd/Ctrl+Shift+K).
+        // Command palette (shortcut from the palette_shortcut setting; default Cmd/Ctrl+K).
         if (on('command_palette') && !dbePaletteKeyBound) {
             dbePaletteKeyBound = true;
             document.addEventListener('keydown', dbePaletteKeydown, true);

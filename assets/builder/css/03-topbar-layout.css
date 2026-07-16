@@ -1,0 +1,74 @@
+/* Top-bar column layout under injected controls — loaded (shared) by every
+   feature that adds a control to the top bar: the theme switcher, density
+   toggle, command palette button, save cue and save-menu button.
+
+   The stock bar is three fixed columns: the left and right columns both
+   carry width/min-width 350px, with the breakpoint cluster centred in a
+   400px wrapper between them. The right column's native content (entity
+   select, panel/preview buttons, Save) uses ~330px of its box, so the
+   controls this plugin injects there overflow the fixed budget — and
+   because the column packs flex-end, the excess spills LEFT, painting our
+   buttons over the canvas width field and the breakpoint buttons once the
+   viewport drops below ~1240px. The left column meanwhile uses ~180px of
+   its 350px reservation.
+
+   Below 1280px, release the fixed budgets: both side columns size to their
+   content (the left column's slack is exactly what the right column
+   needs), the breakpoint wrapper keeps its own content as a width floor
+   (its fields and buttons cannot truncate), and the entity select becomes
+   the one item that shrinks — truncating its label with an ellipsis
+   instead of letting anything overlap. The breakpoint cluster trades exact
+   viewport-centring for no-overlap at these widths. Above 1280px the
+   native layout is untouched. */
+@media (max-width: 1279px) {
+    /* min-inline-size auto (not 0): the flex content-based minimum. It lets
+       the columns drop their 350px reservations while still refusing to
+       shrink below their content — 0 would let flex crush the right column's
+       box under its buttons, which then overflow left exactly like the
+       fixed width did. */
+    .uniTopPanel__leftCol,
+    .uniTopPanel__rightCol {
+        inline-size: auto !important;
+        min-inline-size: auto !important;
+    }
+    .uniTopPanel__rightCol {
+        flex-shrink: 1 !important;
+    }
+    /* Content-sized and centred in whatever space the side columns leave —
+       auto margins keep the breakpoint cluster centred without the fixed
+       geometry, and collapse to zero before anything overlaps. */
+    .uniTopPanel__middleColWrapper {
+        inline-size: auto !important;
+        flex: 0 1 auto !important;
+        min-inline-size: auto !important;
+        margin-inline: auto !important;
+    }
+    /* Everything on the select label's shrink path must allow shrinking
+       (flex items default to min-width auto). The floor on the select
+       keeps the caret and the start of the label visible. */
+    .uniTopPanel__rightCol .uniApplicantsSelect {
+        min-inline-size: 56px !important;
+    }
+    .uniTopPanel__rightCol .uniApplicantsSelect .uniSystemSelect,
+    .uniTopPanel__rightCol .uniApplicantsSelect .uniSystemSelect__valueWrapper,
+    .uniTopPanel__rightCol .uniApplicantsSelect .uniSystemSelect__valueInner {
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+    }
+    .uniTopPanel__rightCol .uniApplicantsSelect .uniSystemSelect__value {
+        display: block !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+}
+
+/* Tighter still: the save cue drops to its amber dot. The text keeps
+   announcing through the span's role=status live region; visually the
+   dot's appearance is the cue — presence, not colour alone, the same
+   convention as a notification badge (1.4.1). */
+@media (max-width: 1023px) {
+    .dbe-save-cue {
+        font-size: 0 !important;
+    }
+}

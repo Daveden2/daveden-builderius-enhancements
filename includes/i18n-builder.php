@@ -162,6 +162,9 @@ function dbe_builder_strings() {
 		'tipInsertDynamicData'    => __( 'Insert dynamic data', 'daveden-builderius-enhancements' ),
 		'tipCanvasWidth'          => __( 'Canvas width in pixels', 'daveden-builderius-enhancements' ),
 		'tipCanvasZoom'           => __( 'Canvas zoom, percent', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the snippet or variable title. */
+		'tipItemActions'          => __( 'Actions for %s', 'daveden-builderius-enhancements' ),
+		'tipItemActionsFallback'  => __( 'Item actions', 'daveden-builderius-enhancements' ),
 		/* translators: 1: breakpoint label, 2: maximum width in pixels. */
 		'bpMax'                   => __( '%1$s (max %2$spx)', 'daveden-builderius-enhancements' ),
 		/* translators: %s: breakpoint label. */
@@ -388,6 +391,8 @@ function dbe_builder_strings() {
 
 		// Command palette.
 		'commandPalette'          => __( 'Command palette', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the palette's keyboard shortcut, e.g. Ctrl+K. */
+		'paletteTip'              => __( 'Command palette (%s)', 'daveden-builderius-enhancements' ),
 		'searchCommands'          => __( 'Search commands…', 'daveden-builderius-enhancements' ),
 		'paletteNoEl'             => __( 'No element selected — element commands are hidden', 'daveden-builderius-enhancements' ),
 		'paletteAddClass'         => __( 'Add classes', 'daveden-builderius-enhancements' ),
