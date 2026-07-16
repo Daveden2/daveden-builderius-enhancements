@@ -1760,18 +1760,15 @@
         return reg;
     }
 
-    /* Editable = every module in the subtree is a type the dialogs express. */
+    /* Editable = the ROOT is a type the dialogs express. Descendants need not
+       be: a non-expressible module inside the subtree (an HtmlCode block, a
+       saved/composite module) serialises as a <dbe-keep> placeholder that
+       round-trips it verbatim, so only the root has to be something the markup
+       can actually stand in for. Matches the server ability, which rejects a
+       non-expressible ROOT but keeps non-expressible descendants. */
     function dbeHtmlEditable(rootId) {
-        var mods = modules() || {};
-        var idx = store().storeGet('indexes') || {};
-        var ok = true;
-        (function walk(id) {
-            if (!ok) { return; }
-            var m = mods[id];
-            if (!m || !DBE_HTML_MODULES[m.name]) { ok = false; return; }
-            (idx[id] || []).forEach(walk);
-        })(rootId);
-        return ok;
+        var m = (modules() || {})[rootId];
+        return !!(m && DBE_HTML_MODULES[m.name]);
     }
 
     function dbeHtmlEscapeAttr(v) {
@@ -1785,6 +1782,15 @@
             var m = mods[id];
             if (!m) { return ''; }
             var pad = new Array(depth + 1).join('  ');
+            // A module the dialogs can't express (HtmlCode, a saved/composite
+            // module) serialises as a <dbe-keep> placeholder. On apply the
+            // marker preserves it and its whole subtree verbatim, so the user
+            // edits around it. Same shape as the server ability.
+            if (!DBE_HTML_MODULES[m.name]) {
+                return pad + '<dbe-keep data-dbe-id="' + id + '"><!-- '
+                    + dbeHtmlEscapeAttr(m.name + ': ' + (m.label || ''))
+                    + ' — preserved as-is, leave this element in place --></dbe-keep>';
+            }
             // An SvgCode module serialises as its raw markup; the identity
             // marker rides on the <svg> tag itself (the markup IS the
             // contentSvg setting — there is no separate tag to carry it).
@@ -1938,6 +1944,16 @@
         function convert(el) {
             var tag = el.tagName.toLowerCase();
             if (tag === 'svg') { return convertSvg(el); }
+            // A keep-placeholder preserves a non-expressible module and its
+            // whole subtree; its own children (the human-hint comment) are
+            // ignored. The marker must point into the original subtree.
+            if (tag === 'dbe-keep') {
+                var kMarker = el.getAttribute('data-dbe-id');
+                if (kMarker && origIds[kMarker] && !claimed[kMarker]) { claimed[kMarker] = true; return { keep: kMarker }; }
+                if (kMarker) { unknownMarkers[kMarker] = true; }
+                stripped.push('<dbe-keep> (unknown or duplicate marker)');
+                return null;
+            }
             // A component instance: <dbe-component name="slug" prop="value" …>.
             // `name` selects the component; every other attribute (bar the dbe
             // markers) is a property override validated against what the
@@ -2041,6 +2057,11 @@
         if (parsed.roots.length !== 1) {
             throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
         }
+        // The root carries the subtree's identity, so it can't be a preserved
+        // placeholder — there would be nothing to edit.
+        if (parsed.roots[0].keep) {
+            throw dbeT('htmlErrRootKeep', 'The root element can’t be a preserved (<dbe-keep>) placeholder');
+        }
         return { tree: parsed.roots[0], stripped: parsed.stripped, unknownMarkers: parsed.unknownMarkers };
     }
 
@@ -2087,8 +2108,16 @@
 
         var kept = {};
         (function mark(n) {
+            // A keep placeholder preserves its module AND its entire live
+            // subtree, none of which appears in the parsed tree — so mark the
+            // whole store subtree kept, or the descendants would fall into the
+            // delete set and be removed out from under the preserved module.
+            if (n.keep) {
+                (function keepAll(id) { kept[id] = true; (idx[id] || []).forEach(keepAll); })(n.keep);
+                return;
+            }
             if (n.existingId) { kept[n.existingId] = true; }
-            n.children.forEach(mark);
+            (n.children || []).forEach(mark);
         })(tree);
 
         var origIdsInOrder = [];
@@ -2111,6 +2140,14 @@
             var sf2 = store();
             function place(node, parentId, index) {
                 var id;
+                if (node.keep) {
+                    // Preserve the module and its subtree untouched; only its
+                    // position among siblings may have changed. No settings
+                    // rewrite, no recursion — the store subtree stays as-is.
+                    if (parentId !== null) { storeMoveModule(sf2, node.keep, parentId, index); }
+                    counts.kept += 1;
+                    return;
+                }
                 if (node.existingId) {
                     var live = sf2.storeGet('modules') || {};
                     var m = live[node.existingId] && JSON.parse(JSON.stringify(live[node.existingId]));
@@ -2569,18 +2606,29 @@
        from the markup is a removal. The root's identity is forced to rootId,
        exactly as dbeApplyHtmlTree does. */
     function dbePreviewCounts(root, origIds, rootId) {
-        if (root) { root.existingId = rootId; }
-        var kept = {};
+        var idx = store().storeGet('indexes') || {};
+        if (root && !root.keep) { root.existingId = rootId; }
+        // Two tallies: `updated` matches what the apply reports (one per
+        // kept element or keep placeholder, NOT per preserved descendant),
+        // while `preserved` records every id staying — keep descendants
+        // included — so the removed count doesn't over-count them.
+        var preserved = {};
+        var updated = 0;
         var added = 0;
         (function walk(n) {
             if (!n) { return; }
-            if (n.existingId && origIds[n.existingId]) { kept[n.existingId] = true; }
+            if (n.keep) {
+                (function keepAll(id) { preserved[id] = true; (idx[id] || []).forEach(keepAll); })(n.keep);
+                updated += 1;
+                return;
+            }
+            if (n.existingId && origIds[n.existingId]) { preserved[n.existingId] = true; updated += 1; }
             else { added += 1; }
             (n.children || []).forEach(walk);
         })(root);
         var removed = 0;
-        Object.keys(origIds).forEach(function (id) { if (!kept[id]) { removed += 1; } });
-        return { updated: Object.keys(kept).length, added: added, removed: removed };
+        Object.keys(origIds).forEach(function (id) { if (!preserved[id]) { removed += 1; } });
+        return { updated: updated, added: added, removed: removed };
     }
 
     function openImportHtmlDialog(targetId) {

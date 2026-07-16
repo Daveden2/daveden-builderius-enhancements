@@ -449,9 +449,10 @@ function dbe_builder_strings() {
 		'editAsHtmlTitle'         => __( 'Edit as HTML — %s', 'daveden-builderius-enhancements' ),
 		'editAsHtmlHint'          => __( 'Keep an element’s data-dbe-id marker and its label, conditions and other settings survive the edit; elements without one are created fresh, and removed markers remove their elements. Scripts, event handlers and unknown tags are stripped.', 'daveden-builderius-enhancements' ),
 		'editAsHtmlEditor'        => __( 'HTML markup', 'daveden-builderius-enhancements' ),
-		'editAsHtmlOnlyElements'  => __( 'Only subtrees of plain elements can be edited as HTML', 'daveden-builderius-enhancements' ),
+		'editAsHtmlOnlyElements'  => __( 'This element can’t be edited as HTML — try one inside or around it', 'daveden-builderius-enhancements' ),
 		'applyHtml'               => __( 'Apply HTML', 'daveden-builderius-enhancements' ),
 		'htmlErrOneRoot'          => __( 'The HTML must have exactly one root element', 'daveden-builderius-enhancements' ),
+		'htmlErrRootKeep'         => __( 'The root element can’t be a preserved (<dbe-keep>) placeholder', 'daveden-builderius-enhancements' ),
 		'htmlErrParse'            => __( 'Could not parse the HTML', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of root elements found. */
 		'editHtmlRootCount'       => __( 'The HTML must have exactly one root element (found %s).', 'daveden-builderius-enhancements' ),
