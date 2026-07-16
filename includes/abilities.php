@@ -172,6 +172,48 @@ function dbe_register_abilities() {
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
 	);
+
+	wp_register_ability(
+		'dbe/get-tree-outline',
+		array(
+			'label'               => __( 'Get template tree outline', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Returns a compact outline of a template\'s module tree — one line per element with its id, tag and classes, Navigator label, module type and depth — so you can find the id of the element you want to edit by its label or tag instead of reading the whole HTML. Also returns the same data as a structured nodes array. Omit module_id for the whole template, or pass one to outline a single subtree.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template'  => $template_arg,
+					'module_id' => array(
+						'type'        => 'string',
+						'description' => __( 'Module ID to outline from. Omit for the whole template.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'template' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'outline'     => array(
+						'type'        => 'string',
+						'description' => __( 'Indented text outline, one line per element.', 'daveden-builderius-enhancements' ),
+					),
+					'nodes'       => array(
+						'type'        => 'array',
+						'description' => __( 'Structured rows: id, type, tag, classes, label, component, depth.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'template_id' => array( 'type' => 'integer' ),
+					'branch_id'   => array( 'type' => 'integer' ),
+					'commit_name' => array( 'type' => 'string' ),
+					'module_id'   => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_get_tree_outline',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
 }
 
 /**
@@ -560,6 +602,68 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	}
 	$lines[] = $pad . '</' . $tag . '>';
 	return implode( "\n", $lines );
+}
+
+/* ---------------------------------------------------------------------- *
+ *  Outline (config → scannable id/label/tag map)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Walk a subtree, appending one row to $nodes and one line to $lines per
+ * module. The row carries everything an agent needs to target an element by
+ * label or tag: id, module type, tag, classes, label, component slug, depth.
+ * The line is the same, indented, for cheap human scanning.
+ */
+function dbe_ability_outline( $config, $id, $depth, &$nodes, &$lines ) {
+	$mods = $config['modules'];
+	$idx  = $config['indexes'];
+	$m    = $mods[ $id ] ?? null;
+	if ( ! $m ) {
+		return;
+	}
+	$type      = $m['name'];
+	$label     = (string) ( $m['label'] ?? '' );
+	$tag       = null;
+	$classes   = array();
+	$component = null;
+
+	if ( 'Component' === $type ) {
+		$component = (string) dbe_ability_setting( $m, 'componentName' );
+		$token     = '<dbe-component name="' . $component . '">';
+	} elseif ( 'SvgCode' === $type ) {
+		$tag   = 'svg';
+		$token = '<svg>';
+	} else {
+		$tag = 'Template' === $type
+			? 'template'
+			: strtolower( (string) ( dbe_ability_setting( $m, 'tag' ) ?: 'div' ) );
+		$c   = dbe_ability_setting( $m, 'tagClass' );
+		if ( is_array( $c ) ) {
+			$classes = array_values( $c );
+		}
+		$token = '<' . $tag . ( $classes ? '.' . implode( '.', $classes ) : '' ) . '>';
+	}
+	// Name the type in the line when it is not a plain element (the token
+	// already reveals components and svg).
+	if ( ! in_array( $type, array( 'HtmlElement', 'Component', 'SvgCode' ), true ) ) {
+		$token .= ' [' . $type . ']';
+	}
+
+	$nodes[] = array(
+		'id'        => $id,
+		'type'      => $type,
+		'tag'       => $tag,
+		'classes'   => $classes,
+		'label'     => $label,
+		'component' => $component,
+		'depth'     => $depth,
+	);
+	$lines[] = str_repeat( '  ', $depth ) . $token . ' #' . $id
+		. ( '' !== $label ? ' » ' . $label : '' );
+
+	foreach ( (array) ( $idx[ $id ] ?? array() ) as $k ) {
+		dbe_ability_outline( $config, $k, $depth + 1, $nodes, $lines );
+	}
 }
 
 /* ---------------------------------------------------------------------- *
@@ -1086,6 +1190,40 @@ function dbe_ability_get_subtree_html( $input ) {
 		'commit_name'  => $loaded['commit']->post_name,
 		'module_id'    => $module_id,
 		'non_editable' => $non_editable,
+	);
+}
+
+/**
+ * dbe/get-tree-outline.
+ */
+function dbe_ability_get_tree_outline( $input ) {
+	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+	$config    = $loaded['config'];
+	$module_id = trim( (string) ( $input['module_id'] ?? '' ) );
+
+	$nodes = array();
+	$lines = array();
+	if ( '' !== $module_id ) {
+		if ( ! isset( $config['modules'][ $module_id ] ) ) {
+			return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the template.', $module_id ) );
+		}
+		dbe_ability_outline( $config, $module_id, 0, $nodes, $lines );
+	} else {
+		foreach ( (array) ( $config['indexes']['root'] ?? array() ) as $root ) {
+			dbe_ability_outline( $config, $root, 0, $nodes, $lines );
+		}
+	}
+
+	return array(
+		'outline'     => implode( "\n", $lines ),
+		'nodes'       => $nodes,
+		'template_id' => $loaded['template_post']->ID,
+		'branch_id'   => $loaded['branch']->ID,
+		'commit_name' => $loaded['commit']->post_name,
+		'module_id'   => $module_id,
 	);
 }
 
