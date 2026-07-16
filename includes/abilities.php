@@ -272,13 +272,85 @@ function dbe_ability_load_config( $template ) {
 }
 
 /* ---------------------------------------------------------------------- *
+ *  Component registry (slug -> label + declared property names)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Map every registered component to its label and declared property names,
+ * read from each component's active-commit config (`template.settings`
+ * entry `componentTmplProperties`). Drives the `<dbe-component name="…">`
+ * serialisation and lets apply validate prop attributes against what the
+ * component actually declares.
+ *
+ * @return array<string,array{label:string,props:array<string,array>}>
+ *         keyed by component slug (post_name).
+ */
+function dbe_ability_component_registry() {
+	static $registry = null;
+	if ( null !== $registry ) {
+		return $registry;
+	}
+	$registry = array();
+	$components = get_posts(
+		array(
+			'post_type'   => 'builderius_component',
+			'post_status' => get_post_stati(),
+			'numberposts' => -1,
+		)
+	);
+	foreach ( $components as $component ) {
+		$props  = array();
+		$branch = get_posts(
+			array(
+				'post_type'   => 'builderius_branch',
+				'post_parent' => $component->ID,
+				'post_status' => get_post_stati(),
+				'numberposts' => 1,
+				'orderby'     => 'ID',
+				'order'       => 'ASC',
+			)
+		);
+		if ( $branch ) {
+			$commit = get_posts(
+				array(
+					'post_type'   => 'builderius_commit',
+					'post_parent' => $branch[0]->ID,
+					'post_status' => get_post_stati(),
+					'numberposts' => 1,
+					'orderby'     => 'ID',
+					'order'       => 'DESC',
+				)
+			);
+			if ( $commit ) {
+				$cfg = json_decode( (string) get_post_meta( $commit[0]->ID, 'content_config', true ), true );
+				foreach ( (array) ( $cfg['template']['settings'] ?? array() ) as $s ) {
+					if ( 'componentTmplProperties' === ( $s['name'] ?? '' ) && is_array( $s['value'] ?? null ) ) {
+						foreach ( $s['value'] as $def ) {
+							if ( ! empty( $def['name'] ) ) {
+								$props[ $def['name'] ] = $def;
+							}
+						}
+					}
+				}
+			}
+		}
+		$registry[ $component->post_name ] = array(
+			'label' => $component->post_title,
+			'props' => $props,
+		);
+	}
+	return $registry;
+}
+
+/* ---------------------------------------------------------------------- *
  *  Shared vocabulary — keep in sync with builder.js
  * ---------------------------------------------------------------------- */
 
 /**
  * Module types the server-side converter can express as plain HTML.
- * SvgCode is deliberately absent (see the file header) — it is preserved
- * via <dbe-keep> instead.
+ * Components serialise as a <dbe-component name="…"> element (see the
+ * registry above). SvgCode is deliberately absent (see the file header) —
+ * it is preserved via <dbe-keep> instead.
  */
 function dbe_ability_expressible() {
 	return array(
@@ -286,6 +358,7 @@ function dbe_ability_expressible() {
 		'Collection'    => true,
 		'SubCollection' => true,
 		'Template'      => true,
+		'Component'     => true,
 	);
 }
 
@@ -392,6 +465,24 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	$pad         = str_repeat( '  ', $depth );
 	$expressible = dbe_ability_expressible();
 
+	// A Component instance serialises as a self-describing custom element
+	// carrying its slug and any property overrides. Lowercase custom-element
+	// name (not Astro PascalCase) because HTML parsers lowercase tag names,
+	// so <SiteHeader> would not survive the round trip. It is a LEAF here:
+	// the component's internals live in its own definition, not the instance.
+	if ( 'Component' === $m['name'] ) {
+		$slug = (string) dbe_ability_setting( $m, 'componentName' );
+		$open = '<dbe-component name="' . dbe_ability_escape_attr( $slug ) . '"';
+		foreach ( (array) ( dbe_ability_setting( $m, 'componentProperties' ) ?: array() ) as $p ) {
+			if ( empty( $p['name'] ) ) {
+				continue;
+			}
+			$open .= ' ' . $p['name'] . '="' . dbe_ability_escape_attr( $p['value'] ?? '' ) . '"';
+		}
+		$open .= ' data-dbe-id="' . $id . '"></dbe-component>';
+		return $pad . $open;
+	}
+
 	if ( empty( $expressible[ $m['name'] ] ) ) {
 		$non_editable[] = array(
 			'id'    => $id,
@@ -478,9 +569,10 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 		array( 'script', 'style', 'link', 'meta', 'iframe', 'object', 'embed', 'noscript', 'base', 'math' ),
 		true
 	);
-	$known = dbe_ability_known_tags();
+	$known    = dbe_ability_known_tags();
+	$registry = dbe_ability_component_registry();
 
-	$convert = function ( $el ) use ( &$convert, &$stripped, &$claimed, $orig_ids, $strip_tags, $known ) {
+	$convert = function ( $el ) use ( &$convert, &$stripped, &$claimed, $orig_ids, $strip_tags, $known, $registry ) {
 		$tag = strtolower( $el->tagName );
 
 		// A keep-placeholder preserves a non-editable module and its whole
@@ -493,6 +585,56 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 			}
 			$stripped[] = '<dbe-keep> (unknown or duplicate marker)';
 			return null;
+		}
+
+		// A component instance: <dbe-component name="slug" prop="value" …>.
+		// `name` selects the component; every other attribute (bar the dbe
+		// markers) is a property override validated against what the
+		// component declares. It is a leaf — any children are ignored.
+		if ( 'dbe-component' === $tag ) {
+			$slug = trim( (string) $el->getAttribute( 'name' ) );
+			if ( '' === $slug || ! isset( $registry[ $slug ] ) ) {
+				$known_slugs = implode( ', ', array_keys( $registry ) );
+				$stripped[]  = '<dbe-component name="' . $slug . '"> (unknown component; available: ' . ( $known_slugs ?: 'none' ) . ')';
+				return null;
+			}
+			$node = array(
+				'existingId'    => null,
+				'module'        => 'Component',
+				'componentName' => $slug,
+				'props'         => array(),
+				'label'         => '',
+				'children'      => array(),
+			);
+			$declared = $registry[ $slug ]['props'];
+			foreach ( iterator_to_array( $el->attributes ) as $a ) {
+				$n = strtolower( $a->name );
+				if ( 'name' === $n ) {
+					continue;
+				}
+				if ( 'data-dbe-id' === $n ) {
+					if ( isset( $orig_ids[ $a->value ] ) && empty( $claimed[ $a->value ] ) ) {
+						$claimed[ $a->value ] = true;
+						$node['existingId']   = $a->value;
+					}
+					continue;
+				}
+				if ( 'data-dbe-label' === $n ) {
+					$node['label'] = trim( preg_replace( '/\s+/', ' ', (string) $a->value ) );
+					continue;
+				}
+				// A prop the component does not declare cannot resolve, so it
+				// is dropped with a note rather than stored as dead data.
+				if ( $declared && ! isset( $declared[ $n ] ) ) {
+					$stripped[] = $n . ' (not a property of ' . $slug . ')';
+					continue;
+				}
+				$node['props'][] = array(
+					'name'  => $n,
+					'value' => $a->value,
+				);
+			}
+			return $node;
 		}
 		// PHP's HTML parser lowercases attribute names, which corrupts SVG
 		// (viewBox → viewbox), so inline SVG has no safe server-side path.
@@ -623,6 +765,23 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
  * tag setting and neither Templates nor Collections take content.
  */
 function dbe_ability_node_settings( $node, $module_name ) {
+	// A Component instance is identified by its slug, with optional property
+	// overrides; it carries none of the tag/class/content settings below.
+	if ( 'Component' === $module_name ) {
+		$s = array(
+			array(
+				'name'  => 'componentName',
+				'value' => $node['componentName'],
+			),
+		);
+		if ( ! empty( $node['props'] ) ) {
+			$s[] = array(
+				'name'  => 'componentProperties',
+				'value' => array_values( $node['props'] ),
+			);
+		}
+		return $s;
+	}
 	$s = array();
 	if ( 'Template' !== $module_name ) {
 		$s[] = array(
@@ -718,8 +877,10 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 			$id = $node['existingId'];
 			$m  = $mods[ $id ];
 			// The saved module's TYPE always wins over whatever the markup
-			// guessed; replace only the HTML-expressible settings.
-			$html_settings = array( 'tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg' );
+			// guessed; replace only the expressible settings (component
+			// identity + props included, so a kept instance can be re-pointed
+			// or have its props edited).
+			$html_settings = array( 'tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg', 'componentName', 'componentProperties' );
 			$keep_settings = array_values(
 				array_filter(
 					(array) ( $m['settings'] ?? array() ),
@@ -737,12 +898,22 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 		} else {
 			$id          = dbe_ability_make_id();
 			$module_name = $node['module'];
-			$m           = array(
+			// Default label: the tag for an element, the component's own label
+			// for a new instance, else the module type.
+			if ( '' !== $node['label'] ) {
+				$label = $node['label'];
+			} elseif ( 'HtmlElement' === $module_name ) {
+				$label = ucfirst( $node['tag'] );
+			} elseif ( 'Component' === $module_name ) {
+				$registry = dbe_ability_component_registry();
+				$label    = $registry[ $node['componentName'] ]['label'] ?? $module_name;
+			} else {
+				$label = $module_name;
+			}
+			$m = array(
 				'id'       => $id,
 				'name'     => $module_name,
-				'label'    => '' !== $node['label']
-					? $node['label']
-					: ( 'HtmlElement' === $module_name ? ucfirst( $node['tag'] ) : $module_name ),
+				'label'    => $label,
 				'settings' => dbe_ability_node_settings( $node, $module_name ),
 				'parent'   => $parent_id,
 			);
