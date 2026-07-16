@@ -41,6 +41,11 @@ function dbe_tabs() {
  *         deduplicated across features by dbe_builder_css_files(); 00-tokens
  *         is emitted whenever anything at all is on and is not listed here.
  * - js:   whether the toggle is exposed to builder.js via the config object.
+ * - cap:  optional capability the CURRENT user must hold for this feature's
+ *         builder output to be emitted (see dbe_feature_output_permitted()).
+ *         The HTML converter features use `unfiltered_html`, since they turn
+ *         pasted markup into elements Builderius renders raw. The settings
+ *         page is unaffected — an administrator still configures the toggle.
  *
  * @return array<string,array<string,mixed>>
  */
@@ -379,6 +384,7 @@ function dbe_features() {
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
 			'js'           => true,
+			'cap'          => 'unfiltered_html',
 			'requires_pro' => true,
 			'experimental' => true,
 		),
@@ -390,6 +396,7 @@ function dbe_features() {
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
 			'js'           => true,
+			'cap'          => 'unfiltered_html',
 			'requires_pro' => true,
 			'experimental' => true,
 		),
@@ -401,6 +408,7 @@ function dbe_features() {
 			'css'          => array(),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
 			'js'           => true,
+			'cap'          => 'unfiltered_html',
 			'requires_pro' => true,
 			'experimental' => true,
 		),

@@ -80,7 +80,7 @@ function dbe_builder_css_files() {
 	$files[] = '00-tokens.css';
 
 	foreach ( dbe_features() as $id => $feature ) {
-		if ( ! dbe_enabled( $id ) ) {
+		if ( ! dbe_feature_output_permitted( $id ) ) {
 			continue;
 		}
 		foreach ( array( 'css', 'shared_css' ) as $key ) {
@@ -218,7 +218,7 @@ function dbe_print_builder_footer() {
 	$flags = array();
 	foreach ( dbe_features() as $id => $feature ) {
 		if ( ! empty( $feature['js'] ) ) {
-			$flags[ $id ] = dbe_enabled( $id );
+			$flags[ $id ] = dbe_feature_output_permitted( $id );
 		}
 	}
 

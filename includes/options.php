@@ -88,6 +88,48 @@ function dbe_enabled( $id ) {
 }
 
 /**
+ * Whether a feature's builder output may be emitted to the CURRENT user.
+ *
+ * Extends dbe_enabled() with an optional per-feature capability gate: a
+ * feature that declares a `cap` in the registry is emitted only to users who
+ * hold that capability, so its CSS and JS never reach a user who lacks it —
+ * even with the toggle on and Builderius Pro active. This is a builder-output
+ * gate only: the settings page still shows the toggle (an administrator, who
+ * holds every capability, configures it for everyone).
+ *
+ * The HTML converter features (Edit as HTML, Import HTML, Change tag) declare
+ * `unfiltered_html`. They turn pasted or typed markup into stored elements
+ * that Builderius renders raw — the same trust boundary WordPress's
+ * `unfiltered_html` capability governs. On single site that is administrators
+ * and editors; on multisite, only super admins (unless a site grants it), so
+ * a lower-privileged builder user cannot plant markup that runs for visitors.
+ *
+ * @param string $id Feature id from dbe_features().
+ * @return bool
+ */
+function dbe_feature_output_permitted( $id ) {
+	if ( ! dbe_enabled( $id ) ) {
+		return false;
+	}
+	$features = dbe_features();
+	$cap      = isset( $features[ $id ]['cap'] ) ? (string) $features[ $id ]['cap'] : '';
+
+	/**
+	 * Filter the capability a feature requires before its builder output is
+	 * emitted. Return an empty string to drop the gate for a feature.
+	 *
+	 * @param string $cap Capability from the registry ('' when none).
+	 * @param string $id  Feature id.
+	 */
+	$cap = (string) apply_filters( 'dbe_feature_cap', $cap, $id );
+
+	if ( '' !== $cap && ! current_user_can( $cap ) ) {
+		return false;
+	}
+	return true;
+}
+
+/**
  * An enum setting's current value.
  *
  * @param string $id Setting id from dbe_enum_settings().
