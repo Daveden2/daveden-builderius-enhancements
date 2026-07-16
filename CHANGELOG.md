@@ -3,6 +3,79 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 1.14.0
+Accessible settings groups and image defaults, an assignable command-palette
+shortcut with a top-bar button, accessibility for the footer tools' configure
+panel and actions menu, a responsive top bar, and another light-theme
+contrast round.
+
+* Added: **Settings groups** (Editing tab, on by default). The settings
+  panel's collapsible group headings are retrofitted as APG disclosure
+  buttons — real Tab stops with a role and `aria-expanded` mirrored from
+  the lazily mounted group body, Enter/Space toggling through the
+  builder's own click path, and focus re-asserted by group name across
+  the React remount. Collapsed groups render no field DOM at all, so this
+  is the only route to those settings without a mouse.
+* Added: **Image defaults** (Editing tab, on by default). A newly added
+  img element is seeded with an inline SVG placeholder src (explicit
+  width and height — a bare viewBox renders 0×0) and an empty alt, so it
+  appears visibly on the canvas instead of as a broken, invisible image.
+  Choosing a real image from the media library replaces the placeholder
+  and never strips the seeded alt.
+* Added: the **command palette shortcut is assignable**. Ctrl+Shift+K,
+  the previous default, is reserved by Firefox on Windows and Linux for
+  its DevTools Web Console, so the browser consumed it before the page
+  could. The default moves to the command-palette convention Cmd/Ctrl+K,
+  with a `palette_shortcut` setting offering Cmd/Ctrl+/ and the old
+  combination as alternatives. A top-bar button now also opens the
+  palette; its tooltip and accessible name carry the assigned shortcut.
+* Improved: the **snippet/variable configure panel** (the JavaScript and
+  Dynamic Data footer tools) is now accessible. The Enabled switch is
+  rebuilt as the same switch pattern the plugin's own settings page uses —
+  44×24, token-coloured track, a knob glyph that shows on/off without
+  relying on colour or position, a focus-visible ring, and correct
+  colours in both themes (in light mode it previously kept its native
+  dark colours: a black pill with an invisible knob). Every plain field
+  label (Enabled, Title, Description, Priority) is wired to its control
+  with a for/id pair — they previously announced as unnamed controls and
+  label clicks did nothing — and the radio captions name their groups.
+  The per-item actions button (icon-only, previously nameless) is named
+  after its item, and the actions menu it opens is fully
+  keyboard-operable with an accessible name: focus lands on the first
+  item, arrows/Home/End move, Enter activates, Escape closes.
+* Improved: that **actions menu opens anchored to its row's button**
+  rather than at the pointer's coordinates (a keyboard open previously
+  landed in the top-left corner): below the button with right edges
+  aligned, flipping above when the footer leaves no room below. Where
+  the browser supports CSS anchor positioning the menu stays tethered
+  through relayout while open; elsewhere the position is applied once,
+  the same technique the Save options menu uses.
+* Fixed: the plugin's **top-bar controls overlapped the breakpoint
+  cluster** at narrower window sizes. The stock bar fixes both side
+  columns at 350px; the injected controls overflowed that budget and
+  spilled left over the canvas width field and breakpoint buttons below
+  ~1240px, a band Builderius's own responsive rules (which start at
+  890px) never covered. Below 1280px the columns now size to their
+  content, the breakpoint cluster centres itself in the remaining space,
+  and the entity select truncates with an ellipsis instead of anything
+  overlapping; below 1024px the unsaved marker drops to its dot (the
+  live region keeps announcing the text). Above 1280px the native layout
+  is untouched.
+* Fixed: another light-theme contrast round — the footer snippet/variable
+  panels (the configure column and its fields, radio option cards, the
+  HTML-attributes repeater, list rows, separators and the editor-corner
+  language chip); the Run and Get data buttons; the New JS Snippet / New
+  Data Variable popup; the class chips' caret and remove controls plus a
+  raised-chip restyle for applied classes; the Navigator's New variable,
+  New selector and related buttons; the component "Exit properties" bar;
+  and the settings' description tiles. Dark theme is unchanged
+  throughout.
+* Fixed: **SOON badges** in native context menus sat on top of the row
+  labels (the New variable dropdown's Color and Clamp rows, the variable
+  menu's Save to snippets); they are now normal flex children pushed to
+  the row end, and the menu card grows to fit.
+* Internal: CI bumps actions/setup-node from 5 to 7 (Dependabot).
+
 ## 1.13.1
 A canvas-loading fix for remembered panel widths.
 

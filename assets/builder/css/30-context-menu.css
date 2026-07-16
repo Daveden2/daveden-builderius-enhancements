@@ -84,3 +84,20 @@ li.dbe-ctx-heading {
     margin-inline-start: auto !important;
     flex: none !important;
 }
+
+/* The NATIVE menus ship the same clash: the "New variable" dropdown
+   (css_var_add_new — SOON sat on top of "Color" and "Clamp") and the
+   snippet/variable list's gear menu ("Save to snippets"). Native rows are
+   already display:flex with space-between + 1rem gap and the label is a bare
+   text node (an anonymous flex item), so returning the badge to normal flow
+   makes the row — and the auto-width menu card — grow to fit both instead of
+   stacking them. nowrap keeps each label on one line so the card widens
+   rather than wrapping the text around the badge. Buttons keep the absolute
+   corner-tag treatment — this is scoped to menu rows only. */
+.uniBuilderContextMenu .uniContextMenu ul li.uniContextMenu__item { white-space: nowrap !important; }
+.uniBuilderContextMenu .uniContextMenu ul li.uniContextMenu__item .proBadge {
+    position: static !important;
+    inset: auto !important;
+    margin-inline-start: auto !important;
+    flex: none !important;
+}

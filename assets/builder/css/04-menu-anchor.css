@@ -1,0 +1,29 @@
+/* Anchored menu placement — generic infrastructure (shared_css).
+
+   Builderius positions its context-menu <dialog>s from the opening click's
+   clientX/Y, so a menu lands wherever the pointer happened to be rather
+   than against the control that owns it (and a keyboard open lands at the
+   synthesised coordinates). When a feature knows the real trigger, its JS
+   marks the dialog with .dbe-menu-anchored and stamps
+   `anchor-name: --dbe-menu-anchor` inline on the trigger button; this rule
+   then tethers the dialog to that button — below it, right edges aligned
+   (the save-menu convention), flipping above when the trigger sits too
+   close to the bottom of the viewport, as footer controls always do. The
+   tether also survives relayout (window resizes, list scrolls) for as long
+   as the menu is open, which the one-shot JS placement cannot.
+
+   CSS anchor positioning is not Baseline widely available yet (no stable
+   Firefox support), so this is progressive enhancement: the same JS that
+   marks the dialog falls back to overwriting the dialog's inline left/top
+   once, exactly like dbeAnchorSaveMenu. The inset/margin overrides carry
+   !important because they must beat the dialog's native inline top/left. */
+@supports (anchor-name: --a) {
+    dialog.uniBuilderContextMenu.dbe-menu-anchored {
+        position-anchor: --dbe-menu-anchor;
+        inset: auto !important;
+        margin: 0 !important;
+        margin-block-start: 4px !important;
+        position-area: block-end span-inline-start;
+        position-try-fallbacks: flip-block;
+    }
+}

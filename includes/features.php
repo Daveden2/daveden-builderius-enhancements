@@ -101,6 +101,7 @@ function dbe_features() {
 			'description' => __( 'Adds a top-bar button that switches the builder between light and dark themes, or follows your operating system automatically.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '60-theme.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'density_toggle'        => array(
@@ -109,6 +110,7 @@ function dbe_features() {
 			'description' => __( 'Adds a top-bar button that switches panel and Navigator spacing between comfortable and compact.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '62-density.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'topbar_toolbar'        => array(
@@ -125,6 +127,7 @@ function dbe_features() {
 			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled group, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
+			'shared_css'  => array( '04-menu-anchor.css' ),
 			'js'          => true,
 		),
 		'select_combobox'       => array(
@@ -407,7 +410,7 @@ function dbe_features() {
 			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}, including attributes: a.btn[href=/contact/ target=_blank]{Contact}), plus run the element actions and jump between the builder’s regions. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
-			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
+			'shared_css'   => array( '01-infra.css', '03-topbar-layout.css', '30-context-menu.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
@@ -484,6 +487,7 @@ function dbe_features() {
 			'description' => __( 'Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array( '72-save-cue.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
 			'js'          => true,
 		),
 		'save_shortcut'         => array(
@@ -500,6 +504,7 @@ function dbe_features() {
 			'description'  => __( 'Builderius draws the Save button’s dropdown trigger inside the Save button itself, where no keyboard or screen reader can reach it — the Save to Development / Publish to Live menu is mouse-only. This replaces that trigger with a real button beside Save (announced as a menu, arrow keys inside, Escape to close). Experimental and off by default: it restyles a core control, and the proper fix belongs in Builderius (reported upstream) — this is a stopgap for keyboard users until then.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'workflow',
 			'css'          => array( '35-save-menu.css' ),
+			'shared_css'   => array( '03-topbar-layout.css' ),
 			'js'           => true,
 			'experimental' => true,
 		),
