@@ -132,6 +132,12 @@ function dbe_bootstrap() {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
 		require_once DBE_DIR . 'includes/admin-bar.php';
+		// Agent-facing subtree HTML abilities (prototype) — needs both
+		// Builderius (its commit mutation is the save path) and the
+		// Abilities API runtime.
+		if ( function_exists( 'wp_register_ability' ) ) {
+			require_once DBE_DIR . 'includes/abilities.php';
+		}
 	} else {
 		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
 	}
