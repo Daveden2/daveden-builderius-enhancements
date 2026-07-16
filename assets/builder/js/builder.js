@@ -1698,10 +1698,11 @@
        the change isn't step-undoable and can't revert an earlier action. Whole-
        operation undo is deferred to Builderius' upcoming native history.
 
-       Model limits (v1, by design): only subtrees made entirely of
-       HtmlElement modules are editable (no Collection / Template /
-       Component / HtmlCode inside — the menu item is disabled with a tip).
-       `content` (the module's raw leading text, which may carry [[tokens]]
+       Model limits (v1, by design): a subtree is editable when every module
+       in it is a type the dialogs express (see DBE_HTML_MODULES: HtmlElement,
+       Collection, SubCollection, Template, SvgCode, Component). A subtree
+       containing anything else — HtmlCode or a composite — disables the menu
+       item with a tip. `content` (the module's raw leading text, which may carry [[tokens]]
        or inline HTML) serialises raw; on re-parse only leading TEXT becomes
        content again, so inline elements typed inside text become real child
        elements, and text between elements becomes a span — same rendering,
@@ -1726,9 +1727,38 @@
        a real <template> element — everything HTML can't say (interactiveMode,
        rendering conditions) rides along on the kept-marker upsert. SvgCode
        is a LEAF: it serialises as its raw contentSvg markup and an <svg> in
-       pasted markup becomes one. Still excluded: Components, HtmlCode and
-       the composites. */
-    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1, SvgCode: 1 };
+       pasted markup becomes one. A Component is also a LEAF: it serialises as
+       a <dbe-component name="slug"> custom element carrying its property
+       overrides (see dbeComponentRegistry). Still excluded: HtmlCode and the
+       composites. */
+    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1, SvgCode: 1, Component: 1 };
+
+    /* Map every registered component to its label and declared property names
+       for the <dbe-component> syntax. Labels + slugs come from componentsList
+       ({name: slug, title: label}); the declared props live on each
+       component's own config in componentsData[slug].settings, entry
+       `componentTmplProperties` ([{type,name,label,placeholder}]) — the same
+       shape the server ability reads from template.settings. Serialising a
+       component needs none of this (the slug + overrides are on the instance);
+       the registry is for validating pasted props and defaulting new-instance
+       labels. Kept as the client twin of dbe_ability_component_registry(). */
+    function dbeComponentRegistry() {
+        var reg = {};
+        var list = store().storeGet('componentsList') || [];
+        var data = store().storeGet('componentsData') || {};
+        list.forEach(function (c) {
+            if (!c || !c.name) { return; }
+            var props = {};
+            var cfg = data[c.name];
+            ((cfg && cfg.settings) || []).forEach(function (s) {
+                if (s.name === 'componentTmplProperties' && Array.isArray(s.value)) {
+                    s.value.forEach(function (def) { if (def && def.name) { props[def.name] = def; } });
+                }
+            });
+            reg[c.name] = { label: c.title || c.name, props: props };
+        });
+        return reg;
+    }
 
     /* Editable = every module in the subtree is a type the dialogs express. */
     function dbeHtmlEditable(rootId) {
@@ -1762,6 +1792,21 @@
                 var svg = String(dbeSettingVal(m, 'contentSvg') || '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
                 svg = svg.replace(/<svg\b/i, '<svg data-dbe-id="' + id + '"');
                 return svg.split('\n').map(function (l) { return pad + l; }).join('\n');
+            }
+            // A Component instance serialises as a lowercase custom element
+            // carrying its slug and property overrides. It is a LEAF (its
+            // internals live in the component definition, not the instance).
+            // Lowercase, not Astro <SiteHeader> PascalCase — HTML parsers
+            // lowercase tag names, so the capitalisation would not round-trip.
+            if (m.name === 'Component') {
+                var slug = String(dbeSettingVal(m, 'componentName') || '');
+                var copen = '<dbe-component name="' + dbeHtmlEscapeAttr(slug) + '"';
+                (dbeSettingVal(m, 'componentProperties') || []).forEach(function (p) {
+                    if (!p || !p.name) { return; }
+                    copen += ' ' + p.name + '="' + dbeHtmlEscapeAttr(p.value == null ? '' : p.value) + '"';
+                });
+                copen += ' data-dbe-id="' + id + '"></dbe-component>';
+                return pad + copen;
             }
             // A Template module has no tag setting: it IS the <template>
             // boundary. Collections carry a normal tag setting (ul, div…).
@@ -1810,6 +1855,7 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var stripped = [];
         var claimed = {};
+        var registry = dbeComponentRegistry();
         var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
         /* An <svg> becomes an SvgCode module carrying its raw markup — the
            module renders `contentSvg` raw (twig |raw), so the same entry
@@ -1886,6 +1932,37 @@
         function convert(el) {
             var tag = el.tagName.toLowerCase();
             if (tag === 'svg') { return convertSvg(el); }
+            // A component instance: <dbe-component name="slug" prop="value" …>.
+            // `name` selects the component; every other attribute (bar the dbe
+            // markers) is a property override validated against what the
+            // component declares. It is a leaf — any children are ignored.
+            if (tag === 'dbe-component') {
+                var cslug = String(el.getAttribute('name') || '').trim();
+                if (!cslug || !registry[cslug]) {
+                    var avail = Object.keys(registry).join(', ');
+                    stripped.push('<dbe-component name="' + cslug + '"> (' + (avail ? 'unknown component; available: ' + avail : 'no components registered') + ')');
+                    return null;
+                }
+                var cnode = { existingId: null, module: 'Component', componentName: cslug, props: [], children: [], label: '' };
+                var declared = registry[cslug].props;
+                [].slice.call(el.attributes).forEach(function (a) {
+                    var an = a.name.toLowerCase();
+                    if (an === 'name') { return; }
+                    if (an === 'data-dbe-id') {
+                        if (origIds[a.value] && !claimed[a.value]) { claimed[a.value] = true; cnode.existingId = a.value; }
+                        return;
+                    }
+                    if (an === 'data-dbe-label') { cnode.label = String(a.value).replace(/\s+/g, ' ').trim(); return; }
+                    // A prop the component does not declare cannot resolve, so
+                    // it is dropped with a note rather than stored as dead data.
+                    if (Object.keys(declared).length && !declared[an]) {
+                        stripped.push(an + ' (not a property of ' + cslug + ')');
+                        return;
+                    }
+                    cnode.props.push({ name: an, value: a.value });
+                });
+                return cnode;
+            }
             if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [], label: '' };
@@ -1969,6 +2046,13 @@
         // (the module excludes tagClass/tagId/htmlAttribute; id and class
         // live inside the markup string).
         if (moduleName === 'SvgCode') { return [{ name: 'contentSvg', value: node.svg || '' }]; }
+        // A Component is identified by its slug, with optional prop overrides;
+        // it carries none of the tag/class/content settings below.
+        if (moduleName === 'Component') {
+            var cs = [{ name: 'componentName', value: node.componentName }];
+            if (node.props && node.props.length) { cs.push({ name: 'componentProperties', value: node.props.slice() }); }
+            return cs;
+        }
         var s = [];
         if (moduleName !== 'Template') { s.push({ name: 'tag', value: node.tag }); }
         if (node.tagId) { s.push({ name: 'tagId', value: node.tagId }); }
@@ -2030,7 +2114,7 @@
                         // Replace only the HTML-expressible settings; everything
                         // else (conditions, interactiveMode…) rides along.
                         var keep = (m.settings || []).filter(function (x) {
-                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg'].indexOf(x.name) === -1;
+                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg', 'componentName', 'componentProperties'].indexOf(x.name) === -1;
                         });
                         m.settings = keep.concat(dbeNodeSettings(node));
                         // A data-dbe-label on a kept element renames it; without
@@ -2043,18 +2127,27 @@
                     if (parentId !== null) { storeMoveModule(sf2, id, parentId, index); }
                 } else {
                     var moduleName = node.module || 'HtmlElement';
+                    var newLabel = node.label;
+                    if (!newLabel) {
+                        if (moduleName === 'HtmlElement') {
+                            newLabel = node.tag.charAt(0).toUpperCase() + node.tag.slice(1);
+                        } else if (moduleName === 'Component') {
+                            var creg = dbeComponentRegistry();
+                            newLabel = (creg[node.componentName] && creg[node.componentName].label) || moduleName;
+                        } else {
+                            newLabel = moduleName;
+                        }
+                    }
                     var mod = {
                         id: dbeMakeId(), name: moduleName,
-                        label: node.label || (moduleName === 'HtmlElement'
-                            ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
-                            : moduleName),
+                        label: newLabel,
                         settings: dbeNodeSettings(node)
                     };
                     storeAddModule(sf2, mod, parentId, index);
                     counts.added += 1;
                     id = mod.id;
                 }
-                node.children.forEach(function (c, i) { place(c, id, i); });
+                (node.children || []).forEach(function (c, i) { place(c, id, i); });
             }
             place(tree, null, 0); // null parent = the root stays where it is
             dbeUndoBusy = wasBusy;
@@ -2356,7 +2449,16 @@
     function dbePreviewLines(roots) {
         var lines = [];
         function walk(n, d) {
-            var line = new Array(d + 1).join('  ') + '<' + n.tag + '>';
+            var pad = new Array(d + 1).join('  ');
+            // A component leaf reads by its slug and any prop overrides, not a tag.
+            if ((n.module || 'HtmlElement') === 'Component') {
+                var cl = pad + '<' + n.componentName + '> [Component]';
+                if (n.label) { cl += ' » ' + n.label; }
+                (n.props || []).forEach(function (p) { cl += ' ' + p.name + '="' + p.value + '"'; });
+                lines.push(cl);
+                return;
+            }
+            var line = pad + '<' + n.tag + '>';
             if ((n.module || 'HtmlElement') !== 'HtmlElement') { line += ' [' + n.module + ']'; }
             if (n.label) { line += ' » ' + n.label; }
             if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
@@ -2405,7 +2507,7 @@
         var hint = document.createElement('p');
         hint.className = 'dbe-html__hint';
         hint.textContent = dbeT('importHtmlHint',
-            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator.');
+            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator, or insert a component with <dbe-component name="slug">.');
         dlg.appendChild(hint);
 
         var editor = dbeMakeCodeEditor({ ariaLabel: dbeT('importHtmlEditor', 'HTML to import') });

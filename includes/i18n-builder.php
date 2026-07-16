@@ -466,7 +466,7 @@ function dbe_builder_strings() {
 		'importHtmlTitleInto'     => __( 'Import HTML into %s', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
 		'importHtmlTitleAfter'    => __( 'Import HTML after %s', 'daveden-builderius-enhancements' ),
-		'importHtmlHint'          => __( 'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator.', 'daveden-builderius-enhancements' ),
+		'importHtmlHint'          => __( 'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator, or insert a component with <dbe-component name="slug">.', 'daveden-builderius-enhancements' ),
 		'importHtmlEditor'        => __( 'HTML to import', 'daveden-builderius-enhancements' ),
 		'importHtmlPreview'       => __( 'Preview', 'daveden-builderius-enhancements' ),
 		'importHtmlEmpty'         => __( 'Nothing to preview yet.', 'daveden-builderius-enhancements' ),
