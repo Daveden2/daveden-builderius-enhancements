@@ -160,6 +160,11 @@ function dbe_register_abilities() {
 						'type'  => 'array',
 						'items' => array( 'type' => 'string' ),
 					),
+					'unknown_markers' => array(
+						'type'        => 'array',
+						'description' => __( 'data-dbe-id markers that matched nothing in the subtree — probably typos. Each was treated as a new element, so the element it was meant to keep is removed and recreated with a fresh id. Check these before relying on the edit.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'string' ),
+					),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_apply_subtree_html',
@@ -563,8 +568,11 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 
 /**
  * Parse and sanitise markup into plain node trees. Returns
- * { roots: array, stripped: string[] }. $orig_ids is the id set the
- * data-dbe-id / dbe-keep markers may claim.
+ * { roots: array, stripped: string[], unknown_markers: string[] }. $orig_ids
+ * is the id set the data-dbe-id / dbe-keep markers may claim; a marker that
+ * resolves to none of those is collected in unknown_markers so the caller can
+ * warn that keeping it was intended but the original will instead be removed
+ * and a fresh element created.
  */
 function dbe_ability_parse_fragment( $html, $orig_ids ) {
 	$doc = new DOMDocument();
@@ -578,6 +586,7 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 
 	$stripped   = array();
 	$claimed    = array();
+	$unknown    = array();
 	$strip_tags = array_fill_keys(
 		array( 'script', 'style', 'link', 'meta', 'iframe', 'object', 'embed', 'noscript', 'base', 'math' ),
 		true
@@ -585,7 +594,7 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 	$known    = dbe_ability_known_tags();
 	$registry = dbe_ability_component_registry();
 
-	$convert = function ( $el ) use ( &$convert, &$stripped, &$claimed, $orig_ids, $strip_tags, $known, $registry ) {
+	$convert = function ( $el ) use ( &$convert, &$stripped, &$claimed, &$unknown, $orig_ids, $strip_tags, $known, $registry ) {
 		$tag = strtolower( $el->tagName );
 
 		// A keep-placeholder preserves a non-editable module and its whole
@@ -629,6 +638,8 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 					if ( isset( $orig_ids[ $a->value ] ) && empty( $claimed[ $a->value ] ) ) {
 						$claimed[ $a->value ] = true;
 						$node['existingId']   = $a->value;
+					} elseif ( '' !== trim( (string) $a->value ) ) {
+						$unknown[ $a->value ] = true;
 					}
 					continue;
 				}
@@ -679,6 +690,8 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				if ( isset( $orig_ids[ $v ] ) && empty( $claimed[ $v ] ) ) {
 					$claimed[ $v ]      = true;
 					$node['existingId'] = $v;
+				} elseif ( '' !== trim( (string) $v ) ) {
+					$unknown[ $v ] = true;
 				}
 				continue;
 			}
@@ -768,8 +781,9 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 	}
 
 	return array(
-		'roots'    => $roots,
-		'stripped' => $stripped,
+		'roots'           => $roots,
+		'stripped'        => $stripped,
+		'unknown_markers' => array_keys( $unknown ),
 	);
 }
 
@@ -1135,12 +1149,13 @@ function dbe_ability_apply_subtree_html( $input ) {
 	if ( ! empty( $input['dry_run'] ) ) {
 		$throwaway = array();
 		return array(
-			'dry_run'  => true,
-			'html'     => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
-			'kept'     => $result['kept'],
-			'added'    => $result['added'],
-			'removed'  => $result['removed'],
-			'stripped' => array_values( array_unique( $parsed['stripped'] ) ),
+			'dry_run'         => true,
+			'html'            => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
+			'kept'            => $result['kept'],
+			'added'           => $result['added'],
+			'removed'         => $result['removed'],
+			'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
+			'unknown_markers' => $parsed['unknown_markers'],
 		);
 	}
 
@@ -1154,10 +1169,11 @@ function dbe_ability_apply_subtree_html( $input ) {
 	}
 
 	return array(
-		'commit_name' => $commit_name,
-		'kept'        => $result['kept'],
-		'added'       => $result['added'],
-		'removed'     => $result['removed'],
-		'stripped'    => array_values( array_unique( $parsed['stripped'] ) ),
+		'commit_name'     => $commit_name,
+		'kept'            => $result['kept'],
+		'added'           => $result['added'],
+		'removed'         => $result['removed'],
+		'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
+		'unknown_markers' => $parsed['unknown_markers'],
 	);
 }

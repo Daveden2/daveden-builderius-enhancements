@@ -1855,6 +1855,11 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var stripped = [];
         var claimed = {};
+        // data-dbe-id markers that matched nothing in origIds — probably typos.
+        // Each becomes a new element (and the id it meant to keep is removed),
+        // so the Edit dialog warns about them. Callers with no origIds (Import,
+        // where every element is new by design) simply ignore this.
+        var unknownMarkers = {};
         var registry = dbeComponentRegistry();
         var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
         /* An <svg> becomes an SvgCode module carrying its raw markup — the
@@ -1868,6 +1873,7 @@
             var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '', label: '' };
             var marker = el.getAttribute('data-dbe-id');
             if (marker && origIds[marker] && !claimed[marker]) { claimed[marker] = true; node.existingId = marker; }
+            else if (marker) { unknownMarkers[marker] = true; }
             // The Navigator label lives on the <svg> itself; read it before the
             // attribute scrub below removes the marker from the stored markup.
             var svgLabel = el.getAttribute('data-dbe-label');
@@ -1950,6 +1956,7 @@
                     if (an === 'name') { return; }
                     if (an === 'data-dbe-id') {
                         if (origIds[a.value] && !claimed[a.value]) { claimed[a.value] = true; cnode.existingId = a.value; }
+                        else if (a.value) { unknownMarkers[a.value] = true; }
                         return;
                     }
                     if (an === 'data-dbe-label') { cnode.label = String(a.value).replace(/\s+/g, ' ').trim(); return; }
@@ -1972,6 +1979,7 @@
                 var v = a.value;
                 if (n === 'data-dbe-id') {
                     if (origIds[v] && !claimed[v]) { claimed[v] = true; node.existingId = v; }
+                    else if (v) { unknownMarkers[v] = true; }
                     return;
                 }
                 // Navigator label for the element. Consumed, never stored — sets
@@ -2024,7 +2032,7 @@
             return node;
         }
         var roots = [].slice.call(doc.body.children).map(convert).filter(Boolean);
-        return { roots: roots, stripped: stripped };
+        return { roots: roots, stripped: stripped, unknownMarkers: Object.keys(unknownMarkers) };
     }
 
     /* The Edit-as-HTML shape: one root, or a structural error. */
@@ -2033,7 +2041,7 @@
         if (parsed.roots.length !== 1) {
             throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
         }
-        return { tree: parsed.roots[0], stripped: parsed.stripped };
+        return { tree: parsed.roots[0], stripped: parsed.stripped, unknownMarkers: parsed.unknownMarkers };
     }
 
     /* Settings for a parsed node, shaped by its module type: a Template has
@@ -2321,6 +2329,11 @@
                         var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
                         msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
                     }
+                    if (parsed.unknownMarkers && parsed.unknownMarkers.length) {
+                        msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
+                            '⚠ unrecognised marker(s): %s — a new element is created and the original removed'),
+                            parsed.unknownMarkers.join(', '));
+                    }
                     undoToast(msg);
                 });
             }, 120);
@@ -2352,7 +2365,6 @@
                 apply.disabled = true;
                 return;
             }
-            status.classList.remove('dbe-html__status--warn');
             apply.disabled = false;
             var c = dbePreviewCounts(parsed.roots[0], origIds, rootId);
             var msg = dbeFmt(dbeT('editHtmlWillApply', 'Will apply: %1$s updated, %2$s added, %3$s removed'),
@@ -2360,6 +2372,18 @@
             if (parsed.stripped.length) {
                 var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
                 msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            // A marker that matches nothing here is almost always a typo: the
+            // element it meant to keep will instead be removed and recreated.
+            // Flag it (warn colour) but leave Apply enabled — a genuinely new
+            // element carrying a stray marker is still a valid, if unusual, edit.
+            if (parsed.unknownMarkers.length) {
+                msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
+                    '⚠ unrecognised marker(s): %s — a new element is created and the original removed'),
+                    parsed.unknownMarkers.join(', '));
+                status.classList.add('dbe-html__status--warn');
+            } else {
+                status.classList.remove('dbe-html__status--warn');
             }
             status.textContent = msg;
         }

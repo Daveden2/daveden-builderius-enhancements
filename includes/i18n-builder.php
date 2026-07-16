@@ -457,6 +457,8 @@ function dbe_builder_strings() {
 		'editHtmlRootCount'       => __( 'The HTML must have exactly one root element (found %s).', 'daveden-builderius-enhancements' ),
 		/* translators: 1: elements updated, 2: elements added, 3: elements removed. */
 		'editHtmlWillApply'       => __( 'Will apply: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
+		/* translators: %s: comma-separated list of unrecognised data-dbe-id markers. */
+		'editHtmlUnknownMarker'   => __( '⚠ unrecognised marker(s): %s — a new element is created and the original removed', 'daveden-builderius-enhancements' ),
 		/* translators: 1: elements updated, 2: elements added, 3: elements removed. */
 		'htmlApplied'             => __( 'HTML applied: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
 		'editHtmlNotUndoable'     => __( 'Edit as HTML can’t be undone — reopen it to revert your changes', 'daveden-builderius-enhancements' ),
