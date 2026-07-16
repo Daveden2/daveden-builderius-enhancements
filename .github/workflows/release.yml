@@ -1,11 +1,15 @@
 name: Attach release zip
 
-# When a GitHub release is published (the last step of the documented release
-# flow: bump version → commit → tag vX.Y.Z → publish release), build a clean
-# plugin zip and attach it as a release asset. The Plugin Update Checker then
-# prefers this asset over GitHub's auto-generated source archive, so both
-# manual downloads and automatic updates unpack to the correct,
-# non-version-suffixed folder.
+# When a GitHub release is published BY HAND, build a clean plugin zip and
+# attach it as a release asset. The Plugin Update Checker then prefers this
+# asset over GitHub's auto-generated source archive, so both manual downloads
+# and automatic updates unpack to the correct, non-version-suffixed folder.
+#
+# Releases published by auto-release.yml already have the zip attached at
+# creation. When that workflow publishes with the RELEASE_PAT secret the
+# published event fires here too (PAT-created releases trigger workflows,
+# bot-created ones don't), so its notes carry a hidden published-by marker
+# and this job skips them.
 
 on:
   release:
@@ -16,6 +20,7 @@ permissions:
 
 jobs:
   attach-zip:
+    if: ${{ !contains(github.event.release.body, '<!-- published-by: auto-release -->') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the released tag
