@@ -2405,15 +2405,62 @@
             var menu = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'))
                 .filter(function (m) { return m.offsetParent !== null; })[0];
             if (!menu) { return; }
+            var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
             if (!menu.getAttribute('aria-label')) {
-                var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
                 menu.setAttribute('aria-label', title
                     ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
                     : dbeT('tipItemActionsFallback', 'Item actions'));
             }
             var container = menu.querySelector('ul') || menu;
             setupMenuKeyboard(container);
+            dbeAnchorVarMenu(menu, title);
         });
+    }
+
+    /* Anchor the snippet/variable menu to the row button that owns it,
+       instead of the click coordinates the native dialog positions itself
+       from (a keyboard open otherwise lands at the synthesised event's
+       coordinates, and a pointer open wherever the mouse was). The trigger
+       is resolved from the menu-id suffix — it is the row's title — against
+       the visible list, so it works however the menu was opened. Where CSS
+       anchor positioning exists, the trigger is stamped as the anchor and
+       04-menu-anchor.css tethers the dialog through relayout; elsewhere the
+       dialog's inline position is overwritten once (the dbeAnchorSaveMenu
+       technique): below the button with right edges aligned, flipped above
+       when the footer leaves no room below — which, for the bottom-of-screen
+       list, is the common case. An unmatched title leaves the native
+       placement alone. */
+    var dbeVarMenuAnchorBtn = null;
+    function dbeAnchorVarMenu(menu, title) {
+        var dlg = menu.closest('dialog');
+        if (!dlg || !title) { return; }
+        var btn = null;
+        [].slice.call(document.querySelectorAll('.uniTabDataVars__varsList li')).forEach(function (row) {
+            if (btn || row.offsetParent === null) { return; }
+            var t = row.querySelector('button.varTitle');
+            if (t && (t.textContent || '').trim() === title) { btn = row.querySelector('button.iconBoxWrapper'); }
+        });
+        if (!btn) { return; }
+        if (window.CSS && CSS.supports && CSS.supports('anchor-name: --a')) {
+            // One anchor at a time: duplicate anchor-names resolve to the last
+            // element in DOM order, which need not be the clicked row's button.
+            if (dbeVarMenuAnchorBtn && dbeVarMenuAnchorBtn !== btn) {
+                dbeVarMenuAnchorBtn.style.removeProperty('anchor-name');
+            }
+            btn.style.setProperty('anchor-name', '--dbe-menu-anchor');
+            dbeVarMenuAnchorBtn = btn;
+            dlg.classList.add('dbe-menu-anchored');
+            return;
+        }
+        // The dialog node is reused across opens; make sure a class stamped
+        // by the CSS path on an earlier open cannot linger into this one.
+        dlg.classList.remove('dbe-menu-anchored');
+        var br = btn.getBoundingClientRect();
+        var dr = dlg.getBoundingClientRect();
+        var top = Math.round(br.bottom + 4);
+        if (top + dr.height > window.innerHeight - 8) { top = Math.round(br.top - dr.height - 4); }
+        dlg.style.left = Math.max(8, Math.round(br.right - dr.width)) + 'px';
+        dlg.style.top = Math.max(8, top) + 'px';
     }
 
     /* (e) "Collapse subtrees" Navigator header icon. The stock header button
