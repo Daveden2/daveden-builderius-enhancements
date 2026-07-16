@@ -1124,6 +1124,25 @@ html[data-dbe-theme="light"] .uniTabDataVars__editorItem {
     background-color: var(--dbe-l1) !important;
 }
 
+/* --- Leak audit pass 22: the "Exit properties" bar in component editing --- */
+/* Editing a component's properties adds .uniPrePanelHeader above the settings
+   panel — natively a --primary-3 near-black band with the label and close
+   glyph in --accent-special, the component green tuned for dark surfaces. The
+   light theme never repainted it, leaving green-on-black floating in a light
+   panel. A raised light card with the theme's component green (the same token
+   the Navigator's component rows use, 5.3:1 on white) keeps the "you are
+   inside a component" colour identity; dark keeps the native pairing. */
+html[data-dbe-theme="light"] .uniPrePanelHeader {
+    background: var(--dbe-l2) !important;
+    border-block-end: 1px solid var(--dbe-line) !important;
+}
+html[data-dbe-theme="light"] .uniPrePanelHeader > span {
+    color: var(--dbe-component) !important;
+}
+html[data-dbe-theme="light"] .uniPrePanelHeader .uniIconButton svg path {
+    fill: var(--dbe-component) !important;
+}
+
 /* --- Leak audit pass 23: the snippet/variable "Enabled" switch --- */
 /* The .uniPanelField--switch checkbox keeps its native dark colours in the
    light theme: a #3A3F47 track with a #202022 knob — a black pill on the
