@@ -2237,6 +2237,14 @@
         var mods = modules() || {};
         if (!mods[rootId]) { return; }
 
+        // The original subtree's ids — fixed while the dialog is open. A marker
+        // matching one of these keeps that module; anything else is new.
+        var origIds = {};
+        (function collect(id) {
+            origIds[id] = true;
+            ((store().storeGet('indexes') || {})[id] || []).forEach(collect);
+        })(rootId);
+
         var old = document.querySelector('dialog.dbe-html');
         if (old) { old.remove(); }
         var dlg = document.createElement('dialog');
@@ -2289,12 +2297,6 @@
         apply.className = 'dbe-html__apply';
         apply.textContent = dbeT('applyHtml', 'Apply HTML');
         apply.addEventListener('click', function () {
-            var origIds = {};
-            var liveIdx = store().storeGet('indexes') || {};
-            (function collect(id) {
-                origIds[id] = true;
-                (liveIdx[id] || []).forEach(collect);
-            })(rootId);
             var parsed;
             try {
                 parsed = dbeParseHtmlTree(editor.getValue(), origIds);
@@ -2327,6 +2329,46 @@
         foot.appendChild(apply);
         dlg.appendChild(foot);
 
+        /* Live outcome preview: on every edit, parse the markup against the
+           original ids and report what Apply would do — the client twin of the
+           ability's dry run. Invalid markup (unparseable, or not exactly one
+           root) disables Apply with the reason, so the edit is never applied
+           blind. Debounced so a Monaco/textarea keystroke storm stays cheap. */
+        function updatePreview() {
+            var parsed;
+            try {
+                parsed = dbeParseHtmlFragment(editor.getValue(), origIds);
+            } catch (e) {
+                status.textContent = dbeT('htmlErrParse', 'Could not parse the HTML');
+                status.classList.add('dbe-html__status--warn');
+                apply.disabled = true;
+                return;
+            }
+            if (parsed.roots.length !== 1) {
+                status.textContent = dbeFmt(
+                    dbeT('editHtmlRootCount', 'The HTML must have exactly one root element (found %s).'),
+                    parsed.roots.length);
+                status.classList.add('dbe-html__status--warn');
+                apply.disabled = true;
+                return;
+            }
+            status.classList.remove('dbe-html__status--warn');
+            apply.disabled = false;
+            var c = dbePreviewCounts(parsed.roots[0], origIds, rootId);
+            var msg = dbeFmt(dbeT('editHtmlWillApply', 'Will apply: %1$s updated, %2$s added, %3$s removed'),
+                c.updated, c.added, c.removed);
+            if (parsed.stripped.length) {
+                var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            status.textContent = msg;
+        }
+        var previewTimer = null;
+        editor.onChange(function () {
+            if (previewTimer) { clearTimeout(previewTimer); }
+            previewTimer = setTimeout(updatePreview, 150);
+        });
+
         // Same isolation as the Auto-BEM dialog: keys and pointer events must
         // not reach the builder's global handlers (Delete removes the selected
         // element; an outside click handler reverts native control toggles).
@@ -2334,12 +2376,13 @@
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { editor.dispose(); dlg.remove(); });
+        dlg.addEventListener('close', function () { if (previewTimer) { clearTimeout(previewTimer); } editor.dispose(); dlg.remove(); });
         document.body.appendChild(dlg);
         dlg.showModal();
         editor.layout(); // Monaco was created in the pre-show (0-size) dialog
         editor.focus();
         editor.cursorStart();
+        updatePreview(); // seed the status line before the first edit
     }
 
     /* ============================ Import HTML ============================
@@ -2471,6 +2514,27 @@
         }
         roots.forEach(function (r) { walk(r, 0); });
         return lines;
+    }
+
+    /* What an Edit-as-HTML apply WOULD do to the subtree rooted at rootId,
+       computed from the parsed tree without touching the store — the client
+       twin of the ability's dry run. A node keeping a marker from the original
+       subtree is an update; one without is an addition; an original id absent
+       from the markup is a removal. The root's identity is forced to rootId,
+       exactly as dbeApplyHtmlTree does. */
+    function dbePreviewCounts(root, origIds, rootId) {
+        if (root) { root.existingId = rootId; }
+        var kept = {};
+        var added = 0;
+        (function walk(n) {
+            if (!n) { return; }
+            if (n.existingId && origIds[n.existingId]) { kept[n.existingId] = true; }
+            else { added += 1; }
+            (n.children || []).forEach(walk);
+        })(root);
+        var removed = 0;
+        Object.keys(origIds).forEach(function (id) { if (!kept[id]) { removed += 1; } });
+        return { updated: Object.keys(kept).length, added: added, removed: removed };
     }
 
     function openImportHtmlDialog(targetId) {
