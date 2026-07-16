@@ -467,26 +467,20 @@
         return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text, attrs: node.attrs });
     }
 
-    /* The collection>template structural rule, applied to a parsed Emmet
-       tree BEFORE anything inserts (the HTML dialogs enforce the same rule
-       live in their previews): a collection may only hold templates — as
-       children in the expression, and as roots when the insertion target is
-       itself a Collection. Returns an error string or null. */
+    /* Validate a parsed Emmet tree BEFORE anything inserts. The only rule left
+       is the :tag suffix: it belongs to the collection words and must name a
+       known non-void tag. There is deliberately NO collection-children rule —
+       a Builderius Collection repeats its <template> child and renders any
+       other (static) children once, so static elements alongside the template
+       are valid (see the note on the removed dbeValidateParsedRoots). targetId
+       is kept in the signature for callers and future rules. */
     function dbeEmmetStructureError(targetId, roots) {
-        function isTpl(n) { return (n.tag || '').toLowerCase() === 'template'; }
         var err = null;
         (function walk(list) {
             list.forEach(function (n) {
                 if (err) { return; }
                 var w = DBE_EMMET_WORDS[(n.tag || '').toLowerCase()];
-                if ((w === 'Collection' || w === 'SubCollection')
-                    && (n.text != null || n.children.some(function (c) { return !isTpl(c); }))) {
-                    err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
-                    return;
-                }
-                // The :tag suffix belongs to the collection words only, and
-                // must name a known non-void tag (collection:ul, not
-                // collection:script or div:foo).
+                // collection:ul is valid; div:foo and collection:script are not.
                 if (n.subTag != null
                     && (!(w === 'Collection' || w === 'SubCollection') || !dbeCleanTagInput(n.subTag))) {
                     err = dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), n.tag + ':' + n.subTag);
@@ -495,12 +489,6 @@
                 walk(n.children);
             });
         })(roots);
-        if (!err && targetId) {
-            var tm = (modules() || {})[targetId];
-            if (tm && (tm.name === 'Collection' || tm.name === 'SubCollection') && !roots.every(isTpl)) {
-                err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
-            }
-        }
         return err;
     }
 
@@ -1974,32 +1962,13 @@
         return s;
     }
 
-    /* Structural rules the module model imposes on parsed trees. liveMods
-       resolves kept markers to their real types. Returns an error string or
-       null. Rule: a Collection may only hold Template children (its
-       containerFor in core), and no loose text. Templates are fine anywhere
-       (standalone Templates with rendering conditions are a real pattern). */
-    function dbeValidateParsedRoots(roots, liveMods) {
-        var err = null;
-        function typeOf(n) {
-            if (n.existingId && liveMods[n.existingId]) { return liveMods[n.existingId].name; }
-            return n.module || 'HtmlElement';
-        }
-        function walk(n) {
-            if (err) { return; }
-            var t = typeOf(n);
-            if (t === 'Collection' || t === 'SubCollection') {
-                var badChild = n.children.some(function (c) { return typeOf(c) !== 'Template'; });
-                if (badChild || n.content) {
-                    err = dbeT('htmlErrCollectionChildren', 'A collection may only contain <template> elements');
-                    return;
-                }
-            }
-            n.children.forEach(walk);
-        }
-        roots.forEach(walk);
-        return err;
-    }
+    /* No structural rule is imposed on a parsed Collection's children: a
+       Builderius Collection repeats its <template> child and renders any other
+       (static) children once around it, so static elements alongside the
+       template are valid (core's DataContentModules… render listener keys the
+       repetition off the <template> child and leaves the rest static). An
+       earlier "a collection may only contain <template> elements" rule was
+       wrong and rejected legitimate static content, so it is gone. */
 
     /* Reconcile the parsed tree onto the live subtree. done(counts). */
     function dbeApplyHtmlTree(rootId, tree, done) {
@@ -2159,8 +2128,6 @@
                 status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
                 return;
             }
-            var verr = dbeValidateParsedRoots([parsed.tree], modules() || {});
-            if (verr) { status.textContent = verr; return; }
             // The dialog is showModal(): it must close before the apply queue
             // can drive tree rows and the native Remove menu.
             dlg.close();
@@ -2430,12 +2397,6 @@
                     'importCollapseMany', 'Collapse %s repeated groups into collections'), repeats);
             }
             var roots = (repeats && collapseCheck.checked) ? dbeCollapseRepeats(p.roots) : p.roots;
-            var verr = dbeValidateParsedRoots(roots, {});
-            if (verr) {
-                preview.textContent = dbePreviewLines(roots).join('\n');
-                status.textContent = verr;
-                return;
-            }
             parsed = { roots: roots, stripped: p.stripped };
             preview.textContent = dbePreviewLines(roots).join('\n');
             var total = dbePreviewLines(roots).length;
@@ -2463,15 +2424,9 @@
             var liveSlot = dbeImportSlot(targetId); // re-read: the tree may have moved on
             if (!liveSlot) { status.textContent = dbeT('importHtmlTargetGone', 'The target element no longer exists'); return; }
             var roots = parsed.roots;
-            // Landing INSIDE a collection means every pasted root must be a
-            // template — its module model allows nothing else.
-            var liveMods = store().storeGet('modules') || {};
-            var parentMod = liveSlot.parentId ? liveMods[liveSlot.parentId] : null;
-            if (parentMod && (parentMod.name === 'Collection' || parentMod.name === 'SubCollection')
-                && roots.some(function (r) { return (r.module || 'HtmlElement') !== 'Template'; })) {
-                status.textContent = dbeT('htmlErrTemplatesOnly', 'Only <template> elements can be imported into a collection');
-                return;
-            }
+            // A Collection target accepts static elements as well as templates
+            // (the <template> child is the repeatable, the rest render once), so
+            // no root-type restriction is applied here.
             dlg.close();
             var wasBusy = dbeUndoBusy;
             dbeUndoBusy = true;
