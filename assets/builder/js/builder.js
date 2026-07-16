@@ -310,6 +310,31 @@
         }).join('');
     }
 
+    /* Attributes whose value becomes a navigable or fetchable URL. Kept as one
+       shared set so every markup-entry channel gates the same names. */
+    var DBE_URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, poster: 1, 'xlink:href': 1 };
+
+    /* Whether a URL value uses a scheme that can execute or smuggle script.
+       Builderius renders htmlAttribute / contentSvg raw, so a stored
+       javascript:/vbscript: URL — or a data: URL carrying a markup document
+       (text/html, xhtml, or an SVG, all of which can hold script) — would run
+       for anyone viewing the page. Raster image data URLs are legitimate (the
+       plugin seeds one as an image placeholder) and stay allowed. The value is
+       already DOM-parsed, so entities are resolved; in-scheme whitespace and
+       control characters are stripped first, the way a browser does before it
+       acts on the URL, so "java\tscript:" cannot slip past. */
+    function dbeDangerousUrl(value) {
+        // eslint-disable-next-line no-control-regex -- deliberate: browsers ignore control chars mid-scheme, so "java\tscript:" must not slip past.
+        var v = String(value == null ? '' : value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+        if (/^(?:javascript|vbscript):/.test(v)) { return true; }
+        if (v.indexOf('data:') === 0) {
+            // Allow only raster image data URLs; block markup/script-bearing
+            // ones, including image/svg+xml (an SVG document can carry script).
+            return !/^data:image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon|vnd\.microsoft\.icon)[;,]/.test(v);
+        }
+        return false;
+    }
+
     /* Shared attribute gate for every markup-entry channel (the Import/Edit
        HTML dialogs and the Emmet palette). Builderius renders htmlAttribute
        values raw (twig |raw), so sanitisation has to happen here, at entry.
@@ -320,8 +345,7 @@
         var n = String(name || '').toLowerCase();
         if (!n || n === 'data-dbe-id' || n === 'data-dbe-module') { return n || 'attribute'; }
         if (n.indexOf('on') === 0) { return n; }
-        if ((n === 'href' || n === 'src' || n === 'action' || n === 'formaction' || n === 'xlink:href')
-            && /^\s*javascript:/i.test(String(value))) { return n + '="javascript:…"'; }
+        if (DBE_URL_ATTRS[n] && dbeDangerousUrl(value)) { return n + '="' + String(value).slice(0, 12) + '…"'; }
         return null;
     }
 
@@ -1783,7 +1807,6 @@
         var stripped = [];
         var claimed = {};
         var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
-        var URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, 'xlink:href': 1 };
         /* An <svg> becomes an SvgCode module carrying its raw markup — the
            module renders `contentSvg` raw (twig |raw), so the same entry
            gate applies INSIDE the subtree before it is stored: script
@@ -1795,17 +1818,43 @@
             var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '' };
             var marker = el.getAttribute('data-dbe-id');
             if (marker && origIds[marker] && !claimed[marker]) { claimed[marker] = true; node.existingId = marker; }
-            [].slice.call(el.querySelectorAll('script')).forEach(function (s) {
-                stripped.push('<script>');
-                s.parentNode.removeChild(s);
-            });
+            // The whole SVG is stored as one opaque raw string, so it gets the
+            // same gate as element attributes plus SVG-specific element vectors.
+            // One walk over the subtree: drop script-bearing / markup-smuggling
+            // elements, then scrub dangerous attributes on whatever remains.
+            // Element names are checked by lower-cased localName (the HTML
+            // parser keeps SVG locals like foreignObject camel-cased, so a CSS
+            // type selector is unreliable across namespaces).
+            var SVG_DROP = { script: 1, foreignobject: 1, style: 1, handler: 1, listener: 1 };
+            var SVG_ANIM = { animate: 1, set: 1, animatetransform: 1, animatemotion: 1 };
             [el].concat([].slice.call(el.querySelectorAll('*'))).forEach(function (d) {
+                if (d !== el && !el.contains(d)) { return; } // removed with an ancestor already
+                var ln = (d.localName || d.tagName || '').toLowerCase();
+                if (d !== el && SVG_DROP[ln]) { stripped.push('<' + ln + '>'); d.parentNode.removeChild(d); return; }
+                // <use> pulling in an external document is an injection vector;
+                // a local #id reference is fine.
+                if (ln === 'use') {
+                    var uref = (d.getAttribute('href') || d.getAttribute('xlink:href') || '').trim();
+                    if (uref && uref.charAt(0) !== '#') { stripped.push('<use external>'); d.parentNode.removeChild(d); return; }
+                }
+                // An animation that retargets href to a dangerous URL is the
+                // SVG equivalent of an inline handler — SMIL sets it at runtime.
+                if (SVG_ANIM[ln]) {
+                    var target = (d.getAttribute('attributeName') || '').toLowerCase();
+                    if (target === 'href' || target === 'xlink:href') {
+                        var vals = [d.getAttribute('to'), d.getAttribute('from'), d.getAttribute('by')]
+                            .concat((d.getAttribute('values') || '').split(';'));
+                        if (vals.some(function (x) { return x && dbeDangerousUrl(x); })) {
+                            stripped.push('<' + ln + '>'); d.parentNode.removeChild(d); return;
+                        }
+                    }
+                }
                 [].slice.call(d.attributes).forEach(function (a) {
                     var n = a.name.toLowerCase();
                     if (n === 'data-dbe-id' || n === 'data-dbe-module') { d.removeAttribute(a.name); return; }
                     if (n.indexOf('on') === 0) { stripped.push(n); d.removeAttribute(a.name); return; }
-                    if (URL_ATTRS[n] && /^\s*javascript:/i.test(a.value)) {
-                        stripped.push(n + '="javascript:…"');
+                    if (DBE_URL_ATTRS[n] && dbeDangerousUrl(a.value)) {
+                        stripped.push(n + '="' + String(a.value).slice(0, 12) + '…"');
                         d.removeAttribute(a.name);
                     }
                 });
@@ -1848,14 +1897,18 @@
                     else if (mv === 'subcollection') { node.module = 'SubCollection'; }
                     return;
                 }
-                if (n.indexOf('on') === 0) { stripped.push(n); return; }
-                if (URL_ATTRS[n] && /^\s*javascript:/i.test(v)) { stripped.push(n + '="javascript:…"'); return; }
                 if (n === 'id') { node.tagId = v; return; }
                 if (n === 'class') { node.classes = v.split(/\s+/).filter(Boolean); return; }
                 // A data binding implies a Collection: data-b-context is how a
                 // Collection stores what it loops over, and it stays a stored
                 // attribute (verified live on the gallery Collection).
                 if (n === 'data-b-context' && node.module === 'HtmlElement') { node.module = 'Collection'; }
+                // The one shared gate (dbeAttrBlocked): on* handlers and
+                // javascript:/vbscript:/script-bearing data: URLs. Markers and
+                // id/class/data-b-context are handled above, so they never
+                // reach it here.
+                var blocked = dbeAttrBlocked(n, v);
+                if (blocked) { stripped.push(blocked); return; }
                 node.attrs.push({ name: n, value: v });
             });
             var seenElement = false;
