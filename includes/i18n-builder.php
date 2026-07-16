@@ -447,6 +447,8 @@ function dbe_builder_strings() {
 		'htmlErrParse'            => __( 'Could not parse the HTML', 'daveden-builderius-enhancements' ),
 		/* translators: 1: elements updated, 2: elements added, 3: elements removed. */
 		'htmlApplied'             => __( 'HTML applied: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
+		'editHtmlNotUndoable'     => __( 'Edit as HTML can’t be undone — reopen it to revert your changes', 'daveden-builderius-enhancements' ),
+		'importHtmlNotUndoable'   => __( 'Import HTML can’t be undone — delete the imported elements to remove them', 'daveden-builderius-enhancements' ),
 		/* translators: %s: comma-separated list of stripped tags/attributes. */
 		'htmlStripped'            => __( '(stripped: %s)', 'daveden-builderius-enhancements' ),
 		// Import HTML.

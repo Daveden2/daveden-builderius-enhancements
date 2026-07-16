@@ -1619,6 +1619,20 @@
         redoStack = [];
     }
 
+    /* Seal off the plugin's step-undo after a compound reconcile (Edit as HTML,
+       Import HTML). Those run as one many-step operation the simple add/delete
+       stack can't represent, so a Cmd+Z straight after would otherwise revert
+       an unrelated EARLIER action. A sticky barrier record sits on top instead:
+       Cmd+Z onto it explains the change isn't step-undoable and reverts nothing,
+       and it re-pushes itself so the earlier history stays parked behind it (not
+       destroyed) rather than being crossed. New actions still stack above it and
+       undo normally. Only meaningful while undo_delete owns Cmd+Z; a no-op
+       otherwise, and to be retired once Builderius ships native history. */
+    function dbeHistoryBarrier(msg) {
+        if (!on('undo_delete')) { return; }
+        dbeHistoryPush({ op: 'barrier', msg: msg });
+    }
+
     function hookHistoryCapture() {
         try {
             var api = window.Builderius.API.hooks;
@@ -1679,8 +1693,10 @@
        driven sequentially on the top-most removed nodes only (children go
        with their parent). Removals run FIRST so the later index maths sees
        the final sibling sets. dbeUndoBusy is held across the whole apply so
-       the undo stack records nothing (an Edit-as-HTML is not undoable — the
-       toast says so implicitly by reporting what changed).
+       the individual add/delete steps record nothing; instead the apply drops
+       one sticky barrier (dbeHistoryBarrier) so a Cmd+Z straight after reports
+       the change isn't step-undoable and can't revert an earlier action. Whole-
+       operation undo is deferred to Builderius' upcoming native history.
 
        Model limits (v1, by design): only subtrees made entirely of
        HtmlElement modules are editable (no Collection / Template /
@@ -2136,6 +2152,9 @@
             setTimeout(function () {
                 dbeApplyHtmlTree(rootId, parsed.tree, function (counts) {
                     dbeHtmlBusy = false;
+                    // Seal step-undo behind a barrier: the reconcile is one
+                    // compound op, so a Cmd+Z now must not revert an earlier action.
+                    dbeHistoryBarrier(dbeT('editHtmlNotUndoable', 'Edit as HTML can’t be undone — reopen it to revert your changes'));
                     var msg = dbeFmt(dbeT('htmlApplied', 'HTML applied: %1$s updated, %2$s added, %3$s removed'),
                         counts.kept, counts.added, counts.removed);
                     if (parsed.stripped.length) {
@@ -2440,6 +2459,10 @@
                     if (firstId === null) { firstId = res.id; }
                 });
             } finally { dbeUndoBusy = wasBusy; }
+            // Seal step-undo behind a barrier (same reasoning as Edit as HTML):
+            // the import lands several elements as one op the add/delete stack
+            // can't unwind cleanly, so Cmd+Z must not revert an earlier action.
+            dbeHistoryBarrier(dbeT('importHtmlNotUndoable', 'Import HTML can’t be undone — delete the imported elements to remove them'));
             undoToast(dbeFmt(dbeTn(count,
                 'htmlImportedOne', 'Imported %s element',
                 'htmlImportedMany', 'Imported %s elements'), count));
@@ -2640,6 +2663,14 @@
         if (dbeUndoBusy) { return; }
         var rec = from.pop();
         if (!rec) { undoToast(dbeT(emptyKey, emptyDef)); return; }
+        // A compound-reconcile barrier: report that the change isn't
+        // step-undoable, revert nothing, and put the barrier straight back so
+        // the parked earlier history is never crossed. Redo never produces one.
+        if (rec.op === 'barrier') {
+            from.push(rec);
+            undoToast(rec.msg || dbeT('editHtmlNotUndoable', 'This change can’t be undone step by step'));
+            return;
+        }
         if (rec.op === 'restore') {
             if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
                 from.push(rec);
