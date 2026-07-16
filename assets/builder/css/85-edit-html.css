@@ -98,6 +98,13 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-html__editor--monaco:focus-within { border-color: var(--dbe-accent); }
 
+/* Recede the data-dbe-id identity markers so the real markup reads clearly.
+   They stay present, editable and selectable — this is de-emphasis of
+   secondary machine ids, not hiding of content, and the value is still
+   legible on a close look. Applied by Monaco as an inline decoration; the
+   plain-textarea fallback simply keeps the markers at full strength. */
+.dbe-html-marker-dim { opacity: 0.45; }
+
 /* Import flow: the live preview of the elements the pasted markup will
    create. The editor cedes some height to it. */
 .dbe-html--import .dbe-html__editor { min-block-size: 140px; }

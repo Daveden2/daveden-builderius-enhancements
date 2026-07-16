@@ -2206,17 +2206,39 @@
                 });
             } catch (e) { ed = null; }
             if (ed) {
+                /* Recede the data-dbe-id markers. They must stay on every
+                   element for identity, but they are machine ids, not content
+                   — dimming them lets the real markup (tags, classes, text)
+                   read clearly. Monaco finds the ranges; a debounced
+                   re-decorate keeps them dim as the text changes. */
+                var markerDecos = [];
+                var decoTimer = null;
+                function decorateMarkers() {
+                    try {
+                        var model = ed.getModel();
+                        if (!model) { return; }
+                        var matches = model.findMatches(' ?data-dbe-id="[^"]*"', false, true, false, null, false);
+                        markerDecos = ed.deltaDecorations(markerDecos, matches.map(function (mm) {
+                            return { range: mm.range, options: { inlineClassName: 'dbe-html-marker-dim' } };
+                        }));
+                    } catch (e) {}
+                }
+                decorateMarkers();
+                ed.onDidChangeModelContent(function () {
+                    if (decoTimer) { clearTimeout(decoTimer); }
+                    decoTimer = setTimeout(decorateMarkers, 120);
+                });
                 return {
                     el: host,
                     isMonaco: true,
                     getValue: function () { return ed.getValue(); },
                     // Guard the write so an unchanged re-set can't move the caret.
-                    setValue: function (v) { if (ed.getValue() !== v) { ed.setValue(v); } },
+                    setValue: function (v) { if (ed.getValue() !== v) { ed.setValue(v); decorateMarkers(); } },
                     focus: function () { try { ed.focus(); } catch (e) {} },
                     cursorStart: function () { try { ed.setPosition({ lineNumber: 1, column: 1 }); } catch (e) {} },
                     onChange: function (cb) { ed.onDidChangeModelContent(cb); },
                     layout: function () { try { ed.layout(); } catch (e) {} },
-                    dispose: function () { try { ed.dispose(); } catch (e) {} }
+                    dispose: function () { if (decoTimer) { clearTimeout(decoTimer); } try { ed.dispose(); } catch (e) {} }
                 };
             }
             host.remove();
