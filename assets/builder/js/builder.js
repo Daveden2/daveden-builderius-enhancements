@@ -343,7 +343,7 @@
        everywhere — the dialogs consume them as identity before this gate. */
     function dbeAttrBlocked(name, value) {
         var n = String(name || '').toLowerCase();
-        if (!n || n === 'data-dbe-id' || n === 'data-dbe-module') { return n || 'attribute'; }
+        if (!n || n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { return n || 'attribute'; }
         if (n.indexOf('on') === 0) { return n; }
         if (DBE_URL_ATTRS[n] && dbeDangerousUrl(value)) { return n + '="' + String(value).slice(0, 12) + '…"'; }
         return null;
@@ -1815,9 +1815,13 @@
            element (the serialiser plants it there); markers deeper inside
            are just removed — the inner markup is one opaque setting. */
         function convertSvg(el) {
-            var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '' };
+            var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '', label: '' };
             var marker = el.getAttribute('data-dbe-id');
             if (marker && origIds[marker] && !claimed[marker]) { claimed[marker] = true; node.existingId = marker; }
+            // The Navigator label lives on the <svg> itself; read it before the
+            // attribute scrub below removes the marker from the stored markup.
+            var svgLabel = el.getAttribute('data-dbe-label');
+            if (svgLabel) { node.label = String(svgLabel).replace(/\s+/g, ' ').trim(); }
             // The whole SVG is stored as one opaque raw string, so it gets the
             // same gate as element attributes plus SVG-specific element vectors.
             // One walk over the subtree: drop script-bearing / markup-smuggling
@@ -1851,7 +1855,7 @@
                 }
                 [].slice.call(d.attributes).forEach(function (a) {
                     var n = a.name.toLowerCase();
-                    if (n === 'data-dbe-id' || n === 'data-dbe-module') { d.removeAttribute(a.name); return; }
+                    if (n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { d.removeAttribute(a.name); return; }
                     if (n.indexOf('on') === 0) { stripped.push(n); d.removeAttribute(a.name); return; }
                     if (DBE_URL_ATTRS[n] && dbeDangerousUrl(a.value)) {
                         stripped.push(n + '="' + String(a.value).slice(0, 12) + '…"');
@@ -1880,7 +1884,7 @@
             if (tag === 'svg') { return convertSvg(el); }
             if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
-            var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [] };
+            var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [], label: '' };
             if (tag === 'template') { node.module = 'Template'; }
             [].slice.call(el.attributes).forEach(function (a) {
                 var n = a.name.toLowerCase();
@@ -1889,6 +1893,10 @@
                     if (origIds[v] && !claimed[v]) { claimed[v] = true; node.existingId = v; }
                     return;
                 }
+                // Navigator label for the element. Consumed, never stored — sets
+                // a new element's label, or renames a kept one. A blank value
+                // falls through to the default (tag-derived) label.
+                if (n === 'data-dbe-label') { node.label = String(v).replace(/\s+/g, ' ').trim(); return; }
                 // Explicit module marker for NEW nodes (kept nodes take their
                 // type from the live module regardless). Consumed, never stored.
                 if (n === 'data-dbe-module') {
@@ -2040,6 +2048,9 @@
                             return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg'].indexOf(x.name) === -1;
                         });
                         m.settings = keep.concat(dbeNodeSettings(node));
+                        // A data-dbe-label on a kept element renames it; without
+                        // one the live label rides along untouched.
+                        if (node.label) { m.label = node.label; }
                         sf2.storeSet('addModule', { module: m }); // existing id = upsert
                         counts.kept += 1;
                     }
@@ -2049,9 +2060,9 @@
                     var moduleName = node.module || 'HtmlElement';
                     var mod = {
                         id: dbeMakeId(), name: moduleName,
-                        label: moduleName === 'HtmlElement'
+                        label: node.label || (moduleName === 'HtmlElement'
                             ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
-                            : moduleName,
+                            : moduleName),
                         settings: dbeNodeSettings(node)
                     };
                     storeAddModule(sf2, mod, parentId, index);
@@ -2203,9 +2214,9 @@
         var moduleName = node.module || 'HtmlElement';
         var mod = {
             id: dbeMakeId(), name: moduleName,
-            label: moduleName === 'HtmlElement'
+            label: node.label || (moduleName === 'HtmlElement'
                 ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
-                : moduleName,
+                : moduleName),
             settings: dbeNodeSettings(node)
         };
         storeAddModule(sf, mod, parentId, index);
@@ -2295,6 +2306,7 @@
         function walk(n, d) {
             var line = new Array(d + 1).join('  ') + '<' + n.tag + '>';
             if ((n.module || 'HtmlElement') !== 'HtmlElement') { line += ' [' + n.module + ']'; }
+            if (n.label) { line += ' » ' + n.label; }
             if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
             if (n.content) {
                 var t = n.content.length > 34 ? n.content.slice(0, 34) + '…' : n.content;
@@ -2341,7 +2353,7 @@
         var hint = document.createElement('p');
         hint.className = 'dbe-html__hint';
         hint.textContent = dbeT('importHtmlHint',
-            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine.');
+            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator.');
         dlg.appendChild(hint);
 
         var editor = document.createElement('textarea');
