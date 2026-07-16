@@ -949,7 +949,12 @@ html[data-dbe-theme="light"] .uniFormField__settingLabelInline.nonEmptyValue {
    colour does. Repaint the enabled state as the light theme's filled accent
    (white on --dbe-accent-strong, the class-chip treatment, stepping to the
    lighter accent on hover — both AA for the 12px labels) and the disabled
-   state as the same quiet grey the modal buttons use. The base rule's
+   state as a genuinely muted chip: --dbe-muted on the hover-grey fill with a
+   hairline border (~5.3:1 — legible, and 1.4.3 exempts inactive controls).
+   The first pass borrowed the modal buttons' quiet grey (--dbe-text on
+   --dbe-line-hi), but those are ENABLED buttons — full-contrast text made a
+   disabled Run read as clickable, identical to the idle Save treatment. The
+   base rule's
    !important also pins the native :focus-within/:active recolours to the
    same white-on-accent pair, so every state stays AA; the focus CUE is the
    2px --dbe-focus ring from 13-focus.css, offset over the panel surface
@@ -971,9 +976,9 @@ html[data-dbe-theme="light"] .uniSearchSelectors .newSelector:hover:not(:disable
 html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary:disabled,
 html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar:disabled,
 html[data-dbe-theme="light"] .uniSearchSelectors .newSelector:disabled {
-    background: var(--dbe-line-hi) !important;
-    border-color: var(--dbe-line-hi) !important;
-    color: var(--dbe-text) !important;
+    background: var(--dbe-l2-hi) !important;
+    border-color: var(--dbe-line) !important;
+    color: var(--dbe-muted) !important;
 }
 html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary svg path,
 html[data-dbe-theme="light"] .uniSearchSelectors .newCssVar svg path,

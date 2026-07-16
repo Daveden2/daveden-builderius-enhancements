@@ -114,6 +114,14 @@ function dbe_builder_strings() {
 		'undoFailedSelectParent'  => __( 'Undo failed: could not select the parent', 'daveden-builderius-enhancements' ),
 		'undoFailedNoRows'        => __( 'Undo failed: no tree rows', 'daveden-builderius-enhancements' ),
 
+		// Paste where you click.
+		'pasteAtTop'              => __( 'Paste at top level', 'daveden-builderius-enhancements' ),
+		'navigatorAreaMenu'       => __( 'Navigator actions', 'daveden-builderius-enhancements' ),
+		'pasteNothing'            => __( 'Nothing to paste: copy an element first', 'daveden-builderius-enhancements' ),
+		'pasteSelectFailed'       => __( 'Paste failed: could not select the element', 'daveden-builderius-enhancements' ),
+		'pasteMenuFailed'         => __( 'Paste failed: could not reach Paste', 'daveden-builderius-enhancements' ),
+		'pasteNoRows'             => __( 'Paste at top level needs at least one element in the tree', 'daveden-builderius-enhancements' ),
+
 		// Right-click menu.
 		'expandChildren'          => __( 'Expand children', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of selected elements. */

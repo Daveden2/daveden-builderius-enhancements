@@ -2772,6 +2772,134 @@
     function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo'); }
     function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo'); }
 
+    /* --- Paste where you click (navigator_paste) ---
+       Native Paste always inserts into the ACTIVE module (or at root when
+       nothing is selected); the row whose menu you opened is irrelevant. So
+       right-click → Paste on an unselected row pastes into the wrong place,
+       and the only way to aim it is the select-first dance. Two repairs:
+       (1) Row menus: when the right-clicked row is not the selection,
+           intercept the native Paste item, select that row (same retry
+           cadence as the undo restore — the tree can be mid-re-render),
+           then re-drive the native Paste on it.
+       (2) The empty area below the tree gets a small menu of its own with
+           "Paste at top level": clear the selection so the native
+           fall-back-to-root path runs.
+       Both routes end in the REAL native Paste channel — a raw store insert
+       would not survive a save. The paste target row is tracked here rather
+       than through lastCtxId so the feature works with every other
+       context-menu feature switched off. */
+    var dbePasteCtxRow = null; // tree-row id the current menu was opened on, or null
+
+    /* The native Paste item of the open tree menu, when our re-target should
+       take over; null when native paste already does the right thing. */
+    function dbePasteNativeItem(e) {
+        var li = e.target && e.target.closest && e.target.closest('dialog.uniBuilderContextMenu[open] li.uniContextMenu__item');
+        if (!li || li.classList.contains('dbe-ctx-item')) { return null; }
+        // Auto-driven menus (undo restore, wrap, our own re-drive) are exempt.
+        if (document.documentElement.classList.contains('dbe-auto-ctx')) { return null; }
+        if (nativeCtxLabel(li) !== 'Paste') { return null; }
+        if (!dbePasteCtxRow || activeId() === dbePasteCtxRow) { return null; }
+        return li;
+    }
+
+    /* Snapshot the module map now; the returned function polls for a pasted
+       module under parentId and toasts when nothing arrives (an empty or
+       foreign clipboard makes native Paste a silent no-op). */
+    function dbeWatchPasteResult(parentId) {
+        var beforeIds = Object.keys(modules() || {});
+        return function () {
+            waitFor(function () {
+                var mods = modules() || {};
+                return Object.keys(mods).find(function (id) {
+                    return beforeIds.indexOf(id) === -1 && (mods[id].parent || '') === parentId;
+                }) || null;
+            }, function (newId) {
+                if (!newId) { undoToast(dbeT('pasteNothing', 'Nothing to paste: copy an element first')); }
+            });
+        };
+    }
+
+    function dbePasteInto(targetId) {
+        var attempts = 0;
+        (function sel() {
+            var row = document.querySelector('.uniRightPanel .uni-tree-node-' + targetId);
+            if (row) { clickSeq(row); }
+            waitFor(function () { return activeId() === targetId || null; }, function (ok) {
+                if (!ok) {
+                    if (++attempts < 4) { sel(); }
+                    else { undoToast(dbeT('pasteSelectFailed', 'Paste failed: could not select the element')); }
+                    return;
+                }
+                var settled = dbeWatchPasteResult(targetId);
+                driveContextMenuItem(targetId, 'Paste', function (done) {
+                    if (!done) { undoToast(dbeT('pasteMenuFailed', 'Paste failed: could not reach Paste')); return; }
+                    settled();
+                });
+            }, 20);
+        })();
+    }
+
+    function dbePasteAtRoot() {
+        // Any row's menu will do — with no active module, native Paste falls
+        // back to root (the same channel the root-level undo restore uses).
+        var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
+        var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
+        if (!m) { undoToast(dbeT('pasteNoRows', 'Paste at top level needs at least one element in the tree')); return; }
+        try { store().storeSet('activeModule', ''); } catch (e) {}
+        var settled = dbeWatchPasteResult('');
+        driveContextMenuItem(m[1], 'Paste', function (done) {
+            if (!done) { undoToast(dbeT('pasteMenuFailed', 'Paste failed: could not reach Paste')); return; }
+            settled();
+        });
+    }
+
+    function bindPasteTarget() {
+        // Which row (if any) the menu-opening right-click landed on. Cleared
+        // when the menu hides, so a menu that arrives by another route (e.g.
+        // a stale id from an earlier right-click) can never misdirect a paste.
+        document.addEventListener('contextmenu', function (e) {
+            if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+            var btn = e.target && e.target.closest && e.target.closest('.uniModTree__item');
+            var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
+            dbePasteCtxRow = m ? m[1] : null;
+        }, true);
+        try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; }); } catch (e) {}
+        // Swallow the whole activation sequence: the native item may act on
+        // any of these, and the menu keyboard model activates through the
+        // same synthetic chain (clickSeq); the flow itself runs on click.
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) {
+            document.addEventListener(t, function (e) {
+                if (dbePasteNativeItem(e)) { e.preventDefault(); e.stopPropagation(); }
+            }, true);
+        });
+        document.addEventListener('click', function (e) {
+            if (!dbePasteNativeItem(e)) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var target = dbePasteCtxRow; // read before the hide hook clears it
+            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (err) {}
+            dbePasteInto(target);
+        }, true);
+    }
+
+    function bindTreeAreaMenu() {
+        document.addEventListener('contextmenu', function (e) {
+            if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+            var t = e.target;
+            if (!t || !t.closest) { return; }
+            // Only the tree's empty container area — rows keep the native menu,
+            // and header buttons / the tree-search input keep their own roles.
+            if (!t.closest('.uniRightPanel .uniModTree__container')) { return; }
+            if (t.closest('.uniModTree__item, button, input, a')) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var focusReturn = document.querySelector('.uniRightPanel .uniModTree__item[tabindex="0"]');
+            renderChipCard(focusReturn, e.clientX, e.clientY, [
+                { label: dbeT('pasteAtTop', 'Paste at top level'), fn: dbePasteAtRoot }
+            ], dbeT('navigatorAreaMenu', 'Navigator actions'));
+        }, true);
+    }
+
     function bindUndoKeys() {
         document.addEventListener('keydown', function (e) {
             if (!(e.metaKey || e.ctrlKey) || (e.key || '').toLowerCase() !== 'z') { return; }
@@ -9194,6 +9322,16 @@
             var rb = anchor.getBoundingClientRect();
             openSelectedChipMenu(sel, rb.left, rb.bottom + 2);
         }, true);
+        bindChipMenuDismiss();
+    }
+
+    /* Outside dismissal for every renderChipCard menu (chip menus, the
+       Navigator empty-area menu): any outside pointer press, scroll or
+       Escape closes it. Bound once, shared by whichever features need it. */
+    var dbeChipDismissBound = false;
+    function bindChipMenuDismiss() {
+        if (dbeChipDismissBound) { return; }
+        dbeChipDismissBound = true;
         ['pointerdown', 'wheel'].forEach(function (t) {
             document.addEventListener(t, function (e) {
                 if (dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) { closeChipMenu(); }
@@ -10141,6 +10279,14 @@
         if (on('undo_delete')) {
             hookHistoryCapture();
             bindUndoKeys();
+        }
+
+        // Paste targets the right-clicked row; the empty tree area gets its
+        // own menu with "Paste at top level".
+        if (on('navigator_paste')) {
+            bindPasteTarget();
+            bindTreeAreaMenu();
+            bindChipMenuDismiss();
         }
 
         // Seed new Image elements with a placeholder src and an empty alt.

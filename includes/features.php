@@ -282,6 +282,15 @@ function dbe_features() {
 			'css'         => array(),
 			'js'          => true,
 		),
+		'navigator_paste'       => array(
+			'title'       => __( 'Paste where you click', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Paste lands on the right-clicked row, or at top level from empty space.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes Paste in the Navigator right-click menu insert into the element you right-clicked, instead of whichever element happens to be selected, and adds a right-click menu to the empty space below the tree with Paste at top level. Either way, you can paste without selecting anything first.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'editing',
+			'css'         => array(),
+			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
+			'js'          => true,
+		),
 		'inline_rename'         => array(
 			'title'       => __( 'Inline rename', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Rename an element directly on its Navigator row.', 'daveden-builderius-enhancements' ),
