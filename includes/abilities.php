@@ -113,7 +113,7 @@ function dbe_register_abilities() {
 		'dbe/apply-subtree-html',
 		array(
 			'label'               => __( 'Apply edited subtree HTML', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Sanitises edited HTML and reconciles it back onto a template module subtree, then saves by creating a new autopublished commit through Builderius\' own mutation. Elements whose data-dbe-id matches the original subtree keep their module (labels, conditions and non-HTML settings survive; tag/id/class/attributes/leading text update); unmarked elements are created; original modules whose marker is gone are removed. <dbe-keep data-dbe-id="…"> preserves a non-editable module and its subtree. The HTML must have exactly one root element: the subtree root (its identity is forced to module_id). Script tags, event handlers, dangerous URLs, unknown elements and inline <svg> are stripped and reported. data-dbe-label="…" names an element in the Navigator. An open builder session will not see the change until reloaded.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Sanitises edited HTML and reconciles it back onto a template module subtree, then saves by creating a new commit through Builderius\' own mutation. Elements whose data-dbe-id matches the original subtree keep their module (labels, conditions and non-HTML settings survive; tag/id/class/attributes/leading text update); unmarked elements are created; original modules whose marker is gone are removed. <dbe-keep data-dbe-id="…"> preserves a non-editable module and its subtree; <dbe-component name="slug" prop="value"> inserts a component instance. The HTML must have exactly one root element: the subtree root (its identity is forced to module_id). Script tags, event handlers, dangerous URLs, unknown elements and inline <svg> are stripped and reported. data-dbe-label="…" names an element in the Navigator. Pass dry_run to preview the result (with the ids new elements would get) without saving. An open builder session will not see a saved change until reloaded.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -127,6 +127,11 @@ function dbe_register_abilities() {
 						'type'        => 'string',
 						'description' => __( 'The edited markup, one root element.', 'daveden-builderius-enhancements' ),
 					),
+					'dry_run'     => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview only: return the resulting markup (including the ids new elements would receive) and the kept/added/removed counts WITHOUT saving. Use this to check an edit before committing.', 'daveden-builderius-enhancements' ),
+					),
 					'autopublish' => array(
 						'type'        => 'boolean',
 						'default'     => false,
@@ -139,7 +144,15 @@ function dbe_register_abilities() {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'commit_name' => array( 'type' => 'string' ),
+					'commit_name' => array(
+						'type'        => 'string',
+						'description' => __( 'The new commit name (absent on a dry run).', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'     => array( 'type' => 'boolean' ),
+					'html'        => array(
+						'type'        => 'string',
+						'description' => __( 'The resulting subtree markup (dry run only).', 'daveden-builderius-enhancements' ),
+					),
 					'kept'        => array( 'type' => 'integer' ),
 					'added'       => array( 'type' => 'integer' ),
 					'removed'     => array( 'type' => 'integer' ),
@@ -1099,9 +1112,14 @@ function dbe_ability_apply_subtree_html( $input ) {
 
 	$parsed = dbe_ability_parse_fragment( $html, $orig_ids );
 	if ( 1 !== count( $parsed['roots'] ) ) {
+		// Name what was removed when the count is off because of stripping,
+		// so a payload that collapsed to nothing does not read as an empty edit.
+		$why = $parsed['stripped']
+			? ' Stripped: ' . implode( ', ', array_unique( $parsed['stripped'] ) ) . '.'
+			: '';
 		return new WP_Error(
 			'dbe_one_root',
-			sprintf( 'The HTML must have exactly one root element (found %d after sanitising).', count( $parsed['roots'] ) )
+			sprintf( 'The HTML must have exactly one root element (found %d after sanitising).%s', count( $parsed['roots'] ), $why )
 		);
 	}
 	$tree = $parsed['roots'][0];
@@ -1110,6 +1128,21 @@ function dbe_ability_apply_subtree_html( $input ) {
 	}
 
 	$result = dbe_ability_reconcile( $config, $module_id, $tree );
+
+	// Dry run: report what WOULD happen and the resulting markup (with the
+	// ids new elements would get) without writing a commit. Lets an agent
+	// check an edit before mutating, and see the created elements' ids.
+	if ( ! empty( $input['dry_run'] ) ) {
+		$throwaway = array();
+		return array(
+			'dry_run'  => true,
+			'html'     => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
+			'kept'     => $result['kept'],
+			'added'    => $result['added'],
+			'removed'  => $result['removed'],
+			'stripped' => array_values( array_unique( $parsed['stripped'] ) ),
+		);
+	}
 
 	$commit_name = dbe_ability_create_commit(
 		$loaded['branch']->ID,
@@ -1125,6 +1158,6 @@ function dbe_ability_apply_subtree_html( $input ) {
 		'kept'        => $result['kept'],
 		'added'       => $result['added'],
 		'removed'     => $result['removed'],
-		'stripped'    => $parsed['stripped'],
+		'stripped'    => array_values( array_unique( $parsed['stripped'] ) ),
 	);
 }
