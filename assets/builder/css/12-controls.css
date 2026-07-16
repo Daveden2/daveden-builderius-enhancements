@@ -97,3 +97,57 @@
     background-color: var(--dbe-accent-strong) !important; color: var(--dbe-on-accent-strong) !important;
     border-radius: var(--dbe-r-sm) !important;
 }
+
+/* --- Panel-field switch (the snippet/variable "Enabled" toggle) --- */
+/* The native .uniPanelField--switch checkbox is a 28×16 pill with a 10px
+   near-black knob (#202022) — invisible against its own track, under the
+   24px target minimum (2.5.8), and its state is carried by colour and knob
+   position alone (1.4.1). Rebuild it as the admin settings page's switch
+   pattern, sized to the same 44×24: a token-coloured track (checked =
+   var(--dbe-accent), which resolves to the AA-passing tone in each theme),
+   a white knob delineated by a shadow ring, and a state glyph inside the
+   knob — a dash when off, a tick when on — so on/off never rides on colour
+   or position alone. The glyphs are background-images: decorative to
+   assistive tech, the checkbox itself announces checked/unchecked. Glyph
+   colours are hard-coded (data URIs cannot read custom properties); both
+   sit on the white knob in every theme, so one value passes everywhere. */
+input.uniPanelField__switch[type="checkbox"] {
+    appearance: none !important;
+    inline-size: 44px !important;
+    block-size: 24px !important;
+    flex: none !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    background: var(--dbe-l2-hi) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-muted) !important;
+    position: relative !important;
+    cursor: pointer !important;
+    transition: background-color var(--dbe-t), box-shadow var(--dbe-t) !important;
+}
+input.uniPanelField__switch[type="checkbox"]::before {
+    content: "" !important;
+    position: absolute !important;
+    inset-block-start: 3px !important;
+    inset-inline-start: 3px !important;
+    inline-size: 18px !important;
+    block-size: 18px !important;
+    border-radius: 50% !important;
+    translate: 0 0 !important;
+    /* OFF: a dash inside the knob (mid-grey, 4.6:1 on the white knob). */
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%235b6170" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat, #ffffff !important;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.12) !important;
+    transition: translate var(--dbe-t) !important;
+}
+input.uniPanelField__switch[type="checkbox"]:checked {
+    background: var(--dbe-accent) !important;
+    box-shadow: none !important;
+}
+input.uniPanelField__switch[type="checkbox"]:checked::before {
+    translate: 20px 0 !important;
+    /* ON: a tick replaces the dash (5.5:1 on the white knob). */
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%231d5cb0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 11px 11px no-repeat, #ffffff !important;
+}
+input.uniPanelField__switch[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 2px !important;
+}

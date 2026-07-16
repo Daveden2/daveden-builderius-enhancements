@@ -2390,6 +2390,32 @@
         });
     }
 
+    /* The snippet/variable list menu (Rename / Configure / Delete / Move,
+       data-menu-id="var_actions_<title>") opens through the same native
+       dialog machinery as the element menu, but onContextMenuShow never
+       touches it (it recognises element menus by their Duplicate / Create
+       Component rows) — so its items are unfocusable and arrows do nothing.
+       Stamp the shared menu keyboard model on it, and name the menu after
+       the item it acts on (the menu-id suffix is the item's title). Runs
+       under footer_toolbar — the footer tools' accessibility feature — via
+       its own hook registration, so it never drags the element-menu
+       machinery in. */
+    function onVarMenuShow() {
+        requestAnimationFrame(function () {
+            var menu = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'))
+                .filter(function (m) { return m.offsetParent !== null; })[0];
+            if (!menu) { return; }
+            if (!menu.getAttribute('aria-label')) {
+                var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
+                menu.setAttribute('aria-label', title
+                    ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
+                    : dbeT('tipItemActionsFallback', 'Item actions'));
+            }
+            var container = menu.querySelector('ul') || menu;
+            setupMenuKeyboard(container);
+        });
+    }
+
     /* (e) "Collapse subtrees" Navigator header icon. The stock header button
        collapses EVERYTHING, including the top-level rows; this one closes only
        the levels below them (e.g. the sections inside <main>), leaving the
@@ -2538,6 +2564,21 @@
             document.querySelectorAll(pair[0]).forEach(function (el) { setTip(el, pair[1]); });
         });
         adoptNativeTips();
+        // Snippet/variable list rows (the JavaScript and Dynamic Data footer
+        // tools): the sliders button that opens the Rename/Configure/Delete
+        // menu is icon-only with no name anywhere (4.1.2). Name it after the
+        // row's own title, and declare the menu it pops open. Renaming
+        // re-renders the row, so a stale name cannot outlive its item.
+        document.querySelectorAll('.uniTabDataVars__varsList ul li').forEach(function (row) {
+            var btn = row.querySelector('button.iconBoxWrapper');
+            if (!btn) { return; }
+            var title = row.querySelector('button.varTitle');
+            title = title ? (title.textContent || '').trim() : '';
+            setTip(btn, title
+                ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
+                : dbeT('tipItemActionsFallback', 'Item actions'));
+            if (btn.getAttribute('aria-haspopup') !== 'menu') { btn.setAttribute('aria-haspopup', 'menu'); }
+        });
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
         // base first, then large-to-small), falling back to the static list.
@@ -4102,7 +4143,7 @@
        observer dies with the old node and the feature would go silently dead.
        The panel is retried independently of the bar: it can mount later, and
        the old code never re-checked once the bar was seen. */
-    var dbeFooterBarNode = null, dbeFooterPanelNode = null;
+    var dbeFooterBarNode = null, dbeFooterPanelNode = null, dbeFooterScopeContentNode = null;
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
         if (!window.MutationObserver) { return; }
@@ -4120,6 +4161,18 @@
             try {
                 new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
                 dbeFooterPanelNode = fp;
+            } catch (e) {}
+        }
+        // Scope content: the snippet/variable configure panel mounts and
+        // unmounts as a DIRECT child (list menu -> Configure), which the
+        // shallow panel observer above cannot see. childList-only, so the
+        // Monaco editors deeper inside still do not spam it. Node-tracked:
+        // the content remounts when the tool or scope switches.
+        var sc = document.querySelector('.uniFooterTabScopeContent');
+        if (sc && sc !== dbeFooterScopeContentNode) {
+            try {
+                new MutationObserver(schedule).observe(sc, { childList: true });
+                dbeFooterScopeContentNode = sc;
             } catch (e) {}
         }
     }
@@ -4170,6 +4223,7 @@
         dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
 
         dbeEnsureFooterScopeTabs();
+        dbeEnsurePanelFieldLabels();
     }
 
     /* (tf2) Global / Template scope tabs inside the JavaScript and Dynamic Data
@@ -4213,6 +4267,51 @@
             try {
                 new MutationObserver(schedule).observe(scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
             } catch (e) { scope.dbeScopeObserved = false; }
+        }
+    }
+
+    /* (tf3) Field labels in the snippet/variable configure panel. Every plain
+       .uniPanelField renders its <label class="uniPanelField__label"> as a
+       SIBLING of the control with no for/id pair — the Enabled switch, Title,
+       Description and Priority fields all announce as unnamed controls
+       (1.3.1 / 4.1.2), and clicking a label does nothing. Wire for/id (native
+       association — no ARIA needed); radio fields already wrap each option in
+       its own <label>, so there the caption instead names the option group
+       (role=radiogroup + aria-labelledby — the one place ARIA is required,
+       since HTML's fieldset/legend cannot be retrofitted onto React's DOM).
+       React re-creates these nodes on state changes (toggling the switch
+       re-renders the field), which drops our ids — the configure-panel
+       observer below re-runs this pass, and ids are only (re)assigned when
+       missing, so the wiring self-heals. */
+    var dbePanelFieldSeq = 0;
+    function dbeEnsurePanelFieldLabels() {
+        [].slice.call(document.querySelectorAll('.uniPanelField')).forEach(function (field) {
+            var label = field.querySelector('.uniPanelField__label');
+            if (!label) { return; }
+            var group = field.querySelector('.uniPanelField__radioGroup');
+            if (group) {
+                if (!label.id) { label.id = 'dbe-panel-field-label-' + (++dbePanelFieldSeq); }
+                if (group.getAttribute('role') !== 'radiogroup') { group.setAttribute('role', 'radiogroup'); }
+                if (group.getAttribute('aria-labelledby') !== label.id) { group.setAttribute('aria-labelledby', label.id); }
+                return;
+            }
+            var control = field.querySelector('input, textarea, select');
+            // Controls inside their own wrapping <label> are already named.
+            if (!control || control.closest('label')) { return; }
+            if (!control.id) { control.id = 'dbe-panel-field-' + (++dbePanelFieldSeq); }
+            if (label.getAttribute('for') !== control.id) { label.setAttribute('for', control.id); }
+        });
+        // The configure panel mounts on demand (list menu -> Configure) as a
+        // child of the scope content, outside every observer above — and its
+        // fields re-render on edit. Watch it while it exists; node-tracked so
+        // a React-replaced panel is re-observed, and childList-only so our own
+        // attribute writes never retrigger the pass.
+        var cfg = document.querySelector('.uniTabDataVars__configurePanel');
+        if (cfg && !cfg.dbeFieldsObserved) {
+            cfg.dbeFieldsObserved = true;
+            try {
+                new MutationObserver(schedule).observe(cfg, { childList: true, subtree: true });
+            } catch (e) { cfg.dbeFieldsObserved = false; }
         }
     }
 
@@ -8825,6 +8924,12 @@
             // Hook the native context menu.
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow); } catch (e) {}
             try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus); } catch (e) {}
+        }
+
+        // The snippet/variable list menu in the footer panels gets its
+        // keyboard model under footer_toolbar, independent of NEED_CTX_MENU.
+        if (on('footer_toolbar')) {
+            try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow); } catch (e) {}
         }
 
         // Copy menu on the Styles editor's class chips.

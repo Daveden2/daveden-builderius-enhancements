@@ -1123,3 +1123,27 @@ html[data-dbe-theme="light"] .uniTabDataVars__editor:not(:has(.uniTabDataVars__e
 html[data-dbe-theme="light"] .uniTabDataVars__editorItem {
     background-color: var(--dbe-l1) !important;
 }
+
+/* --- Leak audit pass 23: the snippet/variable "Enabled" switch --- */
+/* The .uniPanelField--switch checkbox keeps its native dark colours in the
+   light theme: a #3A3F47 track with a #202022 knob — a black pill on the
+   light configure panel, with the knob invisible against its own track
+   (~1.4:1). 12-controls.css rebuilds the control as the admin switch
+   pattern when Controls styling is on; this repaint covers the theme on
+   its own, recolouring the native geometry with the SAME tokens and
+   longhand properties so the two files compose to one result when both
+   are active. Checked keeps no ring — var(--dbe-accent) already passes
+   3:1 against the panel; unchecked needs the muted ring because the
+   track fill alone is too close to the surface (1.4.11). */
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"] {
+    background-color: var(--dbe-l2-hi) !important;
+    box-shadow: inset 0 0 0 1px var(--dbe-muted) !important;
+}
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"]:checked {
+    background-color: var(--dbe-accent) !important;
+    box-shadow: none !important;
+}
+html[data-dbe-theme="light"] input.uniPanelField__switch[type="checkbox"]::before {
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.12) !important;
+}
