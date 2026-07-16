@@ -2073,6 +2073,72 @@
 
     var dbeHtmlBusy = false;
 
+    /* The code field for the HTML dialogs: a Monaco editor with HTML syntax
+       highlighting when the builder's bundle exposes it (window.Builderius.
+       API.monaco — there is no window.monaco), else the plain textarea the
+       dialogs shipped with. Returns a uniform handle so the callers never
+       branch: { el, getValue, setValue, focus, onChange, layout, dispose }.
+       Monaco needs a laid-out, sized container, so layout() is called once the
+       dialog has shown; the light theme comes free from 60-theme.css inverting
+       .monaco-editor, exactly as for the CSS editor. */
+    function dbeMakeCodeEditor(opts) {
+        opts = opts || {};
+        var api = window.Builderius && window.Builderius.API && window.Builderius.API.monaco;
+        if (api && api.editor && typeof api.editor.create === 'function') {
+            var host = document.createElement('div');
+            host.className = 'dbe-html__editor dbe-html__editor--monaco';
+            var ed = null;
+            try {
+                ed = api.editor.create(host, {
+                    value: opts.value || '',
+                    language: 'html',
+                    theme: 'vs-dark', // 60-theme.css inverts .monaco-editor for the light theme
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    wordWrap: 'on',
+                    lineNumbers: 'on',
+                    fontSize: 13,
+                    tabSize: 2,
+                    scrollBeyondLastLine: false,
+                    fixedOverflowWidgets: true,
+                    ariaLabel: opts.ariaLabel || ''
+                });
+            } catch (e) { ed = null; }
+            if (ed) {
+                return {
+                    el: host,
+                    isMonaco: true,
+                    getValue: function () { return ed.getValue(); },
+                    // Guard the write so an unchanged re-set can't move the caret.
+                    setValue: function (v) { if (ed.getValue() !== v) { ed.setValue(v); } },
+                    focus: function () { try { ed.focus(); } catch (e) {} },
+                    cursorStart: function () { try { ed.setPosition({ lineNumber: 1, column: 1 }); } catch (e) {} },
+                    onChange: function (cb) { ed.onDidChangeModelContent(cb); },
+                    layout: function () { try { ed.layout(); } catch (e) {} },
+                    dispose: function () { try { ed.dispose(); } catch (e) {} }
+                };
+            }
+            host.remove();
+        }
+        // Fallback: the original plain textarea.
+        var ta = document.createElement('textarea');
+        ta.className = 'dbe-html__editor';
+        ta.spellcheck = false;
+        if (opts.ariaLabel) { ta.setAttribute('aria-label', opts.ariaLabel); }
+        ta.value = opts.value || '';
+        return {
+            el: ta,
+            isMonaco: false,
+            getValue: function () { return ta.value; },
+            setValue: function (v) { ta.value = v; },
+            focus: function () { ta.focus(); },
+            cursorStart: function () { try { ta.setSelectionRange(0, 0); } catch (e) {} },
+            onChange: function (cb) { ta.addEventListener('input', cb); },
+            layout: function () {},
+            dispose: function () {}
+        };
+    }
+
     function openEditHtmlDialog(rootId) {
         if (dbeHtmlBusy) { return; }
         var mods = modules() || {};
@@ -2107,12 +2173,11 @@
         hint.appendChild(hintText);
         dlg.appendChild(hint);
 
-        var editor = document.createElement('textarea');
-        editor.className = 'dbe-html__editor';
-        editor.spellcheck = false;
-        editor.setAttribute('aria-label', dbeT('editAsHtmlEditor', 'HTML markup'));
-        editor.value = dbeSerializeSubtree(rootId);
-        dlg.appendChild(editor);
+        var editor = dbeMakeCodeEditor({
+            value: dbeSerializeSubtree(rootId),
+            ariaLabel: dbeT('editAsHtmlEditor', 'HTML markup')
+        });
+        dlg.appendChild(editor.el);
 
         var status = document.createElement('p');
         status.className = 'dbe-html__status';
@@ -2139,7 +2204,7 @@
             })(rootId);
             var parsed;
             try {
-                parsed = dbeParseHtmlTree(editor.value, origIds);
+                parsed = dbeParseHtmlTree(editor.getValue(), origIds);
             } catch (msg) {
                 status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
                 return;
@@ -2176,11 +2241,12 @@
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { dlg.remove(); });
+        dlg.addEventListener('close', function () { editor.dispose(); dlg.remove(); });
         document.body.appendChild(dlg);
         dlg.showModal();
+        editor.layout(); // Monaco was created in the pre-show (0-size) dialog
         editor.focus();
-        editor.setSelectionRange(0, 0);
+        editor.cursorStart();
     }
 
     /* ============================ Import HTML ============================
@@ -2342,11 +2408,8 @@
             'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator.');
         dlg.appendChild(hint);
 
-        var editor = document.createElement('textarea');
-        editor.className = 'dbe-html__editor';
-        editor.spellcheck = false;
-        editor.setAttribute('aria-label', dbeT('importHtmlEditor', 'HTML to import'));
-        dlg.appendChild(editor);
+        var editor = dbeMakeCodeEditor({ ariaLabel: dbeT('importHtmlEditor', 'HTML to import') });
+        dlg.appendChild(editor.el);
 
         // Repetition offer — shown only when the parsed markup contains
         // groups of structurally identical siblings (see dbeFindRepeats).
@@ -2393,7 +2456,7 @@
         var parsed = null;
         var previewTimer = null;
         function refreshPreview() {
-            var html = editor.value;
+            var html = editor.getValue();
             parsed = null;
             insert.disabled = true;
             status.textContent = '';
@@ -2432,7 +2495,7 @@
             status.textContent = note;
             insert.disabled = false;
         }
-        editor.addEventListener('input', function () {
+        editor.onChange(function () {
             clearTimeout(previewTimer);
             previewTimer = setTimeout(refreshPreview, 250);
         });
@@ -2478,9 +2541,10 @@
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { dlg.remove(); });
+        dlg.addEventListener('close', function () { editor.dispose(); dlg.remove(); });
         document.body.appendChild(dlg);
         dlg.showModal();
+        editor.layout(); // Monaco was created in the pre-show (0-size) dialog
         refreshPreview();
         editor.focus();
     }

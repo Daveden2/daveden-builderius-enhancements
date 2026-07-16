@@ -75,6 +75,29 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-html__editor:focus { border-color: var(--dbe-accent); outline: none; }
 
+/* Monaco variant: the field is a host <div> the editor fills, so it hands the
+   text chrome (padding, font, colours, scrolling) to Monaco and keeps only the
+   box — border, radius and the flex sizing. The editor fills the host, and the
+   light theme comes from 60-theme.css inverting .monaco-editor. Not resizable
+   (Monaco owns its scroll); overflow hidden so nothing escapes the radius. */
+.dbe-html__editor--monaco {
+	padding: 0;
+	overflow: hidden;
+	resize: none;
+	background: none;
+	/* Positioning context: Monaco fills the host absolutely, so its height no
+	   longer depends on percentage resolution through the flex column (which
+	   collapsed it to 0). The host keeps its own flex sizing + min-height. */
+	position: relative;
+}
+.dbe-html__editor--monaco .monaco-editor,
+.dbe-html__editor--monaco .monaco-editor .overflow-guard {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+}
+.dbe-html__editor--monaco:focus-within { border-color: var(--dbe-accent); }
+
 /* Import flow: the live preview of the elements the pasted markup will
    create. The editor cedes some height to it. */
 .dbe-html--import .dbe-html__editor { min-block-size: 140px; }
