@@ -50,7 +50,11 @@ No. A few features enhance Pro-only surfaces (such as the CSS code editor helper
 
 = How do I suggest a feature or report a bug? =
 
-Open an issue on the GitHub repository. Suggestions that ship are credited in this readme.
+Report bugs as issues on the GitHub repository. For questions, ideas and general chat, use the repository's Discussions tab. Suggestions that ship are credited in this readme.
+
+= Can I support the plugin's development? =
+
+Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi or PayPal). The plugin stays free either way.
 
 == Changelog ==
 
