@@ -35,12 +35,17 @@ Read `builderius://graphql-schema` before writing any query.
 6. **`set_visibility_condition` applies on the front end, not the canvas.**
    A conditionally hidden element still shows in the preview and in
    `get_rendered_html`.
+7. **Data variable names and JS snippet names are snake_case, always.**
+   The builder's UI does not accept camelCase names, so `team_data`, never
+   `teamData` — a camelCase name written through the MCP or an ability
+   becomes uneditable in the builder. The same applies to
+   `manage_js_snippet` names.
 
 ## Binding syntax — the two-bracket trap
 
 - A Collection's `data-b-context` binds a **GLOBAL** data variable with
   **double square brackets** and the full path to the array:
-  `data-b-context="[[teamData.terms_query.terms]]"`. The `{{ }}` form, or an
+  `data-b-context="[[team_data.terms_query.terms]]"`. The `{{ }}` form, or an
   entity-scoped variable, silently renders ONE empty placeholder row — no
   error, indistinguishable from an empty query result.
 - A nested SubCollection binds **loop-item-relative** with `{{ }}` in a

@@ -1829,7 +1829,7 @@ function dbe_ability_binding_warnings( $tree ) {
 			} else {
 				$decoded = json_decode( trim( $context ), true );
 				if ( ! is_array( $decoded ) ) {
-					$warnings[] = $where . ' has a data-b-context that is neither [[globalVar.path]] nor a literal JSON array — the loop will not resolve.';
+					$warnings[] = $where . ' has a data-b-context that is neither [[global_var.path]] nor a literal JSON array — the loop will not resolve.';
 				}
 			}
 		}

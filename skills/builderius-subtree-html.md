@@ -86,9 +86,10 @@ in one apply:
 - A `data-b-context` attribute makes an element a Collection; its
   `<template>` child is the repeated part, `{{field}}` placeholders bind
   each item's fields. Static siblings of the `<template>` render once.
-- **Data-bound**: `data-b-context="[[globalVar.path.to.array]]"` — double
-  square brackets, GLOBAL variable (see builderius-dynamic-data for the
-  syntax rules and query recipes).
+- **Data-bound**: `data-b-context="[[global_var.path.to.array]]"` — double
+  square brackets, GLOBAL variable with a snake_case name (the builder UI
+  rejects camelCase names; see builderius-dynamic-data for the syntax rules
+  and query recipes).
 - **Literal**: `data-b-context` may hold a literal JSON array directly.
 - **Nested**: a `data-source` attribute makes an element a SubCollection —
   loop-item-relative, `{{ }}` form: `data-source="{{posts_query.posts}}"`
