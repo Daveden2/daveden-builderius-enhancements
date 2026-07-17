@@ -374,6 +374,64 @@ function dbe_register_abilities() {
 		)
 	);
 
+	wp_register_ability(
+		'dbe/extract-release',
+		array(
+			'label'               => __( 'Extract a release (work on a release)', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Rebuilds the DEVELOPMENT state from a Builderius release — the builder\'s "work on a release" action, via the same extractRelease mutation. Builderius first DELETES every existing template, component and global settings set (framework CSS and all commit history included), then recreates each entity from the release\'s bundled configs with a fresh single-commit history. The release itself is untouched and stays published, so logged-out visitors see no change. Use when development state is missing or meaningless while a release exists — the classic case is a migrated site whose builder shows empty templates although the live pages render fine — or to roll development back to what is published. This destroys ALL unpublished work; requires confirm: true after explicit user approval. Always run with dry_run first: it reports the release contents and everything that would be deleted. Close open builder tabs before extracting and reload them afterwards — a stale tab\'s save would resurrect deleted state.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'release' => array(
+						'type'        => 'string',
+						'description' => __( 'Builderius release post ID, version/title, or slug to extract. Omit for the latest published release.', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run' => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview only: report the release contents and the current entities that WOULD be deleted, without extracting.', 'daveden-builderius-enhancements' ),
+					),
+					'confirm' => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Must be true to extract. Extraction permanently replaces all development state; confirm with the user first.', 'daveden-builderius-enhancements' ),
+					),
+					'force'   => $force_arg,
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'release'   => array(
+						'type'        => 'object',
+						'description' => __( 'The release being extracted (id, version, date).', 'daveden-builderius-enhancements' ),
+					),
+					'contains'  => array(
+						'type'        => 'array',
+						'description' => __( 'The release\'s bundled entities (slug, name, entity_type, type) that extraction recreates.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'replaces'  => array(
+						'type'        => 'object',
+						'description' => __( 'Slugs of the current templates, components and settings_sets that extraction deletes first.', 'daveden-builderius-enhancements' ),
+					),
+					'after'     => array(
+						'type'        => array( 'object', 'null' ),
+						'description' => __( 'Slugs of the templates, components and settings_sets present after extraction; null on a dry run.', 'daveden-builderius-enhancements' ),
+					),
+					'extracted' => array( 'type' => 'boolean' ),
+					'dry_run'   => array( 'type' => 'boolean' ),
+					'message'   => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_extract_release',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
 	$settings_set_arg = array(
 		'type'        => 'string',
 		'description' => __( 'Global settings set post ID or slug. Omit when the site has one (the usual case).', 'daveden-builderius-enhancements' ),
@@ -3602,6 +3660,130 @@ function dbe_ability_publish( $input ) {
 		'version'  => $version,
 		'entities' => $entities,
 	);
+}
+
+/**
+ * Slugs of every current Builderius development entity, grouped the way
+ * extraction treats them: it deletes all three groups before recreating
+ * entities from the release.
+ *
+ * @return array{templates:array,components:array,settings_sets:array}
+ */
+function dbe_ability_dev_entity_slugs() {
+	$groups = array();
+	foreach ( array(
+		'templates'     => 'builderius_template',
+		'components'    => 'builderius_component',
+		'settings_sets' => 'builderius_sett_set',
+	) as $key => $post_type ) {
+		$groups[ $key ] = array_map(
+			static function ( $post ) {
+				return $post->post_name;
+			},
+			get_posts(
+				array(
+					'post_type'   => $post_type,
+					'post_status' => get_post_stati(),
+					'numberposts' => -1,
+					'orderby'     => 'title',
+					'order'       => 'ASC',
+				)
+			)
+		);
+	}
+	return $groups;
+}
+
+/**
+ * Handle dbe/extract-release.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_extract_release( $input ) {
+	$release = dbe_ability_resolve_release( $input['release'] ?? '' );
+	if ( is_wp_error( $release ) ) {
+		return $release;
+	}
+	if ( ! $release ) {
+		return new WP_Error( 'dbe_no_release', 'This site has no Builderius release to extract. Publish one first with dbe/publish.' );
+	}
+
+	// The release's bundled entities live in its DSM children; each DSM's
+	// entity typing is JSON in the post excerpt.
+	$contains  = array();
+	$dsm_posts = get_posts(
+		array(
+			'post_type'   => 'builderius_dsm',
+			'post_parent' => $release->ID,
+			'post_status' => get_post_stati(),
+			'numberposts' => -1,
+			'orderby'     => 'title',
+			'order'       => 'ASC',
+		)
+	);
+	foreach ( $dsm_posts as $dsm ) {
+		$excerpt    = json_decode( (string) $dsm->post_excerpt, true );
+		$contains[] = array(
+			'slug'        => $dsm->post_name,
+			'name'        => $dsm->post_title,
+			'entity_type' => is_array( $excerpt ) ? (string) ( $excerpt['entity_type'] ?? '' ) : '',
+			'type'        => is_array( $excerpt ) ? (string) ( $excerpt['type'] ?? '' ) : '',
+		);
+	}
+
+	$report = array(
+		'release'  => array(
+			'id'      => $release->ID,
+			'version' => $release->post_title,
+			'date'    => $release->post_date,
+		),
+		'contains' => $contains,
+		'replaces' => dbe_ability_dev_entity_slugs(),
+	);
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		$report['dry_run']   = true;
+		$report['extracted'] = false;
+		$report['after']     = null;
+		return $report;
+	}
+	if ( true !== ( $input['confirm'] ?? false ) ) {
+		return new WP_Error(
+			'dbe_confirm_required',
+			'Extraction deletes every template, component and global settings set (commit history included) and rebuilds them from the release. Confirm with the user, then pass confirm: true.'
+		);
+	}
+	if ( function_exists( 'dbe_presence_precondition' ) ) {
+		foreach ( $report['replaces']['templates'] as $slug ) {
+			$presence = dbe_presence_precondition( $slug, ! empty( $input['force'] ) );
+			if ( is_wp_error( $presence ) ) {
+				return $presence;
+			}
+		}
+	}
+
+	$data = dbe_ability_graphql(
+		'dbeExtractRelease',
+		'mutation DbeExtractRelease($id: Int!) { extractRelease(id: $id) { result message } }',
+		array( 'id' => (int) $release->ID )
+	);
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$outcome = $data['extractRelease'] ?? array();
+	if ( empty( $outcome['result'] ) ) {
+		return new WP_Error(
+			'dbe_extract_failed',
+			'extractRelease reported failure' . ( empty( $outcome['message'] ) ? '.' : ': ' . $outcome['message'] )
+		);
+	}
+
+	$report['dry_run']   = false;
+	$report['extracted'] = true;
+	$report['message']   = (string) ( $outcome['message'] ?? '' );
+	$report['after']     = dbe_ability_dev_entity_slugs();
+	return $report;
 }
 
 /*

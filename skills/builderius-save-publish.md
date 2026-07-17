@@ -47,6 +47,27 @@ state you are testing with.**
 4. **Verify public**: a cookie-less fetch of the page, then `dbe/status`
    should show `unpublished_changes: false`.
 
+## The reverse direction: extract a release into development
+
+`dbe/extract-release` is the builder's "work on a release" action (Builderius'
+own `extractRelease` mutation): it rebuilds the DEVELOPMENT state from a
+release. The classic need is a migrated site whose live pages render from a
+release while the builder shows nothing meaningful — extraction repopulates
+the dev branches from what is published.
+
+It is the most destructive ability in the set: Builderius first **deletes
+every template, component and global settings set** (framework CSS and all
+commit history included), then recreates each entity from the release with a
+fresh single-commit history. The release itself stays published, so
+logged-out visitors see no change.
+
+1. **Always dry-run first**: returns the release's bundled entities
+   (`contains`) and everything that would be deleted (`replaces`).
+2. Get **explicit user approval**, then pass `confirm: true`.
+3. Close open builder tabs first and reload them after — a stale tab's save
+   would resurrect deleted state (the dirty-tab preflight blocks this;
+   `force: true` overrides only on explicit approval).
+
 ## Related staleness traps
 
 - An open builder session does NOT see commits created ability-side
