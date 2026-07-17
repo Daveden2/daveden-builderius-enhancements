@@ -66,6 +66,26 @@ function dbe_register_ability_category() {
 add_action( 'wp_abilities_api_init', 'dbe_register_abilities' );
 
 /**
+ * Register one ability, honouring the settings-page toggles.
+ *
+ * Every ability in this file registers through this wrapper. An ability
+ * switched off on the Agent abilities tab (or with the master switch off)
+ * is simply never registered, so it does not exist for a connected agent:
+ * it is absent from discovery and cannot be executed. dbe_ability_enabled()
+ * also refuses ids missing from the dbe_abilities() registry, so a new
+ * ability must be added there (with settings copy) before it can go live.
+ *
+ * @param string $id   Ability id, e.g. "dbe/extract-release".
+ * @param array  $args wp_register_ability() arguments.
+ */
+function dbe_register_ability( $id, $args ) {
+	if ( ! dbe_ability_enabled( $id ) ) {
+		return;
+	}
+	wp_register_ability( $id, $args );
+}
+
+/**
  * Register the get/apply subtree HTML abilities.
  */
 function dbe_register_abilities() {
@@ -89,7 +109,7 @@ function dbe_register_abilities() {
 		'description' => __( 'Explicitly override a dirty Builderius-tab conflict. Use only after confirming that overwriting the tab state is intended.', 'daveden-builderius-enhancements' ),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-subtree-html',
 		array(
 			'label'               => __( 'Get subtree as HTML', 'daveden-builderius-enhancements' ),
@@ -132,7 +152,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/apply-subtree-html',
 		array(
 			'label'               => __( 'Apply edited subtree HTML', 'daveden-builderius-enhancements' ),
@@ -211,7 +231,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-tree-outline',
 		array(
 			'label'               => __( 'Get template tree outline', 'daveden-builderius-enhancements' ),
@@ -257,7 +277,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/status',
 		array(
 			'label'               => __( 'Get save/publish status', 'daveden-builderius-enhancements' ),
@@ -308,7 +328,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/publish',
 		array(
 			'label'               => __( 'Publish a release', 'daveden-builderius-enhancements' ),
@@ -374,7 +394,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/extract-release',
 		array(
 			'label'               => __( 'Extract a release (work on a release)', 'daveden-builderius-enhancements' ),
@@ -437,7 +457,7 @@ function dbe_register_abilities() {
 		'description' => __( 'Global settings set post ID or slug. Omit when the site has one (the usual case).', 'daveden-builderius-enhancements' ),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-global-css',
 		array(
 			'label'               => __( 'Get global CSS', 'daveden-builderius-enhancements' ),
@@ -474,7 +494,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/patch-global-css',
 		array(
 			'label'               => __( 'Patch global CSS (named block)', 'daveden-builderius-enhancements' ),
@@ -532,7 +552,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-entity-css',
 		array(
 			'label'               => __( 'Get entity CSS', 'daveden-builderius-enhancements' ),
@@ -574,7 +594,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/patch-entity-css',
 		array(
 			'label'               => __( 'Patch entity CSS (named block)', 'daveden-builderius-enhancements' ),
@@ -636,7 +656,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/list-commits',
 		array(
 			'label'               => __( 'List saved commits', 'daveden-builderius-enhancements' ),
@@ -677,7 +697,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/restore-global-css-from-commit',
 		array(
 			'label'               => __( 'Restore global CSS from a commit', 'daveden-builderius-enhancements' ),
@@ -746,7 +766,7 @@ function dbe_register_abilities() {
 		),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-template-settings',
 		array(
 			'label'               => __( 'Get template settings', 'daveden-builderius-enhancements' ),
@@ -777,7 +797,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/create-template',
 		array(
 			'label'               => __( 'Create a template', 'daveden-builderius-enhancements' ),
@@ -844,7 +864,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/update-template',
 		array(
 			'label'               => __( 'Update template settings', 'daveden-builderius-enhancements' ),
@@ -883,7 +903,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/delete-template',
 		array(
 			'label'               => __( 'Delete a template', 'daveden-builderius-enhancements' ),
@@ -925,7 +945,7 @@ function dbe_register_abilities() {
 		'description' => __( 'Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — Collections can only bind global variables, so global is the usual scope.', 'daveden-builderius-enhancements' ),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-data-variables',
 		array(
 			'label'               => __( 'Get data variables', 'daveden-builderius-enhancements' ),
@@ -972,7 +992,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/manage-data-variable',
 		array(
 			'label'               => __( 'Create, update or delete a data variable', 'daveden-builderius-enhancements' ),
@@ -1051,7 +1071,7 @@ function dbe_register_abilities() {
 		'description' => __( 'Template (or component) post ID or slug for that entity\'s snippets — the right scope for page-specific behaviour. Omit for the GLOBAL settings set: site-wide snippets loaded on every Builderius page.', 'daveden-builderius-enhancements' ),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/get-js-snippets',
 		array(
 			'label'               => __( 'Get JS snippets', 'daveden-builderius-enhancements' ),
@@ -1089,7 +1109,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/manage-js-snippet',
 		array(
 			'label'               => __( 'Create, update or delete a JS snippet', 'daveden-builderius-enhancements' ),
@@ -1194,7 +1214,7 @@ function dbe_register_abilities() {
 		),
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/list-components',
 		array(
 			'label'               => __( 'List components', 'daveden-builderius-enhancements' ),
@@ -1225,7 +1245,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/create-component',
 		array(
 			'label'               => __( 'Create a component', 'daveden-builderius-enhancements' ),
@@ -1265,7 +1285,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/manage-component-property',
 		array(
 			'label'               => __( 'Create, update or delete a component property', 'daveden-builderius-enhancements' ),
@@ -1326,7 +1346,7 @@ function dbe_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	dbe_register_ability(
 		'dbe/delete-component',
 		array(
 			'label'               => __( 'Delete a component', 'daveden-builderius-enhancements' ),
@@ -1362,13 +1382,14 @@ function dbe_register_abilities() {
 }
 
 /**
- * Both abilities turn markup into raw-rendered module settings, so they take
- * the same gate as the builder dialogs (feature toggle incl. the Pro check +
- * unfiltered_html) plus Builderius' own development capability, which the
- * createCommit endpoint checks anyway.
+ * Editing abilities can turn markup into raw-rendered module settings, so
+ * they take the abilities master switch (the Agent abilities tab) plus
+ * unfiltered_html plus Builderius' own development capability, which the
+ * createCommit endpoint checks anyway. Per-ability toggles are enforced at
+ * registration time by dbe_register_ability().
  */
 function dbe_ability_permission() {
-	return dbe_enabled( 'edit_as_html' )
+	return dbe_abilities_enabled()
 		&& current_user_can( 'unfiltered_html' )
 		&& current_user_can( 'builderius-development' );
 }
@@ -1379,7 +1400,7 @@ function dbe_ability_permission() {
  * capability — they report on unpublished development state.
  */
 function dbe_ability_read_permission() {
-	return dbe_enabled( 'edit_as_html' )
+	return dbe_abilities_enabled()
 		&& current_user_can( 'builderius-development' );
 }
 

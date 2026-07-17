@@ -33,6 +33,12 @@ add_filter( 'novamira_skill_lookup_sources', 'dbe_register_skill_source' );
  * @return array
  */
 function dbe_register_skill_source( $sources ) {
+	// The skills are playbooks for the dbe/* abilities; with the abilities
+	// master switch off they would only advertise tools that do not exist,
+	// so the whole source stays unregistered.
+	if ( ! dbe_abilities_enabled() ) {
+		return $sources;
+	}
 	$sources['dbe'] = array(
 		'id'       => 'dbe',
 		'priority' => 20,
