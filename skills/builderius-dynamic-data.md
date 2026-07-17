@@ -126,10 +126,21 @@ set `no_found_rows: true` on loops that never paginate.
 
 1. Read `builderius://graphql-schema`; check `list_dynamic_data_helpers`
    only for current-context (settings pages, menus) needs.
-2. Create a GLOBAL `graphQLQuery` variable (`manage_data_variable` in a
-   builder session — entity-scoped variables cannot drive Collections).
-3. Verify resolution with `get_dynamic_data { refresh: true }` BEFORE
-   building markup — a wrong query and a wrong binding look identical later.
+2. Create a GLOBAL `graphQLQuery` variable — entity-scoped variables cannot
+   drive Collections. Two channels:
+   - **Headless (no builder tab): `dbe/manage-data-variable`** — works on the
+     saved state via commit; read `dbe/get-data-variables` first for the
+     current variables and `expected_commit`. Names are snake_case (enforced);
+     GraphQL syntax is checked at save. The system `wp` variable can only be
+     updated with `allow_system: true` — hand-write helper-equivalent fields
+     (e.g. `page_id__field: metabox_value(option_name: "page_id",
+     field_id: "field")` for a settings page, or `nav_menu(...)`) instead of
+     applying builder helpers.
+   - Builder session: `manage_data_variable` (live store; needs the tab open).
+3. Verify resolution BEFORE building markup — a wrong query and a wrong
+   binding look identical later. In a builder session use
+   `get_dynamic_data { refresh: true }`; headless, check the rendered page
+   on the dev host while logged in (saved commits render without publishing).
 4. Build the loop: Collection (`data-b-context="[[var.path]]"`) → `<template>`
    → optional SubCollection (`data-source="{{path}}"`) → `<template>`. The
    whole structure can be authored in one `dbe/apply-subtree-html` call (see

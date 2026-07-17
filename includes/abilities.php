@@ -666,6 +666,324 @@ function dbe_register_abilities() {
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
 	);
+
+	$apply_rules_arg = array(
+		'type'        => array( 'object', 'null' ),
+		'description' => __( 'Where the template applies: { "location": name, "conditions": rules }. Core locations: front_page, home, singulars, blog_posts, pages, archives, 404, entire_site; Pro adds custom_posts, post_type_archives, taxonomy_archives, tag_archives, author_archives, date/year/month/day_archives, search_results, attachment_posts. Conditions follow Builderius\' rule tree, e.g. {"condition":"or","rules":[{"condition":"and","rules":[{"name":"post_id","operator":"equals","value":3}]}]}. Pass null to clear the rules (the template then applies nowhere).', 'daveden-builderius-enhancements' ),
+	);
+	$template_row    = array(
+		'type'       => 'object',
+		'properties' => array(
+			'id'          => array( 'type' => 'integer' ),
+			'slug'        => array( 'type' => 'string' ),
+			'title'       => array( 'type' => 'string' ),
+			'enabled'     => array( 'type' => 'boolean' ),
+			'type'        => array( 'type' => 'string' ),
+			'technology'  => array( 'type' => 'string' ),
+			'sort_order'  => array( 'type' => 'integer' ),
+			'apply_rules' => array( 'type' => array( 'object', 'null' ) ),
+			'hook'        => array( 'type' => array( 'object', 'null' ) ),
+			'branch_id'   => array( 'type' => array( 'integer', 'null' ) ),
+			'commit_name' => array( 'type' => array( 'string', 'null' ) ),
+		),
+	);
+
+	wp_register_ability(
+		'dbe/get-template-settings',
+		array(
+			'label'               => __( 'Get template settings', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reads a Builderius template\'s registration-level settings — title, slug, enabled state, type, technology, sort order and apply rules (location + conditions) — plus its branch and saved commit. These are the settings the builder\'s template dialog edits, not the module tree (dbe/get-subtree-html) or CSS (dbe/get-entity-css). Omit template to list every template.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template' => array(
+						'type'        => 'string',
+						'description' => __( 'Template post ID or slug. Omit for all templates.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'templates' => array(
+						'type'  => 'array',
+						'items' => $template_row,
+					),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_get_template_settings',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/create-template',
+		array(
+			'label'               => __( 'Create a template', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates a Builderius template through the builder\'s own createTemplate mutation, headlessly — no builder tab needed. Builderius initialises the master branch and an initial commit (site header/footer components, a <main> element and a default `wp` data variable), so dbe/get-subtree-html and dbe/apply-subtree-html work on it immediately. The template is created enabled but applies nowhere until apply_rules is set (here or later via dbe/update-template). Creating never publishes; the new template reaches logged-out visitors only after dbe/publish.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'title'              => array(
+						'type'        => 'string',
+						'description' => __( 'Template title, shown in the builder\'s template list. Must be unique.', 'daveden-builderius-enhancements' ),
+					),
+					'name'               => array(
+						'type'        => 'string',
+						'description' => __( 'Slug. Defaults to a sanitised form of the title. Must be unique.', 'daveden-builderius-enhancements' ),
+					),
+					'type'               => array(
+						'type'        => 'string',
+						'default'     => 'regular',
+						'description' => __( 'Template type: regular, page, doc or hook (hook templates render on a WordPress hook and need the hook fields below).', 'daveden-builderius-enhancements' ),
+					),
+					'technology'         => array(
+						'type'        => 'string',
+						'default'     => 'html',
+						'description' => __( 'Template technology. Sites normally have one: html.', 'daveden-builderius-enhancements' ),
+					),
+					'enabled'            => array(
+						'type'        => 'boolean',
+						'default'     => true,
+						'description' => __( 'Whether the template is active. Disabled templates never render.', 'daveden-builderius-enhancements' ),
+					),
+					'sort_order'         => array(
+						'type'        => 'integer',
+						'description' => __( 'Priority among templates whose rules match the same request; lower wins. Defaults to 10.', 'daveden-builderius-enhancements' ),
+					),
+					'apply_rules'        => $apply_rules_arg,
+					'hook'               => array(
+						'type'        => 'string',
+						'description' => __( 'Hook templates only: the WordPress hook name.', 'daveden-builderius-enhancements' ),
+					),
+					'hook_type'          => array(
+						'type'        => 'string',
+						'enum'        => array( 'action', 'filter' ),
+						'description' => __( 'Hook templates only: action or filter.', 'daveden-builderius-enhancements' ),
+					),
+					'hook_accepted_args' => array(
+						'type'        => 'integer',
+						'description' => __( 'Hook templates only: accepted args count. Defaults to 1.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'title' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array( 'template' => $template_row ),
+			),
+			'execute_callback'    => 'dbe_ability_create_template',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/update-template',
+		array(
+			'label'               => __( 'Update template settings', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Updates a Builderius template\'s registration-level settings through the builder\'s own updateTemplate mutation: title, slug, enabled state, type, sort order and apply rules (location + conditions). Only the fields passed change. This edits the same settings as the builder\'s template dialog — an open builder tab that later saves that dialog can overwrite these values, so prefer editing with the tab closed. Module content and CSS are separate (dbe/apply-subtree-html, dbe/patch-entity-css). Changes reach logged-out visitors immediately for apply rules and enabled state (they live on the post, not in a release).', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template'    => array(
+						'type'        => 'string',
+						'description' => __( 'Template post ID or slug.', 'daveden-builderius-enhancements' ),
+					),
+					'title'       => array( 'type' => 'string' ),
+					'name'        => array(
+						'type'        => 'string',
+						'description' => __( 'New slug.', 'daveden-builderius-enhancements' ),
+					),
+					'enabled'     => array( 'type' => 'boolean' ),
+					'type'        => array(
+						'type'        => 'string',
+						'description' => __( 'Template type: regular, page, doc or hook.', 'daveden-builderius-enhancements' ),
+					),
+					'sort_order'  => array( 'type' => 'integer' ),
+					'apply_rules' => $apply_rules_arg,
+				),
+				'required'             => array( 'template' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array( 'template' => $template_row ),
+			),
+			'execute_callback'    => 'dbe_ability_update_template',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/delete-template',
+		array(
+			'label'               => __( 'Delete a template', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Permanently deletes a Builderius template through the builder\'s own deleteTemplate mutation, including its branches and commit history. This cannot be undone — there is no trash for Builderius templates. Requires confirm: true; confirm with the user before calling. A published release that included the template keeps rendering its already-built output until the next dbe/publish.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template' => array(
+						'type'        => 'string',
+						'description' => __( 'Template post ID or slug.', 'daveden-builderius-enhancements' ),
+					),
+					'confirm'  => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Must be true. Deletion is permanent; confirm with the user first.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'template', 'confirm' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'result'      => array( 'type' => 'boolean' ),
+					'message'     => array( 'type' => 'string' ),
+					'template_id' => array( 'type' => 'integer' ),
+					'slug'        => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_delete_template',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	$scope_template_arg = array(
+		'type'        => 'string',
+		'description' => __( 'Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — Collections can only bind global variables, so global is the usual scope.', 'daveden-builderius-enhancements' ),
+	);
+
+	wp_register_ability(
+		'dbe/get-data-variables',
+		array(
+			'label'               => __( 'Get data variables', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reads Builderius dynamic-data variables from the saved state: the GLOBAL settings set by default (the variables Collections can bind with data-b-context="[[name.path]]"), or one template\'s entity-scoped variables when template is passed. Each entry has name, type (graphQLQuery, json, …) and value (the GraphQL query text or JSON). The `wp` entry is the system variable (flagged system: true) — the current post/user/menu context. Returns the branch and commit for the expected_commit save flow.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template'     => $scope_template_arg,
+					'entity_type'  => $entity_type_arg,
+					'settings_set' => $settings_set_arg,
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'scope'       => array(
+						'type' => 'string',
+						'enum' => array( 'global', 'entity' ),
+					),
+					'entity_id'   => array( 'type' => array( 'integer', 'null' ) ),
+					'entity_slug' => array( 'type' => array( 'string', 'null' ) ),
+					'branch_id'   => array( 'type' => 'integer' ),
+					'commit_name' => array( 'type' => 'string' ),
+					'variables'   => array(
+						'type'  => 'array',
+						'items' => array(
+							'type'       => 'object',
+							'properties' => array(
+								'name'      => array( 'type' => 'string' ),
+								'type'      => array( 'type' => 'string' ),
+								'value'     => array( 'type' => 'string' ),
+								'variables' => array( 'type' => array( 'string', 'null' ) ),
+								'system'    => array( 'type' => 'boolean' ),
+							),
+						),
+					),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_get_data_variables',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/manage-data-variable',
+		array(
+			'label'               => __( 'Create, update or delete a data variable', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates, updates or deletes a Builderius dynamic-data variable in the saved state, committed through Builderius\' own mutation. Works on the GLOBAL settings set by default (required for Collection loops) or one template when template is passed. Names are snake_case (the builder UI cannot edit camelCase names). graphQLQuery values are syntax-checked before saving; verify the query actually returns data on the rendered page afterwards (logged-in users see saved commits — no publish needed). The system `wp` variable cannot be created, renamed or deleted; updating its query needs allow_system: true — that is the headless equivalent of the builder\'s dynamic-data helpers (e.g. adding nav_menu or metabox_value fields for settings pages). Read dbe/get-data-variables first for the current state and expected_commit. An open builder tab will not see the change until reloaded — and its own save can overwrite this; the dirty-tab preflight protects against that.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'action'          => array(
+						'type' => 'string',
+						'enum' => array( 'create', 'update', 'delete' ),
+					),
+					'name'            => array(
+						'type'        => 'string',
+						'description' => __( 'The variable name. snake_case for create (e.g. team_data, never teamData).', 'daveden-builderius-enhancements' ),
+					),
+					'new_name'        => array(
+						'type'        => 'string',
+						'description' => __( 'Update only: rename the variable (snake_case). Bindings using the old name are NOT rewritten.', 'daveden-builderius-enhancements' ),
+					),
+					'type'            => array(
+						'type'        => 'string',
+						'enum'        => array( 'graphQLQuery', 'json' ),
+						'default'     => 'graphQLQuery',
+						'description' => __( 'Create only: the variable type.', 'daveden-builderius-enhancements' ),
+					),
+					'value'           => array(
+						'type'        => 'string',
+						'description' => __( 'The GraphQL query text (graphQLQuery) or JSON text (json). Required for create; optional on update (omit to keep the current value when only renaming).', 'daveden-builderius-enhancements' ),
+					),
+					'variables'       => array(
+						'type'        => array( 'object', 'string', 'null' ),
+						'description' => __( 'graphQLQuery only: GraphQL variables as a JSON object. Rarely needed.', 'daveden-builderius-enhancements' ),
+					),
+					'allow_system'    => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Required to update the system `wp` variable\'s query. Never allows renaming or deleting it.', 'daveden-builderius-enhancements' ),
+					),
+					'template'        => $scope_template_arg,
+					'entity_type'     => $entity_type_arg,
+					'settings_set'    => $settings_set_arg,
+					'dry_run'         => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview: validate and return the resulting variable without saving.', 'daveden-builderius-enhancements' ),
+					),
+					'expected_commit' => $expected_commit_arg,
+					'force'           => $force_arg,
+				),
+				'required'             => array( 'action', 'name' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'action'      => array( 'type' => 'string' ),
+					'scope'       => array( 'type' => 'string' ),
+					'variable'    => array(
+						'type'        => array( 'object', 'null' ),
+						'description' => __( 'The resulting variable (null after delete).', 'daveden-builderius-enhancements' ),
+					),
+					'commit_name' => array( 'type' => 'string' ),
+					'base_commit' => array( 'type' => 'string' ),
+					'dry_run'     => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_manage_data_variable',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
 }
 
 /**
@@ -714,13 +1032,13 @@ function dbe_ability_entity_type( $entity_type ) {
 }
 
 /**
- * Resolve a template or component reference to its saved content config.
+ * Resolve a template or component reference to its post.
  *
  * @param string $ref         Post ID or slug.
  * @param string $entity_type Entity type: template or component.
- * @return array|WP_Error { config, entity_post, entity_type, template_post, branch, commit }.
+ * @return WP_Post|WP_Error The entity post.
  */
-function dbe_ability_load_entity_config( $ref, $entity_type = 'template' ) {
+function dbe_ability_find_entity_post( $ref, $entity_type = 'template' ) {
 	$entity_type = dbe_ability_entity_type( $entity_type );
 	if ( is_wp_error( $entity_type ) ) {
 		return $entity_type;
@@ -745,6 +1063,26 @@ function dbe_ability_load_entity_config( $ref, $entity_type = 'template' ) {
 	}
 	if ( ! $post || $post_type !== $post->post_type ) {
 		return new WP_Error( 'dbe_no_entity', sprintf( 'No %s found for "%s".', $post_type, $ref ) );
+	}
+	return $post;
+}
+
+/**
+ * Resolve a template or component reference to its saved content config.
+ *
+ * @param string $ref         Post ID or slug.
+ * @param string $entity_type Entity type: template or component.
+ * @return array|WP_Error { config, entity_post, entity_type, template_post, branch, commit }.
+ */
+function dbe_ability_load_entity_config( $ref, $entity_type = 'template' ) {
+	$entity_type = dbe_ability_entity_type( $entity_type );
+	if ( is_wp_error( $entity_type ) ) {
+		return $entity_type;
+	}
+
+	$post = dbe_ability_find_entity_post( $ref, $entity_type );
+	if ( is_wp_error( $post ) ) {
+		return $post;
 	}
 
 	$resolved = dbe_ability_resolve_commit( $post );
@@ -3328,5 +3666,562 @@ function dbe_ability_restore_global_css( $input ) {
 		'base_commit'   => $loaded['commit']->post_name,
 		'restored_from' => $name,
 		'css_length'    => strlen( $css ),
+	);
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *  Template lifecycle (create / read settings / update / delete)
+ * ----------------------------------------------------------------------
+ */
+
+/**
+ * Registration-level summary of a template post: the settings the builder's
+ * template dialog edits, plus branch/commit so agents can go straight to the
+ * content abilities.
+ *
+ * @param WP_Post $post Template post.
+ * @return array
+ */
+function dbe_ability_template_summary( $post ) {
+	$types        = wp_get_object_terms( $post->ID, 'builderius_template_type', array( 'fields' => 'slugs' ) );
+	$technologies = wp_get_object_terms( $post->ID, 'builderius_template_technology', array( 'fields' => 'slugs' ) );
+	$type         = ! is_wp_error( $types ) && $types ? (string) $types[0] : '';
+
+	$apply_rules = json_decode( (string) get_post_meta( $post->ID, 'apply_rules_config', true ), true );
+	if ( is_array( $apply_rules ) ) {
+		unset( $apply_rules['version'] );
+	} else {
+		$apply_rules = null;
+	}
+
+	$hook = null;
+	if ( 'hook' === $type ) {
+		$hook = array(
+			'hook'               => (string) get_post_meta( $post->ID, 'hook', true ),
+			'hook_type'          => (string) get_post_meta( $post->ID, 'hook_type', true ),
+			'hook_accepted_args' => (int) get_post_meta( $post->ID, 'hook_accepted_args', true ),
+		);
+	}
+
+	$sort_order = (int) get_post_meta( $post->ID, 'sort_order', true );
+
+	$branch_id   = null;
+	$commit_name = null;
+	$resolved    = dbe_ability_resolve_commit( $post );
+	if ( ! is_wp_error( $resolved ) ) {
+		$branch_id   = (int) $resolved['branch']->ID;
+		$commit_name = (string) $resolved['commit']->post_name;
+	}
+
+	return array(
+		'id'          => (int) $post->ID,
+		'slug'        => (string) $post->post_name,
+		'title'       => (string) $post->post_title,
+		'enabled'     => 'publish' === $post->post_status,
+		'type'        => $type,
+		'technology'  => ! is_wp_error( $technologies ) && $technologies ? (string) $technologies[0] : '',
+		'sort_order'  => $sort_order ? $sort_order : 10,
+		'apply_rules' => $apply_rules,
+		'hook'        => $hook,
+		'branch_id'   => $branch_id,
+		'commit_name' => $commit_name,
+	);
+}
+
+/**
+ * Validate and serialise an apply_rules input value for the mutation's
+ * serialized_apply_rules_config argument.
+ *
+ * @param mixed $rules The ability's apply_rules input (array or null).
+ * @return string|WP_Error JSON string, '' to clear, or an error.
+ */
+function dbe_ability_serialize_apply_rules( $rules ) {
+	if ( null === $rules ) {
+		return '';
+	}
+	if ( ! is_array( $rules ) || empty( $rules['location'] ) || ! is_string( $rules['location'] ) ) {
+		return new WP_Error( 'dbe_bad_apply_rules', 'apply_rules needs a "location" name (e.g. pages, entire_site) and usually a "conditions" rule tree.' );
+	}
+	$config = array( 'location' => $rules['location'] );
+	if ( isset( $rules['conditions'] ) ) {
+		if ( ! is_array( $rules['conditions'] ) ) {
+			return new WP_Error( 'dbe_bad_apply_rules', 'apply_rules.conditions must be a rule-tree object, e.g. {"condition":"or","rules":[…]}.' );
+		}
+		$config['conditions'] = $rules['conditions'];
+	}
+	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
+	if ( false === $json ) {
+		return new WP_Error( 'dbe_bad_apply_rules', 'Could not encode apply_rules.' );
+	}
+	return $json;
+}
+
+/**
+ * Handle dbe/get-template-settings.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_get_template_settings( $input ) {
+	$ref = trim( (string) ( $input['template'] ?? '' ) );
+	if ( '' !== $ref ) {
+		$post = dbe_ability_find_entity_post( $ref, 'template' );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+		$posts = array( $post );
+	} else {
+		$posts = get_posts(
+			array(
+				'post_type'   => 'builderius_template',
+				'post_status' => get_post_stati(),
+				'numberposts' => -1,
+				'orderby'     => 'ID',
+				'order'       => 'DESC',
+			)
+		);
+	}
+
+	return array( 'templates' => array_map( 'dbe_ability_template_summary', $posts ) );
+}
+
+/**
+ * Handle dbe/create-template.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_create_template( $input ) {
+	$title = trim( (string) ( $input['title'] ?? '' ) );
+	if ( '' === $title ) {
+		return new WP_Error( 'dbe_title_required', 'Pass a template title.' );
+	}
+	$type = trim( (string) ( $input['type'] ?? 'regular' ) );
+
+	$gql_input = array(
+		'title'      => $title,
+		'type'       => $type,
+		'technology' => trim( (string) ( $input['technology'] ?? 'html' ) ),
+		'enabled'    => (bool) ( $input['enabled'] ?? true ),
+	);
+	if ( ! empty( $input['name'] ) ) {
+		$gql_input['name'] = sanitize_title( (string) $input['name'] );
+	}
+	if ( isset( $input['sort_order'] ) ) {
+		$gql_input['sort_order'] = (int) $input['sort_order'];
+	}
+	if ( array_key_exists( 'apply_rules', $input ) && null !== $input['apply_rules'] ) {
+		$rules = dbe_ability_serialize_apply_rules( $input['apply_rules'] );
+		if ( is_wp_error( $rules ) ) {
+			return $rules;
+		}
+		$gql_input['serialized_apply_rules_config'] = $rules;
+	}
+	if ( 'hook' === $type ) {
+		if ( empty( $input['hook'] ) || empty( $input['hook_type'] ) ) {
+			return new WP_Error( 'dbe_hook_required', 'Hook templates need hook and hook_type.' );
+		}
+		$gql_input['hook']               = (string) $input['hook'];
+		$gql_input['hook_type']          = (string) $input['hook_type'];
+		$gql_input['hook_accepted_args'] = (int) ( $input['hook_accepted_args'] ?? 1 );
+	}
+
+	$mutation = 'mutation DbeCreateTemplate($input: BuilderiusCreateTemplateInput!) {'
+		. ' createTemplate(input: $input) { template { id name title } }'
+		. ' }';
+	$data     = dbe_ability_graphql( 'dbeCreateTemplate', $mutation, array( 'input' => $gql_input ) );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$template_id = (int) ( $data['createTemplate']['template']['id'] ?? 0 );
+	if ( ! $template_id ) {
+		return new WP_Error( 'dbe_create_failed', 'createTemplate returned no template.' );
+	}
+
+	return array( 'template' => dbe_ability_template_summary( get_post( $template_id ) ) );
+}
+
+/**
+ * Handle dbe/update-template.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_update_template( $input ) {
+	$post = dbe_ability_find_entity_post( (string) ( $input['template'] ?? '' ), 'template' );
+	if ( is_wp_error( $post ) ) {
+		return $post;
+	}
+
+	$current_terms = wp_get_object_terms( $post->ID, 'builderius_template_type', array( 'fields' => 'slugs' ) );
+	$current_type  = ! is_wp_error( $current_terms ) && $current_terms ? (string) $current_terms[0] : 'regular';
+
+	$gql_input = array( 'id' => (int) $post->ID );
+	if ( isset( $input['title'] ) && '' !== trim( (string) $input['title'] ) ) {
+		$gql_input['title'] = trim( (string) $input['title'] );
+	}
+	if ( isset( $input['name'] ) && '' !== trim( (string) $input['name'] ) ) {
+		$gql_input['name'] = sanitize_title( (string) $input['name'] );
+	} elseif ( isset( $gql_input['title'] ) ) {
+		// The resolver rewrites the slug from a new title; pin the current
+		// slug so a title-only update does not silently change URLs/refs.
+		$gql_input['name'] = (string) $post->post_name;
+	}
+	if ( isset( $input['enabled'] ) ) {
+		$gql_input['enabled'] = (bool) $input['enabled'];
+	}
+	if ( isset( $input['sort_order'] ) ) {
+		$gql_input['sort_order'] = (int) $input['sort_order'];
+	}
+	if ( array_key_exists( 'apply_rules', $input ) ) {
+		$rules = dbe_ability_serialize_apply_rules( $input['apply_rules'] );
+		if ( is_wp_error( $rules ) ) {
+			return $rules;
+		}
+		$gql_input['serialized_apply_rules_config'] = $rules;
+	}
+	if ( count( $gql_input ) < 2 && empty( $input['type'] ) ) {
+		return new WP_Error( 'dbe_nothing_to_update', 'Pass at least one field to change.' );
+	}
+
+	/*
+	 * The resolver reads input.type unconditionally, so always send one.
+	 * Its own term handling only covers switching TO regular or hook;
+	 * hook needs the hook/hook_type arguments this ability does not carry,
+	 * and other targets (page, doc) need the term set here afterwards.
+	 */
+	$new_type = isset( $input['type'] ) && '' !== trim( (string) $input['type'] ) ? trim( (string) $input['type'] ) : $current_type;
+	if ( 'hook' === $new_type && 'hook' !== $current_type ) {
+		return new WP_Error( 'dbe_hook_conversion', 'Converting to a hook template needs the hook fields — delete and recreate with dbe/create-template instead.' );
+	}
+	$gql_input['type'] = $new_type;
+
+	$mutation = 'mutation DbeUpdateTemplate($input: BuilderiusUpdateTemplateInput!) {'
+		. ' updateTemplate(input: $input) { template { id name title } }'
+		. ' }';
+	$data     = dbe_ability_graphql( 'dbeUpdateTemplate', $mutation, array( 'input' => $gql_input ) );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$template_id = (int) ( $data['updateTemplate']['template']['id'] ?? $post->ID );
+
+	if ( $new_type !== $current_type && ! in_array( $new_type, array( 'regular', 'hook' ), true ) ) {
+		$term_result = wp_set_object_terms( $template_id, $new_type, 'builderius_template_type' );
+		if ( is_wp_error( $term_result ) ) {
+			return $term_result;
+		}
+	}
+
+	clean_post_cache( $template_id );
+	return array( 'template' => dbe_ability_template_summary( get_post( $template_id ) ) );
+}
+
+/**
+ * Handle dbe/delete-template.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_delete_template( $input ) {
+	if ( true !== ( $input['confirm'] ?? false ) ) {
+		return new WP_Error( 'dbe_confirm_required', 'Deletion is permanent (branches and commit history included). Confirm with the user, then pass confirm: true.' );
+	}
+	$post = dbe_ability_find_entity_post( (string) ( $input['template'] ?? '' ), 'template' );
+	if ( is_wp_error( $post ) ) {
+		return $post;
+	}
+	$slug = (string) $post->post_name;
+
+	$mutation = 'mutation DbeDeleteTemplate($id: Int!) {'
+		. ' deleteTemplate(id: $id) { result message }'
+		. ' }';
+	$data     = dbe_ability_graphql( 'dbeDeleteTemplate', $mutation, array( 'id' => (int) $post->ID ) );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+
+	return array(
+		'result'      => (bool) ( $data['deleteTemplate']['result'] ?? false ),
+		'message'     => (string) ( $data['deleteTemplate']['message'] ?? '' ),
+		'template_id' => (int) $post->ID,
+		'slug'        => $slug,
+	);
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *  Dynamic-data variables (dataVars in the saved config)
+ * ----------------------------------------------------------------------
+ */
+
+/**
+ * Load the dataVars setting for the requested scope: the global settings
+ * set (default) or one entity's saved config. Saved entries use the
+ * builder's compact keys: a1 = type, b1 = name, c1 = value/query,
+ * d1 = GraphQL variables JSON.
+ *
+ * @param array $input Ability input (template / entity_type / settings_set).
+ * @return array|WP_Error { loaded, scope, slug, vars, vars_index }.
+ */
+function dbe_ability_load_data_vars( $input ) {
+	$template = trim( (string) ( $input['template'] ?? '' ) );
+	if ( '' !== $template ) {
+		$loaded = dbe_ability_load_entity_config( $template, $input['entity_type'] ?? 'template' );
+		$scope  = 'entity';
+		$slug   = is_wp_error( $loaded ) ? '' : (string) $loaded['entity_post']->post_name;
+	} else {
+		$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
+		$scope  = 'global';
+		$slug   = '';
+	}
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$vars       = array();
+	$vars_index = -1;
+	$settings   = $loaded['config']['template']['settings'] ?? array();
+	foreach ( (array) $settings as $i => $s ) {
+		if ( 'dataVars' === ( $s['name'] ?? '' ) ) {
+			$vars       = is_array( $s['value'] ?? null ) ? $s['value'] : array();
+			$vars_index = (int) $i;
+			break;
+		}
+	}
+
+	return array(
+		'loaded'     => $loaded,
+		'scope'      => $scope,
+		'slug'       => $slug,
+		'vars'       => $vars,
+		'vars_index' => $vars_index,
+	);
+}
+
+/**
+ * Ability-facing shape of a saved dataVars entry.
+ *
+ * @param array $entry Saved entry (a1/b1/c1/d1 keys).
+ * @return array
+ */
+function dbe_ability_data_var_row( $entry ) {
+	return array(
+		'name'      => (string) ( $entry['b1'] ?? '' ),
+		'type'      => (string) ( $entry['a1'] ?? '' ),
+		'value'     => is_string( $entry['c1'] ?? null ) ? $entry['c1'] : wp_json_encode( $entry['c1'] ?? null ),
+		'variables' => isset( $entry['d1'] ) && null !== $entry['d1'] ? (string) $entry['d1'] : null,
+		'system'    => 'wp' === ( $entry['b1'] ?? '' ),
+	);
+}
+
+/**
+ * Syntax-check a GraphQL document with Builderius' bundled parser. Schema
+ * validation happens at render time; this catches broken documents before
+ * they are committed.
+ *
+ * @param string $query GraphQL document.
+ * @return true|WP_Error
+ */
+function dbe_ability_validate_graphql_syntax( $query ) {
+	if ( ! class_exists( '\Builderius\GraphQL\Language\Parser' ) ) {
+		return true;
+	}
+	try {
+		\Builderius\GraphQL\Language\Parser::parse( $query );
+	} catch ( \Throwable $e ) {
+		return new WP_Error( 'dbe_bad_graphql', 'GraphQL syntax error: ' . $e->getMessage() );
+	}
+	return true;
+}
+
+/**
+ * Handle dbe/get-data-variables.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_get_data_variables( $input ) {
+	$state = dbe_ability_load_data_vars( $input );
+	if ( is_wp_error( $state ) ) {
+		return $state;
+	}
+	$loaded = $state['loaded'];
+
+	return array(
+		'scope'       => $state['scope'],
+		'entity_id'   => 'entity' === $state['scope'] ? (int) $loaded['entity_post']->ID : null,
+		'entity_slug' => 'entity' === $state['scope'] ? (string) $loaded['entity_post']->post_name : null,
+		'branch_id'   => (int) $loaded['branch']->ID,
+		'commit_name' => (string) $loaded['commit']->post_name,
+		'variables'   => array_map( 'dbe_ability_data_var_row', $state['vars'] ),
+	);
+}
+
+/**
+ * Handle dbe/manage-data-variable.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_manage_data_variable( $input ) {
+	$action = (string) ( $input['action'] ?? '' );
+	$name   = trim( (string) ( $input['name'] ?? '' ) );
+	if ( '' === $name ) {
+		return new WP_Error( 'dbe_name_required', 'Pass the variable name.' );
+	}
+
+	$state = dbe_ability_load_data_vars( $input );
+	if ( is_wp_error( $state ) ) {
+		return $state;
+	}
+	$loaded = $state['loaded'];
+	$vars   = $state['vars'];
+
+	$existing_index = -1;
+	foreach ( $vars as $i => $entry ) {
+		if ( ( $entry['b1'] ?? '' ) === $name ) {
+			$existing_index = (int) $i;
+			break;
+		}
+	}
+
+	// The system variable: never created, renamed or deleted; its query is
+	// editable only on explicit opt-in (the helper-equivalent channel).
+	if ( 'wp' === $name && 'update' !== $action ) {
+		return new WP_Error( 'dbe_system_variable', 'The `wp` variable is system-managed — it cannot be created or deleted.' );
+	}
+	if ( 'wp' === $name && empty( $input['allow_system'] ) ) {
+		return new WP_Error( 'dbe_system_variable', 'Updating the system `wp` variable needs allow_system: true (and never a rename).' );
+	}
+	if ( 'wp' === $name && ! empty( $input['new_name'] ) ) {
+		return new WP_Error( 'dbe_system_variable', 'The `wp` variable cannot be renamed.' );
+	}
+
+	$snake = '/^[a-z][a-z0-9_]*$/';
+	$row   = null;
+
+	if ( 'create' === $action ) {
+		if ( -1 !== $existing_index ) {
+			return new WP_Error( 'dbe_variable_exists', sprintf( 'Variable "%s" already exists — use action: update.', $name ) );
+		}
+		if ( ! preg_match( $snake, $name ) ) {
+			return new WP_Error( 'dbe_bad_variable_name', 'Variable names are snake_case (team_data, never teamData) — camelCase names become uneditable in the builder UI.' );
+		}
+		$type  = (string) ( $input['type'] ?? 'graphQLQuery' );
+		$value = (string) ( $input['value'] ?? '' );
+		if ( '' === trim( $value ) ) {
+			return new WP_Error( 'dbe_value_required', 'Pass the variable\'s value (GraphQL query or JSON).' );
+		}
+		$entry = array(
+			'a1' => $type,
+			'b1' => $name,
+			'c1' => $value,
+		);
+	} elseif ( 'update' === $action ) {
+		if ( -1 === $existing_index ) {
+			return new WP_Error( 'dbe_no_variable', sprintf( 'No variable "%s" in this scope — use action: create, or check dbe/get-data-variables.', $name ) );
+		}
+		$entry = $vars[ $existing_index ];
+		if ( ! empty( $input['new_name'] ) ) {
+			$new_name = trim( (string) $input['new_name'] );
+			if ( ! preg_match( $snake, $new_name ) ) {
+				return new WP_Error( 'dbe_bad_variable_name', 'Variable names are snake_case (team_data, never teamData).' );
+			}
+			foreach ( $vars as $other ) {
+				if ( ( $other['b1'] ?? '' ) === $new_name ) {
+					return new WP_Error( 'dbe_variable_exists', sprintf( 'Variable "%s" already exists.', $new_name ) );
+				}
+			}
+			$entry['b1'] = $new_name;
+		}
+		if ( isset( $input['value'] ) && '' !== trim( (string) $input['value'] ) ) {
+			$entry['c1'] = (string) $input['value'];
+		}
+	} elseif ( 'delete' === $action ) {
+		if ( -1 === $existing_index ) {
+			return new WP_Error( 'dbe_no_variable', sprintf( 'No variable "%s" in this scope.', $name ) );
+		}
+	} else {
+		return new WP_Error( 'dbe_bad_action', 'action must be create, update or delete.' );
+	}
+
+	if ( 'delete' !== $action ) {
+		if ( array_key_exists( 'variables', $input ) && null !== $input['variables'] ) {
+			$gql_vars = is_string( $input['variables'] ) ? $input['variables'] : wp_json_encode( $input['variables'], JSON_UNESCAPED_UNICODE );
+			if ( null === json_decode( (string) $gql_vars, true ) ) {
+				return new WP_Error( 'dbe_bad_variables', 'variables must be valid JSON.' );
+			}
+			$entry['d1'] = (string) $gql_vars;
+		}
+		$type = (string) ( $entry['a1'] ?? 'graphQLQuery' );
+		if ( 'graphQLQuery' === $type ) {
+			$valid = dbe_ability_validate_graphql_syntax( (string) $entry['c1'] );
+			if ( is_wp_error( $valid ) ) {
+				return $valid;
+			}
+		} elseif ( 'json' === $type && is_string( $entry['c1'] ) && null === json_decode( $entry['c1'], true ) ) {
+			return new WP_Error( 'dbe_bad_json', 'The value is not valid JSON.' );
+		}
+		$row = dbe_ability_data_var_row( $entry );
+	}
+
+	if ( 'delete' === $action ) {
+		array_splice( $vars, $existing_index, 1 );
+	} elseif ( 'create' === $action ) {
+		$vars[] = $entry;
+	} else {
+		$vars[ $existing_index ] = $entry;
+	}
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		return array(
+			'dry_run'     => true,
+			'action'      => $action,
+			'scope'       => $state['scope'],
+			'variable'    => $row,
+			'base_commit' => (string) $loaded['commit']->post_name,
+		);
+	}
+
+	if ( 'global' === $state['scope'] ) {
+		$presence = dbe_ability_all_presence_precondition( ! empty( $input['force'] ) );
+		if ( is_wp_error( $presence ) ) {
+			return $presence;
+		}
+	}
+	$preflight = dbe_ability_preflight( $loaded, $input, $state['slug'] );
+	if ( is_wp_error( $preflight ) ) {
+		return $preflight;
+	}
+
+	$config = $loaded['config'];
+	if ( -1 === $state['vars_index'] ) {
+		$config['template']['settings'][] = array(
+			'name'  => 'dataVars',
+			'value' => $vars,
+		);
+	} else {
+		$config['template']['settings'][ $state['vars_index'] ]['value'] = $vars;
+	}
+
+	$commit_name = dbe_ability_create_commit(
+		$loaded['branch']->ID,
+		$config,
+		false,
+		sprintf( '%s data variable "%s" via dbe/manage-data-variable', ucfirst( $action ), 'update' === $action && ! empty( $input['new_name'] ) ? $name . ' → ' . $input['new_name'] : $name ),
+		(string) ( $input['expected_commit'] ?? '' )
+	);
+	if ( is_wp_error( $commit_name ) ) {
+		return $commit_name;
+	}
+
+	return array(
+		'dry_run'     => false,
+		'action'      => $action,
+		'scope'       => $state['scope'],
+		'variable'    => $row,
+		'commit_name' => $commit_name,
+		'base_commit' => (string) $loaded['commit']->post_name,
 	);
 }
