@@ -302,6 +302,189 @@ function dbe_register_abilities() {
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
 	);
+
+	$settings_set_arg = array(
+		'type'        => 'string',
+		'description' => __( 'Global settings set post ID or slug. Omit when the site has one (the usual case).', 'daveden-builderius-enhancements' ),
+	);
+
+	wp_register_ability(
+		'dbe/get-global-css',
+		array(
+			'label'               => __( 'Get global CSS', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reads the site\'s saved global CSS — the ENTIRE framework stylesheet (reset, design tokens, utility classes), which the builder\'s update_global_css tool REPLACES wholesale rather than appending to. Returns the raw CSS plus the names of its named blocks (regions fenced by /* @block: name */ … /* @endblock */ comments). Pass block to fetch just one block\'s body instead of the whole stylesheet. To add or change CSS safely, prefer dbe/patch-global-css, which edits only a named block and can never clobber the framework.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'settings_set' => $settings_set_arg,
+					'block'        => array(
+						'type'        => 'string',
+						'description' => __( 'Return only this named block\'s body (token-cheap).', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'css'             => array( 'type' => 'string' ),
+					'blocks'          => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'css_length'      => array( 'type' => 'integer' ),
+					'settings_set_id' => array( 'type' => 'integer' ),
+					'branch_id'       => array( 'type' => 'integer' ),
+					'commit_name'     => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_get_global_css',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/patch-global-css',
+		array(
+			'label'               => __( 'Patch global CSS (named block)', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Adds, replaces or deletes ONE named block in the global stylesheet — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit. Every byte outside the named block is preserved verbatim, so unlike update_global_css this can never wipe the framework. A block that does not exist yet is appended at the end of the stylesheet. Typical use: a "fonts" block holding @font-face rules plus a :root override of --heading-font-family / --body-font-family. Saving does not publish; run dbe/publish for the change to reach the front end.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'block'        => array(
+						'type'        => 'string',
+						'pattern'     => '^[A-Za-z0-9_-]+$',
+						'description' => __( 'The block name.', 'daveden-builderius-enhancements' ),
+					),
+					'css'          => array(
+						'type'        => 'string',
+						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
+					),
+					'delete'       => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Remove the block entirely.', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'      => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview: return the action and resulting stylesheet length without saving.', 'daveden-builderius-enhancements' ),
+					),
+					'settings_set' => $settings_set_arg,
+				),
+				'required'             => array( 'block' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'action'      => array(
+						'type' => 'string',
+						'enum' => array( 'created', 'replaced', 'deleted' ),
+					),
+					'block'       => array( 'type' => 'string' ),
+					'commit_name' => array(
+						'type'        => 'string',
+						'description' => __( 'The new commit (absent on a dry run).', 'daveden-builderius-enhancements' ),
+					),
+					'css_length'  => array( 'type' => 'integer' ),
+					'dry_run'     => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_patch_global_css',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/list-commits',
+		array(
+			'label'               => __( 'List saved commits', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Lists the saved commits of a template or of the global settings set (target "global"), newest first: name, date, description and — for the global set — each commit\'s stylesheet length, so a framework-clobbering save stands out as a sudden size drop. Use with dbe/restore-global-css-from-commit to roll the global CSS back to a pre-damage snapshot.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'target' => array(
+						'type'        => 'string',
+						'description' => __( '"global" (default) for the global settings set, or a template post ID/slug.', 'daveden-builderius-enhancements' ),
+					),
+					'limit'  => array(
+						'type'        => 'integer',
+						'default'     => 20,
+						'description' => __( 'Maximum commits to return.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'commits'   => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'object' ),
+					),
+					'branch_id' => array( 'type' => 'integer' ),
+					'active'    => array(
+						'type'        => 'string',
+						'description' => __( 'The active commit\'s name.', 'daveden-builderius-enhancements' ),
+					),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_list_commits',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/restore-global-css-from-commit',
+		array(
+			'label'               => __( 'Restore global CSS from a commit', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Recovery for a clobbered global stylesheet: reads the `css` setting from an earlier commit of the global settings set (find one with dbe/list-commits — a healthy framework is tens of KB) and saves it as a NEW commit, so the rollback is itself in history. Nothing else from the old commit is restored. Saving does not publish; run dbe/publish for the recovered CSS to reach the front end.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'commit'       => array(
+						'type'        => 'string',
+						'description' => __( 'The source commit name (from dbe/list-commits).', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'      => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview: return the source stylesheet\'s length and first lines without saving.', 'daveden-builderius-enhancements' ),
+					),
+					'settings_set' => $settings_set_arg,
+				),
+				'required'             => array( 'commit' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'commit_name' => array(
+						'type'        => 'string',
+						'description' => __( 'The new commit holding the restored CSS (absent on a dry run).', 'daveden-builderius-enhancements' ),
+					),
+					'restored_from' => array( 'type' => 'string' ),
+					'css_length'    => array( 'type' => 'integer' ),
+					'preview'       => array(
+						'type'        => 'string',
+						'description' => __( 'First lines of the restored stylesheet (dry run only).', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'       => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_restore_global_css',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
 }
 
 /**
@@ -357,6 +540,32 @@ function dbe_ability_load_config( $template ) {
 		return new WP_Error( 'dbe_no_template', sprintf( 'No builderius_template found for "%s".', $template ) );
 	}
 
+	$resolved = dbe_ability_resolve_commit( $post );
+	if ( is_wp_error( $resolved ) ) {
+		return $resolved;
+	}
+	if ( empty( $resolved['config']['modules'] ) || ! isset( $resolved['config']['indexes'] ) ) {
+		return new WP_Error( 'dbe_bad_config', 'The active commit has no readable content config.' );
+	}
+
+	return array(
+		'config'        => $resolved['config'],
+		'template_post' => $post,
+		'branch'        => $resolved['branch'],
+		'commit'        => $resolved['commit'],
+	);
+}
+
+/**
+ * Resolve a VCS-owning post (template, global settings set, component) to
+ * its branch (master preferred), active commit and decoded content config.
+ * The active-commit pointer is per-user; fall back to any user's, then to
+ * the newest commit.
+ *
+ * @param WP_Post $post The owning post.
+ * @return array|WP_Error { branch, commit, config }.
+ */
+function dbe_ability_resolve_commit( $post ) {
 	$branches = get_posts(
 		array(
 			'post_type'   => 'builderius_branch',
@@ -368,7 +577,7 @@ function dbe_ability_load_config( $template ) {
 		)
 	);
 	if ( ! $branches ) {
-		return new WP_Error( 'dbe_no_branch', 'The template has no branch (never opened in the builder?).' );
+		return new WP_Error( 'dbe_no_branch', 'The entity has no branch (never opened in the builder?).' );
 	}
 	$branch = null;
 	foreach ( $branches as $b ) {
@@ -413,20 +622,219 @@ function dbe_ability_load_config( $template ) {
 		$commit = $found ? $found[0] : null;
 	}
 	if ( ! $commit ) {
-		return new WP_Error( 'dbe_no_commit', 'The template branch has no commits.' );
+		return new WP_Error( 'dbe_no_commit', 'The entity branch has no commits.' );
 	}
 
 	$config = json_decode( (string) get_post_meta( $commit->ID, 'content_config', true ), true );
-	if ( ! is_array( $config ) || empty( $config['modules'] ) || ! isset( $config['indexes'] ) ) {
+	if ( ! is_array( $config ) ) {
 		return new WP_Error( 'dbe_bad_config', 'The active commit has no readable content config.' );
 	}
 
 	return array(
-		'config'        => $config,
-		'template_post' => $post,
-		'branch'        => $branch,
-		'commit'        => $commit,
+		'branch' => $branch,
+		'commit' => $commit,
+		'config' => $config,
 	);
+}
+
+/**
+ * Resolve the global settings set (post type builderius_sett_set) — the
+ * entity whose saved config carries the site's global CSS in the settings
+ * entry named `css`. There is normally exactly one per technology; an
+ * explicit ID/slug narrows it when a site has several.
+ *
+ * @param string $ref Optional post ID or slug; '' for the single set.
+ * @return array|WP_Error { config, set_post, branch, commit, css, css_index }.
+ */
+function dbe_ability_load_settings_set( $ref = '' ) {
+	$ref = trim( (string) $ref );
+	if ( '' !== $ref && is_numeric( $ref ) ) {
+		$post = get_post( (int) $ref );
+		if ( ! $post || 'builderius_sett_set' !== $post->post_type ) {
+			$post = null;
+		}
+	} else {
+		$posts = get_posts(
+			array(
+				'post_type'   => 'builderius_sett_set',
+				'post_status' => get_post_stati(),
+				'numberposts' => -1,
+				'orderby'     => 'ID',
+				'order'       => 'ASC',
+			)
+		);
+		if ( '' !== $ref ) {
+			$post = null;
+			foreach ( $posts as $p ) {
+				if ( $p->post_name === $ref ) {
+					$post = $p;
+					break;
+				}
+			}
+		} else {
+			if ( count( $posts ) > 1 ) {
+				return new WP_Error(
+					'dbe_ambiguous_set',
+					'Several global settings sets exist — pass settings_set: ' . implode( ', ', wp_list_pluck( $posts, 'post_name' ) )
+				);
+			}
+			$post = $posts ? $posts[0] : null;
+		}
+	}
+	if ( ! $post ) {
+		return new WP_Error( 'dbe_no_settings_set', sprintf( 'No builderius_sett_set found%s.', '' !== $ref ? " for \"$ref\"" : '' ) );
+	}
+
+	$resolved = dbe_ability_resolve_commit( $post );
+	if ( is_wp_error( $resolved ) ) {
+		return $resolved;
+	}
+
+	$css       = null;
+	$css_index = -1;
+	$settings  = $resolved['config']['template']['settings'] ?? array();
+	foreach ( (array) $settings as $i => $s ) {
+		if ( 'css' === ( $s['name'] ?? '' ) ) {
+			$css       = (string) ( $s['value'] ?? '' );
+			$css_index = (int) $i;
+			break;
+		}
+	}
+	if ( null === $css ) {
+		return new WP_Error( 'dbe_no_css_setting', 'The settings set\'s saved config has no `css` setting.' );
+	}
+
+	return array(
+		'config'    => $resolved['config'],
+		'set_post'  => $post,
+		'branch'    => $resolved['branch'],
+		'commit'    => $resolved['commit'],
+		'css'       => $css,
+		'css_index' => $css_index,
+	);
+}
+
+/* ---------------------------------------------------------------------- *
+ *  Global CSS named blocks (comment markers @block: name / @endblock)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Parse the named-block regions out of a stylesheet. A block is the region
+ * between the `@block: name` comment marker and the next `@endblock`
+ * comment marker; everything
+ * outside blocks is the framework body, which patching never touches.
+ *
+ * @param string $css The full stylesheet.
+ * @return array|WP_Error List of { name, start, end, body_start, body_end }
+ *                        (string offsets; end is AFTER the endblock marker),
+ *                        or an error for a start marker with no end.
+ */
+function dbe_ability_css_blocks( $css ) {
+	$blocks = array();
+	if ( ! preg_match_all( '~/\*\s*@block:\s*([A-Za-z0-9_-]+)\s*\*/~', $css, $starts, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
+		return $blocks;
+	}
+	foreach ( $starts as $m ) {
+		$name       = $m[1][0];
+		$start      = $m[0][1];
+		$body_start = $start + strlen( $m[0][0] );
+		if ( ! preg_match( '~/\*\s*@endblock\s*\*/~', $css, $end_m, PREG_OFFSET_CAPTURE, $body_start ) ) {
+			return new WP_Error( 'dbe_block_unterminated', sprintf( 'Block "%s" has no /* @endblock */ marker.', $name ) );
+		}
+		$blocks[] = array(
+			'name'       => $name,
+			'start'      => $start,
+			'body_start' => $body_start,
+			'body_end'   => $end_m[0][1],
+			'end'        => $end_m[0][1] + strlen( $end_m[0][0] ),
+		);
+	}
+	return $blocks;
+}
+
+/**
+ * Replace, create or delete one named block in a stylesheet, leaving every
+ * byte outside that block untouched — the fail-safe the raw replace-all
+ * update_global_css channel lacks.
+ *
+ * @param string $css    The full stylesheet.
+ * @param string $name   Block name ([A-Za-z0-9_-]+).
+ * @param string $body   New block body (ignored when deleting).
+ * @param bool   $delete Remove the block entirely.
+ * @return array|WP_Error { css, action } where action is created|replaced|deleted.
+ */
+function dbe_ability_css_patch( $css, $name, $body, $delete = false ) {
+	$blocks = dbe_ability_css_blocks( $css );
+	if ( is_wp_error( $blocks ) ) {
+		return $blocks;
+	}
+	$target = null;
+	foreach ( $blocks as $b ) {
+		if ( $b['name'] === $name ) {
+			$target = $b;
+			break;
+		}
+	}
+
+	if ( $delete ) {
+		if ( ! $target ) {
+			return new WP_Error( 'dbe_no_block', sprintf( 'No block named "%s" to delete.', $name ) );
+		}
+		// Take a trailing newline with the block so no blank gap accrues.
+		$end = $target['end'];
+		if ( "\n" === substr( $css, $end, 1 ) ) {
+			$end += 1;
+		}
+		return array(
+			'css'    => substr( $css, 0, $target['start'] ) . substr( $css, $end ),
+			'action' => 'deleted',
+		);
+	}
+
+	$body = trim( (string) $body );
+	if ( $target ) {
+		return array(
+			'css'    => substr( $css, 0, $target['body_start'] ) . "\n" . $body . "\n" . substr( $css, $target['body_end'] ),
+			'action' => 'replaced',
+		);
+	}
+	return array(
+		'css'    => rtrim( $css ) . "\n\n/* @block: " . $name . " */\n" . $body . "\n/* @endblock */\n",
+		'action' => 'created',
+	);
+}
+
+/**
+ * Write a new full stylesheet into the settings set's saved state as a new
+ * commit (through Builderius' own mutation, like every other save here).
+ *
+ * @param array  $loaded      Result of dbe_ability_load_settings_set().
+ * @param string $css         The new full stylesheet.
+ * @param string $description Commit description.
+ * @return string|WP_Error The new commit name.
+ */
+function dbe_ability_save_global_css( $loaded, $css, $description ) {
+	$config = $loaded['config'];
+	$config['template']['settings'][ $loaded['css_index'] ]['value'] = $css;
+	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
+	if ( false === $json ) {
+		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
+	}
+	$mutation = sprintf(
+		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: false) { commit { name } } }',
+		(int) $loaded['branch']->ID,
+		addcslashes( $json, '\\"' ),
+		addcslashes( $description, '\\"' )
+	);
+	$data = dbe_ability_graphql( 'dbeGlobalCss', $mutation );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$name = $data['createCommit']['commit']['name'] ?? '';
+	if ( '' === $name ) {
+		return new WP_Error( 'dbe_commit_failed', 'createCommit returned no commit name.' );
+	}
+	return $name;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -1624,5 +2032,220 @@ function dbe_ability_publish( $input ) {
 		'release'  => $release,
 		'version'  => $version,
 		'entities' => $entities,
+	);
+}
+
+/* ---------------------------------------------------------------------- *
+ *  Global CSS execute callbacks
+ * ---------------------------------------------------------------------- */
+
+/**
+ * dbe/get-global-css.
+ */
+function dbe_ability_get_global_css( $input ) {
+	$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+	$blocks = dbe_ability_css_blocks( $loaded['css'] );
+	if ( is_wp_error( $blocks ) ) {
+		return $blocks;
+	}
+	$names = wp_list_pluck( $blocks, 'name' );
+
+	$css = $loaded['css'];
+	if ( isset( $input['block'] ) && '' !== trim( (string) $input['block'] ) ) {
+		$want = trim( (string) $input['block'] );
+		$css  = null;
+		foreach ( $blocks as $b ) {
+			if ( $b['name'] === $want ) {
+				$css = trim( substr( $loaded['css'], $b['body_start'], $b['body_end'] - $b['body_start'] ) );
+				break;
+			}
+		}
+		if ( null === $css ) {
+			return new WP_Error(
+				'dbe_no_block',
+				sprintf( 'No block named "%s". Blocks: %s.', $want, $names ? implode( ', ', $names ) : '(none)' )
+			);
+		}
+	}
+
+	return array(
+		'css'             => $css,
+		'blocks'          => $names,
+		'css_length'      => strlen( $loaded['css'] ),
+		'settings_set_id' => $loaded['set_post']->ID,
+		'branch_id'       => $loaded['branch']->ID,
+		'commit_name'     => $loaded['commit']->post_name,
+	);
+}
+
+/**
+ * dbe/patch-global-css.
+ */
+function dbe_ability_patch_global_css( $input ) {
+	$block = trim( (string) ( $input['block'] ?? '' ) );
+	if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $block ) ) {
+		return new WP_Error( 'dbe_bad_block_name', 'Block names are letters, digits, hyphens and underscores.' );
+	}
+	$delete = ! empty( $input['delete'] );
+	if ( ! $delete && ( ! isset( $input['css'] ) || '' === trim( (string) $input['css'] ) ) ) {
+		return new WP_Error( 'dbe_no_css', 'Pass the block\'s css, or delete: true to remove it.' );
+	}
+
+	$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
+	if ( is_wp_error( $patched ) ) {
+		return $patched;
+	}
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		return array(
+			'dry_run'    => true,
+			'action'     => $patched['action'],
+			'block'      => $block,
+			'css_length' => strlen( $patched['css'] ),
+		);
+	}
+
+	$commit_name = dbe_ability_save_global_css(
+		$loaded,
+		$patched['css'],
+		sprintf( '%s CSS block "%s" via dbe/patch-global-css', ucfirst( $patched['action'] ), $block )
+	);
+	if ( is_wp_error( $commit_name ) ) {
+		return $commit_name;
+	}
+
+	return array(
+		'dry_run'     => false,
+		'action'      => $patched['action'],
+		'block'       => $block,
+		'commit_name' => $commit_name,
+		'css_length'  => strlen( $patched['css'] ),
+	);
+}
+
+/**
+ * dbe/list-commits.
+ */
+function dbe_ability_list_commits( $input ) {
+	$target = trim( (string) ( $input['target'] ?? 'global' ) );
+	$global = ( '' === $target || 'global' === $target );
+
+	if ( $global ) {
+		$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
+	} else {
+		$loaded = dbe_ability_load_config( $target );
+	}
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$limit   = max( 1, min( 100, (int) ( $input['limit'] ?? 20 ) ) );
+	$commits = get_posts(
+		array(
+			'post_type'   => 'builderius_commit',
+			'post_parent' => $loaded['branch']->ID,
+			'post_status' => get_post_stati(),
+			'numberposts' => $limit,
+			'orderby'     => 'ID',
+			'order'       => 'DESC',
+		)
+	);
+
+	$rows = array();
+	foreach ( $commits as $c ) {
+		$row = array(
+			'name'        => $c->post_name,
+			'date'        => $c->post_date,
+			'description' => $c->post_excerpt,
+		);
+		if ( $global ) {
+			// The stylesheet length per commit: a framework clobber shows up
+			// as a sudden drop from tens of KB to a few hundred bytes.
+			$cfg = json_decode( (string) get_post_meta( $c->ID, 'content_config', true ), true );
+			$len = null;
+			foreach ( (array) ( $cfg['template']['settings'] ?? array() ) as $s ) {
+				if ( 'css' === ( $s['name'] ?? '' ) ) {
+					$len = strlen( (string) ( $s['value'] ?? '' ) );
+					break;
+				}
+			}
+			$row['css_length'] = $len;
+		}
+		$rows[] = $row;
+	}
+
+	return array(
+		'commits'   => $rows,
+		'branch_id' => $loaded['branch']->ID,
+		'active'    => $loaded['commit']->post_name,
+	);
+}
+
+/**
+ * dbe/restore-global-css-from-commit.
+ */
+function dbe_ability_restore_global_css( $input ) {
+	$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$name  = trim( (string) ( $input['commit'] ?? '' ) );
+	$found = get_posts(
+		array(
+			'post_type'   => 'builderius_commit',
+			'post_parent' => $loaded['branch']->ID,
+			'name'        => $name,
+			'post_status' => get_post_stati(),
+			'numberposts' => 1,
+		)
+	);
+	if ( ! $found ) {
+		return new WP_Error( 'dbe_no_source_commit', sprintf( 'No commit "%s" on the settings set\'s branch — check dbe/list-commits.', $name ) );
+	}
+
+	$cfg = json_decode( (string) get_post_meta( $found[0]->ID, 'content_config', true ), true );
+	$css = null;
+	foreach ( (array) ( $cfg['template']['settings'] ?? array() ) as $s ) {
+		if ( 'css' === ( $s['name'] ?? '' ) ) {
+			$css = (string) ( $s['value'] ?? '' );
+			break;
+		}
+	}
+	if ( null === $css || '' === $css ) {
+		return new WP_Error( 'dbe_no_source_css', sprintf( 'Commit "%s" holds no css setting to restore.', $name ) );
+	}
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		return array(
+			'dry_run'       => true,
+			'restored_from' => $name,
+			'css_length'    => strlen( $css ),
+			'preview'       => implode( "\n", array_slice( explode( "\n", $css ), 0, 12 ) ),
+		);
+	}
+
+	$commit_name = dbe_ability_save_global_css(
+		$loaded,
+		$css,
+		sprintf( 'Restore global CSS from commit %s via dbe/restore-global-css-from-commit', $name )
+	);
+	if ( is_wp_error( $commit_name ) ) {
+		return $commit_name;
+	}
+
+	return array(
+		'dry_run'       => false,
+		'commit_name'   => $commit_name,
+		'restored_from' => $name,
+		'css_length'    => strlen( $css ),
 	);
 }
