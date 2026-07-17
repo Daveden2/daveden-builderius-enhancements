@@ -214,6 +214,94 @@ function dbe_register_abilities() {
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
 	);
+
+	wp_register_ability(
+		'dbe/status',
+		array(
+			'label'               => __( 'Get save/publish status', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reports the save vs publish state of Builderius templates. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) only writes to the development branch; the front end renders NOTHING until a release is published — a site with no published release shows the theme fallback, which looks like a blank page. For each template this returns its active (saved) commit and whether that work is in the currently published release (unpublished_changes). Site-wide it returns the current published release, if any. Omit template to report on every template.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template' => array(
+						'type'        => 'string',
+						'description' => __( 'Template post ID or slug. Omit for all templates.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'published_release' => array(
+						'type'        => array( 'object', 'null' ),
+						'description' => __( 'The currently published release (id, version, date), or null if the site has never published — in which case the front end renders no Builderius output at all.', 'daveden-builderius-enhancements' ),
+					),
+					'templates'         => array(
+						'type'        => 'array',
+						'description' => __( 'Per template: id, slug, title, branch_id, saved commit name/date, whether it is included in the published release, and unpublished_changes.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_status',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/publish',
+		array(
+			'label'               => __( 'Publish a release', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates and publishes a Builderius release from the templates\' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder\'s Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live on the front end, replacing the previously published release. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'templates'   => array(
+						'type'        => 'array',
+						'items'       => array( 'type' => 'string' ),
+						'description' => __( 'Template post IDs or slugs to include. Omit to include every template that has saved work.', 'daveden-builderius-enhancements' ),
+					),
+					'version'     => array(
+						'type'        => 'string',
+						'description' => __( 'Release version label. Omit to auto-increment the latest release\'s patch number (1.0.0 when the site has never published).', 'daveden-builderius-enhancements' ),
+					),
+					'description' => array(
+						'type'        => 'string',
+						'description' => __( 'Release description shown in the builder\'s release list.', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'     => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview only: return the version and entities that WOULD be released without publishing.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'release'  => array(
+						'type'        => array( 'object', 'null' ),
+						'description' => __( 'The published release (id, version, status); null on a dry run.', 'daveden-builderius-enhancements' ),
+					),
+					'version'  => array( 'type' => 'string' ),
+					'entities' => array(
+						'type'        => 'array',
+						'description' => __( 'The templates included (id, slug, saved commit).', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'dry_run'  => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_publish',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
 }
 
 /**
@@ -225,6 +313,16 @@ function dbe_register_abilities() {
 function dbe_ability_permission() {
 	return dbe_enabled( 'edit_as_html' )
 		&& current_user_can( 'unfiltered_html' )
+		&& current_user_can( 'builderius-development' );
+}
+
+/**
+ * Read-only abilities (dbe/status) never touch raw markup, so they skip the
+ * unfiltered_html requirement but still need the builder development
+ * capability — they report on unpublished development state.
+ */
+function dbe_ability_read_permission() {
+	return dbe_enabled( 'edit_as_html' )
 		&& current_user_can( 'builderius-development' );
 }
 
@@ -1089,25 +1187,15 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
  * ---------------------------------------------------------------------- */
 
 /**
- * Create an autopublished commit holding $config on $branch_id. Runs the
- * exact mutation the builder's Save button sends, through the internal REST
- * dispatcher, so permissions, events and cache flushes all apply.
+ * Dispatch a GraphQL mutation through Builderius' own REST endpoint, the
+ * same channel the builder UI uses, so permissions, events and cache
+ * flushes all apply.
  *
- * @return string|WP_Error The new commit name.
+ * @param string $name     Operation name reported to the endpoint.
+ * @param string $mutation The GraphQL document.
+ * @return array|WP_Error The mutation's `data` array.
  */
-function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) {
-	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
-	if ( false === $json ) {
-		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
-	}
-	$mutation = sprintf(
-		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: %s) { commit { name autopublished } } }',
-		(int) $branch_id,
-		addcslashes( $json, '\\"' ),
-		'Applied via dbe/apply-subtree-html',
-		$autopublish ? 'true' : 'false'
-	);
-
+function dbe_ability_graphql( $name, $mutation ) {
 	/* Builderius Pro's builderius_get_current_user hook caches the current
 	   user in its runtime cache the first time anything applies the filter.
 	   Under OAuth-authenticated REST (the MCP adapter) that first application
@@ -1127,7 +1215,7 @@ function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) 
 			array(
 				'queries' => array(
 					array(
-						'name'  => 'dbeApplySubtreeHtml',
+						'name'  => $name,
 						'query' => $mutation,
 					),
 				),
@@ -1139,15 +1227,40 @@ function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) 
 
 	if ( $response->is_error() ) {
 		$err = $response->as_error();
-		return new WP_Error( 'dbe_commit_failed', 'createCommit request failed: ' . $err->get_error_message() );
+		return new WP_Error( 'dbe_graphql_failed', $name . ' request failed: ' . $err->get_error_message() );
 	}
 	$data   = $response->get_data();
 	$result = is_array( $data ) ? reset( $data ) : null;
 	if ( ! empty( $result['errors'] ) ) {
 		// The executor flattens GraphQL errors to plain message strings.
-		return new WP_Error( 'dbe_commit_failed', 'createCommit rejected: ' . implode( ' | ', array_map( 'strval', $result['errors'] ) ) );
+		return new WP_Error( 'dbe_graphql_failed', $name . ' rejected: ' . implode( ' | ', array_map( 'strval', $result['errors'] ) ) );
 	}
-	$name = $result['data']['createCommit']['commit']['name'] ?? '';
+	return is_array( $result['data'] ?? null ) ? $result['data'] : array();
+}
+
+/**
+ * Create a commit holding $config on $branch_id. Runs the exact mutation
+ * the builder's Save button sends.
+ *
+ * @return string|WP_Error The new commit name.
+ */
+function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) {
+	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
+	if ( false === $json ) {
+		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
+	}
+	$mutation = sprintf(
+		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: %s) { commit { name autopublished } } }',
+		(int) $branch_id,
+		addcslashes( $json, '\\"' ),
+		'Applied via dbe/apply-subtree-html',
+		$autopublish ? 'true' : 'false'
+	);
+	$data = dbe_ability_graphql( 'dbeApplySubtreeHtml', $mutation );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$name = $data['createCommit']['commit']['name'] ?? '';
 	if ( '' === $name ) {
 		return new WP_Error( 'dbe_commit_failed', 'createCommit returned no commit name.' );
 	}
@@ -1313,5 +1426,203 @@ function dbe_ability_apply_subtree_html( $input ) {
 		'removed'         => $result['removed'],
 		'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
 		'unknown_markers' => $parsed['unknown_markers'],
+	);
+}
+
+/* ---------------------------------------------------------------------- *
+ *  Save/publish state + publishing
+ * ---------------------------------------------------------------------- */
+
+/**
+ * The currently published release post, or null. The front end renders
+ * exclusively from this (BuilderiusDeliverableReleaseProvider): no release,
+ * no Builderius output at all.
+ *
+ * @return WP_Post|null
+ */
+function dbe_ability_published_release() {
+	$posts = get_posts(
+		array(
+			'post_type'   => 'builderius_release',
+			'post_status' => array( 'publish', 'future' ),
+			'numberposts' => 1,
+			'orderby'     => 'date',
+			'order'       => 'DESC',
+		)
+	);
+	return $posts ? $posts[0] : null;
+}
+
+/**
+ * Every template that has saved work (a branch with at least one commit),
+ * resolved through dbe_ability_load_config so branch/commit selection is
+ * identical to the editing abilities'.
+ *
+ * @param array|null $refs Template IDs/slugs to restrict to, or null for all.
+ * @return array{loaded:array,errors:array} loaded rows from
+ *         dbe_ability_load_config keyed by template ID.
+ */
+function dbe_ability_load_templates( $refs = null ) {
+	if ( null === $refs ) {
+		$refs = get_posts(
+			array(
+				'post_type'   => 'builderius_template',
+				'post_status' => get_post_stati(),
+				'numberposts' => -1,
+				'fields'      => 'ids',
+			)
+		);
+	}
+	$loaded = array();
+	$errors = array();
+	foreach ( $refs as $ref ) {
+		$row = dbe_ability_load_config( (string) $ref );
+		if ( is_wp_error( $row ) ) {
+			$errors[] = array(
+				'template' => (string) $ref,
+				'error'    => $row->get_error_message(),
+			);
+			continue;
+		}
+		$loaded[ $row['template_post']->ID ] = $row;
+	}
+	return array(
+		'loaded' => $loaded,
+		'errors' => $errors,
+	);
+}
+
+/**
+ * dbe/status.
+ */
+function dbe_ability_status( $input ) {
+	$refs    = ( isset( $input['template'] ) && '' !== trim( (string) $input['template'] ) )
+		? array( $input['template'] )
+		: null;
+	$release = dbe_ability_published_release();
+
+	// The published snapshot per entity lives in the release's DSM children;
+	// comparing its stored config against the active commit's answers "is
+	// the saved work live?" without any rendering.
+	$dsm_by_name = array();
+	if ( $release ) {
+		$dsm_posts = get_posts(
+			array(
+				'post_type'   => 'builderius_dsm',
+				'post_parent' => $release->ID,
+				'post_status' => get_post_stati(),
+				'numberposts' => -1,
+			)
+		);
+		foreach ( $dsm_posts as $dsm ) {
+			$dsm_by_name[ $dsm->post_name ] = $dsm;
+		}
+	}
+
+	$result = dbe_ability_load_templates( $refs );
+	$rows   = array();
+	foreach ( $result['loaded'] as $tid => $row ) {
+		$slug   = $row['template_post']->post_name;
+		$commit = $row['commit'];
+		$dsm    = $dsm_by_name[ $slug ] ?? null;
+		$saved_config     = (string) get_post_meta( $commit->ID, 'content_config', true );
+		$released_config  = $dsm ? (string) get_post_meta( $dsm->ID, 'content_config', true ) : '';
+		$rows[] = array(
+			'template_id'         => $tid,
+			'slug'                => $slug,
+			'title'               => $row['template_post']->post_title,
+			'branch_id'           => $row['branch']->ID,
+			'saved_commit'        => $commit->post_name,
+			'saved_at'            => $commit->post_date,
+			'in_published_release' => (bool) $dsm,
+			'unpublished_changes' => ! $dsm || md5( $saved_config ) !== md5( $released_config ),
+		);
+	}
+
+	return array(
+		'published_release' => $release ? array(
+			'id'      => $release->ID,
+			'version' => $release->post_title,
+			'date'    => $release->post_date,
+		) : null,
+		'templates'         => $rows,
+		'errors'            => $result['errors'],
+	);
+}
+
+/**
+ * dbe/publish.
+ */
+function dbe_ability_publish( $input ) {
+	$refs   = ( ! empty( $input['templates'] ) && is_array( $input['templates'] ) ) ? $input['templates'] : null;
+	$result = dbe_ability_load_templates( $refs );
+	if ( ! $result['loaded'] ) {
+		return new WP_Error(
+			'dbe_nothing_to_publish',
+			'No template with saved work found.' . ( $result['errors'] ? ' ' . wp_json_encode( $result['errors'] ) : '' )
+		);
+	}
+
+	$version = isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
+	if ( '' === $version ) {
+		// Auto-bump: patch-increment the latest release's version when it
+		// reads as semver, else start at 1.0.0.
+		$latest = get_posts(
+			array(
+				'post_type'   => 'builderius_release',
+				'post_status' => get_post_stati(),
+				'numberposts' => 1,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
+		if ( $latest && preg_match( '/^(\d+)\.(\d+)\.(\d+)$/', $latest[0]->post_title, $m ) ) {
+			$version = $m[1] . '.' . $m[2] . '.' . ( (int) $m[3] + 1 );
+		} else {
+			$version = '1.0.0';
+		}
+	}
+
+	$entities = array();
+	$ids      = array();
+	foreach ( $result['loaded'] as $tid => $row ) {
+		$ids[]      = array( 'id' => $tid );
+		$entities[] = array(
+			'template_id'  => $tid,
+			'slug'         => $row['template_post']->post_name,
+			'saved_commit' => $row['commit']->post_name,
+		);
+	}
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		return array(
+			'dry_run'  => true,
+			'release'  => null,
+			'version'  => $version,
+			'entities' => $entities,
+		);
+	}
+
+	$description = isset( $input['description'] ) ? (string) $input['description'] : 'Published via dbe/publish';
+	$mutation    = sprintf(
+		'mutation { createRelease(input: { version: "%s" tags: [] description: "%s" serialized_entities_data: "%s" publish: true }) { release { id version status } } }',
+		addcslashes( $version, '\\"' ),
+		addcslashes( $description, '\\"' ),
+		addcslashes( wp_json_encode( $ids ), '\\"' )
+	);
+	$data = dbe_ability_graphql( 'dbePublish', $mutation );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$release = $data['createRelease']['release'] ?? null;
+	if ( ! $release ) {
+		return new WP_Error( 'dbe_publish_failed', 'createRelease returned no release.' );
+	}
+
+	return array(
+		'dry_run'  => false,
+		'release'  => $release,
+		'version'  => $version,
+		'entities' => $entities,
 	);
 }
