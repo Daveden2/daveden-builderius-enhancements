@@ -71,7 +71,13 @@ add_action( 'wp_abilities_api_init', 'dbe_register_abilities' );
 function dbe_register_abilities() {
 	$template_arg        = array(
 		'type'        => 'string',
-		'description' => __( 'Template post ID or slug (post type builderius_template).', 'daveden-builderius-enhancements' ),
+		'description' => __( 'Template post ID or slug by default. When entity_type is "component", pass a Builderius component post ID or slug instead.', 'daveden-builderius-enhancements' ),
+	);
+	$entity_type_arg     = array(
+		'type'        => 'string',
+		'enum'        => array( 'template', 'component' ),
+		'default'     => 'template',
+		'description' => __( 'Builderius entity type to target. Defaults to template for backwards compatibility; use component for shared component definitions.', 'daveden-builderius-enhancements' ),
 	);
 	$expected_commit_arg = array(
 		'type'        => 'string',
@@ -92,8 +98,9 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template'  => $template_arg,
-					'module_id' => array(
+					'template'    => $template_arg,
+					'entity_type' => $entity_type_arg,
+					'module_id'   => array(
 						'type'        => 'string',
 						'description' => __( 'Module ID to serialise from. Omit for the whole template.', 'daveden-builderius-enhancements' ),
 					),
@@ -106,6 +113,9 @@ function dbe_register_abilities() {
 				'properties' => array(
 					'html'         => array( 'type' => 'string' ),
 					'template_id'  => array( 'type' => 'integer' ),
+					'entity_type'  => array( 'type' => 'string' ),
+					'entity_id'    => array( 'type' => 'integer' ),
+					'entity_slug'  => array( 'type' => 'string' ),
 					'branch_id'    => array( 'type' => 'integer' ),
 					'commit_name'  => array( 'type' => 'string' ),
 					'module_id'    => array( 'type' => 'string' ),
@@ -132,6 +142,7 @@ function dbe_register_abilities() {
 				'type'                 => 'object',
 				'properties'           => array(
 					'template'        => $template_arg,
+					'entity_type'     => $entity_type_arg,
 					'module_id'       => array(
 						'type'        => 'string',
 						'description' => __( 'The subtree root module ID being replaced.', 'daveden-builderius-enhancements' ),
@@ -172,6 +183,9 @@ function dbe_register_abilities() {
 						'type'        => 'string',
 						'description' => __( 'The resulting subtree markup (dry run only).', 'daveden-builderius-enhancements' ),
 					),
+					'entity_type'      => array( 'type' => 'string' ),
+					'entity_id'        => array( 'type' => 'integer' ),
+					'entity_slug'      => array( 'type' => 'string' ),
 					'kept'             => array( 'type' => 'integer' ),
 					'added'            => array( 'type' => 'integer' ),
 					'removed'          => array( 'type' => 'integer' ),
@@ -206,8 +220,9 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template'  => $template_arg,
-					'module_id' => array(
+					'template'    => $template_arg,
+					'entity_type' => $entity_type_arg,
+					'module_id'   => array(
 						'type'        => 'string',
 						'description' => __( 'Module ID to outline from. Omit for the whole template.', 'daveden-builderius-enhancements' ),
 					),
@@ -228,6 +243,9 @@ function dbe_register_abilities() {
 						'items'       => array( 'type' => 'object' ),
 					),
 					'template_id' => array( 'type' => 'integer' ),
+					'entity_type' => array( 'type' => 'string' ),
+					'entity_id'   => array( 'type' => 'integer' ),
+					'entity_slug' => array( 'type' => 'string' ),
 					'branch_id'   => array( 'type' => 'integer' ),
 					'commit_name' => array( 'type' => 'string' ),
 					'module_id'   => array( 'type' => 'string' ),
@@ -243,14 +261,19 @@ function dbe_register_abilities() {
 		'dbe/status',
 		array(
 			'label'               => __( 'Get save/publish status', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Reports the save vs publish state of Builderius templates. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) writes to the development branch, which a LOGGED-IN user already sees on the front end — so save-only is enough to preview. Logged-out visitors render from the published release only; with no release ever published they get the theme fallback, which looks like a blank page. For each template this returns its active (saved) commit and whether that work is in the currently published release (unpublished_changes). Site-wide it returns the current published release, if any. Omit template to report on every template.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reports the save vs publish state of Builderius templates or components. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) writes to the development branch, which a LOGGED-IN user already sees on the front end — so save-only is enough to preview. Logged-out visitors render from a published release only; with no release ever published they get the theme fallback, which looks like a blank page. For each entity this returns its active saved commit, whether that work is in the selected published release, and whether saved/published deliverable HTML is empty. Omit template to report on every entity of the selected type; pass release to inspect a specific Builderius release version or ID.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template' => array(
+					'template'    => array(
 						'type'        => 'string',
-						'description' => __( 'Template post ID or slug. Omit for all templates.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Entity post ID or slug. Omit for all entities of the selected type.', 'daveden-builderius-enhancements' ),
+					),
+					'entity_type' => $entity_type_arg,
+					'release'     => array(
+						'type'        => 'string',
+						'description' => __( 'Builderius release post ID, version/title, or slug to inspect. Omit for the latest published release.', 'daveden-builderius-enhancements' ),
 					),
 				),
 				'additionalProperties' => false,
@@ -264,7 +287,17 @@ function dbe_register_abilities() {
 					),
 					'templates'         => array(
 						'type'        => 'array',
-						'description' => __( 'Per template: id, slug, title, branch_id, saved commit name/date, whether it is included in the published release, and unpublished_changes.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Per template: id, slug, title, branch_id, saved commit name/date, release inclusion, unpublished_changes, and saved/published deliverable lengths so empty published output is visible.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'components'        => array(
+						'type'        => 'array',
+						'description' => __( 'Per component when entity_type is component: id, slug, title, branch_id, saved commit, release inclusion, unpublished_changes, and saved/published deliverable lengths.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'entities'          => array(
+						'type'        => 'array',
+						'description' => __( 'The selected entity-type rows, matching either templates or components.', 'daveden-builderius-enhancements' ),
 						'items'       => array( 'type' => 'object' ),
 					),
 				),
@@ -450,8 +483,9 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template' => $template_arg,
-					'block'    => array(
+					'template'    => $template_arg,
+					'entity_type' => $entity_type_arg,
+					'block'       => array(
 						'type'        => 'string',
 						'description' => __( 'Return only this named block\'s body (token-cheap).', 'daveden-builderius-enhancements' ),
 					),
@@ -469,6 +503,9 @@ function dbe_register_abilities() {
 					),
 					'css_length'  => array( 'type' => 'integer' ),
 					'template_id' => array( 'type' => 'integer' ),
+					'entity_type' => array( 'type' => 'string' ),
+					'entity_id'   => array( 'type' => 'integer' ),
+					'entity_slug' => array( 'type' => 'string' ),
 					'branch_id'   => array( 'type' => 'integer' ),
 					'commit_name' => array( 'type' => 'string' ),
 				),
@@ -489,6 +526,7 @@ function dbe_register_abilities() {
 				'type'                 => 'object',
 				'properties'           => array(
 					'template'        => $template_arg,
+					'entity_type'     => $entity_type_arg,
 					'block'           => array(
 						'type'        => 'string',
 						'pattern'     => '^[A-Za-z0-9_-]+$',
@@ -529,6 +567,9 @@ function dbe_register_abilities() {
 					'css_length'  => array( 'type' => 'integer' ),
 					'dry_run'     => array( 'type' => 'boolean' ),
 					'base_commit' => array( 'type' => 'string' ),
+					'entity_type' => array( 'type' => 'string' ),
+					'entity_id'   => array( 'type' => 'integer' ),
+					'entity_slug' => array( 'type' => 'string' ),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_patch_entity_css',
@@ -651,35 +692,59 @@ function dbe_ability_read_permission() {
 
 /*
  * ----------------------------------------------------------------------
- *  Saved-state access (template → branch → active commit → config)
+ *  Saved-state access (entity → branch → active commit → config)
  * ----------------------------------------------------------------------
  */
 
 /**
- * Resolve a template reference to its saved content config.
+ * Normalise an ability entity type.
  *
- * @param string $template Post ID or slug.
- * @return array|WP_Error { config, template_post, branch, commit }.
+ * @param mixed $entity_type Input entity type.
+ * @return string|WP_Error Normalised entity type.
  */
-function dbe_ability_load_config( $template ) {
-	$template = trim( (string) $template );
-	if ( is_numeric( $template ) ) {
-		$post = get_post( (int) $template );
+function dbe_ability_entity_type( $entity_type ) {
+	$entity_type = trim( strtolower( (string) $entity_type ) );
+	if ( '' === $entity_type ) {
+		return 'template';
+	}
+	if ( in_array( $entity_type, array( 'template', 'component' ), true ) ) {
+		return $entity_type;
+	}
+	return new WP_Error( 'dbe_bad_entity_type', 'entity_type must be "template" or "component".' );
+}
+
+/**
+ * Resolve a template or component reference to its saved content config.
+ *
+ * @param string $ref         Post ID or slug.
+ * @param string $entity_type Entity type: template or component.
+ * @return array|WP_Error { config, entity_post, entity_type, template_post, branch, commit }.
+ */
+function dbe_ability_load_entity_config( $ref, $entity_type = 'template' ) {
+	$entity_type = dbe_ability_entity_type( $entity_type );
+	if ( is_wp_error( $entity_type ) ) {
+		return $entity_type;
+	}
+
+	$ref       = trim( (string) $ref );
+	$post_type = 'component' === $entity_type ? 'builderius_component' : 'builderius_template';
+	if ( is_numeric( $ref ) ) {
+		$post = get_post( (int) $ref );
 	} else {
 		// Not get_page_by_path(): a template post's post_parent points at the
 		// post it applies to, which that function misreads as a hierarchy.
 		$found = get_posts(
 			array(
-				'post_type'   => 'builderius_template',
-				'name'        => $template,
+				'post_type'   => $post_type,
+				'name'        => $ref,
 				'post_status' => get_post_stati(),
 				'numberposts' => 1,
 			)
 		);
 		$post  = $found ? $found[0] : null;
 	}
-	if ( ! $post || 'builderius_template' !== $post->post_type ) {
-		return new WP_Error( 'dbe_no_template', sprintf( 'No builderius_template found for "%s".', $template ) );
+	if ( ! $post || $post_type !== $post->post_type ) {
+		return new WP_Error( 'dbe_no_entity', sprintf( 'No %s found for "%s".', $post_type, $ref ) );
 	}
 
 	$resolved = dbe_ability_resolve_commit( $post );
@@ -692,10 +757,22 @@ function dbe_ability_load_config( $template ) {
 
 	return array(
 		'config'        => $resolved['config'],
+		'entity_post'   => $post,
+		'entity_type'   => $entity_type,
 		'template_post' => $post,
 		'branch'        => $resolved['branch'],
 		'commit'        => $resolved['commit'],
 	);
+}
+
+/**
+ * Resolve a template reference to its saved content config.
+ *
+ * @param string $template Post ID or slug.
+ * @return array|WP_Error { config, template_post, branch, commit }.
+ */
+function dbe_ability_load_config( $template ) {
+	return dbe_ability_load_entity_config( $template, 'template' );
 }
 
 /**
@@ -862,11 +939,12 @@ function dbe_ability_load_settings_set( $ref = '' ) {
  * `css` settings entry — that is not an error; css_index -1 tells the
  * writer to append a fresh entry.
  *
- * @param string $template Post ID or slug.
+ * @param string $template    Post ID or slug.
+ * @param string $entity_type Entity type: template or component.
  * @return array|WP_Error { config, template_post, branch, commit, css, css_index }.
  */
-function dbe_ability_load_entity_css( $template ) {
-	$loaded = dbe_ability_load_config( $template );
+function dbe_ability_load_entity_css( $template, $entity_type = 'template' ) {
+	$loaded = dbe_ability_load_entity_config( $template, $entity_type );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
@@ -2319,7 +2397,7 @@ function dbe_ability_create_commit( $branch_id, $config, $autopublish = false, $
  * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_subtree_html( $input ) {
-	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
+	$loaded = dbe_ability_load_entity_config( $input['template'] ?? '', $input['entity_type'] ?? 'template' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
@@ -2329,7 +2407,7 @@ function dbe_ability_get_subtree_html( $input ) {
 	$non_editable = array();
 	if ( '' !== $module_id ) {
 		if ( ! isset( $config['modules'][ $module_id ] ) ) {
-			return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the template.', $module_id ) );
+			return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the %s.', $module_id, $loaded['entity_type'] ) );
 		}
 		$html = dbe_ability_serialize( $config, $module_id, 0, $non_editable );
 	} else {
@@ -2343,6 +2421,9 @@ function dbe_ability_get_subtree_html( $input ) {
 	return array(
 		'html'         => $html,
 		'template_id'  => $loaded['template_post']->ID,
+		'entity_type'  => $loaded['entity_type'],
+		'entity_id'    => $loaded['entity_post']->ID,
+		'entity_slug'  => $loaded['entity_post']->post_name,
 		'branch_id'    => $loaded['branch']->ID,
 		'commit_name'  => $loaded['commit']->post_name,
 		'module_id'    => $module_id,
@@ -2357,7 +2438,7 @@ function dbe_ability_get_subtree_html( $input ) {
  * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_tree_outline( $input ) {
-	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
+	$loaded = dbe_ability_load_entity_config( $input['template'] ?? '', $input['entity_type'] ?? 'template' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
@@ -2368,7 +2449,7 @@ function dbe_ability_get_tree_outline( $input ) {
 	$lines = array();
 	if ( '' !== $module_id ) {
 		if ( ! isset( $config['modules'][ $module_id ] ) ) {
-			return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the template.', $module_id ) );
+			return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the %s.', $module_id, $loaded['entity_type'] ) );
 		}
 		dbe_ability_outline( $config, $module_id, 0, $nodes, $lines );
 	} else {
@@ -2381,6 +2462,9 @@ function dbe_ability_get_tree_outline( $input ) {
 		'outline'     => implode( "\n", $lines ),
 		'nodes'       => $nodes,
 		'template_id' => $loaded['template_post']->ID,
+		'entity_type' => $loaded['entity_type'],
+		'entity_id'   => $loaded['entity_post']->ID,
+		'entity_slug' => $loaded['entity_post']->post_name,
 		'branch_id'   => $loaded['branch']->ID,
 		'commit_name' => $loaded['commit']->post_name,
 		'module_id'   => $module_id,
@@ -2394,11 +2478,11 @@ function dbe_ability_get_tree_outline( $input ) {
  * @return array|WP_Error Ability result.
  */
 function dbe_ability_apply_subtree_html( $input ) {
-	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
+	$loaded = dbe_ability_load_entity_config( $input['template'] ?? '', $input['entity_type'] ?? 'template' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
-	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['template_post']->post_name );
+	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['entity_post']->post_name );
 	if ( is_wp_error( $preflight ) ) {
 		return $preflight;
 	}
@@ -2407,7 +2491,7 @@ function dbe_ability_apply_subtree_html( $input ) {
 	$html      = (string) ( $input['html'] ?? '' );
 
 	if ( ! isset( $config['modules'][ $module_id ] ) ) {
-		return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the template.', $module_id ) );
+		return new WP_Error( 'dbe_no_module', sprintf( 'No module "%s" in the %s.', $module_id, $loaded['entity_type'] ) );
 	}
 	$expressible = dbe_ability_expressible();
 	$root_type   = $config['modules'][ $module_id ]['name'];
@@ -2473,6 +2557,9 @@ function dbe_ability_apply_subtree_html( $input ) {
 		return array(
 			'dry_run'          => true,
 			'base_commit'      => $loaded['commit']->post_name,
+			'entity_type'      => $loaded['entity_type'],
+			'entity_id'        => $loaded['entity_post']->ID,
+			'entity_slug'      => $loaded['entity_post']->post_name,
 			'html'             => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
 			'kept'             => $result['kept'],
 			'added'            => $result['added'],
@@ -2497,6 +2584,9 @@ function dbe_ability_apply_subtree_html( $input ) {
 	$out = array(
 		'commit_name'      => $commit_name,
 		'base_commit'      => $loaded['commit']->post_name,
+		'entity_type'      => $loaded['entity_type'],
+		'entity_id'        => $loaded['entity_post']->ID,
+		'entity_slug'      => $loaded['entity_post']->post_name,
 		'kept'             => $result['kept'],
 		'added'            => $result['added'],
 		'removed'          => $result['removed'],
@@ -2524,6 +2614,57 @@ function dbe_ability_apply_subtree_html( $input ) {
  * @return WP_Post|null
  */
 function dbe_ability_published_release() {
+	return dbe_ability_resolve_release();
+}
+
+/**
+ * Resolve a Builderius release by ID, title/version or slug.
+ *
+ * @param string $ref Optional release reference; empty means latest published.
+ * @return WP_Post|WP_Error|null
+ */
+function dbe_ability_resolve_release( $ref = '' ) {
+	$ref = trim( (string) $ref );
+	if ( '' !== $ref && is_numeric( $ref ) ) {
+		$post = get_post( (int) $ref );
+		if ( $post && 'builderius_release' === $post->post_type ) {
+			return $post;
+		}
+		return new WP_Error( 'dbe_no_release', sprintf( 'No builderius_release found for "%s".', $ref ) );
+	}
+	if ( '' !== $ref ) {
+		$posts = get_posts(
+			array(
+				'post_type'   => 'builderius_release',
+				'post_status' => get_post_stati(),
+				'numberposts' => 1,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+				's'           => $ref,
+			)
+		);
+		foreach ( $posts as $post ) {
+			if ( $post->post_title === $ref || $post->post_name === $ref ) {
+				return $post;
+			}
+		}
+		$posts = get_posts(
+			array(
+				'post_type'   => 'builderius_release',
+				'post_status' => get_post_stati(),
+				'numberposts' => -1,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
+		foreach ( $posts as $post ) {
+			if ( $post->post_title === $ref || $post->post_name === $ref ) {
+				return $post;
+			}
+		}
+		return new WP_Error( 'dbe_no_release', sprintf( 'No builderius_release found for "%s".', $ref ) );
+	}
+
 	$posts = get_posts(
 		array(
 			'post_type'   => 'builderius_release',
@@ -2537,19 +2678,32 @@ function dbe_ability_published_release() {
 }
 
 /**
- * Every template that has saved work (a branch with at least one commit),
- * resolved through dbe_ability_load_config so branch/commit selection is
- * identical to the editing abilities'.
+ * Every selected entity that has saved work (a branch with at least one
+ * commit), resolved through dbe_ability_load_entity_config so branch/commit
+ * selection is identical to the editing abilities'.
  *
- * @param array|null $refs Template IDs/slugs to restrict to, or null for all.
+ * @param array|null $refs        Entity IDs/slugs to restrict to, or null for all.
+ * @param string     $entity_type Entity type: template or component.
  * @return array{loaded:array,errors:array} loaded rows from
- *         dbe_ability_load_config keyed by template ID.
+ *         dbe_ability_load_entity_config keyed by entity ID.
  */
-function dbe_ability_load_templates( $refs = null ) {
+function dbe_ability_load_entities( $refs = null, $entity_type = 'template' ) {
+	$entity_type = dbe_ability_entity_type( $entity_type );
+	if ( is_wp_error( $entity_type ) ) {
+		return array(
+			'loaded' => array(),
+			'errors' => array(
+				array(
+					'entity' => '',
+					'error'  => $entity_type->get_error_message(),
+				),
+			),
+		);
+	}
 	if ( null === $refs ) {
 		$refs = get_posts(
 			array(
-				'post_type'   => 'builderius_template',
+				'post_type'   => 'component' === $entity_type ? 'builderius_component' : 'builderius_template',
 				'post_status' => get_post_stati(),
 				'numberposts' => -1,
 				'fields'      => 'ids',
@@ -2559,20 +2713,31 @@ function dbe_ability_load_templates( $refs = null ) {
 	$loaded = array();
 	$errors = array();
 	foreach ( $refs as $ref ) {
-		$row = dbe_ability_load_config( (string) $ref );
+		$row = dbe_ability_load_entity_config( (string) $ref, $entity_type );
 		if ( is_wp_error( $row ) ) {
 			$errors[] = array(
-				'template' => (string) $ref,
-				'error'    => $row->get_error_message(),
+				'entity'      => (string) $ref,
+				'entity_type' => $entity_type,
+				'error'       => $row->get_error_message(),
 			);
 			continue;
 		}
-		$loaded[ $row['template_post']->ID ] = $row;
+		$loaded[ $row['entity_post']->ID ] = $row;
 	}
 	return array(
 		'loaded' => $loaded,
 		'errors' => $errors,
 	);
+}
+
+/**
+ * Every template that has saved work.
+ *
+ * @param array|null $refs Template IDs/slugs to restrict to, or null for all.
+ * @return array{loaded:array,errors:array} Loaded rows keyed by template ID.
+ */
+function dbe_ability_load_templates( $refs = null ) {
+	return dbe_ability_load_entities( $refs, 'template' );
 }
 
 /**
@@ -2582,10 +2747,17 @@ function dbe_ability_load_templates( $refs = null ) {
  * @return array Ability result.
  */
 function dbe_ability_status( $input ) {
+	$entity_type = dbe_ability_entity_type( $input['entity_type'] ?? 'template' );
+	if ( is_wp_error( $entity_type ) ) {
+		return $entity_type;
+	}
 	$refs    = ( isset( $input['template'] ) && '' !== trim( (string) $input['template'] ) )
 		? array( $input['template'] )
 		: null;
-	$release = dbe_ability_published_release();
+	$release = dbe_ability_resolve_release( $input['release'] ?? '' );
+	if ( is_wp_error( $release ) ) {
+		return $release;
+	}
 
 	// The published snapshot per entity lives in the release's DSM children;
 	// comparing its stored config against the active commit's answers "is
@@ -2605,23 +2777,36 @@ function dbe_ability_status( $input ) {
 		}
 	}
 
-	$result = dbe_ability_load_templates( $refs );
+	$result = dbe_ability_load_entities( $refs, $entity_type );
 	$rows   = array();
-	foreach ( $result['loaded'] as $tid => $row ) {
-		$slug            = $row['template_post']->post_name;
+	foreach ( $result['loaded'] as $entity_id => $row ) {
+		$slug            = $row['entity_post']->post_name;
 		$commit          = $row['commit'];
 		$dsm             = $dsm_by_name[ $slug ] ?? null;
 		$saved_config    = (string) get_post_meta( $commit->ID, 'content_config', true );
 		$released_config = $dsm ? (string) get_post_meta( $dsm->ID, 'content_config', true ) : '';
+		$saved_html      = (string) $commit->post_content;
+		$released_html   = $dsm ? (string) $dsm->post_content : '';
+		$saved_empty     = '' === trim( $saved_html );
+		$released_empty  = $dsm && '' === trim( $released_html );
 		$rows[]          = array(
-			'template_id'          => $tid,
-			'slug'                 => $slug,
-			'title'                => $row['template_post']->post_title,
-			'branch_id'            => $row['branch']->ID,
-			'saved_commit'         => $commit->post_name,
-			'saved_at'             => $commit->post_date,
-			'in_published_release' => (bool) $dsm,
-			'unpublished_changes'  => ! $dsm || md5( $saved_config ) !== md5( $released_config ),
+			'template_id'                  => $entity_id,
+			'entity_type'                  => $row['entity_type'],
+			'entity_id'                    => $entity_id,
+			'slug'                         => $slug,
+			'title'                        => $row['entity_post']->post_title,
+			'branch_id'                    => $row['branch']->ID,
+			'saved_commit'                 => $commit->post_name,
+			'saved_at'                     => $commit->post_date,
+			'in_published_release'         => (bool) $dsm,
+			'unpublished_changes'          => ! $dsm || md5( $saved_config ) !== md5( $released_config ),
+			'saved_config_length'          => strlen( $saved_config ),
+			'published_config_length'      => strlen( $released_config ),
+			'saved_deliverable_length'     => strlen( $saved_html ),
+			'published_deliverable_length' => strlen( $released_html ),
+			'saved_deliverable_empty'      => $saved_empty,
+			'published_deliverable_empty'  => $released_empty,
+			'published_release_broken'     => (bool) ( $dsm && $released_empty ),
 		);
 	}
 
@@ -2631,7 +2816,9 @@ function dbe_ability_status( $input ) {
 			'version' => $release->post_title,
 			'date'    => $release->post_date,
 		) : null,
-		'templates'         => $rows,
+		'templates'         => 'template' === $entity_type ? $rows : array(),
+		'components'        => 'component' === $entity_type ? $rows : array(),
+		'entities'          => $rows,
 		'errors'            => $result['errors'],
 	);
 }
@@ -2886,7 +3073,7 @@ function dbe_ability_patch_global_css( $input ) {
  * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_entity_css( $input ) {
-	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '' );
+	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '', $input['entity_type'] ?? 'template' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
@@ -2919,6 +3106,9 @@ function dbe_ability_get_entity_css( $input ) {
 		'blocks'      => $names,
 		'css_length'  => strlen( $loaded['css'] ),
 		'template_id' => $loaded['template_post']->ID,
+		'entity_type' => $loaded['entity_type'],
+		'entity_id'   => $loaded['entity_post']->ID,
+		'entity_slug' => $loaded['entity_post']->post_name,
 		'branch_id'   => $loaded['branch']->ID,
 		'commit_name' => $loaded['commit']->post_name,
 	);
@@ -2940,11 +3130,11 @@ function dbe_ability_patch_entity_css( $input ) {
 		return new WP_Error( 'dbe_no_css', 'Pass the block\'s css, or delete: true to remove it.' );
 	}
 
-	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '' );
+	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '', $input['entity_type'] ?? 'template' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
-	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['template_post']->post_name );
+	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['entity_post']->post_name );
 	if ( is_wp_error( $preflight ) ) {
 		return $preflight;
 	}
@@ -2958,6 +3148,9 @@ function dbe_ability_patch_entity_css( $input ) {
 		return array(
 			'dry_run'     => true,
 			'base_commit' => $loaded['commit']->post_name,
+			'entity_type' => $loaded['entity_type'],
+			'entity_id'   => $loaded['entity_post']->ID,
+			'entity_slug' => $loaded['entity_post']->post_name,
 			'action'      => $patched['action'],
 			'block'       => $block,
 			'css_length'  => strlen( $patched['css'] ),
@@ -2991,6 +3184,9 @@ function dbe_ability_patch_entity_css( $input ) {
 		'block'       => $block,
 		'commit_name' => $commit_name,
 		'base_commit' => $loaded['commit']->post_name,
+		'entity_type' => $loaded['entity_type'],
+		'entity_id'   => $loaded['entity_post']->ID,
+		'entity_slug' => $loaded['entity_post']->post_name,
 		'css_length'  => strlen( $patched['css'] ),
 	);
 
