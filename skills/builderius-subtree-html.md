@@ -40,6 +40,12 @@ per-module tool chains for structural work.
 - Inline `<svg>` is stripped server-side (PHP would lowercase `viewBox`);
   use the builder's Edit-as-HTML dialog for SVG work, or a `<dbe-keep>` for
   an existing SvgCode module.
+- **Never store `aria-*` or `focusable` attributes inside SVG markup.**
+  Builderius' SVG validation disallows them, and an SVG that slips through
+  silently EMPTIES the template's generated HTML at save/publish time — the
+  published page renders blank. Hide a decorative icon by wrapping it in a
+  `<span aria-hidden="true">` instead (allowed, and what the DBE dialogs do
+  automatically when they strip those attributes).
 - Script tags, event handlers and dangerous URLs are always stripped and
   reported in `stripped`.
 
