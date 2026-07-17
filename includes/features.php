@@ -536,7 +536,7 @@ function dbe_features() {
 		'presence_heartbeat'    => array(
 			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'An admin-bar edit link plus a second-tab warning.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab. Also lets AI agents know when a builder tab has a template open with unsaved changes, so their server-side edits warn instead of being silently overwritten when that tab saves.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array(),
 			'js'          => true,

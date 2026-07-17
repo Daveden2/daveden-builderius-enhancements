@@ -136,6 +136,10 @@ function dbe_bootstrap() {
 		// being wiped by builder saves. Independent of the Abilities API, as
 		// blocks may exist from an earlier session.
 		require_once DBE_DIR . 'includes/css-guard.php';
+		// Server-side presence beats: lets abilities warn about dirty builder
+		// tabs before committing (the REST route must register on every
+		// request, not just builder pages).
+		require_once DBE_DIR . 'includes/presence.php';
 		// Agent-facing subtree HTML abilities (prototype) — needs both
 		// Builderius (its commit mutation is the save path) and the
 		// Abilities API runtime.
