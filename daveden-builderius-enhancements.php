@@ -138,6 +138,9 @@ function dbe_bootstrap() {
 		if ( function_exists( 'wp_register_ability' ) ) {
 			require_once DBE_DIR . 'includes/abilities.php';
 		}
+		// Agent skills for Novamira's lookup registry. The filter only
+		// fires when Novamira applies it, so this is inert without it.
+		require_once DBE_DIR . 'includes/novamira-skills.php';
 	} else {
 		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
 	}
