@@ -304,10 +304,15 @@
 
     /* Random module id in Builderius' shape ('u' + 9 hex). Lifted from wrap()'s
        closure so element-insertion helpers (picker, Emmet palette) can share it. */
-    function dbeMakeId() {
-        return 'u' + Array.from({ length: 9 }, function () {
-            return Math.floor(Math.random() * 16).toString(16);
-        }).join('');
+    function dbeMakeId(existing) {
+        var used = existing || modules() || {};
+        var id;
+        do {
+            id = 'u' + Array.from({ length: 9 }, function () {
+                return Math.floor(Math.random() * 16).toString(16);
+            }).join('');
+        } while (used[id]);
+        return id;
     }
 
     /* Attributes whose value becomes a navigable or fetchable URL. Kept as one
@@ -1691,8 +1696,8 @@
        storeAddModule; ordering/reparenting via storeMoveModule; removals via
        the native menu Remove (the only delete that repaints AND persists),
        driven sequentially on the top-most removed nodes only (children go
-       with their parent). Removals run FIRST so the later index maths sees
-       the final sibling sets. dbeUndoBusy is held across the whole apply so
+       with their parent). Retained nodes are moved FIRST so deleting an old
+       parent cannot take a retained descendant with it. dbeUndoBusy is held across the whole apply so
        the individual add/delete steps record nothing; instead the apply drops
        one sticky barrier (dbeHistoryBarrier) so a Cmd+Z straight after reports
        the change isn't step-undoable and can't revert an earlier action. Whole-
@@ -1752,7 +1757,9 @@
             var cfg = data[c.name];
             ((cfg && cfg.settings) || []).forEach(function (s) {
                 if (s.name === 'componentTmplProperties' && Array.isArray(s.value)) {
-                    s.value.forEach(function (def) { if (def && def.name) { props[def.name] = def; } });
+                    s.value.forEach(function (def) {
+                        if (def && def.name) { props[String(def.name).toLowerCase()] = def; }
+                    });
                 }
             });
             reg[c.name] = { label: c.title || c.name, props: props };
@@ -1824,13 +1831,22 @@
             if (tagId) { open += ' id="' + dbeHtmlEscapeAttr(tagId) + '"'; }
             var classes = dbeSettingVal(m, 'tagClass');
             if (Array.isArray(classes) && classes.length) { open += ' class="' + dbeHtmlEscapeAttr(classes.join(' ')) + '"'; }
+            var bindingAttr = false;
             (dbeSettingVal(m, 'htmlAttribute') || []).forEach(function (a) {
                 if (!a || !a.name || a.name === 'data-dbe-id') { return; }
+                var an = String(a.name).toLowerCase();
+                if (an === 'data-b-context' || an === 'data-source') { bindingAttr = true; }
                 // A value-less entry (the panel's empty-attribute shape) round-trips as name="".
                 open += (a.value == null || a.value === '')
                     ? ' ' + a.name + '=""'
                     : ' ' + a.name + '="' + dbeHtmlEscapeAttr(a.value) + '"';
             });
+            // A Collection/SubCollection whose binding is not stored as a
+            // data-b-context/data-source attribute would re-parse as a plain
+            // HtmlElement and fail the marker type check, so declare the type.
+            if (!bindingAttr && (m.name === 'Collection' || m.name === 'SubCollection')) {
+                open += ' data-dbe-module="' + m.name.toLowerCase() + '"';
+            }
             open += ' data-dbe-id="' + id + '">';
             if (DBE_HTML_VOID[tag]) { return pad + open; }
             var content = dbeSettingVal(m, 'content');
@@ -1857,8 +1873,31 @@
        data-dbe-id markers may claim — pass {} to treat every element as new
        (markers pointing anywhere else are always ignored, so a dialog can
        never capture another part of the page). */
+    var DBE_HTML_LIMITS = { bytes: 262144, nodes: 5000, depth: 100 };
+
     function dbeParseHtmlFragment(html, origIds) {
+        var byteLength = new Blob([String(html)]).size;
+        if (byteLength > DBE_HTML_LIMITS.bytes) {
+            throw dbeFmt(dbeT('htmlErrTooLarge', 'The HTML is too large (%1$s bytes; maximum %2$s).'),
+                byteLength, DBE_HTML_LIMITS.bytes);
+        }
         var doc = new DOMParser().parseFromString(html, 'text/html');
+        var allNodes = doc.body.querySelectorAll('*').length;
+        if (allNodes > DBE_HTML_LIMITS.nodes) {
+            throw dbeFmt(dbeT('htmlErrTooManyNodes', 'The HTML contains too many elements (%1$s; maximum %2$s).'),
+                allNodes, DBE_HTML_LIMITS.nodes);
+        }
+        var depthStack = [].slice.call(doc.body.children).map(function (el) { return { el: el, depth: 1 }; });
+        while (depthStack.length) {
+            var depthItem = depthStack.pop();
+            if (depthItem.depth > DBE_HTML_LIMITS.depth) {
+                throw dbeFmt(dbeT('htmlErrTooDeep', 'The HTML nesting exceeds the maximum depth of %s.'), DBE_HTML_LIMITS.depth);
+            }
+            var depthHost = (depthItem.el.tagName.toLowerCase() === 'template' && depthItem.el.content) ? depthItem.el.content : depthItem.el;
+            [].slice.call(depthHost.children).forEach(function (child) {
+                depthStack.push({ el: child, depth: depthItem.depth + 1 });
+            });
+        }
         var stripped = [];
         var claimed = {};
         // data-dbe-id markers that matched nothing in origIds — probably typos.
@@ -1868,6 +1907,23 @@
         var unknownMarkers = {};
         var registry = dbeComponentRegistry();
         var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
+        function claim(marker, moduleName, representation) {
+            marker = String(marker || '').trim();
+            if (!marker) { return false; }
+            if (!origIds[marker] || claimed[marker]) {
+                unknownMarkers[marker] = true;
+                return false;
+            }
+            var expected = origIds[marker];
+            var valid = representation === 'keep' ? !DBE_HTML_MODULES[expected] : expected === moduleName;
+            if (!valid) {
+                throw dbeFmt(
+                    dbeT('htmlErrMarkerType', 'Marked element %1$s is a %2$s but was submitted as %3$s.'),
+                    marker, expected, moduleName);
+            }
+            claimed[marker] = true;
+            return true;
+        }
         /* An <svg> becomes an SvgCode module carrying its raw markup — the
            module renders `contentSvg` raw (twig |raw), so the same entry
            gate applies INSIDE the subtree before it is stored: script
@@ -1878,8 +1934,7 @@
         function convertSvg(el) {
             var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '', label: '' };
             var marker = el.getAttribute('data-dbe-id');
-            if (marker && origIds[marker] && !claimed[marker]) { claimed[marker] = true; node.existingId = marker; }
-            else if (marker) { unknownMarkers[marker] = true; }
+            if (claim(marker, 'SvgCode', 'svg')) { node.existingId = marker; }
             // The Navigator label lives on the <svg> itself; read it before the
             // attribute scrub below removes the marker from the stored markup.
             var svgLabel = el.getAttribute('data-dbe-label');
@@ -1967,9 +2022,8 @@
             // ignored. The marker must point into the original subtree.
             if (tag === 'dbe-keep') {
                 var kMarker = el.getAttribute('data-dbe-id');
-                if (kMarker && origIds[kMarker] && !claimed[kMarker]) { claimed[kMarker] = true; return { keep: kMarker }; }
-                if (kMarker) { unknownMarkers[kMarker] = true; }
-                stripped.push('<dbe-keep> (unknown or duplicate marker)');
+                if (claim(kMarker, 'non-expressible module', 'keep')) { return { keep: kMarker }; }
+                stripped.push('<dbe-keep> (invalid, unknown or duplicate marker)');
                 return null;
             }
             // A component instance: <dbe-component name="slug" prop="value" …>.
@@ -1979,41 +2033,48 @@
             if (tag === 'dbe-component') {
                 var cslug = String(el.getAttribute('name') || '').trim();
                 if (!cslug || !registry[cslug]) {
+                    var invalidComponentMarker = String(el.getAttribute('data-dbe-id') || '').trim();
+                    if (invalidComponentMarker && origIds[invalidComponentMarker] && !claimed[invalidComponentMarker]) {
+                        throw dbeFmt(
+                            dbeT('htmlErrUnknownMarkedComponent', 'Marked element %1$s uses the unknown component “%2$s”. Choose an available component or restore the original name.'),
+                            invalidComponentMarker, cslug || dbeT('blankValue', 'blank'));
+                    }
                     var avail = Object.keys(registry).join(', ');
                     stripped.push('<dbe-component name="' + cslug + '"> (' + (avail ? 'unknown component; available: ' + avail : 'no components registered') + ')');
                     return null;
                 }
                 var cnode = { existingId: null, module: 'Component', componentName: cslug, props: [], children: [], label: '' };
                 var declared = registry[cslug].props;
+                var cMarker = '';
                 [].slice.call(el.attributes).forEach(function (a) {
                     var an = a.name.toLowerCase();
                     if (an === 'name') { return; }
                     if (an === 'data-dbe-id') {
-                        if (origIds[a.value] && !claimed[a.value]) { claimed[a.value] = true; cnode.existingId = a.value; }
-                        else if (a.value) { unknownMarkers[a.value] = true; }
+                        cMarker = a.value;
                         return;
                     }
                     if (an === 'data-dbe-label') { cnode.label = String(a.value).replace(/\s+/g, ' ').trim(); return; }
                     // A prop the component does not declare cannot resolve, so
                     // it is dropped with a note rather than stored as dead data.
-                    if (Object.keys(declared).length && !declared[an]) {
+                    if (!declared[an]) {
                         stripped.push(an + ' (not a property of ' + cslug + ')');
                         return;
                     }
-                    cnode.props.push({ name: an, value: a.value });
+                    cnode.props.push({ name: declared[an].name, value: a.value });
                 });
+                if (claim(cMarker, 'Component', 'component')) { cnode.existingId = cMarker; }
                 return cnode;
             }
             if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
             var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [], label: '' };
             if (tag === 'template') { node.module = 'Template'; }
+            var nodeMarker = '';
             [].slice.call(el.attributes).forEach(function (a) {
                 var n = a.name.toLowerCase();
                 var v = a.value;
                 if (n === 'data-dbe-id') {
-                    if (origIds[v] && !claimed[v]) { claimed[v] = true; node.existingId = v; }
-                    else if (v) { unknownMarkers[v] = true; }
+                    nodeMarker = v;
                     return;
                 }
                 // Navigator label for the element. Consumed, never stored — sets
@@ -2034,6 +2095,7 @@
                 // Collection stores what it loops over, and it stays a stored
                 // attribute (verified live on the gallery Collection).
                 if (n === 'data-b-context' && node.module === 'HtmlElement') { node.module = 'Collection'; }
+                if (n === 'data-source' && node.module === 'HtmlElement') { node.module = 'SubCollection'; }
                 // The one shared gate (dbeAttrBlocked): on* handlers and
                 // javascript:/vbscript:/script-bearing data: URLs. Markers and
                 // id/class/data-b-context are handled above, so they never
@@ -2042,6 +2104,7 @@
                 if (blocked) { stripped.push(blocked); return; }
                 node.attrs.push({ name: n, value: v });
             });
+            if (claim(nodeMarker, node.module, 'element')) { node.existingId = nodeMarker; }
             var seenElement = false;
             // DOMParser parks a <template> element's children in its .content
             // fragment, not .childNodes — read from wherever they actually are.
@@ -2070,7 +2133,7 @@
     }
 
     /* The Edit-as-HTML shape: one root, or a structural error. */
-    function dbeParseHtmlTree(html, origIds) {
+    function dbeParseHtmlTree(html, origIds, rootId) {
         var parsed = dbeParseHtmlFragment(html, origIds);
         if (parsed.roots.length !== 1) {
             throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
@@ -2079,6 +2142,11 @@
         // placeholder — there would be nothing to edit.
         if (parsed.roots[0].keep) {
             throw dbeT('htmlErrRootKeep', 'The root element can’t be a preserved (<dbe-keep>) placeholder');
+        }
+        if (rootId && parsed.roots[0].module !== origIds[rootId]) {
+            throw dbeFmt(
+                dbeT('htmlErrRootType', 'The subtree root is a %1$s and cannot be submitted as %2$s.'),
+                origIds[rootId], parsed.roots[0].module);
         }
         return { tree: parsed.roots[0], stripped: parsed.stripped, unknownMarkers: parsed.unknownMarkers };
     }
@@ -2150,7 +2218,7 @@
             return deleted[id] && !deleted[(mods[id] && mods[id].parent) || ''];
         });
 
-        var counts = { kept: 0, added: 0, removed: topDeleted.length };
+        var counts = { kept: 0, added: 0, removed: Object.keys(deleted).length };
         var wasBusy = dbeUndoBusy;
         dbeUndoBusy = true;
 
@@ -2202,7 +2270,7 @@
                         }
                     }
                     var mod = {
-                        id: dbeMakeId(), name: moduleName,
+                        id: dbeMakeId(sf2.storeGet('modules') || {}), name: moduleName,
                         label: newLabel,
                         settings: dbeNodeSettings(node)
                     };
@@ -2213,18 +2281,23 @@
                 (node.children || []).forEach(function (c, i) { place(c, id, i); });
             }
             place(tree, null, 0); // null parent = the root stays where it is
-            dbeUndoBusy = wasBusy;
-            if (activeId() === rootId) { dbeReselectToRehydrate(rootId); }
-            done(counts);
+
+            // Only after retained descendants have reached their new parents is
+            // it safe to remove obsolete ancestors through the native menu.
+            (function removeNext(i) {
+                if (i >= topDeleted.length) {
+                    dbeUndoBusy = wasBusy;
+                    if (activeId() === rootId) { dbeReselectToRehydrate(rootId); }
+                    done(counts);
+                    return;
+                }
+                driveContextMenuItem(topDeleted[i], 'Remove', function () {
+                    setTimeout(function () { removeNext(i + 1); }, 150);
+                });
+            })(0);
         }
 
-        // Removals first (sequential native-menu drives), then the rebuild.
-        (function removeNext(i) {
-            if (i >= topDeleted.length) { build(); return; }
-            driveContextMenuItem(topDeleted[i], 'Remove', function () {
-                setTimeout(function () { removeNext(i + 1); }, 150);
-            });
-        })(0);
+        build();
     }
 
     var dbeHtmlBusy = false;
@@ -2326,7 +2399,7 @@
         // matching one of these keeps that module; anything else is new.
         var origIds = {};
         (function collect(id) {
-            origIds[id] = true;
+            origIds[id] = mods[id] ? mods[id].name : '';
             ((store().storeGet('indexes') || {})[id] || []).forEach(collect);
         })(rootId);
 
@@ -2380,13 +2453,23 @@
         var apply = document.createElement('button');
         apply.type = 'button';
         apply.className = 'dbe-html__apply';
-        apply.textContent = dbeT('applyHtml', 'Apply HTML');
+        apply.textContent = dbeT('reviewChanges', 'Review changes');
+        var reviewedHtml = null;
         apply.addEventListener('click', function () {
             var parsed;
+            var currentHtml = editor.getValue();
             try {
-                parsed = dbeParseHtmlTree(editor.getValue(), origIds);
+                parsed = dbeParseHtmlTree(currentHtml, origIds, rootId);
             } catch (msg) {
                 status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
+                return;
+            }
+            if (reviewedHtml !== currentHtml) {
+                reviewedHtml = currentHtml;
+                apply.textContent = dbeT('applyChanges', 'Apply changes');
+                updatePreview();
+                status.textContent = dbeT('editHtmlReviewReady', 'Review complete.') + ' ' + status.textContent;
+                apply.focus();
                 return;
             }
             // The dialog is showModal(): it must close before the apply queue
@@ -2408,7 +2491,7 @@
                     }
                     if (parsed.unknownMarkers && parsed.unknownMarkers.length) {
                         msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
-                            '⚠ unrecognised marker(s): %s — a new element is created and the original removed'),
+                            'Unrecognised marker(s): %s. A new element will be created and the original removed.'),
                             parsed.unknownMarkers.join(', '));
                     }
                     undoToast(msg);
@@ -2427,23 +2510,15 @@
         function updatePreview() {
             var parsed;
             try {
-                parsed = dbeParseHtmlFragment(editor.getValue(), origIds);
+                parsed = dbeParseHtmlTree(editor.getValue(), origIds, rootId);
             } catch (e) {
-                status.textContent = dbeT('htmlErrParse', 'Could not parse the HTML');
-                status.classList.add('dbe-html__status--warn');
-                apply.disabled = true;
-                return;
-            }
-            if (parsed.roots.length !== 1) {
-                status.textContent = dbeFmt(
-                    dbeT('editHtmlRootCount', 'The HTML must have exactly one root element (found %s).'),
-                    parsed.roots.length);
+                status.textContent = typeof e === 'string' ? e : dbeT('htmlErrParse', 'Could not parse the HTML');
                 status.classList.add('dbe-html__status--warn');
                 apply.disabled = true;
                 return;
             }
             apply.disabled = false;
-            var c = dbePreviewCounts(parsed.roots[0], origIds, rootId);
+            var c = dbePreviewCounts(parsed.tree, origIds, rootId);
             var msg = dbeFmt(dbeT('editHtmlWillApply', 'Will apply: %1$s updated, %2$s added, %3$s removed'),
                 c.updated, c.added, c.removed);
             if (parsed.stripped.length) {
@@ -2456,7 +2531,7 @@
             // element carrying a stray marker is still a valid, if unusual, edit.
             if (parsed.unknownMarkers.length) {
                 msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
-                    '⚠ unrecognised marker(s): %s — a new element is created and the original removed'),
+                    'Unrecognised marker(s): %s. A new element will be created and the original removed.'),
                     parsed.unknownMarkers.join(', '));
                 status.classList.add('dbe-html__status--warn');
             } else {
@@ -2467,6 +2542,8 @@
         var previewTimer = null;
         editor.onChange(function () {
             if (previewTimer) { clearTimeout(previewTimer); }
+            reviewedHtml = null;
+            apply.textContent = dbeT('reviewChanges', 'Review changes');
             previewTimer = setTimeout(updatePreview, 150);
         });
 
@@ -8302,18 +8379,39 @@
         try { return localStorage.getItem(DBE_HINT_KEY) === '1'; } catch (e) { return false; }
     }
 
-    function cssHintBodyHtml() {
-        // One consistent structure for both tokens, breakpoints stated once for
-        // both. The strings carry <code> markup for the tokens; they are our own
-        // trusted copy (i18n-builder.php).
-        return '<dl class="dbe-css-hint-dl">' +
-            '<dt><code>%local%</code></dt><dd>' +
-            dbeT('cssHintLocal', 'Targets this element only, through its automatic class. Use <code>%#local%</code> to target it by ID instead.') + '</dd>' +
-            '<dt><code>%selector%</code></dt><dd>' +
-            dbeT('cssHintSelector', 'Targets every element that uses the current class.') + '</dd>' +
-            '<dt>' + dbeT('cssHintBreakpointsTerm', 'Breakpoints') + '</dt><dd>' +
-            dbeT('cssHintBreakpoints', 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use the breakpoint variables <code>--desktop</code>, <code>--tablet</code> and <code>--mobile</code> as values.') + '</dd>' +
-            '</dl>';
+    function cssHintCode(value) {
+        var code = document.createElement('code');
+        code.textContent = value;
+        return code;
+    }
+
+    function cssHintBody() {
+        var dl = document.createElement('dl');
+        dl.className = 'dbe-css-hint-dl';
+        function row(term, parts) {
+            var dt = document.createElement('dt');
+            var dd = document.createElement('dd');
+            if (term && term.nodeType) { dt.appendChild(term); } else { dt.textContent = term; }
+            parts.forEach(function (part) {
+                dd.appendChild(part && part.nodeType ? part : document.createTextNode(part));
+            });
+            dl.appendChild(dt);
+            dl.appendChild(dd);
+        }
+        row(cssHintCode('%local%'), [
+            dbeT('cssHintLocalLead', 'Targets this element only, through its automatic class. Use '),
+            cssHintCode('%#local%'),
+            dbeT('cssHintLocalTail', ' to target it by ID instead.')
+        ]);
+        row(cssHintCode('%selector%'), [
+            dbeT('cssHintSelector', 'Targets every element that uses the current class.')
+        ]);
+        row(dbeT('cssHintBreakpointsTerm', 'Breakpoints'), [
+            dbeT('cssHintBreakpointsLead', 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use '),
+            cssHintCode('--desktop'), ', ', cssHintCode('--tablet'), ' ', dbeT('or', 'or'), ' ', cssHintCode('--mobile'),
+            dbeT('cssHintBreakpointsTail', ' as breakpoint-variable values.')
+        ]);
+        return dl;
     }
 
     function openCssHintDialog() {
@@ -8322,13 +8420,24 @@
             dlg = document.createElement('dialog');
             dlg.id = 'dbe-css-hint-dialog';
             dlg.className = 'dbe-css-hint-dialog';
-            dlg.innerHTML =
-                '<div class="dbe-css-hint-dialog__head">' +
-                    '<h2 class="dbe-css-hint-dialog__title">' + dbeT('cssHintTitle', 'Selector tokens & breakpoints') + '</h2>' +
-                    '<button type="button" class="dbe-css-hint-dialog__close" aria-label="' + dbeT('cssHintClose', 'Close') + '">×</button>' +
-                '</div>' +
-                '<div class="dbe-css-hint-dialog__body">' + cssHintBodyHtml() + '</div>';
-            dlg.querySelector('.dbe-css-hint-dialog__close').addEventListener('click', function () { dlg.close(); });
+            var head = document.createElement('div');
+            head.className = 'dbe-css-hint-dialog__head';
+            var title = document.createElement('h2');
+            title.className = 'dbe-css-hint-dialog__title';
+            title.textContent = dbeT('cssHintTitle', 'Selector tokens & breakpoints');
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'dbe-css-hint-dialog__close';
+            close.setAttribute('aria-label', dbeT('cssHintClose', 'Close'));
+            close.textContent = '×';
+            var body = document.createElement('div');
+            body.className = 'dbe-css-hint-dialog__body';
+            body.appendChild(cssHintBody());
+            head.appendChild(title);
+            head.appendChild(close);
+            dlg.appendChild(head);
+            dlg.appendChild(body);
+            close.addEventListener('click', function () { dlg.close(); });
             // Keep builder shortcuts from firing while the dialog has focus.
             dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
             // Backdrop click closes (native <dialog> also gives Esc for free).
@@ -8357,16 +8466,28 @@
         }
         var el = document.createElement('div');
         el.className = 'dbe-css-hint' + (dismissed ? ' is-collapsed' : '');
-        el.innerHTML =
-            '<button type="button" class="dbe-css-hint-btn">' +
-                '<span class="dbe-css-hint-i" aria-hidden="true">i</span>' +
-                '<span class="dbe-css-hint-label">' + dbeT('cssHintBanner', 'How %local%, %selector% & breakpoints work') + '</span>' +
-            '</button>' +
-            '<button type="button" class="dbe-css-hint-dismiss" aria-label="' + dbeT('cssHintDismiss', 'Dismiss hint') + '">×</button>';
-        var btn = el.querySelector('.dbe-css-hint-btn');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dbe-css-hint-btn';
+        var icon = document.createElement('span');
+        icon.className = 'dbe-css-hint-i';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = 'i';
+        var label = document.createElement('span');
+        label.className = 'dbe-css-hint-label';
+        label.textContent = dbeT('cssHintBanner', 'How %local%, %selector% & breakpoints work');
+        var dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'dbe-css-hint-dismiss';
+        dismiss.setAttribute('aria-label', dbeT('cssHintDismiss', 'Dismiss hint'));
+        dismiss.textContent = '×';
+        btn.appendChild(icon);
+        btn.appendChild(label);
+        el.appendChild(btn);
+        el.appendChild(dismiss);
         btn.setAttribute('aria-label', dbeT('cssHintOpen', 'Selector and breakpoint help'));
         btn.addEventListener('click', openCssHintDialog);
-        el.querySelector('.dbe-css-hint-dismiss').addEventListener('click', function () {
+        dismiss.addEventListener('click', function () {
             try { localStorage.setItem(DBE_HINT_KEY, '1'); } catch (e) {}
             el.classList.add('is-collapsed');
         });
@@ -10784,6 +10905,18 @@
                with the save_state_cue toggle off. */
             var pr = CFG.presence || {};
             if (pr.url && pr.nonce) {
+                var prTabId = '';
+                try {
+                    prTabId = sessionStorage.getItem('dbeBuilderiusTabId') || '';
+                    if (!prTabId) {
+                        var random = new Uint32Array(4);
+                        crypto.getRandomValues(random);
+                        prTabId = 'tab-' + [].map.call(random, function (n) { return n.toString(16).padStart(8, '0'); }).join('');
+                        sessionStorage.setItem('dbeBuilderiusTabId', prTabId);
+                    }
+                } catch (e) {
+                    prTabId = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
+                }
                 var prBaseline = null;
                 var prLastDirty = null;
                 var prLastSent = 0;
@@ -10808,10 +10941,10 @@
                     if (prBaseline === null) { prBaseline = len; }
                     return len > prBaseline;
                 }
-                function sendBeat(force) {
+                function sendBeat(force, clear) {
                     var slug = prSlug();
                     if (!slug) { return; }
-                    var dirty = prDirty();
+                    var dirty = clear ? false : prDirty();
                     var now = Date.now();
                     if (!force && dirty === prLastDirty && (now - prLastSent) < (pr.interval || 20000)) { return; }
                     prLastDirty = dirty;
@@ -10825,12 +10958,13 @@
                                 'Content-Type': 'application/json',
                                 'X-WP-Nonce': pr.nonce
                             },
-                            body: JSON.stringify({ entity: slug, dirty: dirty })
+                            body: JSON.stringify({ entity: slug, tab: prTabId, dirty: dirty })
                         }).catch(function () {});
                     } catch (e) {}
                 }
                 sendBeat(true);
                 setInterval(function () { sendBeat(false); }, hb.interval || 2500);
+                window.addEventListener('pagehide', function () { sendBeat(true, true); });
             }
         })();
     }

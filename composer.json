@@ -20,11 +20,13 @@
     "scripts": {
         "phpcs": "phpcs",
         "phpcbf": "phpcbf",
-        "lint": "phpcs"
+        "lint": "phpcs",
+        "test:security": "bash bin/test-security.sh"
     },
     "scripts-descriptions": {
         "phpcs": "Check PHP against the WordPress coding standards (phpcs.xml.dist).",
         "phpcbf": "Auto-fix the fixable coding-standards violations.",
-        "lint": "Alias for phpcs."
+        "lint": "Alias for phpcs.",
+        "test:security": "Run focused WordPress security and data-integrity regressions (requires a path argument or DBE_WP_PATH)."
     }
 }

@@ -28,15 +28,15 @@ function dbe_is_builder_mode() {
  * Whether this request should receive the builder enhancements at all.
  *
  * The prototype emitted for anonymous `?builderius` requests; the plugin
- * restricts output to logged-in users who can edit content. Filterable in
- * case a site gates Builderius access on a different capability.
+ * restricts output to logged-in users who can open Builderius development
+ * mode. Filterable in case a site gates Builderius access differently.
  *
  * @return bool
  */
 function dbe_builder_output_allowed() {
 	$allowed = dbe_is_builder_mode()
 		&& is_user_logged_in()
-		&& current_user_can( 'edit_posts' )
+		&& current_user_can( 'builderius-development' )
 		&& dbe_any_enabled();
 
 	/**

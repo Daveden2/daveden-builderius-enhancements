@@ -10,9 +10,9 @@
  * ability just made (the dirty-tab clobber).
  *
  * So builder.js also posts a lightweight beat here (on dirty-state change,
- * plus a slow keep-alive), stored as a short-lived transient per template.
- * dbe_presence_dirty() lets the abilities warn in their result when a fresh
- * dirty beat exists for the template they are about to commit to.
+ * plus a slow keep-alive), stored as short-lived per-tab records per template.
+ * Mutation abilities check those records before writing and fail closed when
+ * any fresh tab has unsaved work.
  *
  * @package Daveden_Builder_Enhancements
  */
@@ -43,7 +43,7 @@ function dbe_presence_key( $slug ) {
 add_action( 'rest_api_init', 'dbe_presence_register_route' );
 
 /**
- * POST dbe/v1/presence { entity: <template slug>, dirty: <bool> }.
+ * POST dbe/v1/presence { entity: <template slug>, tab: <id>, dirty: <bool> }.
  */
 function dbe_presence_register_route() {
 	register_rest_route(
@@ -66,6 +66,13 @@ function dbe_presence_register_route() {
 					'type'     => 'boolean',
 					'required' => true,
 				),
+				'tab'    => array(
+					'type'              => 'string',
+					'required'          => true,
+					'validate_callback' => function ( $value ) {
+						return is_string( $value ) && preg_match( '/^[A-Za-z0-9_-]{16,100}$/', $value );
+					},
+				),
 			),
 			'callback'            => 'dbe_presence_beat',
 		)
@@ -73,41 +80,61 @@ function dbe_presence_register_route() {
 }
 
 /**
- * Store a beat. Last writer wins: the warning only needs "someone has a
- * dirty tab", not a full session roster.
+ * Store or clear one tab's beat without masking other dirty tabs.
  *
  * @param WP_REST_Request $request The request.
  * @return array
  */
 function dbe_presence_beat( $request ) {
-	$user = wp_get_current_user();
-	set_transient(
-		dbe_presence_key( (string) $request['entity'] ),
-		array(
-			'user'  => $user ? $user->user_login : '',
-			'dirty' => (bool) $request['dirty'],
-			'time'  => time(),
-		),
-		dbe_presence_ttl()
-	);
+	$user    = wp_get_current_user();
+	$key     = dbe_presence_key( (string) $request['entity'] );
+	$tab     = (string) $request['tab'];
+	$records = dbe_presence_records( (string) $request['entity'] );
+	if ( (bool) $request['dirty'] ) {
+		$records[ $tab ] = array(
+			'user' => $user ? $user->user_login : '',
+			'tab'  => $tab,
+			'time' => time(),
+		);
+	} else {
+		unset( $records[ $tab ] );
+	}
+	if ( $records ) {
+		set_transient( $key, $records, dbe_presence_ttl() );
+	} else {
+		delete_transient( $key );
+	}
 	return array( 'ok' => true );
 }
 
 /**
- * A fresh dirty-tab record for a template, or null.
+ * Fresh dirty-tab records for a template, keyed by tab ID.
  *
  * @param string $slug The template slug.
- * @return array|null { user, dirty, time } when a fresh dirty beat exists.
+ * @return array<string,array{user:string,tab:string,time:int}>
+ */
+function dbe_presence_records( $slug ) {
+	$records = get_transient( dbe_presence_key( $slug ) );
+	if ( ! is_array( $records ) ) {
+		return array();
+	}
+	$cutoff = time() - dbe_presence_ttl();
+	foreach ( $records as $tab => $record ) {
+		if ( ! is_array( $record ) || (int) ( $record['time'] ?? 0 ) < $cutoff ) {
+			unset( $records[ $tab ] );
+		}
+	}
+	return $records;
+}
+
+/**
+ * Fresh dirty-tab records for a template.
+ *
+ * @param string $slug The template slug.
+ * @return array<string,array{user:string,tab:string,time:int}>
  */
 function dbe_presence_dirty( $slug ) {
-	$record = get_transient( dbe_presence_key( $slug ) );
-	if ( ! is_array( $record ) || empty( $record['dirty'] ) ) {
-		return null;
-	}
-	if ( ( time() - (int) ( $record['time'] ?? 0 ) ) > dbe_presence_ttl() ) {
-		return null;
-	}
-	return $record;
+	return dbe_presence_records( $slug );
 }
 
 /**
@@ -118,14 +145,33 @@ function dbe_presence_dirty( $slug ) {
  * @return string
  */
 function dbe_presence_warning( $slug ) {
-	$record = dbe_presence_dirty( $slug );
-	if ( ! $record ) {
+	$records = dbe_presence_dirty( $slug );
+	if ( ! $records ) {
 		return '';
 	}
-	return sprintf(
-		'A builder tab has "%s" open with UNSAVED changes (user %s, seen %ds ago). Saving or closing that tab will overwrite this commit with the tab\'s stale snapshot — that tab must save or discard first, then reload, before further builder edits.',
-		$slug,
-		$record['user'],
-		max( 0, time() - (int) $record['time'] )
+	return __(
+		'This template has unsaved changes in another Builderius tab. Saving this agent edit now could overwrite that work. Save or discard the tab’s changes, reload it, then try again.',
+		'daveden-builderius-enhancements'
+	);
+}
+
+/**
+ * Fail a mutation while a dirty builder tab exists unless explicitly forced.
+ *
+ * @param string $slug  Template slug.
+ * @param bool   $force Whether the authorised caller explicitly overrides.
+ * @return true|WP_Error
+ */
+function dbe_presence_precondition( $slug, $force = false ) {
+	if ( $force || ! dbe_presence_dirty( $slug ) ) {
+		return true;
+	}
+	return new WP_Error(
+		'dbe_builder_tab_conflict',
+		dbe_presence_warning( $slug ),
+		array(
+			'template'  => $slug,
+			'tab_count' => count( dbe_presence_dirty( $slug ) ),
+		)
 	);
 }

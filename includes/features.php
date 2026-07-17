@@ -388,7 +388,7 @@ function dbe_features() {
 		'edit_as_html'          => array(
 			'title'        => __( 'Edit as HTML', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Edit an element and its children as HTML markup.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds Edit as HTML to the right-click menu: the element and everything inside it open as readable HTML in a dialog, and applying your edits converts the markup back into real elements. Each existing element carries a data-dbe-id marker; keep the marker and that element\'s label, conditions and other settings survive the edit. Collections and templates are included: a collection appears as its real tag with its data-b-context binding, a template as a real <template> element, and both keep their bindings and settings through the edit. Script tags, event-handler attributes, javascript: URLs and unknown elements are stripped on apply. Not offered on subtrees containing components or code blocks. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Edit as HTML to the right-click menu. Existing data-dbe-id markers preserve labels, conditions and other settings; components use <dbe-component>, while unsupported modules use <dbe-keep> and remain unchanged. A review step shows updated, added, removed and sanitised items before anything is applied. Scripts, event handlers, dangerous URLs and unknown elements are removed. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -473,9 +473,9 @@ function dbe_features() {
 		),
 		'css_hint_dialog'       => array(
 			'title'       => __( 'Tidy selector hint', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'A compact, dismissable hint under the CSS editor.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'A compact, dismissible hint under the CSS editor.', 'daveden-builderius-enhancements' ),
 			// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment -- %local% and %selector% are literal Builderius tokens shown to the user, not printf placeholders.
-			'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissable hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissible hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'styles',
 			'css'         => array( '44-css-hint.css' ),
 			'js'          => true,
@@ -534,9 +534,9 @@ function dbe_features() {
 			'js'          => false,
 		),
 		'presence_heartbeat'    => array(
-			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'An admin-bar edit link plus a second-tab warning.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds an “Edit template” link to the admin bar on the front end, and warns you before the builder opens in a second tab. Also lets AI agents know when a builder tab has a template open with unsaved changes, so their server-side edits warn instead of being silently overwritten when that tab saves.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Builder tab protection', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Warns about duplicate tabs and protects unsaved builder work from agent saves.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds an “Edit template” link to the front-end admin bar and warns before Builderius opens in a second tab. Tabs with unsaved changes also report their state to DBE, which blocks agent saves to the same template until the tab is saved or closed. An explicit force option is still available when the conflict is understood.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array(),
 			'js'          => true,

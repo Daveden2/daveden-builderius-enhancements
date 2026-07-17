@@ -1,7 +1,7 @@
 /* Daveden Builder Enhancements — settings screen. */
 
 .dbe-settings {
-  max-width: 760px;
+  max-width: 920px;
 }
 
 .dbe-intro {
@@ -16,6 +16,14 @@
   gap: 4px;
   margin-block: 16px 0;
   border-bottom: 1px solid #c3c4c7;
+}
+
+.dbe-tabbar[hidden],
+.dbe-settings-tools[hidden],
+.dbe-field[hidden],
+.dbe-savebar[hidden],
+.dbe-no-results[hidden] {
+  display: none;
 }
 
 .dbe-tab {
@@ -62,12 +70,72 @@
   display: none;
 }
 
+.dbe-js-tabs.dbe-filter-mode .dbe-panel__title {
+  display: block;
+  margin-block: 20px 8px;
+}
+
+/* --- Search and filtering --- */
+.dbe-settings-tools {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 16px;
+  border-block-end: 1px solid #c3c4c7;
+}
+
+.dbe-settings-tools label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.dbe-settings-tools__search {
+  flex: 1 1 280px;
+}
+
+.dbe-settings-tools__search input {
+  inline-size: 100%;
+  min-block-size: 36px;
+}
+
+.dbe-settings-tools__filter select {
+  min-inline-size: 150px;
+  min-block-size: 36px;
+}
+
+.dbe-settings-tools .button {
+  min-block-size: 36px;
+}
+
+.dbe-reset-defaults {
+  margin-inline-start: auto;
+}
+
+.dbe-filter-status {
+  flex-basis: 100%;
+  min-block-size: 20px;
+  color: #50575e;
+}
+
+.dbe-filter-status:empty {
+  display: none;
+}
+
+.dbe-no-results {
+  padding-block: 28px;
+  text-align: center;
+}
+
+.dbe-no-results p {
+  font-weight: 600;
+}
+
 /* --- Dashboard panel --- */
 .dbe-dashboard {
-  background: #fff;
-  border: 1px solid #c3c4c7;
-  border-radius: 4px;
-  padding: 16px;
+  padding-block: 4px;
 }
 
 .dbe-dashboard p {
@@ -341,4 +409,44 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
 .dbe-field__more[hidden] {
   display: none;
+}
+
+/* --- Save state --- */
+.dbe-savebar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  min-block-size: 52px;
+  margin-block-start: 20px;
+  padding-block: 10px;
+  border-block-start: 1px solid #c3c4c7;
+  background: #f0f0f1;
+}
+
+.dbe-save-status {
+  color: #50575e;
+}
+
+.dbe-savebar.is-dirty .dbe-save-status {
+  color: #1d2327;
+  font-weight: 600;
+}
+
+@media (max-width: 782px) {
+  .dbe-settings-tools > *,
+  .dbe-settings-tools__filter select {
+    inline-size: 100%;
+  }
+
+  .dbe-reset-defaults {
+    margin-inline-start: 0;
+  }
+
+  .dbe-field {
+    gap: 16px;
+  }
 }

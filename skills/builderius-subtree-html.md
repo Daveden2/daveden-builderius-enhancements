@@ -19,9 +19,30 @@ per-module tool chains for structural work.
   `data-dbe-id` marker. Omit `module_id` for the whole template.
 - `dbe/apply-subtree-html` — sanitises and reconciles edited HTML onto the
   subtree, then commits. **Always run `dry_run: true` first**: it returns
-  the resulting markup (with the ids new elements would get) and
-  kept/added/removed counts without saving.
+  the resulting markup (with the ids new elements would get),
+  kept/added/removed counts and `base_commit` without saving.
 - `dbe/list-commits` — the audit trail; every apply is a described commit.
+
+## The save contract (dry run → expected_commit → save)
+
+Every real (non-dry-run) save REQUIRES `expected_commit` — the
+`base_commit`/`commit_name` returned by the preceding read or dry run.
+Saving without it fails `dbe_expected_commit_required`; saving with a stale
+one fails `dbe_commit_conflict` (someone else committed in between — re-read,
+rebase your edit onto the fresh HTML, and try again). So the flow is always:
+
+1. `dbe/get-subtree-html` (or a dry-run apply) — note the commit name.
+2. Edit, then `dry_run: true` — check counts, `stripped`,
+   `unknown_markers`, `binding_warnings`.
+3. Apply for real with `expected_commit` set.
+
+While a builder tab has this template open with UNSAVED changes, real saves
+fail with `dbe_builder_tab_conflict` (dry runs still work). Do not retry
+blindly: surface it, get the tab saved or discarded, or pass `force: true`
+only after the user explicitly confirms overwriting the tab's state.
+
+Payload limits: 256 KB of HTML, 5000 elements, nesting depth 100 — target
+the smallest subtree that contains your change.
 
 ## Rules of the markup
 
@@ -86,8 +107,7 @@ in one apply:
   there. `dbe/publish` is go-live for logged-out visitors only, on explicit
   user approval (see the builderius-save-publish skill).
 - An open builder session will not show the new commit until reloaded — and
-  if the result carries a `warning`, a builder tab has this template open
-  with UNSAVED changes and will overwrite your commit when it saves or
-  closes. Surface the warning and get that tab saved or discarded first.
+  a builder tab with UNSAVED changes on this template blocks real saves
+  outright (`dbe_builder_tab_conflict`; see the save contract above).
 - The abilities need the `edit_as_html` feature enabled and a user with
   `unfiltered_html` + `builderius-development` capabilities.

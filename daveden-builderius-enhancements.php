@@ -3,7 +3,7 @@
  * Plugin Name:       Daveden Builder Enhancements
  * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           2.0.0-dev-8
+ * Version:           2.0.0-dev-9
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
@@ -39,7 +39,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '2.0.0-dev-8' );
+define( 'DBE_VERSION', '2.0.0-dev-9' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -132,6 +132,7 @@ function dbe_bootstrap() {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
 		require_once DBE_DIR . 'includes/admin-bar.php';
+		require_once DBE_DIR . 'includes/css-blocks.php';
 		// Named-block CSS guard: keeps ability-committed @block regions from
 		// being wiped by builder saves. Independent of the Abilities API, as
 		// blocks may exist from an earlier session.

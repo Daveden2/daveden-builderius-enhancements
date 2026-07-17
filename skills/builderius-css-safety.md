@@ -30,6 +30,12 @@ you; the read path is `get_css_framework { includeRawCss: true }` →
   cannot be clobbered. A new block name is appended at the end; a template
   with no entity CSS gets one created. Both support `delete` and `dry_run`,
   and each write is its own described commit.
+- **Real saves require `expected_commit`** — the commit name returned by the
+  preceding read or dry run. Without it the save fails
+  `dbe_expected_commit_required`; a stale one fails `dbe_commit_conflict`
+  (re-read and retry). While any builder tab has unsaved changes, saves also
+  fail `dbe_builder_tab_conflict` (dry runs still work) — get the tab saved
+  or discarded, or pass `force: true` only on explicit user approval.
 - **Blocks survive builder saves.** DBE's CSS guard (css_block_guard
   feature, on by default) re-attaches any fenced block that a builder save
   would silently drop — the builder's editor store never contains
@@ -60,9 +66,10 @@ commit of the global settings set.
    `css_length`; the clobber is the sudden drop (tens of KB → a few hundred
    bytes). The last healthy commit is the one before the drop.
 2. `dbe/restore-global-css-from-commit { commit: "<name>", dry_run: true }`
-   — check the length and preview look right.
-3. Re-run without `dry_run`. The rollback is saved as a NEW commit (history
-   keeps the accident too), then `dbe/publish` if the public site needs it.
+   — check the length and preview look right; note the `base_commit`.
+3. Re-run without `dry_run`, passing that `base_commit` as
+   `expected_commit`. The rollback is saved as a NEW commit (history keeps
+   the accident too), then `dbe/publish` if the public site needs it.
 
 ## Entity CSS still follows the tiers
 

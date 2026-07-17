@@ -37,8 +37,13 @@ state you are testing with.**
    createRelease mutation. Bundles the listed templates' saved commits
    (Builderius adds global settings sets and components automatically),
    auto-increments a semver version, replaces the previous release.
-   `dry_run` previews the version and entities first. It publishes SAVED
-   commits — save pending work first.
+   **Always dry-run first — publishing requires it**: the dry run returns
+   the entity list with each template's commit, and the real publish
+   requires that list back as `expected_commits`
+   (`[{ template, commit }, …]`); it fails if any saved state changed in
+   between. It publishes SAVED commits — save pending work first. A builder
+   tab with unsaved changes blocks publishing (`dbe_builder_tab_conflict`);
+   `force: true` overrides only on explicit user approval.
 4. **Verify public**: a cookie-less fetch of the page, then `dbe/status`
    should show `unpublished_changes: false`.
 
@@ -47,9 +52,10 @@ state you are testing with.**
 - An open builder session does NOT see commits created ability-side
   (`dbe/apply-subtree-html`, `dbe/patch-global-css`, `dbe/patch-entity-css`)
   until the builder tab is reloaded — and a tab with unsaved changes will
-  OVERWRITE those commits when it saves or closes. The abilities return a
-  `warning` when they detect such a tab; surface it and get the tab saved or
-  discarded before continuing.
+  OVERWRITE those commits when it saves or closes. The abilities therefore
+  refuse real saves while such a tab exists (`dbe_builder_tab_conflict`;
+  dry runs still work). Surface it and get the tab saved or discarded, or
+  pass `force: true` only on explicit user approval.
 - The builder MCP's `get_dynamic_data` accepts `refresh: true` to bypass its
   cached GraphQL snapshot; `get_rendered_html` / `inspect_entity` may still
   serve stale module state after out-of-band changes — re-open the builder

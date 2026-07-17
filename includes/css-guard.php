@@ -42,16 +42,58 @@ function dbe_css_guard_suspended( $set = null ) {
  * Extract the fenced named-block regions from a stylesheet.
  *
  * @param string $css The stylesheet.
- * @return array<string,string> Full region text keyed by block name.
+ * @return array<string,string>|WP_Error Full region text keyed by block name.
  */
 function dbe_css_guard_regions( $css ) {
 	$regions = array();
-	if ( '' !== $css && preg_match_all( '~/\*\s*@block:\s*([A-Za-z0-9_-]+)\s*\*/.*?/\*\s*@endblock\s*\*/~s', $css, $m, PREG_SET_ORDER ) ) {
-		foreach ( $m as $match ) {
-			$regions[ $match[1] ] = $match[0];
-		}
+	$blocks  = dbe_css_blocks_parse( $css );
+	if ( is_wp_error( $blocks ) ) {
+		return $blocks;
+	}
+	foreach ( $blocks as $block ) {
+		$regions[ $block['name'] ] = substr( $css, $block['start'], $block['end'] - $block['start'] );
 	}
 	return $regions;
+}
+
+/**
+ * Resolve the active commit that a new commit supersedes.
+ *
+ * @param WP_Post $branch     Builderius branch post.
+ * @param int     $new_commit New commit post ID to exclude.
+ * @return WP_Post|null
+ */
+function dbe_css_guard_previous_commit( $branch, $new_commit ) {
+	$map  = json_decode( (string) get_post_meta( $branch->ID, 'active_commit', true ), true );
+	$map  = is_array( $map ) ? $map : array();
+	$name = (string) ( $map[ get_current_user_id() ] ?? ( $map ? reset( $map ) : '' ) );
+	if ( '' !== $name ) {
+		$found = get_posts(
+			array(
+				'post_type'   => 'builderius_commit',
+				'post_parent' => $branch->ID,
+				'name'        => $name,
+				'post_status' => get_post_stati(),
+				'numberposts' => 1,
+				'exclude'     => array( $new_commit ),
+			)
+		);
+		if ( $found ) {
+			return $found[0];
+		}
+	}
+	$found = get_posts(
+		array(
+			'post_type'   => 'builderius_commit',
+			'post_parent' => $branch->ID,
+			'post_status' => get_post_stati(),
+			'numberposts' => 1,
+			'exclude'     => array( $new_commit ),
+			'orderby'     => 'ID',
+			'order'       => 'DESC',
+		)
+	);
+	return $found ? $found[0] : null;
 }
 
 /**
@@ -100,22 +142,19 @@ function dbe_css_guard_on_commit_meta( $meta_id, $post_id, $meta_key ) {
 		return;
 	}
 
-	// The branch head this commit supersedes; nothing to preserve without one.
-	$prev = get_posts(
-		array(
-			'post_type'   => 'builderius_commit',
-			'post_parent' => $branch->ID,
-			'post_status' => get_post_stati(),
-			'numberposts' => 1,
-			'exclude'     => array( $post_id ),
-			'orderby'     => 'ID',
-			'order'       => 'DESC',
-		)
-	);
+	// Resolve the active branch head this commit supersedes. Numeric commit ID
+	// order is only a fallback for legacy branches without an active pointer.
+	$prev = dbe_css_guard_previous_commit( $branch, $post_id );
 	if ( ! $prev ) {
 		return;
 	}
-	$prev_regions = dbe_css_guard_regions( dbe_css_guard_read_css( $prev[0]->ID ) );
+	$prev_regions = dbe_css_guard_regions( dbe_css_guard_read_css( $prev->ID ) );
+	if ( is_wp_error( $prev_regions ) ) {
+		// The guard cannot preserve regions it cannot parse, but switching
+		// off silently would hide that fenced blocks are now unprotected.
+		error_log( 'DBE css_block_guard disabled for commit ' . $post_id . ': ' . $prev_regions->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		return;
+	}
 	if ( ! $prev_regions ) {
 		return;
 	}
@@ -136,7 +175,12 @@ function dbe_css_guard_on_commit_meta( $meta_id, $post_id, $meta_key ) {
 		}
 	}
 
-	$missing = array_diff_key( $prev_regions, dbe_css_guard_regions( $css ) );
+	$current_regions = dbe_css_guard_regions( $css );
+	if ( is_wp_error( $current_regions ) ) {
+		error_log( 'DBE css_block_guard disabled for commit ' . $post_id . ': ' . $current_regions->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		return;
+	}
+	$missing = array_diff_key( $prev_regions, $current_regions );
 	if ( ! $missing ) {
 		return;
 	}

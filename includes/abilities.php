@@ -34,15 +34,19 @@
  * never stored. Builderius renders these settings raw, so this gate plus the
  * unfiltered_html permission below is the whole defence — keep them in sync
  * with the client-side twins in builder.js.
+ *
+ * @package Daveden_Builder_Enhancements
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Registration
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 add_action( 'wp_abilities_api_categories_init', 'dbe_register_ability_category' );
 
@@ -65,9 +69,18 @@ add_action( 'wp_abilities_api_init', 'dbe_register_abilities' );
  * Register the get/apply subtree HTML abilities.
  */
 function dbe_register_abilities() {
-	$template_arg = array(
+	$template_arg        = array(
 		'type'        => 'string',
 		'description' => __( 'Template post ID or slug (post type builderius_template).', 'daveden-builderius-enhancements' ),
+	);
+	$expected_commit_arg = array(
+		'type'        => 'string',
+		'description' => __( 'The active commit name returned by the preceding read or dry run. Required when saving; the mutation fails if saved state has changed.', 'daveden-builderius-enhancements' ),
+	);
+	$force_arg           = array(
+		'type'        => 'boolean',
+		'default'     => false,
+		'description' => __( 'Explicitly override a dirty Builderius-tab conflict. Use only after confirming that overwriting the tab state is intended.', 'daveden-builderius-enhancements' ),
 	);
 
 	wp_register_ability(
@@ -118,25 +131,27 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template'  => $template_arg,
-					'module_id' => array(
+					'template'        => $template_arg,
+					'module_id'       => array(
 						'type'        => 'string',
 						'description' => __( 'The subtree root module ID being replaced.', 'daveden-builderius-enhancements' ),
 					),
-					'html'      => array(
+					'html'            => array(
 						'type'        => 'string',
 						'description' => __( 'The edited markup, one root element.', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'     => array(
+					'dry_run'         => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Preview only: return the resulting markup (including the ids new elements would receive) and the kept/added/removed counts WITHOUT saving. Use this to check an edit before committing.', 'daveden-builderius-enhancements' ),
 					),
-					'autopublish' => array(
+					'autopublish'     => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Also autopublish the commit (the builder Save button does not). Leave false on a site that has never published a release — Builderius\' publish cascade expects deliverable assets that only exist after a first real publish.', 'daveden-builderius-enhancements' ),
 					),
+					'expected_commit' => $expected_commit_arg,
+					'force'           => $force_arg,
 				),
 				'required'             => array( 'template', 'module_id', 'html' ),
 				'additionalProperties' => false,
@@ -144,30 +159,30 @@ function dbe_register_abilities() {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'commit_name' => array(
+					'commit_name'      => array(
 						'type'        => 'string',
 						'description' => __( 'The new commit name (absent on a dry run).', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'     => array( 'type' => 'boolean' ),
-					'html'        => array(
+					'base_commit'      => array(
+						'type'        => 'string',
+						'description' => __( 'The active commit used for this result. Pass it as expected_commit when saving.', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'          => array( 'type' => 'boolean' ),
+					'html'             => array(
 						'type'        => 'string',
 						'description' => __( 'The resulting subtree markup (dry run only).', 'daveden-builderius-enhancements' ),
 					),
-					'kept'        => array( 'type' => 'integer' ),
-					'added'       => array( 'type' => 'integer' ),
-					'removed'     => array( 'type' => 'integer' ),
-					'stripped'    => array(
+					'kept'             => array( 'type' => 'integer' ),
+					'added'            => array( 'type' => 'integer' ),
+					'removed'          => array( 'type' => 'integer' ),
+					'stripped'         => array(
 						'type'  => 'array',
 						'items' => array( 'type' => 'string' ),
 					),
-					'unknown_markers' => array(
+					'unknown_markers'  => array(
 						'type'        => 'array',
 						'description' => __( 'data-dbe-id markers that matched nothing in the subtree — probably typos. Each was treated as a new element, so the element it was meant to keep is removed and recreated with a fresh id. Check these before relying on the edit.', 'daveden-builderius-enhancements' ),
 						'items'       => array( 'type' => 'string' ),
-					),
-					'warning'         => array(
-						'type'        => 'string',
-						'description' => __( 'Present when a builder tab has this template open with unsaved changes: that tab saving or closing will overwrite this commit. Surface it to the user.', 'daveden-builderius-enhancements' ),
 					),
 					'binding_warnings' => array(
 						'type'        => 'array',
@@ -269,24 +284,38 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'templates'   => array(
+					'templates'        => array(
 						'type'        => 'array',
 						'items'       => array( 'type' => 'string' ),
 						'description' => __( 'Template post IDs or slugs to include. Omit to include every template that has saved work.', 'daveden-builderius-enhancements' ),
 					),
-					'version'     => array(
+					'version'          => array(
 						'type'        => 'string',
 						'description' => __( 'Release version label. Omit to auto-increment the latest release\'s patch number (1.0.0 when the site has never published).', 'daveden-builderius-enhancements' ),
 					),
-					'description' => array(
+					'description'      => array(
 						'type'        => 'string',
 						'description' => __( 'Release description shown in the builder\'s release list.', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'     => array(
+					'dry_run'          => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Preview only: return the version and entities that WOULD be released without publishing.', 'daveden-builderius-enhancements' ),
 					),
+					'expected_commits' => array(
+						'type'        => 'array',
+						'description' => __( 'Required when publishing. One template/commit pair for every entity returned by the preceding dry run.', 'daveden-builderius-enhancements' ),
+						'items'       => array(
+							'type'                 => 'object',
+							'properties'           => array(
+								'template' => array( 'type' => 'string' ),
+								'commit'   => array( 'type' => 'string' ),
+							),
+							'required'             => array( 'template', 'commit' ),
+							'additionalProperties' => false,
+						),
+					),
+					'force'            => $force_arg,
 				),
 				'additionalProperties' => false,
 			),
@@ -363,26 +392,28 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'block'        => array(
+					'block'           => array(
 						'type'        => 'string',
 						'pattern'     => '^[A-Za-z0-9_-]+$',
 						'description' => __( 'The block name.', 'daveden-builderius-enhancements' ),
 					),
-					'css'          => array(
+					'css'             => array(
 						'type'        => 'string',
 						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
 					),
-					'delete'       => array(
+					'delete'          => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Remove the block entirely.', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'      => array(
+					'dry_run'         => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Preview: return the action and resulting stylesheet length without saving.', 'daveden-builderius-enhancements' ),
 					),
-					'settings_set' => $settings_set_arg,
+					'settings_set'    => $settings_set_arg,
+					'expected_commit' => $expected_commit_arg,
+					'force'           => $force_arg,
 				),
 				'required'             => array( 'block' ),
 				'additionalProperties' => false,
@@ -401,6 +432,7 @@ function dbe_register_abilities() {
 					),
 					'css_length'  => array( 'type' => 'integer' ),
 					'dry_run'     => array( 'type' => 'boolean' ),
+					'base_commit' => array( 'type' => 'string' ),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_patch_global_css',
@@ -456,26 +488,28 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'template' => $template_arg,
-					'block'    => array(
+					'template'        => $template_arg,
+					'block'           => array(
 						'type'        => 'string',
 						'pattern'     => '^[A-Za-z0-9_-]+$',
 						'description' => __( 'The block name.', 'daveden-builderius-enhancements' ),
 					),
-					'css'      => array(
+					'css'             => array(
 						'type'        => 'string',
 						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
 					),
-					'delete'   => array(
+					'delete'          => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Remove the block entirely.', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'  => array(
+					'dry_run'         => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Preview: return the action and resulting stylesheet length without saving.', 'daveden-builderius-enhancements' ),
 					),
+					'expected_commit' => $expected_commit_arg,
+					'force'           => $force_arg,
 				),
 				'required'             => array( 'template', 'block' ),
 				'additionalProperties' => false,
@@ -494,10 +528,7 @@ function dbe_register_abilities() {
 					),
 					'css_length'  => array( 'type' => 'integer' ),
 					'dry_run'     => array( 'type' => 'boolean' ),
-					'warning'     => array(
-						'type'        => 'string',
-						'description' => __( 'Present when a builder tab has this template open with unsaved changes: that tab saving or closing will overwrite this commit (the fenced block itself is re-attached by the CSS guard, other tab edits still clobber). Surface it to the user.', 'daveden-builderius-enhancements' ),
-					),
+					'base_commit' => array( 'type' => 'string' ),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_patch_entity_css',
@@ -556,16 +587,18 @@ function dbe_register_abilities() {
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'commit'       => array(
+					'commit'          => array(
 						'type'        => 'string',
 						'description' => __( 'The source commit name (from dbe/list-commits).', 'daveden-builderius-enhancements' ),
 					),
-					'dry_run'      => array(
+					'dry_run'         => array(
 						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Preview: return the source stylesheet\'s length and first lines without saving.', 'daveden-builderius-enhancements' ),
 					),
-					'settings_set' => $settings_set_arg,
+					'settings_set'    => $settings_set_arg,
+					'expected_commit' => $expected_commit_arg,
+					'force'           => $force_arg,
 				),
 				'required'             => array( 'commit' ),
 				'additionalProperties' => false,
@@ -573,7 +606,7 @@ function dbe_register_abilities() {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'commit_name' => array(
+					'commit_name'   => array(
 						'type'        => 'string',
 						'description' => __( 'The new commit holding the restored CSS (absent on a dry run).', 'daveden-builderius-enhancements' ),
 					),
@@ -584,6 +617,7 @@ function dbe_register_abilities() {
 						'description' => __( 'First lines of the restored stylesheet (dry run only).', 'daveden-builderius-enhancements' ),
 					),
 					'dry_run'       => array( 'type' => 'boolean' ),
+					'base_commit'   => array( 'type' => 'string' ),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_restore_global_css',
@@ -615,9 +649,11 @@ function dbe_ability_read_permission() {
 		&& current_user_can( 'builderius-development' );
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Saved-state access (template → branch → active commit → config)
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Resolve a template reference to its saved content config.
@@ -851,9 +887,11 @@ function dbe_ability_load_entity_css( $template ) {
 	return $loaded;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Global CSS named blocks (comment markers @block: name / @endblock)
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Parse the named-block regions out of a stylesheet. A block is the region
@@ -867,26 +905,7 @@ function dbe_ability_load_entity_css( $template ) {
  *                        or an error for a start marker with no end.
  */
 function dbe_ability_css_blocks( $css ) {
-	$blocks = array();
-	if ( ! preg_match_all( '~/\*\s*@block:\s*([A-Za-z0-9_-]+)\s*\*/~', $css, $starts, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
-		return $blocks;
-	}
-	foreach ( $starts as $m ) {
-		$name       = $m[1][0];
-		$start      = $m[0][1];
-		$body_start = $start + strlen( $m[0][0] );
-		if ( ! preg_match( '~/\*\s*@endblock\s*\*/~', $css, $end_m, PREG_OFFSET_CAPTURE, $body_start ) ) {
-			return new WP_Error( 'dbe_block_unterminated', sprintf( 'Block "%s" has no /* @endblock */ marker.', $name ) );
-		}
-		$blocks[] = array(
-			'name'       => $name,
-			'start'      => $start,
-			'body_start' => $body_start,
-			'body_end'   => $end_m[0][1],
-			'end'        => $end_m[0][1] + strlen( $end_m[0][0] ),
-		);
-	}
-	return $blocks;
+	return dbe_css_blocks_parse( $css );
 }
 
 /**
@@ -920,7 +939,7 @@ function dbe_ability_css_patch( $css, $name, $body, $delete = false ) {
 		// Take a trailing newline with the block so no blank gap accrues.
 		$end = $target['end'];
 		if ( "\n" === substr( $css, $end, 1 ) ) {
-			$end += 1;
+			++$end;
 		}
 		return array(
 			'css'    => substr( $css, 0, $target['start'] ) . substr( $css, $end ),
@@ -929,6 +948,9 @@ function dbe_ability_css_patch( $css, $name, $body, $delete = false ) {
 	}
 
 	$body = trim( (string) $body );
+	if ( dbe_css_block_body_has_marker( $body ) ) {
+		return new WP_Error( 'dbe_block_marker_in_body', 'A block body cannot contain @block or @endblock marker text.' );
+	}
 	if ( $target ) {
 		return array(
 			'css'    => substr( $css, 0, $target['body_start'] ) . "\n" . $body . "\n" . substr( $css, $target['body_end'] ),
@@ -947,36 +969,27 @@ function dbe_ability_css_patch( $css, $name, $body, $delete = false ) {
  *
  * @param array  $loaded      Result of dbe_ability_load_settings_set().
  * @param string $css         The new full stylesheet.
- * @param string $description Commit description.
+ * @param string $description     Commit description.
+ * @param string $expected_commit Expected active commit name.
  * @return string|WP_Error The new commit name.
  */
-function dbe_ability_save_global_css( $loaded, $css, $description ) {
+function dbe_ability_save_global_css( $loaded, $css, $description, $expected_commit ) {
 	$config = $loaded['config'];
 	$config['template']['settings'][ $loaded['css_index'] ]['value'] = $css;
-	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
-	if ( false === $json ) {
-		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
-	}
-	$mutation = sprintf(
-		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: false) { commit { name } } }',
-		(int) $loaded['branch']->ID,
-		addcslashes( $json, '\\"' ),
-		addcslashes( $description, '\\"' )
+	return dbe_ability_create_commit(
+		$loaded['branch']->ID,
+		$config,
+		false,
+		$description,
+		$expected_commit
 	);
-	$data = dbe_ability_graphql( 'dbeGlobalCss', $mutation );
-	if ( is_wp_error( $data ) ) {
-		return $data;
-	}
-	$name = $data['createCommit']['commit']['name'] ?? '';
-	if ( '' === $name ) {
-		return new WP_Error( 'dbe_commit_failed', 'createCommit returned no commit name.' );
-	}
-	return $name;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Component registry (slug -> label + declared property names)
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Map every registered component to its label and declared property names,
@@ -993,7 +1006,7 @@ function dbe_ability_component_registry() {
 	if ( null !== $registry ) {
 		return $registry;
 	}
-	$registry = array();
+	$registry   = array();
 	$components = get_posts(
 		array(
 			'post_type'   => 'builderius_component',
@@ -1030,7 +1043,10 @@ function dbe_ability_component_registry() {
 					if ( 'componentTmplProperties' === ( $s['name'] ?? '' ) && is_array( $s['value'] ?? null ) ) {
 						foreach ( $s['value'] as $def ) {
 							if ( ! empty( $def['name'] ) ) {
-								$props[ $def['name'] ] = $def;
+								// HTML parsers lowercase attribute names. Key the
+								// registry case-insensitively, but retain the canonical
+								// Builderius property name for storage.
+								$props[ strtolower( $def['name'] ) ] = $def;
 							}
 						}
 					}
@@ -1045,9 +1061,11 @@ function dbe_ability_component_registry() {
 	return $registry;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Shared vocabulary — keep in sync with builder.js
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Module types the server-side converter can express as plain HTML.
@@ -1092,6 +1110,9 @@ function dbe_ability_known_tags() {
 /**
  * Mirror of dbeDangerousUrl() in builder.js: schemes that can execute or
  * smuggle script once the value is rendered raw.
+ *
+ * @param mixed $value Candidate URL value.
+ * @return bool Whether the URL can execute or carry script.
  */
 function dbe_ability_dangerous_url( $value ) {
 	$v = strtolower( preg_replace( '/[\x00-\x20]+/', '', (string) $value ) );
@@ -1107,10 +1128,21 @@ function dbe_ability_dangerous_url( $value ) {
 /**
  * Mirror of dbeAttrBlocked() in builder.js. Returns a short reason string
  * when the attribute must not be stored, null when it is fine.
+ *
+ * @param mixed $name  Attribute name.
+ * @param mixed $value Attribute value.
+ * @return string|null Rejection reason, or null when permitted.
  */
 function dbe_ability_attr_blocked( $name, $value ) {
 	$n         = strtolower( (string) $name );
-	$url_attrs = array( 'href' => 1, 'src' => 1, 'action' => 1, 'formaction' => 1, 'poster' => 1, 'xlink:href' => 1 );
+	$url_attrs = array(
+		'href'       => 1,
+		'src'        => 1,
+		'action'     => 1,
+		'formaction' => 1,
+		'poster'     => 1,
+		'xlink:href' => 1,
+	);
 	if ( '' === $n || in_array( $n, array( 'data-dbe-id', 'data-dbe-module', 'data-dbe-label' ), true ) ) {
 		return '' === $n ? 'attribute' : $n;
 	}
@@ -1125,17 +1157,26 @@ function dbe_ability_attr_blocked( $name, $value ) {
 
 /**
  * Random module id in Builderius' shape ('u' + 9 hex), like dbeMakeId().
+ *
+ * @param array $existing Existing modules keyed by ID.
+ * @return string A module ID not present in $existing.
  */
-function dbe_ability_make_id() {
-	$id = 'u';
-	for ( $i = 0; $i < 9; $i++ ) {
-		$id .= dechex( wp_rand( 0, 15 ) );
-	}
+function dbe_ability_make_id( $existing = array() ) {
+	do {
+		$id = 'u';
+		for ( $i = 0; $i < 9; $i++ ) {
+			$id .= dechex( wp_rand( 0, 15 ) );
+		}
+	} while ( isset( $existing[ $id ] ) );
 	return $id;
 }
 
 /**
  * Read a named setting value off a config module.
+ *
+ * @param array  $module Builderius module config.
+ * @param string $name   Setting name.
+ * @return mixed Setting value, or null when absent.
  */
 function dbe_ability_setting( $module, $name ) {
 	foreach ( (array) ( $module['settings'] ?? array() ) as $s ) {
@@ -1146,10 +1187,18 @@ function dbe_ability_setting( $module, $name ) {
 	return null;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Serialiser (config → HTML) — port of dbeSerializeSubtree()
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
+/**
+ * Escape a value for a generated HTML attribute.
+ *
+ * @param mixed $v Attribute value.
+ * @return string Escaped value.
+ */
 function dbe_ability_escape_attr( $v ) {
 	return str_replace( array( '&', '"' ), array( '&amp;', '&quot;' ), (string) $v );
 }
@@ -1157,6 +1206,12 @@ function dbe_ability_escape_attr( $v ) {
 /**
  * Serialise one module subtree. Non-expressible modules become <dbe-keep>
  * placeholders and are recorded in $non_editable.
+ *
+ * @param array  $config       Builderius content config.
+ * @param string $id           Root module ID.
+ * @param int    $depth        Current nesting depth.
+ * @param array  $non_editable Collected non-editable module details.
+ * @return string Serialised subtree HTML.
  */
 function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	$mods = $config['modules'];
@@ -1176,7 +1231,7 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	if ( 'Component' === $m['name'] ) {
 		$slug = (string) dbe_ability_setting( $m, 'componentName' );
 		$open = '<dbe-component name="' . dbe_ability_escape_attr( $slug ) . '"';
-		foreach ( (array) ( dbe_ability_setting( $m, 'componentProperties' ) ?: array() ) as $p ) {
+		foreach ( (array) dbe_ability_setting( $m, 'componentProperties' ) as $p ) {
 			if ( empty( $p['name'] ) ) {
 				continue;
 			}
@@ -1197,10 +1252,11 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 			. ' — preserved as-is, leave this element in place --></dbe-keep>';
 	}
 
-	$tag  = 'Template' === $m['name']
+	$module_tag = dbe_ability_setting( $m, 'tag' );
+	$tag        = 'Template' === $m['name']
 		? 'template'
-		: strtolower( (string) ( dbe_ability_setting( $m, 'tag' ) ?: 'div' ) );
-	$open = '<' . $tag;
+		: strtolower( (string) ( $module_tag ? $module_tag : 'div' ) );
+	$open       = '<' . $tag;
 
 	$tag_id = dbe_ability_setting( $m, 'tagId' );
 	if ( $tag_id ) {
@@ -1210,13 +1266,23 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	if ( is_array( $classes ) && $classes ) {
 		$open .= ' class="' . dbe_ability_escape_attr( implode( ' ', $classes ) ) . '"';
 	}
-	foreach ( (array) ( dbe_ability_setting( $m, 'htmlAttribute' ) ?: array() ) as $a ) {
+	$binding_attr = false;
+	foreach ( (array) dbe_ability_setting( $m, 'htmlAttribute' ) as $a ) {
 		if ( empty( $a['name'] ) || 'data-dbe-id' === $a['name'] ) {
 			continue;
+		}
+		if ( in_array( strtolower( $a['name'] ), array( 'data-b-context', 'data-source' ), true ) ) {
+			$binding_attr = true;
 		}
 		$open .= ( ! isset( $a['value'] ) || '' === $a['value'] )
 			? ' ' . $a['name'] . '=""'
 			: ' ' . $a['name'] . '="' . dbe_ability_escape_attr( $a['value'] ) . '"';
+	}
+	// A Collection/SubCollection whose binding is not stored as a data-b-context/
+	// data-source attribute would re-parse as a plain HtmlElement and fail the
+	// marker type check, so declare the type explicitly.
+	if ( ! $binding_attr && in_array( $m['name'], array( 'Collection', 'SubCollection' ), true ) ) {
+		$open .= ' data-dbe-module="' . strtolower( $m['name'] ) . '"';
 	}
 	$open .= ' data-dbe-id="' . $id . '">';
 
@@ -1247,15 +1313,24 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	return implode( "\n", $lines );
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Outline (config → scannable id/label/tag map)
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Walk a subtree, appending one row to $nodes and one line to $lines per
  * module. The row carries everything an agent needs to target an element by
  * label or tag: id, module type, tag, classes, label, component slug, depth.
  * The line is the same, indented, for cheap human scanning.
+ *
+ * @param array  $config Builderius content config.
+ * @param string $id     Root module ID.
+ * @param int    $depth  Current nesting depth.
+ * @param array  $nodes  Collected structured outline rows.
+ * @param array  $lines  Collected human-readable outline lines.
+ * @return void
  */
 function dbe_ability_outline( $config, $id, $depth, &$nodes, &$lines ) {
 	$mods = $config['modules'];
@@ -1277,10 +1352,11 @@ function dbe_ability_outline( $config, $id, $depth, &$nodes, &$lines ) {
 		$tag   = 'svg';
 		$token = '<svg>';
 	} else {
-		$tag = 'Template' === $type
+		$module_tag = dbe_ability_setting( $m, 'tag' );
+		$tag        = 'Template' === $type
 			? 'template'
-			: strtolower( (string) ( dbe_ability_setting( $m, 'tag' ) ?: 'div' ) );
-		$c   = dbe_ability_setting( $m, 'tagClass' );
+			: strtolower( (string) ( $module_tag ? $module_tag : 'div' ) );
+		$c          = dbe_ability_setting( $m, 'tagClass' );
 		if ( is_array( $c ) ) {
 			$classes = array_values( $c );
 		}
@@ -1309,50 +1385,128 @@ function dbe_ability_outline( $config, $id, $depth, &$nodes, &$lines ) {
 	}
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Parser + sanitiser (HTML → node trees) — port of dbeParseHtmlFragment()
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
+
+/**
+ * Maximum submitted HTML bytes, parsed elements and nesting depth.
+ *
+ * These bounds keep an authorised but malformed request from exhausting the
+ * PHP worker or triggering libxml's silent depth truncation.
+ */
+function dbe_ability_html_limits() {
+	return array(
+		'bytes' => 262144,
+		'nodes' => 5000,
+		'depth' => 100,
+	);
+}
 
 /**
  * Parse and sanitise markup into plain node trees. Returns
- * { roots: array, stripped: string[], unknown_markers: string[] }. $orig_ids
- * is the id set the data-dbe-id / dbe-keep markers may claim; a marker that
- * resolves to none of those is collected in unknown_markers so the caller can
- * warn that keeping it was intended but the original will instead be removed
- * and a fresh element created.
+ * { roots: array, stripped: string[], unknown_markers: string[],
+ * invalid_markers: string[] }. $orig_ids maps each claimable ID to its saved
+ * module type. Unknown markers are treated as new elements; known markers on
+ * an incompatible representation are rejected by the caller.
+ *
+ * @param string               $html     Submitted HTML fragment.
+ * @param array<string,string> $orig_ids Original module types keyed by ID.
+ * @return array|WP_Error Parsed result or a bounded-parser error.
  */
 function dbe_ability_parse_fragment( $html, $orig_ids ) {
-	$doc = new DOMDocument();
-	libxml_use_internal_errors( true );
-	$doc->loadHTML(
-		'<?xml encoding="UTF-8"><!DOCTYPE html><html><body>' . $html . '</body></html>',
-		LIBXML_NOERROR | LIBXML_NOWARNING
-	);
+	$limits = dbe_ability_html_limits();
+	if ( strlen( $html ) > $limits['bytes'] ) {
+		return new WP_Error(
+			'dbe_html_too_large',
+			sprintf( 'The HTML is too large (%d bytes; maximum %d).', strlen( $html ), $limits['bytes'] )
+		);
+	}
+
+	$doc             = new DOMDocument();
+	$previous_errors = libxml_use_internal_errors( true );
 	libxml_clear_errors();
+	try {
+		$loaded       = $doc->loadHTML(
+			'<?xml encoding="UTF-8"><!DOCTYPE html><html><body>' . $html . '</body></html>',
+			LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING
+		);
+		$parse_errors = libxml_get_errors();
+	} finally {
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous_errors );
+	}
+	if ( ! $loaded ) {
+		return new WP_Error( 'dbe_html_parse_failed', 'Could not parse the HTML.' );
+	}
+	foreach ( $parse_errors as $parse_error ) {
+		if ( false !== stripos( $parse_error->message, 'excessive depth' ) ) {
+			return new WP_Error(
+				'dbe_html_too_deep',
+				sprintf( 'The HTML nesting exceeds the maximum depth of %d.', $limits['depth'] )
+			);
+		}
+	}
+	$node_count = max( 0, $doc->getElementsByTagName( '*' )->length - 2 );
+	if ( $node_count > $limits['nodes'] ) {
+		return new WP_Error(
+			'dbe_html_too_many_nodes',
+			sprintf( 'The HTML contains too many elements (%d; maximum %d).', $node_count, $limits['nodes'] )
+		);
+	}
 	$body = $doc->getElementsByTagName( 'body' )->item( 0 );
 
-	$stripped   = array();
-	$claimed    = array();
-	$unknown    = array();
-	$strip_tags = array_fill_keys(
+	$stripped    = array();
+	$claimed     = array();
+	$unknown     = array();
+	$invalid     = array();
+	$too_deep    = false;
+	$strip_tags  = array_fill_keys(
 		array( 'script', 'style', 'link', 'meta', 'iframe', 'object', 'embed', 'noscript', 'base', 'math' ),
 		true
 	);
-	$known    = dbe_ability_known_tags();
-	$registry = dbe_ability_component_registry();
+	$known       = dbe_ability_known_tags();
+	$registry    = dbe_ability_component_registry();
+	$expressible = dbe_ability_expressible();
 
-	$convert = function ( $el ) use ( &$convert, &$stripped, &$claimed, &$unknown, $orig_ids, $strip_tags, $known, $registry ) {
+	$claim = function ( $marker, $module, $representation ) use ( &$claimed, &$unknown, &$invalid, $orig_ids, $expressible ) {
+		$marker = trim( (string) $marker );
+		if ( '' === $marker ) {
+			return false;
+		}
+		if ( ! isset( $orig_ids[ $marker ] ) || isset( $claimed[ $marker ] ) ) {
+			$unknown[ $marker ] = true;
+			return false;
+		}
+		$expected = (string) $orig_ids[ $marker ];
+		$valid    = 'keep' === $representation
+			? empty( $expressible[ $expected ] )
+			: $expected === $module;
+		if ( ! $valid ) {
+			$invalid[] = sprintf( '%s is %s but was submitted as %s', $marker, $expected, $module );
+			return false;
+		}
+		$claimed[ $marker ] = true;
+		return true;
+	};
+
+	$convert = function ( $el, $depth = 1 ) use ( &$convert, &$stripped, &$invalid, &$claimed, &$too_deep, $strip_tags, $known, $registry, $orig_ids, $claim, $limits ) {
+		if ( $depth > $limits['depth'] ) {
+			$too_deep = true;
+			return null;
+		}
 		$tag = strtolower( $el->tagName );
 
 		// A keep-placeholder preserves a non-editable module and its whole
 		// subtree; its own children (the human-hint comment) are ignored.
 		if ( 'dbe-keep' === $tag ) {
 			$marker = $el->getAttribute( 'data-dbe-id' );
-			if ( $marker && isset( $orig_ids[ $marker ] ) && empty( $claimed[ $marker ] ) ) {
-				$claimed[ $marker ] = true;
+			if ( $claim( $marker, 'non-expressible module', 'keep' ) ) {
 				return array( 'keep' => $marker );
 			}
-			$stripped[] = '<dbe-keep> (unknown or duplicate marker)';
+			$stripped[] = '<dbe-keep> (invalid, unknown or duplicate marker)';
 			return null;
 		}
 
@@ -1363,11 +1517,15 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 		if ( 'dbe-component' === $tag ) {
 			$slug = trim( (string) $el->getAttribute( 'name' ) );
 			if ( '' === $slug || ! isset( $registry[ $slug ] ) ) {
+				$marker = trim( (string) $el->getAttribute( 'data-dbe-id' ) );
+				if ( '' !== $marker && isset( $orig_ids[ $marker ] ) && ! isset( $claimed[ $marker ] ) ) {
+					$invalid[] = sprintf( '%s uses unknown component %s', $marker, '' !== $slug ? $slug : '(blank)' );
+				}
 				$known_slugs = implode( ', ', array_keys( $registry ) );
-				$stripped[]  = '<dbe-component name="' . $slug . '"> (unknown component; available: ' . ( $known_slugs ?: 'none' ) . ')';
+				$stripped[]  = '<dbe-component name="' . $slug . '"> (unknown component; available: ' . ( '' !== $known_slugs ? $known_slugs : 'none' ) . ')';
 				return null;
 			}
-			$node = array(
+			$node     = array(
 				'existingId'    => null,
 				'module'        => 'Component',
 				'componentName' => $slug,
@@ -1376,18 +1534,14 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				'children'      => array(),
 			);
 			$declared = $registry[ $slug ]['props'];
+			$marker   = '';
 			foreach ( iterator_to_array( $el->attributes ) as $a ) {
 				$n = strtolower( $a->name );
 				if ( 'name' === $n ) {
 					continue;
 				}
 				if ( 'data-dbe-id' === $n ) {
-					if ( isset( $orig_ids[ $a->value ] ) && empty( $claimed[ $a->value ] ) ) {
-						$claimed[ $a->value ] = true;
-						$node['existingId']   = $a->value;
-					} elseif ( '' !== trim( (string) $a->value ) ) {
-						$unknown[ $a->value ] = true;
-					}
+					$marker = (string) $a->value;
 					continue;
 				}
 				if ( 'data-dbe-label' === $n ) {
@@ -1396,14 +1550,17 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				}
 				// A prop the component does not declare cannot resolve, so it
 				// is dropped with a note rather than stored as dead data.
-				if ( $declared && ! isset( $declared[ $n ] ) ) {
+				if ( ! isset( $declared[ $n ] ) ) {
 					$stripped[] = $n . ' (not a property of ' . $slug . ')';
 					continue;
 				}
 				$node['props'][] = array(
-					'name'  => $n,
+					'name'  => $declared[ $n ]['name'],
 					'value' => $a->value,
 				);
+			}
+			if ( $claim( $marker, 'Component', 'component' ) ) {
+				$node['existingId'] = $marker;
 			}
 			return $node;
 		}
@@ -1418,7 +1575,7 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 			return null;
 		}
 
-		$node = array(
+		$node   = array(
 			'existingId' => null,
 			'module'     => 'template' === $tag ? 'Template' : 'HtmlElement',
 			'tag'        => $tag,
@@ -1429,17 +1586,13 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 			'children'   => array(),
 			'label'      => '',
 		);
+		$marker = '';
 
 		foreach ( iterator_to_array( $el->attributes ) as $a ) {
 			$n = strtolower( $a->name );
 			$v = $a->value;
 			if ( 'data-dbe-id' === $n ) {
-				if ( isset( $orig_ids[ $v ] ) && empty( $claimed[ $v ] ) ) {
-					$claimed[ $v ]      = true;
-					$node['existingId'] = $v;
-				} elseif ( '' !== trim( (string) $v ) ) {
-					$unknown[ $v ] = true;
-				}
+				$marker = (string) $v;
 				continue;
 			}
 			if ( 'data-dbe-label' === $n ) {
@@ -1481,6 +1634,9 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				'value' => $v,
 			);
 		}
+		if ( $claim( $marker, $node['module'], 'element' ) ) {
+			$node['existingId'] = $marker;
+		}
 
 		$seen_element = false;
 		foreach ( iterator_to_array( $el->childNodes ) as $ch ) {
@@ -1509,7 +1665,7 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				continue;
 			}
 			if ( XML_ELEMENT_NODE === $ch->nodeType ) {
-				$c = $convert( $ch );
+				$c = $convert( $ch, $depth + 1 );
 				if ( null !== $c ) {
 					$node['children'][] = $c;
 					$seen_element       = true;
@@ -1523,24 +1679,35 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 	if ( $body ) {
 		foreach ( iterator_to_array( $body->childNodes ) as $ch ) {
 			if ( XML_ELEMENT_NODE === $ch->nodeType ) {
-				$r = $convert( $ch );
+				$r = $convert( $ch, 1 );
 				if ( null !== $r ) {
 					$roots[] = $r;
 				}
 			}
 		}
 	}
+	if ( $too_deep ) {
+		return new WP_Error(
+			'dbe_html_too_deep',
+			sprintf( 'The HTML nesting exceeds the maximum depth of %d.', $limits['depth'] )
+		);
+	}
 
 	return array(
 		'roots'           => $roots,
 		'stripped'        => $stripped,
 		'unknown_markers' => array_keys( $unknown ),
+		'invalid_markers' => $invalid,
 	);
 }
 
 /**
  * Settings for a parsed node — port of dbeNodeSettings(). A Template has no
  * tag setting and neither Templates nor Collections take content.
+ *
+ * @param array  $node        Parsed node.
+ * @param string $module_name Builderius module type.
+ * @return array Builderius settings for the node.
  */
 function dbe_ability_node_settings( $node, $module_name ) {
 	// A Component instance is identified by its slug, with optional property
@@ -1704,13 +1871,20 @@ function dbe_ability_binding_warnings( $tree ) {
 	return $warnings;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Reconciler (node tree → new config) — config-level dbeApplyHtmlTree()
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * Rebuild the config with $tree replacing the subtree rooted at $root_id.
  * Returns { config, kept, added, removed }.
+ *
+ * @param array  $config  Builderius content config.
+ * @param string $root_id Existing subtree root ID.
+ * @param array  $tree    Parsed replacement tree.
+ * @return array Reconciled config and change counts.
  */
 function dbe_ability_reconcile( $config, $root_id, $tree ) {
 	$mods = $config['modules'];
@@ -1743,10 +1917,10 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 
 	// Copy a kept placeholder's module and entire subtree verbatim.
 	$copy_keep = function ( $id, $parent_id ) use ( &$copy_keep, &$new_mods, &$new_idx, $mods, $idx ) {
-		$m           = $mods[ $id ];
-		$m['parent'] = $parent_id;
+		$m               = $mods[ $id ];
+		$m['parent']     = $parent_id;
 		$new_mods[ $id ] = $m;
-		$kids = (array) ( $idx[ $id ] ?? array() );
+		$kids            = (array) ( $idx[ $id ] ?? array() );
 		if ( $kids ) {
 			$new_idx[ $id ] = $kids;
 			foreach ( $kids as $k ) {
@@ -1758,7 +1932,7 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 	$place = function ( $node, $parent_id ) use ( &$place, &$new_mods, &$new_idx, &$counts, $copy_keep, $mods ) {
 		if ( isset( $node['keep'] ) ) {
 			$copy_keep( $node['keep'], $parent_id );
-			$counts['kept']++;
+			++$counts['kept'];
 			return $node['keep'];
 		}
 		if ( $node['existingId'] && isset( $mods[ $node['existingId'] ] ) ) {
@@ -1782,9 +1956,9 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 				$m['label'] = $node['label'];
 			}
 			$m['parent'] = $parent_id;
-			$counts['kept']++;
+			++$counts['kept'];
 		} else {
-			$id          = dbe_ability_make_id();
+			$id          = dbe_ability_make_id( $new_mods );
 			$module_name = $node['module'];
 			// Default label: the tag for an element, the component's own label
 			// for a new instance, else the module type.
@@ -1805,7 +1979,7 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 				'settings' => dbe_ability_node_settings( $node, $module_name ),
 				'parent'   => $parent_id,
 			);
-			$counts['added']++;
+			++$counts['added'];
 		}
 		$new_mods[ $id ] = $m;
 
@@ -1826,7 +2000,7 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 	$removed = 0;
 	foreach ( $orig as $id ) {
 		if ( ! isset( $new_mods[ $id ] ) ) {
-			$removed++;
+			++$removed;
 		}
 	}
 
@@ -1841,56 +2015,218 @@ function dbe_ability_reconcile( $config, $root_id, $tree ) {
 	);
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Save — Builderius' own createCommit mutation, via internal REST
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
+
+/**
+ * Check dirty-tab presence and the caller's expected active commit.
+ *
+ * @param array  $loaded Loaded template/settings-set state.
+ * @param array  $input  Ability input.
+ * @param string $slug   Template slug for presence checking, or ''.
+ * @return true|WP_Error
+ */
+function dbe_ability_preflight( $loaded, $input, $slug = '' ) {
+	// A dry run is read-only: it must never be blocked by an open builder
+	// tab, or agents cannot even preview while the user is working.
+	if ( ! empty( $input['dry_run'] ) ) {
+		return true;
+	}
+	if ( '' !== $slug && function_exists( 'dbe_presence_precondition' ) ) {
+		$presence = dbe_presence_precondition( $slug, ! empty( $input['force'] ) );
+		if ( is_wp_error( $presence ) ) {
+			return $presence;
+		}
+	}
+	$expected = trim( (string) ( $input['expected_commit'] ?? '' ) );
+	if ( '' === $expected ) {
+		return new WP_Error(
+			'dbe_expected_commit_required',
+			'Pass expected_commit from the preceding read or dry run before saving.'
+		);
+	}
+	$current = (string) $loaded['commit']->post_name;
+	if ( $expected !== $current ) {
+		return new WP_Error(
+			'dbe_commit_conflict',
+			sprintf( 'Saved state changed: expected commit %s, current commit %s. Reload, rebase the change and try again.', $expected, $current ),
+			array(
+				'expected_commit' => $expected,
+				'current_commit'  => $current,
+			)
+		);
+	}
+	return true;
+}
+
+/**
+ * Check every template for a dirty builder tab.
+ *
+ * @param bool $force Explicit conflict override.
+ * @return true|WP_Error
+ */
+function dbe_ability_all_presence_precondition( $force = false ) {
+	if ( ! function_exists( 'dbe_presence_precondition' ) ) {
+		return true;
+	}
+	$templates = get_posts(
+		array(
+			'post_type'   => 'builderius_template',
+			'post_status' => get_post_stati(),
+			'numberposts' => -1,
+		)
+	);
+	foreach ( $templates as $template ) {
+		$result = dbe_presence_precondition( $template->post_name, $force );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+	}
+	return true;
+}
+
+/**
+ * Current active commit name for a branch and the current user.
+ *
+ * @param int $branch_id Builderius branch post ID.
+ * @return string
+ */
+function dbe_ability_branch_head_name( $branch_id ) {
+	$map  = json_decode( (string) get_post_meta( $branch_id, 'active_commit', true ), true );
+	$map  = is_array( $map ) ? $map : array();
+	$name = (string) ( $map[ get_current_user_id() ] ?? ( $map ? reset( $map ) : '' ) );
+	if ( '' !== $name ) {
+		// The pointer can go stale (commit deleted); an unverified name would
+		// diverge from dbe_ability_resolve_commit's fallback and make every
+		// save fail dbe_commit_conflict with no way out. Verify it exists.
+		$exists = get_posts(
+			array(
+				'post_type'   => 'builderius_commit',
+				'post_parent' => $branch_id,
+				'name'        => $name,
+				'post_status' => get_post_stati(),
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			)
+		);
+		if ( ! $exists ) {
+			$name = '';
+		}
+	}
+	if ( '' !== $name ) {
+		return $name;
+	}
+	$latest = get_posts(
+		array(
+			'post_type'   => 'builderius_commit',
+			'post_parent' => $branch_id,
+			'post_status' => get_post_stati(),
+			'numberposts' => 1,
+			'orderby'     => 'ID',
+			'order'       => 'DESC',
+		)
+	);
+	return $latest ? (string) $latest[0]->post_name : '';
+}
+
+/**
+ * Acquire a short, database-atomic lock around a DBE branch commit.
+ *
+ * @param int $branch_id Builderius branch post ID.
+ * @return array|WP_Error Lock details.
+ */
+function dbe_ability_acquire_branch_lock( $branch_id ) {
+	$key   = 'dbe_ability_lock_' . (int) $branch_id;
+	$token = wp_generate_uuid4();
+	$value = array(
+		'token' => $token,
+		'time'  => time(),
+	);
+	if ( ! add_option( $key, $value, '', false ) ) {
+		$current = get_option( $key );
+		if ( is_array( $current ) && (int) ( $current['time'] ?? 0 ) < ( time() - 30 ) ) {
+			delete_option( $key );
+		}
+		if ( ! add_option( $key, $value, '', false ) ) {
+			return new WP_Error( 'dbe_branch_busy', 'Another DBE mutation is already saving this branch. Try again.' );
+		}
+	}
+	return array(
+		'key'   => $key,
+		'token' => $token,
+	);
+}
+
+/**
+ * Release a branch lock only when it is still ours.
+ *
+ * @param array $lock Lock returned by dbe_ability_acquire_branch_lock().
+ */
+function dbe_ability_release_branch_lock( $lock ) {
+	$current = get_option( $lock['key'] );
+	if ( is_array( $current ) && hash_equals( (string) $lock['token'], (string) ( $current['token'] ?? '' ) ) ) {
+		delete_option( $lock['key'] );
+	}
+}
 
 /**
  * Dispatch a GraphQL mutation through Builderius' own REST endpoint, the
  * same channel the builder UI uses, so permissions, events and cache
  * flushes all apply.
  *
- * @param string $name     Operation name reported to the endpoint.
- * @param string $mutation The GraphQL document.
+ * @param string $name      Operation name reported to the endpoint.
+ * @param string $mutation  GraphQL document.
+ * @param array  $variables GraphQL variables.
  * @return array|WP_Error The mutation's `data` array.
  */
-function dbe_ability_graphql( $name, $mutation ) {
-	/* Builderius Pro's builderius_get_current_user hook caches the current
-	   user in its runtime cache the first time anything applies the filter.
-	   Under OAuth-authenticated REST (the MCP adapter) that first application
-	   can happen BEFORE authentication resolves the user, poisoning the cache
-	   with user 0 and failing the mutation's capability check. The ability's
-	   own permission callback has already vouched for the real user, so pin
-	   the filter to them for the duration of the internal dispatch. */
+function dbe_ability_graphql( $name, $mutation, $variables = array() ) {
+	/*
+	 * Builderius Pro's builderius_get_current_user hook caches the current
+		user in its runtime cache the first time anything applies the filter.
+		Under OAuth-authenticated REST (the MCP adapter) that first application
+		can happen BEFORE authentication resolves the user, poisoning the cache
+		with user 0 and failing the mutation's capability check. The ability's
+		own permission callback has already vouched for the real user, so pin
+		the filter to them for the duration of the internal dispatch.
+	 */
 	$pin_user = static function () {
 		return wp_get_current_user();
 	};
 	add_filter( 'builderius_get_current_user', $pin_user, PHP_INT_MAX );
 
-	/* DBE's own commits are authoritative, including deliberate named-block
-	   deletions, so the CSS block guard must not "repair" them. */
+	/*
+	 * DBE's own commits are authoritative, including deliberate named-block
+	 * deletions, so the CSS block guard must not "repair" them.
+	 */
 	if ( function_exists( 'dbe_css_guard_suspended' ) ) {
 		dbe_css_guard_suspended( true );
 	}
 
-	$request = new WP_REST_Request( 'POST', '/wp/v2/builderius' );
-	$request->set_header( 'Content-Type', 'application/json' );
-	$request->set_body(
-		wp_json_encode(
-			array(
-				'queries' => array(
-					array(
-						'name'  => $name,
-						'query' => $mutation,
+	try {
+		$request = new WP_REST_Request( 'POST', '/wp/v2/builderius' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body(
+			wp_json_encode(
+				array(
+					'queries' => array(
+						array(
+							'name'      => $name,
+							'query'     => $mutation,
+							'variables' => $variables,
+						),
 					),
-				),
+				)
 			)
-		)
-	);
-	$response = rest_do_request( $request );
-	remove_filter( 'builderius_get_current_user', $pin_user, PHP_INT_MAX );
-	if ( function_exists( 'dbe_css_guard_suspended' ) ) {
-		dbe_css_guard_suspended( false );
+		);
+		$response = rest_do_request( $request );
+	} finally {
+		remove_filter( 'builderius_get_current_user', $pin_user, PHP_INT_MAX );
+		if ( function_exists( 'dbe_css_guard_suspended' ) ) {
+			dbe_css_guard_suspended( false );
+		}
 	}
 
 	if ( $response->is_error() ) {
@@ -1910,37 +2246,77 @@ function dbe_ability_graphql( $name, $mutation ) {
  * Create a commit holding $config on $branch_id. Runs the exact mutation
  * the builder's Save button sends.
  *
+ * @param int    $branch_id      Builderius branch post ID.
+ * @param array  $config         Complete Builderius content config.
+ * @param bool   $autopublish    Whether Builderius should autopublish.
+ * @param string $description    Commit description.
+ * @param string $expected_commit Expected active commit name.
  * @return string|WP_Error The new commit name.
  */
-function dbe_ability_create_commit( $branch_id, $config, $autopublish = false, $description = 'Applied via dbe/apply-subtree-html' ) {
+function dbe_ability_create_commit( $branch_id, $config, $autopublish = false, $description = 'Applied via dbe/apply-subtree-html', $expected_commit = '' ) {
+	$expected_commit = trim( (string) $expected_commit );
+	if ( '' === $expected_commit ) {
+		return new WP_Error( 'dbe_expected_commit_required', 'Pass expected_commit from the preceding read or dry run before saving.' );
+	}
 	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
 	if ( false === $json ) {
 		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
 	}
-	$mutation = sprintf(
-		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: %s) { commit { name autopublished } } }',
-		(int) $branch_id,
-		addcslashes( $json, '\\"' ),
-		addcslashes( $description, '\\"' ),
-		$autopublish ? 'true' : 'false'
-	);
-	$data = dbe_ability_graphql( 'dbeApplySubtreeHtml', $mutation );
-	if ( is_wp_error( $data ) ) {
-		return $data;
+	$lock = dbe_ability_acquire_branch_lock( $branch_id );
+	if ( is_wp_error( $lock ) ) {
+		return $lock;
 	}
-	$name = $data['createCommit']['commit']['name'] ?? '';
-	if ( '' === $name ) {
-		return new WP_Error( 'dbe_commit_failed', 'createCommit returned no commit name.' );
+	try {
+		$current = dbe_ability_branch_head_name( $branch_id );
+		if ( $expected_commit !== $current ) {
+			return new WP_Error(
+				'dbe_commit_conflict',
+				sprintf( 'Saved state changed: expected commit %s, current commit %s. Reload, rebase the change and try again.', $expected_commit, $current ),
+				array(
+					'expected_commit' => $expected_commit,
+					'current_commit'  => $current,
+				)
+			);
+		}
+		$mutation = 'mutation DbeCreateCommit($input: BuilderiusCreateCommitInput!, $autopublish: Boolean!) {'
+			. ' createCommit(input: $input, autopublish: $autopublish) { commit { name autopublished } }'
+			. ' }';
+		$data     = dbe_ability_graphql(
+			'dbeApplySubtreeHtml',
+			$mutation,
+			array(
+				'input'       => array(
+					'branch_id'                 => (int) $branch_id,
+					'serialized_content_config' => $json,
+					'description'               => substr( (string) $description, 0, 500 ),
+				),
+				'autopublish' => (bool) $autopublish,
+			)
+		);
+		if ( is_wp_error( $data ) ) {
+			return $data;
+		}
+		$name = $data['createCommit']['commit']['name'] ?? '';
+		if ( '' === $name ) {
+			return new WP_Error( 'dbe_commit_failed', 'createCommit returned no commit name.' );
+		}
+		return $name;
+	} finally {
+		dbe_ability_release_branch_lock( $lock );
 	}
-	return $name;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Execute callbacks
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
- * dbe/get-subtree-html.
+ * Handle dbe/get-subtree-html.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_subtree_html( $input ) {
 	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
@@ -1975,7 +2351,10 @@ function dbe_ability_get_subtree_html( $input ) {
 }
 
 /**
- * dbe/get-tree-outline.
+ * Handle dbe/get-tree-outline.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_tree_outline( $input ) {
 	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
@@ -2009,12 +2388,19 @@ function dbe_ability_get_tree_outline( $input ) {
 }
 
 /**
- * dbe/apply-subtree-html.
+ * Handle dbe/apply-subtree-html.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_apply_subtree_html( $input ) {
 	$loaded = dbe_ability_load_config( $input['template'] ?? '' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
+	}
+	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['template_post']->post_name );
+	if ( is_wp_error( $preflight ) ) {
+		return $preflight;
 	}
 	$config    = $loaded['config'];
 	$module_id = trim( (string) ( $input['module_id'] ?? '' ) );
@@ -2032,11 +2418,11 @@ function dbe_ability_apply_subtree_html( $input ) {
 		);
 	}
 
-	// The markers may only claim ids from the ORIGINAL subtree, so a payload
-	// can never capture or rewrite another part of the template.
+	// Markers may only claim IDs from the original subtree and must use the
+	// representation that belongs to each saved module type.
 	$orig_ids = array();
 	$walk     = function ( $id ) use ( &$walk, &$orig_ids, $config ) {
-		$orig_ids[ $id ] = true;
+		$orig_ids[ $id ] = (string) ( $config['modules'][ $id ]['name'] ?? '' );
 		foreach ( (array) ( $config['indexes'][ $id ] ?? array() ) as $k ) {
 			$walk( $k );
 		}
@@ -2044,6 +2430,15 @@ function dbe_ability_apply_subtree_html( $input ) {
 	$walk( $module_id );
 
 	$parsed = dbe_ability_parse_fragment( $html, $orig_ids );
+	if ( is_wp_error( $parsed ) ) {
+		return $parsed;
+	}
+	if ( ! empty( $parsed['invalid_markers'] ) ) {
+		return new WP_Error(
+			'dbe_marker_type_mismatch',
+			'Marked elements must keep their original Builderius module type: ' . implode( '; ', $parsed['invalid_markers'] ) . '.'
+		);
+	}
 	if ( 1 !== count( $parsed['roots'] ) ) {
 		// Name what was removed when the count is off because of stripping,
 		// so a payload that collapsed to nothing does not read as an empty edit.
@@ -2059,6 +2454,12 @@ function dbe_ability_apply_subtree_html( $input ) {
 	if ( isset( $tree['keep'] ) ) {
 		return new WP_Error( 'dbe_root_keep', 'The root element cannot be a <dbe-keep> placeholder.' );
 	}
+	if ( ( $tree['module'] ?? '' ) !== $root_type ) {
+		return new WP_Error(
+			'dbe_root_type_mismatch',
+			sprintf( 'The subtree root is a %s and must be submitted using its %s representation.', $root_type, $root_type )
+		);
+	}
 
 	$result = dbe_ability_reconcile( $config, $module_id, $tree );
 
@@ -2071,6 +2472,7 @@ function dbe_ability_apply_subtree_html( $input ) {
 		$throwaway = array();
 		return array(
 			'dry_run'          => true,
+			'base_commit'      => $loaded['commit']->post_name,
 			'html'             => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
 			'kept'             => $result['kept'],
 			'added'            => $result['added'],
@@ -2084,7 +2486,9 @@ function dbe_ability_apply_subtree_html( $input ) {
 	$commit_name = dbe_ability_create_commit(
 		$loaded['branch']->ID,
 		$result['config'],
-		! empty( $input['autopublish'] )
+		! empty( $input['autopublish'] ),
+		'Applied via dbe/apply-subtree-html',
+		(string) ( $input['expected_commit'] ?? '' )
 	);
 	if ( is_wp_error( $commit_name ) ) {
 		return $commit_name;
@@ -2092,6 +2496,7 @@ function dbe_ability_apply_subtree_html( $input ) {
 
 	$out = array(
 		'commit_name'      => $commit_name,
+		'base_commit'      => $loaded['commit']->post_name,
 		'kept'             => $result['kept'],
 		'added'            => $result['added'],
 		'removed'          => $result['removed'],
@@ -2100,16 +2505,14 @@ function dbe_ability_apply_subtree_html( $input ) {
 		'binding_warnings' => $binding_warnings,
 	);
 
-	$warning = function_exists( 'dbe_presence_warning' ) ? dbe_presence_warning( $loaded['template_post']->post_name ) : '';
-	if ( '' !== $warning ) {
-		$out['warning'] = $warning;
-	}
 	return $out;
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Save/publish state + publishing
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
  * The currently published release post, or null. The front end renders from
@@ -2173,7 +2576,10 @@ function dbe_ability_load_templates( $refs = null ) {
 }
 
 /**
- * dbe/status.
+ * Handle dbe/status.
+ *
+ * @param array $input Ability input.
+ * @return array Ability result.
  */
 function dbe_ability_status( $input ) {
 	$refs    = ( isset( $input['template'] ) && '' !== trim( (string) $input['template'] ) )
@@ -2202,20 +2608,20 @@ function dbe_ability_status( $input ) {
 	$result = dbe_ability_load_templates( $refs );
 	$rows   = array();
 	foreach ( $result['loaded'] as $tid => $row ) {
-		$slug   = $row['template_post']->post_name;
-		$commit = $row['commit'];
-		$dsm    = $dsm_by_name[ $slug ] ?? null;
-		$saved_config     = (string) get_post_meta( $commit->ID, 'content_config', true );
-		$released_config  = $dsm ? (string) get_post_meta( $dsm->ID, 'content_config', true ) : '';
-		$rows[] = array(
-			'template_id'         => $tid,
-			'slug'                => $slug,
-			'title'               => $row['template_post']->post_title,
-			'branch_id'           => $row['branch']->ID,
-			'saved_commit'        => $commit->post_name,
-			'saved_at'            => $commit->post_date,
+		$slug            = $row['template_post']->post_name;
+		$commit          = $row['commit'];
+		$dsm             = $dsm_by_name[ $slug ] ?? null;
+		$saved_config    = (string) get_post_meta( $commit->ID, 'content_config', true );
+		$released_config = $dsm ? (string) get_post_meta( $dsm->ID, 'content_config', true ) : '';
+		$rows[]          = array(
+			'template_id'          => $tid,
+			'slug'                 => $slug,
+			'title'                => $row['template_post']->post_title,
+			'branch_id'            => $row['branch']->ID,
+			'saved_commit'         => $commit->post_name,
+			'saved_at'             => $commit->post_date,
 			'in_published_release' => (bool) $dsm,
-			'unpublished_changes' => ! $dsm || md5( $saved_config ) !== md5( $released_config ),
+			'unpublished_changes'  => ! $dsm || md5( $saved_config ) !== md5( $released_config ),
 		);
 	}
 
@@ -2231,7 +2637,10 @@ function dbe_ability_status( $input ) {
 }
 
 /**
- * dbe/publish.
+ * Handle dbe/publish.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_publish( $input ) {
 	$refs   = ( ! empty( $input['templates'] ) && is_array( $input['templates'] ) ) ? $input['templates'] : null;
@@ -2241,6 +2650,16 @@ function dbe_ability_publish( $input ) {
 			'dbe_nothing_to_publish',
 			'No template with saved work found.' . ( $result['errors'] ? ' ' . wp_json_encode( $result['errors'] ) : '' )
 		);
+	}
+	if ( empty( $input['dry_run'] ) ) {
+		foreach ( $result['loaded'] as $row ) {
+			if ( function_exists( 'dbe_presence_precondition' ) ) {
+				$presence = dbe_presence_precondition( $row['template_post']->post_name, ! empty( $input['force'] ) );
+				if ( is_wp_error( $presence ) ) {
+					return $presence;
+				}
+			}
+		}
 	}
 
 	$version = isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
@@ -2261,6 +2680,9 @@ function dbe_ability_publish( $input ) {
 		} else {
 			$version = '1.0.0';
 		}
+	}
+	if ( strlen( $version ) > 64 || ! preg_match( '/^[A-Za-z0-9][A-Za-z0-9._-]*$/', $version ) ) {
+		return new WP_Error( 'dbe_bad_release_version', 'The release version must be 1-64 letters, digits, dots, hyphens or underscores.' );
 	}
 
 	$entities = array();
@@ -2283,14 +2705,47 @@ function dbe_ability_publish( $input ) {
 		);
 	}
 
-	$description = isset( $input['description'] ) ? (string) $input['description'] : 'Published via dbe/publish';
-	$mutation    = sprintf(
-		'mutation { createRelease(input: { version: "%s" tags: [] description: "%s" serialized_entities_data: "%s" publish: true }) { release { id version status } } }',
-		addcslashes( $version, '\\"' ),
-		addcslashes( $description, '\\"' ),
-		addcslashes( wp_json_encode( $ids ), '\\"' )
+	$expected = array();
+	foreach ( (array) ( $input['expected_commits'] ?? array() ) as $pair ) {
+		if ( is_array( $pair ) && isset( $pair['template'], $pair['commit'] ) ) {
+			$expected[ (string) $pair['template'] ] = trim( (string) $pair['commit'] );
+		}
+	}
+	foreach ( $result['loaded'] as $tid => $row ) {
+		$slug = $row['template_post']->post_name;
+		$want = $expected[ $slug ] ?? $expected[ (string) $tid ] ?? '';
+		$have = (string) $row['commit']->post_name;
+		if ( '' === $want ) {
+			return new WP_Error(
+				'dbe_expected_commits_required',
+				sprintf( 'Pass expected_commits for every template from the preceding dry run; %s is missing.', $slug )
+			);
+		}
+		if ( $want !== $have ) {
+			return new WP_Error(
+				'dbe_commit_conflict',
+				sprintf( 'Saved state changed for %s: expected commit %s, current commit %s. Run the publish dry run again.', $slug, $want, $have )
+			);
+		}
+	}
+
+	$description = isset( $input['description'] ) ? substr( (string) $input['description'], 0, 500 ) : 'Published via dbe/publish';
+	$mutation    = 'mutation DbeCreateRelease($input: BuilderiusCreateReleaseInput!) {'
+		. ' createRelease(input: $input) { release { id version status } }'
+		. ' }';
+	$data        = dbe_ability_graphql(
+		'dbePublish',
+		$mutation,
+		array(
+			'input' => array(
+				'version'                  => $version,
+				'tags'                     => array(),
+				'description'              => $description,
+				'serialized_entities_data' => wp_json_encode( $ids ),
+				'publish'                  => true,
+			),
+		)
 	);
-	$data = dbe_ability_graphql( 'dbePublish', $mutation );
 	if ( is_wp_error( $data ) ) {
 		return $data;
 	}
@@ -2307,12 +2762,17 @@ function dbe_ability_publish( $input ) {
 	);
 }
 
-/* ---------------------------------------------------------------------- *
+/*
+ * ----------------------------------------------------------------------
  *  Global CSS execute callbacks
- * ---------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------
+ */
 
 /**
- * dbe/get-global-css.
+ * Handle dbe/get-global-css.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_global_css( $input ) {
 	$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
@@ -2354,7 +2814,10 @@ function dbe_ability_get_global_css( $input ) {
 }
 
 /**
- * dbe/patch-global-css.
+ * Handle dbe/patch-global-css.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_patch_global_css( $input ) {
 	$block = trim( (string) ( $input['block'] ?? '' ) );
@@ -2370,6 +2833,16 @@ function dbe_ability_patch_global_css( $input ) {
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
+	if ( empty( $input['dry_run'] ) ) {
+		$presence = dbe_ability_all_presence_precondition( ! empty( $input['force'] ) );
+		if ( is_wp_error( $presence ) ) {
+			return $presence;
+		}
+	}
+	$preflight = dbe_ability_preflight( $loaded, $input );
+	if ( is_wp_error( $preflight ) ) {
+		return $preflight;
+	}
 
 	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
 	if ( is_wp_error( $patched ) ) {
@@ -2378,17 +2851,19 @@ function dbe_ability_patch_global_css( $input ) {
 
 	if ( ! empty( $input['dry_run'] ) ) {
 		return array(
-			'dry_run'    => true,
-			'action'     => $patched['action'],
-			'block'      => $block,
-			'css_length' => strlen( $patched['css'] ),
+			'dry_run'     => true,
+			'base_commit' => $loaded['commit']->post_name,
+			'action'      => $patched['action'],
+			'block'       => $block,
+			'css_length'  => strlen( $patched['css'] ),
 		);
 	}
 
 	$commit_name = dbe_ability_save_global_css(
 		$loaded,
 		$patched['css'],
-		sprintf( '%s CSS block "%s" via dbe/patch-global-css', ucfirst( $patched['action'] ), $block )
+		sprintf( '%s CSS block "%s" via dbe/patch-global-css', ucfirst( $patched['action'] ), $block ),
+		(string) ( $input['expected_commit'] ?? '' )
 	);
 	if ( is_wp_error( $commit_name ) ) {
 		return $commit_name;
@@ -2399,12 +2874,16 @@ function dbe_ability_patch_global_css( $input ) {
 		'action'      => $patched['action'],
 		'block'       => $block,
 		'commit_name' => $commit_name,
+		'base_commit' => $loaded['commit']->post_name,
 		'css_length'  => strlen( $patched['css'] ),
 	);
 }
 
 /**
- * dbe/get-entity-css.
+ * Handle dbe/get-entity-css.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_get_entity_css( $input ) {
 	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '' );
@@ -2446,7 +2925,10 @@ function dbe_ability_get_entity_css( $input ) {
 }
 
 /**
- * dbe/patch-entity-css.
+ * Handle dbe/patch-entity-css.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_patch_entity_css( $input ) {
 	$block = trim( (string) ( $input['block'] ?? '' ) );
@@ -2462,6 +2944,10 @@ function dbe_ability_patch_entity_css( $input ) {
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
 	}
+	$preflight = dbe_ability_preflight( $loaded, $input, $loaded['template_post']->post_name );
+	if ( is_wp_error( $preflight ) ) {
+		return $preflight;
+	}
 
 	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
 	if ( is_wp_error( $patched ) ) {
@@ -2470,10 +2956,11 @@ function dbe_ability_patch_entity_css( $input ) {
 
 	if ( ! empty( $input['dry_run'] ) ) {
 		return array(
-			'dry_run'    => true,
-			'action'     => $patched['action'],
-			'block'      => $block,
-			'css_length' => strlen( $patched['css'] ),
+			'dry_run'     => true,
+			'base_commit' => $loaded['commit']->post_name,
+			'action'      => $patched['action'],
+			'block'       => $block,
+			'css_length'  => strlen( $patched['css'] ),
 		);
 	}
 
@@ -2491,7 +2978,8 @@ function dbe_ability_patch_entity_css( $input ) {
 		$loaded['branch']->ID,
 		$config,
 		false,
-		sprintf( '%s CSS block "%s" via dbe/patch-entity-css', ucfirst( $patched['action'] ), $block )
+		sprintf( '%s CSS block "%s" via dbe/patch-entity-css', ucfirst( $patched['action'] ), $block ),
+		(string) ( $input['expected_commit'] ?? '' )
 	);
 	if ( is_wp_error( $commit_name ) ) {
 		return $commit_name;
@@ -2502,20 +2990,18 @@ function dbe_ability_patch_entity_css( $input ) {
 		'action'      => $patched['action'],
 		'block'       => $block,
 		'commit_name' => $commit_name,
+		'base_commit' => $loaded['commit']->post_name,
 		'css_length'  => strlen( $patched['css'] ),
 	);
 
-	// The css guard shields fenced blocks from a later stale save, but a
-	// dirty tab still deserves a heads-up: its other edits will clobber.
-	$warning = function_exists( 'dbe_presence_warning' ) ? dbe_presence_warning( $loaded['template_post']->post_name ) : '';
-	if ( '' !== $warning ) {
-		$out['warning'] = $warning;
-	}
 	return $out;
 }
 
 /**
- * dbe/list-commits.
+ * Handle dbe/list-commits.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_list_commits( $input ) {
 	$target = trim( (string) ( $input['target'] ?? 'global' ) );
@@ -2573,12 +3059,25 @@ function dbe_ability_list_commits( $input ) {
 }
 
 /**
- * dbe/restore-global-css-from-commit.
+ * Handle dbe/restore-global-css-from-commit.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
  */
 function dbe_ability_restore_global_css( $input ) {
 	$loaded = dbe_ability_load_settings_set( $input['settings_set'] ?? '' );
 	if ( is_wp_error( $loaded ) ) {
 		return $loaded;
+	}
+	if ( empty( $input['dry_run'] ) ) {
+		$presence = dbe_ability_all_presence_precondition( ! empty( $input['force'] ) );
+		if ( is_wp_error( $presence ) ) {
+			return $presence;
+		}
+	}
+	$preflight = dbe_ability_preflight( $loaded, $input );
+	if ( is_wp_error( $preflight ) ) {
+		return $preflight;
 	}
 
 	$name  = trim( (string) ( $input['commit'] ?? '' ) );
@@ -2610,6 +3109,7 @@ function dbe_ability_restore_global_css( $input ) {
 	if ( ! empty( $input['dry_run'] ) ) {
 		return array(
 			'dry_run'       => true,
+			'base_commit'   => $loaded['commit']->post_name,
 			'restored_from' => $name,
 			'css_length'    => strlen( $css ),
 			'preview'       => implode( "\n", array_slice( explode( "\n", $css ), 0, 12 ) ),
@@ -2619,7 +3119,8 @@ function dbe_ability_restore_global_css( $input ) {
 	$commit_name = dbe_ability_save_global_css(
 		$loaded,
 		$css,
-		sprintf( 'Restore global CSS from commit %s via dbe/restore-global-css-from-commit', $name )
+		sprintf( 'Restore global CSS from commit %s via dbe/restore-global-css-from-commit', $name ),
+		(string) ( $input['expected_commit'] ?? '' )
 	);
 	if ( is_wp_error( $commit_name ) ) {
 		return $commit_name;
@@ -2628,6 +3129,7 @@ function dbe_ability_restore_global_css( $input ) {
 	return array(
 		'dry_run'       => false,
 		'commit_name'   => $commit_name,
+		'base_commit'   => $loaded['commit']->post_name,
 		'restored_from' => $name,
 		'css_length'    => strlen( $css ),
 	);
