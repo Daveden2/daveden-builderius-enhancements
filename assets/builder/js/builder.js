@@ -1893,6 +1893,7 @@
             // type selector is unreliable across namespaces).
             var SVG_DROP = { script: 1, foreignobject: 1, style: 1, handler: 1, listener: 1 };
             var SVG_ANIM = { animate: 1, set: 1, animatetransform: 1, animatemotion: 1 };
+            var ariaNoted = false;
             [el].concat([].slice.call(el.querySelectorAll('*'))).forEach(function (d) {
                 if (d !== el && !el.contains(d)) { return; } // removed with an ancestor already
                 var ln = (d.localName || d.tagName || '').toLowerCase();
@@ -1919,6 +1920,23 @@
                     var n = a.name.toLowerCase();
                     if (n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { d.removeAttribute(a.name); return; }
                     if (n.indexOf('on') === 0) { stripped.push(n); d.removeAttribute(a.name); return; }
+                    // Builderius' save-time SVG validator (svgOrDynamic) only
+                    // accepts markup identical to its sanitised form, and the
+                    // sanitiser's attribute allowlist has no aria-* and no
+                    // focusable. Stored anyway (some save paths skip the
+                    // validator), such an SVG silently EMPTIES the template's
+                    // deliverable HTML at commit/publish time — a blank page.
+                    // Strip them here and say so; hide a decorative icon from
+                    // assistive tech via a wrapper instead (e.g. a span with
+                    // aria-hidden="true"), which Builderius does allow.
+                    if (n === 'focusable' || n.indexOf('aria-') === 0) {
+                        if (!ariaNoted) {
+                            ariaNoted = true;
+                            stripped.push('aria-*/focusable inside <svg> (Builderius disallows them — wrap the <svg> in an aria-hidden span instead)');
+                        }
+                        d.removeAttribute(a.name);
+                        return;
+                    }
                     if (DBE_URL_ATTRS[n] && dbeDangerousUrl(a.value)) {
                         stripped.push(n + '="' + String(a.value).slice(0, 12) + '…"');
                         d.removeAttribute(a.name);
