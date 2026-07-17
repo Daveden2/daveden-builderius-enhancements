@@ -233,6 +233,16 @@ function dbe_print_builder_footer() {
 		'version'    => DBE_VERSION,
 	);
 
+	// Server-side presence beats ride the presence_heartbeat toggle; the
+	// nonce enables cookie-authenticated REST from the builder page.
+	if ( dbe_feature_output_permitted( 'presence_heartbeat' ) ) {
+		$config['presence'] = array(
+			'url'      => rest_url( 'dbe/v1/presence' ),
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+			'interval' => 20000,
+		);
+	}
+
 	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

@@ -10772,6 +10772,66 @@
             window.addEventListener('pagehide', function () {
                 try { localStorage.removeItem(key); } catch (e) {}
             });
+
+            /* Server-side presence: agent abilities commit server-side and
+               cannot see localStorage, but they must not commit under a tab
+               that would autosave a stale snapshot over them. Post the
+               template slug + dirty state as a short-lived transient: on
+               every dirty-state TRANSITION, plus a slow keep-alive while the
+               state holds (the server record expires at ~3× this cadence).
+               Dirty mirrors the save cue's heuristic — the store history has
+               grown past the last save — with its own baseline so it works
+               with the save_state_cue toggle off. */
+            var pr = CFG.presence || {};
+            if (pr.url && pr.nonce) {
+                var prBaseline = null;
+                var prLastDirty = null;
+                var prLastSent = 0;
+                document.addEventListener('click', function (e) {
+                    if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
+                    if (e.target.closest('.saveBtn .actions')) { return; }
+                    // Optimistic, like the save cue: treat the state as
+                    // clean shortly after Save is pressed.
+                    setTimeout(function () {
+                        prBaseline = historyLen();
+                        sendBeat(true);
+                    }, 600);
+                }, true);
+                function prSlug() {
+                    try {
+                        return new URLSearchParams(location.search).get('builderius_template') || '';
+                    } catch (e) { return ''; }
+                }
+                function prDirty() {
+                    var len = historyLen();
+                    if (len === null) { return false; }
+                    if (prBaseline === null) { prBaseline = len; }
+                    return len > prBaseline;
+                }
+                function sendBeat(force) {
+                    var slug = prSlug();
+                    if (!slug) { return; }
+                    var dirty = prDirty();
+                    var now = Date.now();
+                    if (!force && dirty === prLastDirty && (now - prLastSent) < (pr.interval || 20000)) { return; }
+                    prLastDirty = dirty;
+                    prLastSent = now;
+                    try {
+                        fetch(pr.url, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            keepalive: true,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WP-Nonce': pr.nonce
+                            },
+                            body: JSON.stringify({ entity: slug, dirty: dirty })
+                        }).catch(function () {});
+                    } catch (e) {}
+                }
+                sendBeat(true);
+                setInterval(function () { sendBeat(false); }, hb.interval || 2500);
+            }
         })();
     }
 

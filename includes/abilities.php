@@ -165,6 +165,10 @@ function dbe_register_abilities() {
 						'description' => __( 'data-dbe-id markers that matched nothing in the subtree — probably typos. Each was treated as a new element, so the element it was meant to keep is removed and recreated with a fresh id. Check these before relying on the edit.', 'daveden-builderius-enhancements' ),
 						'items'       => array( 'type' => 'string' ),
 					),
+					'warning'         => array(
+						'type'        => 'string',
+						'description' => __( 'Present when a builder tab has this template open with unsaved changes: that tab saving or closing will overwrite this commit. Surface it to the user.', 'daveden-builderius-enhancements' ),
+					),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_apply_subtree_html',
@@ -219,7 +223,7 @@ function dbe_register_abilities() {
 		'dbe/status',
 		array(
 			'label'               => __( 'Get save/publish status', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Reports the save vs publish state of Builderius templates. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) only writes to the development branch; the front end renders NOTHING until a release is published — a site with no published release shows the theme fallback, which looks like a blank page. For each template this returns its active (saved) commit and whether that work is in the currently published release (unpublished_changes). Site-wide it returns the current published release, if any. Omit template to report on every template.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reports the save vs publish state of Builderius templates. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) writes to the development branch, which a LOGGED-IN user already sees on the front end — so save-only is enough to preview. Logged-out visitors render from the published release only; with no release ever published they get the theme fallback, which looks like a blank page. For each template this returns its active (saved) commit and whether that work is in the currently published release (unpublished_changes). Site-wide it returns the current published release, if any. Omit template to report on every template.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -236,7 +240,7 @@ function dbe_register_abilities() {
 				'properties' => array(
 					'published_release' => array(
 						'type'        => array( 'object', 'null' ),
-						'description' => __( 'The currently published release (id, version, date), or null if the site has never published — in which case the front end renders no Builderius output at all.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'The currently published release (id, version, date), or null if the site has never published — in which case logged-out visitors get no Builderius output (logged-in users still see dev-branch saves).', 'daveden-builderius-enhancements' ),
 					),
 					'templates'         => array(
 						'type'        => 'array',
@@ -255,7 +259,7 @@ function dbe_register_abilities() {
 		'dbe/publish',
 		array(
 			'label'               => __( 'Publish a release', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Creates and publishes a Builderius release from the templates\' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder\'s Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live on the front end, replacing the previously published release. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates and publishes a Builderius release from the templates\' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder\'s Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live for logged-out visitors, replacing the previously published release. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -349,7 +353,7 @@ function dbe_register_abilities() {
 		'dbe/patch-global-css',
 		array(
 			'label'               => __( 'Patch global CSS (named block)', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Adds, replaces or deletes ONE named block in the global stylesheet — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit. Every byte outside the named block is preserved verbatim, so unlike update_global_css this can never wipe the framework. A block that does not exist yet is appended at the end of the stylesheet. Typical use: a "fonts" block holding @font-face rules plus a :root override of --heading-font-family / --body-font-family. Saving does not publish; run dbe/publish for the change to reach the front end.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Adds, replaces or deletes ONE named block in the global stylesheet — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit. Every byte outside the named block is preserved verbatim, so unlike update_global_css this can never wipe the framework. A block that does not exist yet is appended at the end of the stylesheet. Typical use: a "fonts" block holding @font-face rules plus a :root override of --heading-font-family / --body-font-family. Saving does not publish; run dbe/publish for the change to reach logged-out visitors (a logged-in user already sees saved commits).', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -398,11 +402,6 @@ function dbe_register_abilities() {
 			'permission_callback' => 'dbe_ability_permission',
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
-	);
-
-	$template_arg = array(
-		'type'        => 'string',
-		'description' => __( 'Template post ID or slug.', 'daveden-builderius-enhancements' ),
 	);
 
 	wp_register_ability(
@@ -490,6 +489,10 @@ function dbe_register_abilities() {
 					),
 					'css_length'  => array( 'type' => 'integer' ),
 					'dry_run'     => array( 'type' => 'boolean' ),
+					'warning'     => array(
+						'type'        => 'string',
+						'description' => __( 'Present when a builder tab has this template open with unsaved changes: that tab saving or closing will overwrite this commit (the fenced block itself is re-attached by the CSS guard, other tab edits still clobber). Surface it to the user.', 'daveden-builderius-enhancements' ),
+					),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_patch_entity_css',
@@ -543,7 +546,7 @@ function dbe_register_abilities() {
 		'dbe/restore-global-css-from-commit',
 		array(
 			'label'               => __( 'Restore global CSS from a commit', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Recovery for a clobbered global stylesheet: reads the `css` setting from an earlier commit of the global settings set (find one with dbe/list-commits — a healthy framework is tens of KB) and saves it as a NEW commit, so the rollback is itself in history. Nothing else from the old commit is restored. Saving does not publish; run dbe/publish for the recovered CSS to reach the front end.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Recovery for a clobbered global stylesheet: reads the `css` setting from an earlier commit of the global settings set (find one with dbe/list-commits — a healthy framework is tens of KB) and saves it as a NEW commit, so the rollback is itself in history. Nothing else from the old commit is restored. Saving does not publish; run dbe/publish for the recovered CSS to reach logged-out visitors.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -1965,7 +1968,7 @@ function dbe_ability_apply_subtree_html( $input ) {
 		return $commit_name;
 	}
 
-	return array(
+	$out = array(
 		'commit_name'     => $commit_name,
 		'kept'            => $result['kept'],
 		'added'           => $result['added'],
@@ -1973,6 +1976,12 @@ function dbe_ability_apply_subtree_html( $input ) {
 		'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
 		'unknown_markers' => $parsed['unknown_markers'],
 	);
+
+	$warning = function_exists( 'dbe_presence_warning' ) ? dbe_presence_warning( $loaded['template_post']->post_name ) : '';
+	if ( '' !== $warning ) {
+		$out['warning'] = $warning;
+	}
+	return $out;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -1980,9 +1989,11 @@ function dbe_ability_apply_subtree_html( $input ) {
  * ---------------------------------------------------------------------- */
 
 /**
- * The currently published release post, or null. The front end renders
- * exclusively from this (BuilderiusDeliverableReleaseProvider): no release,
- * no Builderius output at all.
+ * The currently published release post, or null. The front end renders from
+ * this for LOGGED-OUT visitors (BuilderiusDeliverableReleaseProvider): no
+ * release, no public Builderius output. A logged-in user sees the dev
+ * branch's saved commits regardless, so a release is a go-live step, not a
+ * preview step.
  *
  * @return WP_Post|null
  */
@@ -2363,13 +2374,21 @@ function dbe_ability_patch_entity_css( $input ) {
 		return $commit_name;
 	}
 
-	return array(
+	$out = array(
 		'dry_run'     => false,
 		'action'      => $patched['action'],
 		'block'       => $block,
 		'commit_name' => $commit_name,
 		'css_length'  => strlen( $patched['css'] ),
 	);
+
+	// The css guard shields fenced blocks from a later stale save, but a
+	// dirty tab still deserves a heads-up: its other edits will clobber.
+	$warning = function_exists( 'dbe_presence_warning' ) ? dbe_presence_warning( $loaded['template_post']->post_name ) : '';
+	if ( '' !== $warning ) {
+		$out['warning'] = $warning;
+	}
+	return $out;
 }
 
 /**
