@@ -63,7 +63,9 @@ the smallest subtree that contains your change.
   cannot express (Components, SvgCode, code blocks). Leave them in place —
   or move them to move the module. Never invent one.
 - `<dbe-component name="slug" prop="value">` inserts a component instance;
-  props are validated against what the component declares.
+  props are validated against what the component declares
+  (`dbe/list-components` is the reference; authoring lives in the
+  `builderius-components` skill).
 - `data-dbe-label="…"` names an element in the Navigator.
 - Inline `<svg>` is stripped server-side (PHP would lowercase `viewBox`);
   use the builder's Edit-as-HTML dialog for SVG work, or a `<dbe-keep>` for

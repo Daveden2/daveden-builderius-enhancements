@@ -15,10 +15,15 @@ Read `builderius://graphql-schema` before writing any query.
    cannot read Meta Box **settings pages** at all (only post/term/user), and
    `{option:}` / `{call:}` need a privileged Power-Shortcode context. Do not
    probe them — go straight to data variables.
-2. **The system `wp` variable is not editable.** `manage_data_variable`
-   update on `wp` is rejected as system-managed. Extend it with
-   `apply_dynamic_data_helper` instead. Helpers cover the CURRENT post/user
-   context; loop data comes from `graphQLQuery` variables instead.
+2. **The system `wp` variable is guarded.** It covers the CURRENT
+   post/user/menu context; loop data comes from `graphQLQuery` variables
+   instead. To extend it: in a builder session use
+   `apply_dynamic_data_helper`; headless, `dbe/manage-data-variable` with
+   `allow_system: true` and hand-write the helper-equivalent fields
+   (`page_id__field: metabox_value(option_name: "page_id", field_id:
+   "field")` for a Meta Box settings page, `nav_menu(identifier: "name",
+   value: "menu-name") { items { title url } }` for a menu). It can never
+   be renamed or deleted.
 3. **Custom fields in queries need no helpers.** Select them directly on any
    Post/Term/User: `metabox_value(field_id: "job_role")` (Meta Box, uses the
    field ID) or `acf_value(name: "venue")` (ACF, uses the field name), and
