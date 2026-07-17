@@ -525,6 +525,14 @@ function dbe_features() {
 			'js'           => true,
 			'experimental' => true,
 		),
+		'css_block_guard'       => array(
+			'title'       => __( 'CSS named-block guard', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Keeps agent-added CSS blocks safe across builder saves.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'CSS added server-side by AI agents (the dbe/patch-global-css and dbe/patch-entity-css abilities) lives in named blocks fenced by @block comments. A builder save rebuilds the stylesheet from the open editor, which has never seen those blocks, so without protection they silently vanish on the next save. This guard re-attaches any block the previous save carried before the new save is stored, for both the global stylesheet and per-template CSS. Blocks removed through the abilities themselves stay removed.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'workflow',
+			'css'         => false,
+			'js'          => false,
+		),
 		'presence_heartbeat'    => array(
 			'title'       => __( 'Second-tab warning', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'An admin-bar edit link plus a second-tab warning.', 'daveden-builderius-enhancements' ),

@@ -400,6 +400,104 @@ function dbe_register_abilities() {
 		)
 	);
 
+	$template_arg = array(
+		'type'        => 'string',
+		'description' => __( 'Template post ID or slug.', 'daveden-builderius-enhancements' ),
+	);
+
+	wp_register_ability(
+		'dbe/get-entity-css',
+		array(
+			'label'               => __( 'Get entity CSS', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reads a template\'s saved entity CSS (the per-template stylesheet the builder\'s update_entity_css tool replaces wholesale). Returns the raw CSS plus the names of its named blocks (regions fenced by /* @block: name */ … /* @endblock */ comments). Pass block to fetch just one block\'s body. A template with no entity CSS returns an empty string, not an error. To add or change CSS safely, prefer dbe/patch-entity-css, which edits only a named block.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template' => $template_arg,
+					'block'    => array(
+						'type'        => 'string',
+						'description' => __( 'Return only this named block\'s body (token-cheap).', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'template' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'css'         => array( 'type' => 'string' ),
+					'blocks'      => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'css_length'  => array( 'type' => 'integer' ),
+					'template_id' => array( 'type' => 'integer' ),
+					'branch_id'   => array( 'type' => 'integer' ),
+					'commit_name' => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_get_entity_css',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	wp_register_ability(
+		'dbe/patch-entity-css',
+		array(
+			'label'               => __( 'Patch entity CSS (named block)', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Adds, replaces or deletes ONE named block in a template\'s entity CSS — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit through Builderius\' own save channel, without touching the open builder store. CSS outside the named block is preserved verbatim. A block that does not exist yet is appended at the end; a template with no entity CSS at all gets one created. CAUTION: if a builder tab has that template open with unsaved changes, saving or closing that tab afterwards can overwrite this commit with the tab\'s stale copy — save or discard the tab first. Saving does not publish; run dbe/publish for the change to reach logged-out visitors.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'template' => $template_arg,
+					'block'    => array(
+						'type'        => 'string',
+						'pattern'     => '^[A-Za-z0-9_-]+$',
+						'description' => __( 'The block name.', 'daveden-builderius-enhancements' ),
+					),
+					'css'      => array(
+						'type'        => 'string',
+						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
+					),
+					'delete'   => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Remove the block entirely.', 'daveden-builderius-enhancements' ),
+					),
+					'dry_run'  => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Preview: return the action and resulting stylesheet length without saving.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'template', 'block' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'action'      => array(
+						'type' => 'string',
+						'enum' => array( 'created', 'replaced', 'deleted' ),
+					),
+					'block'       => array( 'type' => 'string' ),
+					'commit_name' => array(
+						'type'        => 'string',
+						'description' => __( 'The new commit (absent on a dry run).', 'daveden-builderius-enhancements' ),
+					),
+					'css_length'  => array( 'type' => 'integer' ),
+					'dry_run'     => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_patch_entity_css',
+			'permission_callback' => 'dbe_ability_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
 	wp_register_ability(
 		'dbe/list-commits',
 		array(
@@ -712,6 +810,37 @@ function dbe_ability_load_settings_set( $ref = '' ) {
 		'css'       => $css,
 		'css_index' => $css_index,
 	);
+}
+
+/**
+ * Resolve a template reference to its saved entity CSS. Unlike the global
+ * settings set, a template that has never had entity CSS simply lacks the
+ * `css` settings entry — that is not an error; css_index -1 tells the
+ * writer to append a fresh entry.
+ *
+ * @param string $template Post ID or slug.
+ * @return array|WP_Error { config, template_post, branch, commit, css, css_index }.
+ */
+function dbe_ability_load_entity_css( $template ) {
+	$loaded = dbe_ability_load_config( $template );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$css       = '';
+	$css_index = -1;
+	$settings  = $loaded['config']['template']['settings'] ?? array();
+	foreach ( (array) $settings as $i => $s ) {
+		if ( 'css' === ( $s['name'] ?? '' ) ) {
+			$css       = (string) ( $s['value'] ?? '' );
+			$css_index = (int) $i;
+			break;
+		}
+	}
+
+	$loaded['css']       = $css;
+	$loaded['css_index'] = $css_index;
+	return $loaded;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -1616,6 +1745,12 @@ function dbe_ability_graphql( $name, $mutation ) {
 	};
 	add_filter( 'builderius_get_current_user', $pin_user, PHP_INT_MAX );
 
+	/* DBE's own commits are authoritative, including deliberate named-block
+	   deletions, so the CSS block guard must not "repair" them. */
+	if ( function_exists( 'dbe_css_guard_suspended' ) ) {
+		dbe_css_guard_suspended( true );
+	}
+
 	$request = new WP_REST_Request( 'POST', '/wp/v2/builderius' );
 	$request->set_header( 'Content-Type', 'application/json' );
 	$request->set_body(
@@ -1632,6 +1767,9 @@ function dbe_ability_graphql( $name, $mutation ) {
 	);
 	$response = rest_do_request( $request );
 	remove_filter( 'builderius_get_current_user', $pin_user, PHP_INT_MAX );
+	if ( function_exists( 'dbe_css_guard_suspended' ) ) {
+		dbe_css_guard_suspended( false );
+	}
 
 	if ( $response->is_error() ) {
 		$err = $response->as_error();
@@ -1652,7 +1790,7 @@ function dbe_ability_graphql( $name, $mutation ) {
  *
  * @return string|WP_Error The new commit name.
  */
-function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) {
+function dbe_ability_create_commit( $branch_id, $config, $autopublish = false, $description = 'Applied via dbe/apply-subtree-html' ) {
 	$json = wp_json_encode( $config, JSON_UNESCAPED_UNICODE );
 	if ( false === $json ) {
 		return new WP_Error( 'dbe_encode_failed', 'Could not encode the content config.' );
@@ -1661,7 +1799,7 @@ function dbe_ability_create_commit( $branch_id, $config, $autopublish = false ) 
 		'mutation { createCommit(input: { branch_id: %d serialized_content_config: "%s" description: "%s" }, autopublish: %s) { commit { name autopublished } } }',
 		(int) $branch_id,
 		addcslashes( $json, '\\"' ),
-		'Applied via dbe/apply-subtree-html',
+		addcslashes( $description, '\\"' ),
 		$autopublish ? 'true' : 'false'
 	);
 	$data = dbe_ability_graphql( 'dbeApplySubtreeHtml', $mutation );
@@ -2117,6 +2255,109 @@ function dbe_ability_patch_global_css( $input ) {
 		$loaded,
 		$patched['css'],
 		sprintf( '%s CSS block "%s" via dbe/patch-global-css', ucfirst( $patched['action'] ), $block )
+	);
+	if ( is_wp_error( $commit_name ) ) {
+		return $commit_name;
+	}
+
+	return array(
+		'dry_run'     => false,
+		'action'      => $patched['action'],
+		'block'       => $block,
+		'commit_name' => $commit_name,
+		'css_length'  => strlen( $patched['css'] ),
+	);
+}
+
+/**
+ * dbe/get-entity-css.
+ */
+function dbe_ability_get_entity_css( $input ) {
+	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+	$blocks = dbe_ability_css_blocks( $loaded['css'] );
+	if ( is_wp_error( $blocks ) ) {
+		return $blocks;
+	}
+	$names = wp_list_pluck( $blocks, 'name' );
+
+	$css = $loaded['css'];
+	if ( isset( $input['block'] ) && '' !== trim( (string) $input['block'] ) ) {
+		$want = trim( (string) $input['block'] );
+		$css  = null;
+		foreach ( $blocks as $b ) {
+			if ( $b['name'] === $want ) {
+				$css = trim( substr( $loaded['css'], $b['body_start'], $b['body_end'] - $b['body_start'] ) );
+				break;
+			}
+		}
+		if ( null === $css ) {
+			return new WP_Error(
+				'dbe_no_block',
+				sprintf( 'No block named "%s". Blocks: %s.', $want, $names ? implode( ', ', $names ) : '(none)' )
+			);
+		}
+	}
+
+	return array(
+		'css'         => $css,
+		'blocks'      => $names,
+		'css_length'  => strlen( $loaded['css'] ),
+		'template_id' => $loaded['template_post']->ID,
+		'branch_id'   => $loaded['branch']->ID,
+		'commit_name' => $loaded['commit']->post_name,
+	);
+}
+
+/**
+ * dbe/patch-entity-css.
+ */
+function dbe_ability_patch_entity_css( $input ) {
+	$block = trim( (string) ( $input['block'] ?? '' ) );
+	if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $block ) ) {
+		return new WP_Error( 'dbe_bad_block_name', 'Block names are letters, digits, hyphens and underscores.' );
+	}
+	$delete = ! empty( $input['delete'] );
+	if ( ! $delete && ( ! isset( $input['css'] ) || '' === trim( (string) $input['css'] ) ) ) {
+		return new WP_Error( 'dbe_no_css', 'Pass the block\'s css, or delete: true to remove it.' );
+	}
+
+	$loaded = dbe_ability_load_entity_css( $input['template'] ?? '' );
+	if ( is_wp_error( $loaded ) ) {
+		return $loaded;
+	}
+
+	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
+	if ( is_wp_error( $patched ) ) {
+		return $patched;
+	}
+
+	if ( ! empty( $input['dry_run'] ) ) {
+		return array(
+			'dry_run'    => true,
+			'action'     => $patched['action'],
+			'block'      => $block,
+			'css_length' => strlen( $patched['css'] ),
+		);
+	}
+
+	$config = $loaded['config'];
+	if ( $loaded['css_index'] >= 0 ) {
+		$config['template']['settings'][ $loaded['css_index'] ]['value'] = $patched['css'];
+	} else {
+		$config['template']['settings'][] = array(
+			'name'  => 'css',
+			'value' => $patched['css'],
+		);
+	}
+
+	$commit_name = dbe_ability_create_commit(
+		$loaded['branch']->ID,
+		$config,
+		false,
+		sprintf( '%s CSS block "%s" via dbe/patch-entity-css', ucfirst( $patched['action'] ), $block )
 	);
 	if ( is_wp_error( $commit_name ) ) {
 		return $commit_name;
