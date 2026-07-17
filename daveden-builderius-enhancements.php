@@ -132,6 +132,10 @@ function dbe_bootstrap() {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
 		require_once DBE_DIR . 'includes/admin-bar.php';
+		// Named-block CSS guard: keeps ability-committed @block regions from
+		// being wiped by builder saves. Independent of the Abilities API, as
+		// blocks may exist from an earlier session.
+		require_once DBE_DIR . 'includes/css-guard.php';
 		// Agent-facing subtree HTML abilities (prototype) — needs both
 		// Builderius (its commit mutation is the save path) and the
 		// Abilities API runtime.
