@@ -29,6 +29,13 @@ per-module tool chains for structural work.
   element's label, conditions and non-HTML settings survive only through
   its marker. Unmarked elements are created fresh; missing markers mean
   delete. Typo'd markers come back in `unknown_markers` — check them.
+- **A kept marker does NOT keep the element's children.** The payload
+  expresses the complete subtree: an element passed as `<section
+  data-dbe-id="…"></section>` keeps that section but DELETES everything
+  inside it. To append a sibling section you must apply on the parent and
+  include every existing branch's full markup (`dbe/get-subtree-html`
+  first, then edit). When in doubt, target the smallest subtree that
+  contains your change.
 - **Exactly one root element**, the subtree root (its identity is forced to
   the `module_id` you pass).
 - `<dbe-keep data-dbe-id="…">` placeholders stand in for modules HTML
@@ -51,20 +58,36 @@ per-module tool chains for structural work.
 
 ## Collections (loops) in the HTML path
 
-- A `data-b-context` attribute on an element makes it a Collection; its
+Data-bound and literal loops are both fully expressible — a whole dynamic
+section (Collection → Template → SubCollection → Template) can be authored
+in one apply:
+
+- A `data-b-context` attribute makes an element a Collection; its
   `<template>` child is the repeated part, `{{field}}` placeholders bind
   each item's fields. Static siblings of the `<template>` render once.
-- `data-b-context` may hold a **literal JSON array** — fully expressible in
-  this HTML path, round-trips cleanly.
+- **Data-bound**: `data-b-context="[[globalVar.path.to.array]]"` — double
+  square brackets, GLOBAL variable (see builderius-dynamic-data for the
+  syntax rules and query recipes).
+- **Literal**: `data-b-context` may hold a literal JSON array directly.
+- **Nested**: a `data-source` attribute makes an element a SubCollection —
+  loop-item-relative, `{{ }}` form: `data-source="{{posts_query.posts}}"`
+  (works over query results and ACF repeater rows alike). It needs its own
+  `<template>` child.
 - `data-dbe-module="collection"` / `"subcollection"` forces the module type
   when there is no binding yet.
-- For loops bound to WordPress data (not literal JSON), see the
-  builderius-dynamic-data skill.
+- Applies return `binding_warnings` naming every silent-empty-loop trap it
+  can detect ({{ }} in data-b-context, non-global variable, [[ ]] in
+  data-source, missing `<template>` child). Fix them all — a mis-wired loop
+  renders one empty placeholder row with no error anywhere.
 
 ## After applying
 
-- Saving is not publishing: `dbe/status` → `dbe/publish` to make it live
-  (see the builderius-save-publish skill).
-- An open builder session will not show the new commit until reloaded.
+- A logged-in front-end fetch shows the saved result immediately — verify
+  there. `dbe/publish` is go-live for logged-out visitors only, on explicit
+  user approval (see the builderius-save-publish skill).
+- An open builder session will not show the new commit until reloaded — and
+  if the result carries a `warning`, a builder tab has this template open
+  with UNSAVED changes and will overwrite your commit when it saves or
+  closes. Surface the warning and get that tab saved or discarded first.
 - The abilities need the `edit_as_html` feature enabled and a user with
   `unfiltered_html` + `builderius-development` capabilities.
