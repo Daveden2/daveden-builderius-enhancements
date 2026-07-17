@@ -2554,13 +2554,103 @@
         roots.forEach(walk);
         return found;
     }
+    /* ---- Repeat wiring (import_html) ----
+       A field name for a lifted value, derived from what a human called the
+       thing: the BEM leaf of the node's first class (hiw__step-title →
+       title), else the tag, plus the attribute name for attribute fields.
+       Uniqued with a numeric suffix — mustache keys must not collide. */
+    function dbeFieldSlug(node, attrName, used) {
+        var base = '';
+        if (node.classes && node.classes.length) {
+            base = node.classes[0];
+            var bem = base.lastIndexOf('__');
+            if (bem !== -1) { base = base.slice(bem + 2); }
+            base = base.split('--')[0];
+        }
+        if (!base) { base = node.tag || 'field'; }
+        if (attrName) { base += '_' + attrName; }
+        base = base.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field';
+        var name = base;
+        var n = 2;
+        while (used[name]) { name = base + '_' + n; n += 1; }
+        used[name] = true;
+        return name;
+    }
+    /* Lift the values that VARY between the N copies of a repeat group into
+       an array of items — one object per copy, in document order — and
+       replace them in the first copy (the one the Template keeps) with
+       {{field}} placeholders. Values identical in every copy stay static in
+       the markup; they are presentation, not data. Positional twin-walks are
+       safe because dbeFindRepeats only groups copies with identical
+       structural signatures. Attributes match by NAME (the signature ignores
+       them, so order and presence can differ; an attribute missing from a
+       copy lifts as ''). SVG markup and component instances are opaque — a
+       copy-to-copy difference there cannot become a mustache field, so the
+       first copy's version stands and `stats.opaque` counts it for the
+       dialog's honesty note. */
+    function dbeExtractRepeatData(copies, stats) {
+        var used = {};
+        var items = copies.map(function () { return {}; });
+        function differs(vals) {
+            for (var i = 1; i < vals.length; i += 1) {
+                if (vals[i] !== vals[0]) { return true; }
+            }
+            return false;
+        }
+        function attrVal(n, name) {
+            var attrs = n.attrs || [];
+            for (var i = 0; i < attrs.length; i += 1) {
+                if (attrs[i].name === name) { return attrs[i].value == null ? '' : attrs[i].value; }
+            }
+            return '';
+        }
+        function walk(nodes) {
+            var first = nodes[0];
+            if ((first.module || 'HtmlElement') === 'Component') {
+                if (differs(nodes.map(function (n) { return JSON.stringify(n.props || []); }))) { stats.opaque += 1; }
+                return;
+            }
+            if (first.svg != null && first.svg !== '') {
+                if (differs(nodes.map(function (n) { return n.svg || ''; }))) { stats.opaque += 1; }
+                return;
+            }
+            var contents = nodes.map(function (n) { return n.content || ''; });
+            if (differs(contents)) {
+                var f = dbeFieldSlug(first, '', used);
+                items.forEach(function (it, i) { it[f] = contents[i]; });
+                first.content = '{{' + f + '}}';
+            }
+            (first.attrs || []).forEach(function (a) {
+                var vals = nodes.map(function (n) { return attrVal(n, a.name); });
+                if (differs(vals)) {
+                    var fa = dbeFieldSlug(first, a.name, used);
+                    items.forEach(function (it, i) { it[fa] = vals[i]; });
+                    a.value = '{{' + fa + '}}';
+                }
+            });
+            first.children.forEach(function (c, ci) {
+                walk(nodes.map(function (n) { return n.children[ci]; }));
+            });
+        }
+        walk(copies);
+        return items;
+    }
     /* A collapsed COPY of the parsed roots: each candidate container becomes
-       a Collection holding one Template that wraps its first item; the other
-       copies drop. Nested candidates inside the kept item still collapse
-       (the clone's node objects are mutated in place). */
-    function dbeCollapseRepeats(roots) {
+       a Collection holding one Template that wraps its first item. Without
+       wiring the other copies drop and nested candidates inside the kept
+       item still collapse. With `wire` on, the copies' varying content is
+       lifted first (dbeExtractRepeatData) and stored as literal JSON in the
+       collection's data-b-context — the attribute a Builderius Collection
+       loops its <template> over — so nothing is lost and the section renders
+       all N items from data. A wired group's subtree is left alone after the
+       lift: inner repeats are already captured positionally as fields, and
+       collapsing them again would re-drop content the items now carry. A
+       container that already declares a data-b-context keeps it — the
+       binding is the author's. */
+    function dbeCollapseRepeats(roots, wire) {
         var clone = JSON.parse(JSON.stringify(roots));
-        dbeFindRepeats(clone).forEach(function (n) {
+        var stats = { opaque: 0 };
+        function collapse(n) {
             if ((n.module || 'HtmlElement') === 'HtmlElement') { n.module = 'Collection'; }
             n.content = '';
             n.children = [{
@@ -2568,8 +2658,25 @@
                 tagId: '', classes: [], attrs: [], content: '',
                 children: [n.children[0]]
             }];
-        });
-        return clone;
+        }
+        function walk(n) {
+            if (n.keep || !n.children) { return; }
+            if (dbeRepeatCandidate(n)) {
+                var hasCtx = (n.attrs || []).some(function (a) { return a.name === 'data-b-context'; });
+                if (wire && !hasCtx && n.children.length > 1) {
+                    n.attrs.push({
+                        name: 'data-b-context',
+                        value: JSON.stringify(dbeExtractRepeatData(n.children, stats))
+                    });
+                    collapse(n);
+                    return;
+                }
+                collapse(n);
+            }
+            n.children.forEach(walk);
+        }
+        clone.forEach(walk);
+        return { roots: clone, opaque: stats.opaque };
     }
 
     function dbePreviewLines(roots) {
@@ -2588,6 +2695,20 @@
             if ((n.module || 'HtmlElement') !== 'HtmlElement') { line += ' [' + n.module + ']'; }
             if (n.label) { line += ' » ' + n.label; }
             if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
+            // A wired collection reads by its item count, not the JSON blob.
+            var ctx = (n.attrs || []).filter(function (a) { return a.name === 'data-b-context'; })[0];
+            if (ctx) {
+                var count = 0;
+                try {
+                    var arr = JSON.parse(ctx.value);
+                    count = Array.isArray(arr) ? arr.length : 0;
+                } catch (e) { /* hand-written binding — no count to show */ }
+                if (count) {
+                    line += ' ' + dbeFmt(dbeTn(count,
+                        'previewItemsOne', '(%s item)',
+                        'previewItemsMany', '(%s items)'), count);
+                }
+            }
             if (n.content) {
                 var t = n.content.length > 34 ? n.content.slice(0, 34) + '…' : n.content;
                 line += ' “' + t + '”';
@@ -2683,6 +2804,21 @@
         optionRow.appendChild(optionText);
         dlg.appendChild(optionRow);
 
+        // Sub-offer of the collapse: lift the copies' varying content into
+        // each collection's data-b-context as literal JSON, instead of
+        // dropping copies 2..N. Only meaningful once collapse is on.
+        var wireRow = document.createElement('label');
+        wireRow.className = 'dbe-html__option dbe-html__option--sub';
+        wireRow.style.display = 'none';
+        var wireCheck = document.createElement('input');
+        wireCheck.type = 'checkbox';
+        var wireText = document.createElement('span');
+        wireText.textContent = dbeT('importWireData',
+            'Extract the repeated content into each collection’s data source (JSON)');
+        wireRow.appendChild(wireCheck);
+        wireRow.appendChild(wireText);
+        dlg.appendChild(wireRow);
+
         var previewLabel = document.createElement('p');
         previewLabel.className = 'dbe-html__preview-label';
         previewLabel.textContent = dbeT('importHtmlPreview', 'Preview');
@@ -2738,7 +2874,10 @@
                     'importCollapseOne', 'Collapse %s repeated group into a collection',
                     'importCollapseMany', 'Collapse %s repeated groups into collections'), repeats);
             }
-            var roots = (repeats && collapseCheck.checked) ? dbeCollapseRepeats(p.roots) : p.roots;
+            var collapsing = !!(repeats && collapseCheck.checked);
+            wireRow.style.display = collapsing ? '' : 'none';
+            var collapsed = collapsing ? dbeCollapseRepeats(p.roots, wireCheck.checked) : null;
+            var roots = collapsing ? collapsed.roots : p.roots;
             parsed = { roots: roots, stripped: p.stripped };
             preview.textContent = dbePreviewLines(roots).join('\n');
             var total = dbePreviewLines(roots).length;
@@ -2749,7 +2888,12 @@
                 var uniq = p.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
                 note += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
             }
-            if (repeats && collapseCheck.checked) {
+            if (collapsing && wireCheck.checked) {
+                note += ' ' + dbeT('importCollapseWiredNote', 'Each collection stores its items as JSON in its data-b-context attribute.');
+                if (collapsed.opaque) {
+                    note += ' ' + dbeT('importCollapseOpaqueNote', 'SVGs or components that differ between copies keep the first copy’s version.');
+                }
+            } else if (collapsing) {
                 note += ' ' + dbeT('importCollapseBindNote', 'New collections still need their data binding.');
             }
             status.textContent = note;
@@ -2760,6 +2904,7 @@
             previewTimer = setTimeout(refreshPreview, 250);
         });
         collapseCheck.addEventListener('change', refreshPreview);
+        wireCheck.addEventListener('change', refreshPreview);
 
         insert.addEventListener('click', function () {
             if (!parsed || !parsed.roots.length) { return; }

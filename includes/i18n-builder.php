@@ -490,6 +490,13 @@ function dbe_builder_strings() {
 		/* translators: %s: number of repeated groups detected. */
 		'importCollapseMany'      => __( 'Collapse %s repeated groups into collections', 'daveden-builderius-enhancements' ),
 		'importCollapseBindNote'  => __( 'New collections still need their data binding.', 'daveden-builderius-enhancements' ),
+		'importWireData'          => __( 'Extract the repeated content into each collection’s data source (JSON)', 'daveden-builderius-enhancements' ),
+		'importCollapseWiredNote' => __( 'Each collection stores its items as JSON in its data-b-context attribute.', 'daveden-builderius-enhancements' ),
+		'importCollapseOpaqueNote' => __( 'SVGs or components that differ between copies keep the first copy’s version.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of data items on a collection. */
+		'previewItemsOne'         => __( '(%s item)', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of data items on a collection. */
+		'previewItemsMany'        => __( '(%s items)', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements imported. */
 		'htmlImportedOne'         => __( 'Imported %s element', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements imported. */
