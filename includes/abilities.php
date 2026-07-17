@@ -169,6 +169,11 @@ function dbe_register_abilities() {
 						'type'        => 'string',
 						'description' => __( 'Present when a builder tab has this template open with unsaved changes: that tab saving or closing will overwrite this commit. Surface it to the user.', 'daveden-builderius-enhancements' ),
 					),
+					'binding_warnings' => array(
+						'type'        => 'array',
+						'description' => __( 'Data-binding problems that would render a silent empty loop: {{ }} instead of [[ ]] in data-b-context, a non-global variable, a [[ ]] data-source, or a missing <template> child. Fix these before trusting the result.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'string' ),
+					),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_apply_subtree_html',
@@ -1462,6 +1467,10 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 			if ( 'data-b-context' === $n && 'HtmlElement' === $node['module'] ) {
 				$node['module'] = 'Collection';
 			}
+			// A loop-item-relative source implies a nested SubCollection.
+			if ( 'data-source' === $n && 'HtmlElement' === $node['module'] ) {
+				$node['module'] = 'SubCollection';
+			}
 			$blocked = dbe_ability_attr_blocked( $n, $v );
 			if ( $blocked ) {
 				$stripped[] = $blocked;
@@ -1583,6 +1592,116 @@ function dbe_ability_node_settings( $node, $module_name ) {
 		);
 	}
 	return $s;
+}
+
+/**
+ * Validate the data bindings of a parsed subtree against the two-syntax
+ * trap that renders a silent empty placeholder row instead of an error:
+ * a Collection's data-b-context must be either a literal JSON array or a
+ * GLOBAL data variable in double square brackets ([[var.path]]) — the
+ * {{ }} form and entity-scoped variables silently resolve to nothing —
+ * while a nested SubCollection's data-source is loop-item-relative and
+ * uses {{ }}. Also checks the repeated part is a <template> child.
+ *
+ * @param array $tree A parsed node (dbe_ability_parse_fragment root).
+ * @return string[] Human-readable warnings; empty when the wiring is sound.
+ */
+function dbe_ability_binding_warnings( $tree ) {
+	$warnings = array();
+
+	// Global data variable names, for the "is it global?" check. A load
+	// failure just skips that check rather than failing the apply.
+	$global_vars = array();
+	$gs          = dbe_ability_load_settings_set();
+	if ( ! is_wp_error( $gs ) ) {
+		foreach ( (array) ( $gs['config']['template']['settings'] ?? array() ) as $s ) {
+			if ( 'dataVars' === ( $s['name'] ?? '' ) ) {
+				foreach ( (array) $s['value'] as $v ) {
+					if ( '' !== (string) ( $v['b1'] ?? '' ) ) {
+						$global_vars[ (string) $v['b1'] ] = true;
+					}
+				}
+			}
+		}
+	}
+
+	$attr = function ( $node, $name ) {
+		foreach ( (array) $node['attrs'] as $a ) {
+			if ( $a['name'] === $name ) {
+				return (string) $a['value'];
+			}
+		}
+		return null;
+	};
+
+	$walk = function ( $node ) use ( &$walk, &$warnings, $attr, $global_vars, $gs ) {
+		$module = $node['module'] ?? '';
+
+		if ( 'Collection' === $module ) {
+			$context = $attr( $node, 'data-b-context' );
+			$where   = sprintf( '<%s> Collection', $node['tag'] );
+			if ( null === $context || '' === trim( $context ) ) {
+				$warnings[] = $where . ' has no data-b-context binding — it will render nothing.';
+			} elseif ( preg_match( '/^\{\{\s*(.+?)\s*\}\}$/s', trim( $context ), $m ) ) {
+				$warnings[] = sprintf(
+					'%s uses {{ }} in data-b-context, which does NOT resolve a loop (it renders one empty placeholder row with no error). Use [[%s]] with a GLOBAL data variable.',
+					$where,
+					$m[1]
+				);
+			} elseif ( preg_match( '/^\[\[\s*([A-Za-z0-9_]+)([^\]]*)\]\]$/s', trim( $context ), $m ) ) {
+				if ( $global_vars && ! isset( $global_vars[ $m[1] ] ) && ! is_wp_error( $gs ) ) {
+					$warnings[] = sprintf(
+						'%s binds [[%s%s]], but "%s" is not a SAVED GLOBAL data variable — entity-scoped or unsaved variables silently render an empty placeholder row. Save/move the variable to global scope first (globals: %s).',
+						$where,
+						$m[1],
+						$m[2],
+						$m[1],
+						implode( ', ', array_keys( $global_vars ) )
+					);
+				}
+			} else {
+				$decoded = json_decode( trim( $context ), true );
+				if ( ! is_array( $decoded ) ) {
+					$warnings[] = $where . ' has a data-b-context that is neither [[globalVar.path]] nor a literal JSON array — the loop will not resolve.';
+				}
+			}
+		}
+
+		if ( 'SubCollection' === $module ) {
+			$source = $attr( $node, 'data-source' );
+			$where  = sprintf( '<%s> SubCollection', $node['tag'] );
+			if ( null === $source || '' === trim( $source ) ) {
+				$warnings[] = $where . ' has no data-source binding — it will render nothing.';
+			} elseif ( preg_match( '/^\[\[/', trim( $source ) ) ) {
+				$warnings[] = $where . ' uses [[ ]] in data-source, but a SubCollection is loop-item-relative and uses the {{ }} form (e.g. data-source="{{posts_query.posts}}").';
+			} elseif ( ! preg_match( '/^\{\{.+\}\}$/s', trim( $source ) ) ) {
+				$warnings[] = $where . ' has a data-source that is not a {{ }} loop-item reference — the nested loop will not resolve.';
+			}
+		}
+
+		if ( 'Collection' === $module || 'SubCollection' === $module ) {
+			$has_template = false;
+			foreach ( (array) $node['children'] as $c ) {
+				if ( 'Template' === ( $c['module'] ?? '' ) ) {
+					$has_template = true;
+				}
+			}
+			if ( ! $has_template ) {
+				$warnings[] = sprintf(
+					'<%s> %s has no <template> child — the repeated part of a loop must be wrapped in <template>.',
+					$node['tag'],
+					$module
+				);
+			}
+		}
+
+		foreach ( (array) $node['children'] as $c ) {
+			$walk( $c );
+		}
+	};
+	$walk( $tree );
+
+	return $warnings;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -1943,19 +2062,22 @@ function dbe_ability_apply_subtree_html( $input ) {
 
 	$result = dbe_ability_reconcile( $config, $module_id, $tree );
 
+	$binding_warnings = dbe_ability_binding_warnings( $tree );
+
 	// Dry run: report what WOULD happen and the resulting markup (with the
 	// ids new elements would get) without writing a commit. Lets an agent
 	// check an edit before mutating, and see the created elements' ids.
 	if ( ! empty( $input['dry_run'] ) ) {
 		$throwaway = array();
 		return array(
-			'dry_run'         => true,
-			'html'            => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
-			'kept'            => $result['kept'],
-			'added'           => $result['added'],
-			'removed'         => $result['removed'],
-			'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
-			'unknown_markers' => $parsed['unknown_markers'],
+			'dry_run'          => true,
+			'html'             => dbe_ability_serialize( $result['config'], $module_id, 0, $throwaway ),
+			'kept'             => $result['kept'],
+			'added'            => $result['added'],
+			'removed'          => $result['removed'],
+			'stripped'         => array_values( array_unique( $parsed['stripped'] ) ),
+			'unknown_markers'  => $parsed['unknown_markers'],
+			'binding_warnings' => $binding_warnings,
 		);
 	}
 
@@ -1969,12 +2091,13 @@ function dbe_ability_apply_subtree_html( $input ) {
 	}
 
 	$out = array(
-		'commit_name'     => $commit_name,
-		'kept'            => $result['kept'],
-		'added'           => $result['added'],
-		'removed'         => $result['removed'],
-		'stripped'        => array_values( array_unique( $parsed['stripped'] ) ),
-		'unknown_markers' => $parsed['unknown_markers'],
+		'commit_name'      => $commit_name,
+		'kept'             => $result['kept'],
+		'added'            => $result['added'],
+		'removed'          => $result['removed'],
+		'stripped'         => array_values( array_unique( $parsed['stripped'] ) ),
+		'unknown_markers'  => $parsed['unknown_markers'],
+		'binding_warnings' => $binding_warnings,
 	);
 
 	$warning = function_exists( 'dbe_presence_warning' ) ? dbe_presence_warning( $loaded['template_post']->post_name ) : '';
