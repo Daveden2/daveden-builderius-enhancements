@@ -114,12 +114,33 @@ section (Collection → Template → SubCollection → Template) can be authored
 in one apply:
 
 - A `data-b-context` attribute makes an element a Collection; its
-  `<template>` child is the repeated part, `{{field}}` placeholders bind
-  each item's fields. Static siblings of the `<template>` render once.
-- **Data-bound**: `data-b-context="[[global_var.path.to.array]]"` — double
-  square brackets, GLOBAL variable with a snake_case name (the builder UI
-  rejects camelCase names; see builderius-dynamic-data for the syntax rules
-  and query recipes).
+  `<template>` child is the repeated part. Static siblings of the `<template>`
+  render once.
+- **Data-bound**: `data-b-context="[[global_var.path.to.array]]"` or
+  `data-b-context="[[[global_var.path.to.array]]]"` — a GLOBAL variable with a
+  snake_case name (the builder UI rejects camelCase names; see
+  builderius-dynamic-data for the syntax rules and query recipes). Builderius
+  serialises arrays/objects to JSON through both square-bracket helpers, so
+  double-square collection sources are valid.
+- **URL source**: use the interactive Collection wiring:
+  `data-b-context="https://example.test/items.json"
+  data-b-interactive="my_source"
+  data-b-bind--data-content="my_source"`. The URL must return JSON in the
+  expected array shape. DBE writes Builderius' `interactiveMode` setting from
+  this HTML. A bare `data-source-url` attribute, or fetched `data-content`
+  without interactive mode, may stay in the rendered markup with its
+  `<template>` untouched. This is client-side fetching; verify loading/failure
+  behaviour and CORS for remote origins.
+- **Output filtering**: square brackets are the scalar escaped/raw boundary:
+  `[[path]]` calls Builderius' escaped helper and `[[[path]]]` calls its raw
+  helper. Collection arrays work through either form. Current-item curly
+  expressions are different: verified renders show both `{{expression}}` and
+  `{{{expression}}}` can output HTML in normal element content, so do not rely
+  on double curly braces as sanitisation.
+- **Item expressions**: template text and attributes can contain expression
+  functions directly, not just field names: `{{upper(title)}}`,
+  `{{price > 0 ? '£' ~ price : 'Free'}}`,
+  `href="mailto:{{lower(email)}}"`.
 - **Literal**: `data-b-context` may hold a literal JSON array directly.
 - **Nested**: a `data-source` attribute makes an element a SubCollection —
   loop-item-relative, `{{ }}` form: `data-source="{{posts_query.posts}}"`
@@ -131,6 +152,56 @@ in one apply:
   can detect ({{ }} in data-b-context, non-global variable, [[ ]] in
   data-source, missing `<template>` child). Fix them all — a mis-wired loop
   renders one empty placeholder row with no error anywhere.
+
+## Repeated static markup conversion
+
+When source HTML contains repeated siblings that are structurally alike, treat
+them as a likely dynamic-data opportunity:
+
+- Repeated `<li>`, `<tr>`, cards, tiles, gallery figures, navigation items and
+  testimonial blocks should usually become one Collection with one
+  `<template>` child.
+- The Builder UI Import HTML dialog detects these groups and can collapse
+  them automatically. If "Extract the repeated content into each collection's
+  data source (JSON)" is enabled, DBE lifts copy-to-copy differences into a
+  literal JSON `data-b-context` and replaces the first copy's leaves with
+  `{{field_or_expression}}` placeholders.
+- That literal JSON is a safe bridge, not the preferred final state when the
+  content already exists in WordPress. Replace it with a global
+  `graphQLQuery` data variable and a `[[[var.path.to.items]]]` binding after
+  the data variable verifies. If the final source is an external JSON endpoint
+  instead, use the interactive URL-source attributes and verify the endpoint
+  returns the same array shape as the bridge JSON.
+- Headless applies cannot change a kept module's Builderius type. To convert
+  an existing HtmlElement grid/list into a Collection, apply on its parent:
+  keep the surrounding parent/intro markup, remove the repeated group's
+  `data-dbe-id`, and submit the group as a fresh Collection with
+  `data-b-context` and a `<template>`.
+- For nested repeated groups inside each item, prefer a SubCollection inside
+  the template (`data-source="{{acf_repeater_rows}}"`,
+  `data-source="{{posts_query.posts}}"`, etc.). Do not create multiple global
+  Collections for parent-relative data.
+- Recursive templates are for hierarchical data where each item can have
+  children of the same shape, such as menus, page trees or nested terms. Do
+  not use recursion merely because a flat list has repeated cards.
+
+Conversion workflow:
+
+1. Paste/import the static HTML and let DBE collapse obvious repeats, or author
+   the Collection/Template markup directly.
+2. If the converter generated literal JSON, inspect the field names it lifted
+   and use those names as draft aliases for the real GraphQL query.
+3. Create/update the global data variable via `dbe/manage-data-variable`;
+   verify it before saving the final structural binding.
+4. Swap `data-b-context='[{"..."}]'` for
+   `data-b-context="[[real_var.query.items]]"` or
+   `data-b-context="[[[real_var.query.items]]]"` and keep the template's
+   `{{field_or_expression}}` placeholders. For a URL source, put the URL in
+   `data-b-context`, add matching `data-b-interactive` and
+   `data-b-bind--data-content`, and confirm the URL returns a JSON array
+   compatible with those placeholders.
+5. Dry-run `dbe/apply-subtree-html`, fix every `binding_warnings` entry, save
+   with `expected_commit`, then verify real rendered rows while logged in.
 
 ## After applying
 

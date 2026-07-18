@@ -220,7 +220,7 @@ function dbe_register_abilities() {
 					),
 					'binding_warnings' => array(
 						'type'        => 'array',
-						'description' => __( 'Data-binding problems that would render a silent empty loop: {{ }} instead of [[ ]] in data-b-context, a non-global variable, a [[ ]] data-source, or a missing <template> child. Fix these before trusting the result.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Data-binding problems that would render a silent empty loop: a Collection source that does not resolve to an array, {{ }} instead of a square-bracket global binding in data-b-context, a non-global variable, a [[ ]] data-source, or a missing <template> child. Fix these before trusting the result.', 'daveden-builderius-enhancements' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 				),
@@ -942,14 +942,14 @@ function dbe_register_abilities() {
 
 	$scope_template_arg = array(
 		'type'        => 'string',
-		'description' => __( 'Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — Collections can only bind global variables, so global is the usual scope.', 'daveden-builderius-enhancements' ),
+		'description' => __( 'Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — data-variable-backed Collections usually bind global variables; literal JSON and URL sources do not need a data variable.', 'daveden-builderius-enhancements' ),
 	);
 
 	dbe_register_ability(
 		'dbe/get-data-variables',
 		array(
 			'label'               => __( 'Get data variables', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Reads Builderius dynamic-data variables from the saved state: the GLOBAL settings set by default (the variables Collections can bind with data-b-context="[[name.path]]"), or one template\'s entity-scoped variables when template is passed. Each entry has name, type (graphQLQuery, json, …) and value (the GraphQL query text or JSON). The `wp` entry is the system variable (flagged system: true) — the current post/user/menu context. Returns the branch and commit for the expected_commit save flow.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Reads Builderius dynamic-data variables from the saved state: the GLOBAL settings set by default (data-variable-backed Collections can bind these with data-b-context="[[name.path]]" or data-b-context="[[[name.path]]]"), or one template\'s entity-scoped variables when template is passed. Collections can also use literal JSON or URL sources when those resolve to arrays. Each entry has name, type (graphQLQuery, json, …) and value (the GraphQL query text or JSON). The `wp` entry is the system variable (flagged system: true) — the current post/user/menu context. Returns the branch and commit for the expected_commit save flow.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -996,7 +996,7 @@ function dbe_register_abilities() {
 		'dbe/manage-data-variable',
 		array(
 			'label'               => __( 'Create, update or delete a data variable', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Creates, updates or deletes a Builderius dynamic-data variable in the saved state, committed through Builderius\' own mutation. Works on the GLOBAL settings set by default (required for Collection loops) or one template when template is passed. Names are snake_case (the builder UI cannot edit camelCase names). graphQLQuery values are syntax-checked before saving; verify the query actually returns data on the rendered page afterwards (logged-in users see saved commits — no publish needed). The system `wp` variable cannot be created, renamed or deleted; updating its query needs allow_system: true — that is the headless equivalent of the builder\'s dynamic-data helpers (e.g. adding nav_menu or metabox_value fields for settings pages). Read dbe/get-data-variables first for the current state and expected_commit. An open builder tab will not see the change until reloaded — and its own save can overwrite this; the dirty-tab preflight protects against that.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates, updates or deletes a Builderius dynamic-data variable in the saved state, committed through Builderius\' own mutation. Works on the GLOBAL settings set by default (usual for data-variable-backed Collection loops) or one template when template is passed. Names are snake_case (the builder UI cannot edit camelCase names). graphQLQuery values are syntax-checked before saving; verify the query actually returns data on the rendered page afterwards (logged-in users see saved commits — no publish needed). Collections may also use literal JSON or URL sources when no data variable is needed. The system `wp` variable cannot be created, renamed or deleted; updating its query needs allow_system: true — that is the headless equivalent of the builder\'s dynamic-data helpers (e.g. adding nav_menu or metabox_value fields for settings pages). Read dbe/get-data-variables first for the current state and expected_commit. An open builder tab will not see the change until reloaded — and its own save can overwrite this; the dirty-tab preflight protects against that.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -1938,6 +1938,23 @@ function dbe_ability_dangerous_url( $value ) {
 }
 
 /**
+ * Whether a Collection source string looks like Builderius' client-side JSON
+ * URL source. Mirrors the front-end collection URL check closely enough for
+ * warnings; it deliberately accepts http(s) hostnames/IPs only.
+ *
+ * @param mixed $value Candidate source URL.
+ * @return bool Whether it looks like a fetchable Collection source URL.
+ */
+function dbe_ability_collection_source_url( $value ) {
+	$v = trim( (string) $value );
+	if ( '' === $v || dbe_ability_dangerous_url( $v ) ) {
+		return false;
+	}
+
+	return 1 === preg_match( '/^(?:https?:\/\/)?(?:((?:[a-z\d](?:[a-z\d-]*[a-z\d])?\.)+[a-z]{2,})|(?:(?:\d{1,3}\.){3}\d{1,3}))(?::\d+)?(?:\/[-a-z\d%_.~+]*)*(?:\?[;&a-z\d%_.~+=-]*)?(?:\#[-a-z\d_]*)?$/i', $v );
+}
+
+/**
  * Mirror of dbeAttrBlocked() in builder.js. Returns a short reason string
  * when the attribute must not be stored, null when it is fine.
  *
@@ -2428,8 +2445,8 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				$node['classes'] = array_values( array_filter( preg_split( '/\s+/', $v ) ) );
 				continue;
 			}
-			// A data binding implies a Collection; the attribute stays stored.
-			if ( 'data-b-context' === $n && 'HtmlElement' === $node['module'] ) {
+			// A data binding or URL source implies a Collection; the attribute stays stored.
+			if ( in_array( $n, array( 'data-b-context', 'data-source-url' ), true ) && 'HtmlElement' === $node['module'] ) {
 				$node['module'] = 'Collection';
 			}
 			// A loop-item-relative source implies a nested SubCollection.
@@ -2564,6 +2581,17 @@ function dbe_ability_node_settings( $node, $module_name ) {
 			'value' => array_values( $node['attrs'] ),
 		);
 	}
+	if ( 'Collection' === $module_name ) {
+		foreach ( $node['attrs'] as $a ) {
+			if ( 'data-b-interactive' === ( $a['name'] ?? '' ) ) {
+				$s[] = array(
+					'name'  => 'interactiveMode',
+					'value' => true,
+				);
+				break;
+			}
+		}
+	}
 	if ( '' !== $node['content'] && 'HtmlElement' === $module_name ) {
 		$s[] = array(
 			'name'  => 'content',
@@ -2576,9 +2604,11 @@ function dbe_ability_node_settings( $node, $module_name ) {
 /**
  * Validate the data bindings of a parsed subtree against the two-syntax
  * trap that renders a silent empty placeholder row instead of an error:
- * a Collection's data-b-context must be either a literal JSON array or a
- * GLOBAL data variable in double square brackets ([[var.path]]) — the
- * {{ }} form and entity-scoped variables silently resolve to nothing —
+ * a Collection source must resolve to an array: a literal JSON array/object,
+ * a URL-like JSON source, data-source-url, or a GLOBAL data variable in
+ * double square brackets ([[var.path]]) or triple square brackets
+ * ([[[var.path]]]) — the {{ }} form and entity-scoped variables silently
+ * resolve to nothing —
  * while a nested SubCollection's data-source is loop-item-relative and
  * uses {{ }}. Also checks the repeated part is a <template> child.
  *
@@ -2617,31 +2647,45 @@ function dbe_ability_binding_warnings( $tree ) {
 		$module = $node['module'] ?? '';
 
 		if ( 'Collection' === $module ) {
-			$context = $attr( $node, 'data-b-context' );
-			$where   = sprintf( '<%s> Collection', $node['tag'] );
-			if ( null === $context || '' === trim( $context ) ) {
+			$context         = $attr( $node, 'data-b-context' );
+			$context_trimmed = null === $context ? '' : trim( $context );
+			$source_url      = $attr( $node, 'data-source-url' );
+			$source_trimmed  = null === $source_url ? '' : trim( $source_url );
+			$interactive     = trim( (string) $attr( $node, 'data-b-interactive' ) );
+			$content_binding = trim( (string) $attr( $node, 'data-b-bind--data-content' ) );
+			$where           = sprintf( '<%s> Collection', $node['tag'] );
+			if ( '' !== $source_trimmed && ! dbe_ability_collection_source_url( $source_trimmed ) ) {
+				$warnings[] = $where . ' has a data-source-url that does not look like a fetchable http(s) JSON URL — the remote loop will render empty.';
+			}
+			if ( '' !== $source_trimmed && ( '' === $context_trimmed || '' === $interactive || '' === $content_binding ) ) {
+				$warnings[] = $where . ' uses data-source-url, but Builderius needs the interactive Collection wiring to fetch it. Put the URL in data-b-context and add matching data-b-interactive plus data-b-bind--data-content.';
+			}
+			if ( ( null === $context || '' === $context_trimmed ) && '' === $source_trimmed ) {
 				$warnings[] = $where . ' has no data-b-context binding — it will render nothing.';
-			} elseif ( preg_match( '/^\{\{\s*(.+?)\s*\}\}$/s', trim( $context ), $m ) ) {
+			} elseif ( preg_match( '/^\{\{\s*(.+?)\s*\}\}$/s', $context_trimmed, $m ) ) {
 				$warnings[] = sprintf(
-					'%s uses {{ }} in data-b-context, which does NOT resolve a loop (it renders one empty placeholder row with no error). Use [[%s]] with a GLOBAL data variable.',
+					'%s uses {{ }} in data-b-context, which does NOT resolve a loop (it renders one empty placeholder row with no error). Use [[%s]] or [[[%s]]] with a SAVED GLOBAL data variable.',
 					$where,
+					$m[1],
 					$m[1]
 				);
-			} elseif ( preg_match( '/^\[\[\s*([A-Za-z0-9_]+)([^\]]*)\]\]$/s', trim( $context ), $m ) ) {
+			} elseif (
+				preg_match( '/^\[\[\[\s*([A-Za-z0-9_]+)(.*?)\s*\]\]\]$/s', $context_trimmed, $m )
+				|| preg_match( '/^\[\[\s*([A-Za-z0-9_]+)(.*?)\s*\]\]$/s', $context_trimmed, $m )
+			) {
 				if ( $global_vars && ! isset( $global_vars[ $m[1] ] ) && ! is_wp_error( $gs ) ) {
 					$warnings[] = sprintf(
-						'%s binds [[%s%s]], but "%s" is not a SAVED GLOBAL data variable — entity-scoped or unsaved variables silently render an empty placeholder row. Save/move the variable to global scope first (globals: %s).',
+						'%s binds %s, but "%s" is not a SAVED GLOBAL data variable — entity-scoped or unsaved variables silently render an empty placeholder row. Save/move the variable to global scope first (globals: %s).',
 						$where,
-						$m[1],
-						$m[2],
+						$context_trimmed,
 						$m[1],
 						implode( ', ', array_keys( $global_vars ) )
 					);
 				}
 			} else {
-				$decoded = json_decode( trim( $context ), true );
-				if ( ! is_array( $decoded ) ) {
-					$warnings[] = $where . ' has a data-b-context that is neither [[global_var.path]] nor a literal JSON array — the loop will not resolve.';
+				$decoded = json_decode( $context_trimmed, true );
+				if ( '' !== $context_trimmed && ! is_array( $decoded ) && ! dbe_ability_collection_source_url( $context_trimmed ) ) {
+					$warnings[] = $where . ' has a data-b-context that is neither a source that resolves to an array ([[[global_var.path]]] / [[global_var.path]], literal JSON, or URL-like JSON source) nor paired with data-source-url — the loop will not resolve.';
 				}
 			}
 		}
