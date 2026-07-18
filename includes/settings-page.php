@@ -275,12 +275,16 @@ function dbe_render_ability_toggle( $ability_id, $ability ) {
 	$note_id  = $field_id . '-warning';
 	$danger   = ! empty( $ability['danger'] );
 	$caution  = ! empty( $ability['caution'] );
+	$access   = isset( $ability['group'] ) ? $ability['group'] : 'read';
+	$groups   = dbe_ability_groups();
+	$label    = isset( $groups[ $access ]['label'] ) ? $groups[ $access ]['label'] : __( 'Read', 'daveden-builderius-enhancements' );
 	?>
 	<div
-		class="dbe-field<?php echo $danger ? ' dbe-field--danger' : ''; ?>"
+		class="dbe-field dbe-field--ability dbe-field--ability-<?php echo esc_attr( $access ); ?><?php echo $danger ? ' dbe-field--danger' : ''; ?>"
 		data-default="<?php echo $danger ? '0' : '1'; ?>"
 		data-experimental="0"
 		data-unavailable="0"
+		data-ability-access="<?php echo esc_attr( $access ); ?>"
 	>
 		<div class="dbe-field__text">
 			<span class="dbe-field__titlerow">
@@ -288,6 +292,7 @@ function dbe_render_ability_toggle( $ability_id, $ability ) {
 					<span class="dbe-danger-icon" aria-hidden="true">&#9888;</span>
 				<?php endif; ?>
 				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $ability['title'] ); ?></label>
+				<span class="dbe-ability-access dbe-ability-access--<?php echo esc_attr( $access ); ?>"><?php echo esc_html( $label ); ?></span>
 				<code class="dbe-ability-id"><?php echo esc_html( $ability_id ); ?></code>
 				<?php if ( $danger ) : ?>
 					<span class="dbe-badge dbe-badge--danger"><?php esc_html_e( 'Destructive', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', destructive ability, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
@@ -317,7 +322,8 @@ function dbe_render_ability_toggle( $ability_id, $ability ) {
 
 /**
  * The Agent abilities panel: the master switch, then every ability grouped
- * by what it touches. Individual toggles stay editable with the master off
+ * by Read, Write or Execute access. Individual toggles stay editable with
+ * the master off
  * (choices are kept for when it is turned back on); a disabled ability is
  * never registered, so it does not exist for a connected agent at all.
  */
@@ -326,7 +332,7 @@ function dbe_render_abilities_panel() {
 	$abilities = dbe_abilities();
 	?>
 	<p class="dbe-panel__intro">
-		<?php esc_html_e( 'These switches control the dbe/* WordPress abilities that connected AI agents (for example Novamira over MCP) can use to read and edit saved Builderius content. A disabled ability is not registered at all, so agents cannot see or run it. Changes apply from the next request; no reload of the builder is needed.', 'daveden-builderius-enhancements' ); ?>
+		<?php esc_html_e( 'These switches control the dbe/* WordPress abilities available to connected AI agents. Read abilities inspect saved state, Write abilities change development state, and Execute abilities restore, delete, publish or rebuild it. A disabled ability is not registered, so agents cannot see or run it. Changes apply from the next request.', 'daveden-builderius-enhancements' ); ?>
 	</p>
 	<?php if ( ! function_exists( 'wp_register_ability' ) ) : ?>
 		<p class="dbe-panel__note">
@@ -352,8 +358,13 @@ function dbe_render_abilities_panel() {
 			<?php checked( ! empty( $options['abilities_enabled'] ) ); ?>
 		>
 	</div>
-	<?php foreach ( dbe_ability_groups() as $group_slug => $group_label ) : ?>
-		<h3 class="dbe-ability-group"><?php echo esc_html( $group_label ); ?></h3>
+	<?php foreach ( dbe_ability_groups() as $group_slug => $group ) : ?>
+		<?php $group_id = 'dbe-ability-group-' . $group_slug; ?>
+		<section class="dbe-feature-group dbe-ability-group dbe-ability-group--<?php echo esc_attr( $group_slug ); ?>" aria-labelledby="<?php echo esc_attr( $group_id ); ?>">
+			<h3 class="dbe-ability-group__title" id="<?php echo esc_attr( $group_id ); ?>">
+				<span class="dbe-ability-access dbe-ability-access--<?php echo esc_attr( $group_slug ); ?>"><?php echo esc_html( $group['label'] ); ?></span>
+			</h3>
+			<p class="dbe-ability-group__desc"><?php echo esc_html( $group['description'] ); ?></p>
 		<?php
 		foreach ( $abilities as $ability_id => $ability ) {
 			if ( $ability['group'] === $group_slug ) {
@@ -361,6 +372,7 @@ function dbe_render_abilities_panel() {
 			}
 		}
 		?>
+		</section>
 	<?php endforeach; ?>
 	<?php
 }

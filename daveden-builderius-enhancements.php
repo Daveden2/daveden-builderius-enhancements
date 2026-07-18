@@ -3,7 +3,7 @@
  * Plugin Name:       Daveden Builder Enhancements
  * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           2.0.0-dev-12
+ * Version:           2.0.0-dev-13
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
@@ -39,7 +39,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '2.0.0-dev-12' );
+define( 'DBE_VERSION', '2.0.0-dev-13' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -146,6 +146,8 @@ function dbe_bootstrap() {
 		// Abilities API runtime.
 		if ( function_exists( 'wp_register_ability' ) ) {
 			require_once DBE_DIR . 'includes/abilities.php';
+			require_once DBE_DIR . 'includes/abilities-workflow.php';
+			require_once DBE_DIR . 'includes/abilities-verify.php';
 		}
 		// Agent skills for Novamira's lookup registry. The filter only
 		// fires when Novamira applies it, so this is inert without it.

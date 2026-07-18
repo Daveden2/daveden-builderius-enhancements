@@ -495,9 +495,62 @@ input[type="checkbox"].dbe-switch:focus-visible {
 }
 
 .dbe-ability-group {
-  margin: 24px 0 8px;
+  margin-block-start: 24px;
+}
+
+.dbe-ability-group__title {
+  margin: 0;
   font-size: 14px;
-  color: #1d2327;
+}
+
+.dbe-ability-group__desc {
+  max-width: 65ch;
+  margin: 5px 0 10px;
+  color: #50575e;
+}
+
+/* Access is always written as text; colour is a secondary scanning cue. */
+.dbe-ability-access {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.dbe-ability-access--read {
+  background: #2271b1;
+}
+
+.dbe-ability-access--write {
+  background: #007c83;
+}
+
+.dbe-ability-access--execute {
+  background: #b32d2e;
+}
+
+.dbe-field--ability {
+  border-inline-start-width: 3px;
+}
+
+.dbe-field--ability-read {
+  border-inline-start-color: #2271b1;
+  background: #f0f6fc;
+}
+
+.dbe-field--ability-write {
+  border-inline-start-color: #007c83;
+  background: #f0f7f7;
+}
+
+.dbe-field--ability-execute {
+  border-inline-start-color: #b32d2e;
+  background: #fcf0f1;
 }
 
 /* The ability id, so what an agent sees maps to what the row controls. */

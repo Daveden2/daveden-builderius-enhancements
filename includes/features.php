@@ -706,17 +706,27 @@ function dbe_enum_settings() {
 }
 
 /**
- * Groups for the Agent abilities tab, in display order.
+ * Access groups for the Agent abilities tab, in display order.
  *
- * @return array<string,string> slug => label.
+ * Read abilities inspect state, Write abilities change saved development
+ * state, and Execute abilities perform consequential lifecycle operations.
+ *
+ * @return array<string,array{label:string,description:string}>
  */
 function dbe_ability_groups() {
 	return array(
-		'content'   => __( 'Template content', 'daveden-builderius-enhancements' ),
-		'css'       => __( 'CSS', 'daveden-builderius-enhancements' ),
-		'structure' => __( 'Templates & components', 'daveden-builderius-enhancements' ),
-		'data'      => __( 'Data & JavaScript', 'daveden-builderius-enhancements' ),
-		'release'   => __( 'Releases & publishing', 'daveden-builderius-enhancements' ),
+		'read'    => array(
+			'label'       => __( 'Read', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Inspect saved Builderius state without changing it.', 'daveden-builderius-enhancements' ),
+		),
+		'write'   => array(
+			'label'       => __( 'Write', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Create or update saved development state as a new commit.', 'daveden-builderius-enhancements' ),
+		),
+		'execute' => array(
+			'label'       => __( 'Execute', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Restore, delete, publish or rebuild Builderius state.', 'daveden-builderius-enhancements' ),
+		),
 	);
 }
 
@@ -730,7 +740,7 @@ function dbe_ability_groups() {
  *
  * Each entry:
  * - title/summary: settings-page copy (registration descriptions are agent-facing).
- * - group:   dbe_ability_groups() slug.
+ * - group:   access class from dbe_ability_groups().
  * - danger:  destructive ability; defaults OFF, rendered with a warning.
  * - caution: ability that deletes content or goes live; defaults on, badged.
  *
@@ -738,133 +748,192 @@ function dbe_ability_groups() {
  */
 function dbe_abilities() {
 	return array(
-		/* ------------------------------------------------------------ Content */
+		/* --------------------------------------------------------------- Read */
 		'dbe/get-subtree-html'               => array(
 			'title'   => __( 'Get subtree as HTML', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read a template or component subtree from the saved state as HTML.', 'daveden-builderius-enhancements' ),
-			'group'   => 'content',
+			'group'   => 'read',
 		),
 		'dbe/get-tree-outline'               => array(
 			'title'   => __( 'Get tree outline', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read a compact element outline so an agent can target elements by label.', 'daveden-builderius-enhancements' ),
-			'group'   => 'content',
+			'group'   => 'read',
 		),
-		'dbe/apply-subtree-html'             => array(
-			'title'   => __( 'Apply subtree HTML', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Save edited HTML back onto a subtree as a new commit.', 'daveden-builderius-enhancements' ),
-			'group'   => 'content',
-		),
-		/* ---------------------------------------------------------------- CSS */
 		'dbe/get-global-css'                 => array(
 			'title'   => __( 'Get global CSS', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read the saved global stylesheet and its named blocks.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
-		),
-		'dbe/patch-global-css'               => array(
-			'title'   => __( 'Patch global CSS', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Edit one named block of the global stylesheet; everything outside it is preserved.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
+			'group'   => 'read',
 		),
 		'dbe/get-entity-css'                 => array(
 			'title'   => __( 'Get entity CSS', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read a template\'s saved entity CSS and its named blocks.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
-		),
-		'dbe/patch-entity-css'               => array(
-			'title'   => __( 'Patch entity CSS', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Edit one named block of a template\'s entity CSS as a new commit.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
+			'group'   => 'read',
 		),
 		'dbe/list-commits'                   => array(
 			'title'   => __( 'List commits', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read a template\'s or the global stylesheet\'s commit history.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
-		),
-		'dbe/restore-global-css-from-commit' => array(
-			'title'   => __( 'Restore global CSS from a commit', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Recover a clobbered stylesheet by re-saving an earlier commit\'s CSS.', 'daveden-builderius-enhancements' ),
-			'group'   => 'css',
-		),
-		/* ---------------------------------------------------------- Structure */
-		'dbe/create-template'                => array(
-			'title'   => __( 'Create template', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Create a Builderius template headlessly, ready for content abilities.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
-		),
-		'dbe/update-template'                => array(
-			'title'   => __( 'Update template settings', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Change a template\'s title, slug, enabled state or apply rules.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
+			'group'   => 'read',
 		),
 		'dbe/get-template-settings'          => array(
 			'title'   => __( 'Get template settings', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read a template\'s registration-level settings.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
-		),
-		'dbe/delete-template'                => array(
-			'title'   => __( 'Delete template', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Permanently delete a template, its branches and its history. Asks for confirmation.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
-			'caution' => true,
-		),
-		'dbe/create-component'               => array(
-			'title'   => __( 'Create component', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Create a reusable Builderius component headlessly.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
+			'group'   => 'read',
 		),
 		'dbe/list-components'                => array(
 			'title'   => __( 'List components', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read the available components and their declared properties.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
+			'group'   => 'read',
 		),
-		'dbe/manage-component-property'      => array(
-			'title'   => __( 'Manage component properties', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Add, update or remove a component\'s declared properties.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
-		),
-		'dbe/delete-component'               => array(
-			'title'   => __( 'Delete component', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Permanently delete an unused component and its history. Asks for confirmation.', 'daveden-builderius-enhancements' ),
-			'group'   => 'structure',
-			'caution' => true,
-		),
-		/* --------------------------------------------------------------- Data */
 		'dbe/get-data-variables'             => array(
 			'title'   => __( 'Get data variables', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read the saved dynamic-data variables and their GraphQL queries.', 'daveden-builderius-enhancements' ),
-			'group'   => 'data',
-		),
-		'dbe/manage-data-variable'           => array(
-			'title'   => __( 'Manage data variables', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Create, update or delete a dynamic-data variable in the saved state.', 'daveden-builderius-enhancements' ),
-			'group'   => 'data',
+			'group'   => 'read',
 		),
 		'dbe/get-js-snippets'                => array(
 			'title'   => __( 'Get JS snippets', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Read the saved custom JavaScript snippets.', 'daveden-builderius-enhancements' ),
-			'group'   => 'data',
+			'group'   => 'read',
+		),
+		'dbe/status'                         => array(
+			'title'   => __( 'Save/publish status', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Report each template\'s saved commit against the published release.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/get-dynamic-data-schema'        => array(
+			'title'   => __( 'Get dynamic-data schema', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Read the live GraphQL schema data variables run against, without an open builder tab.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/resolve-data-variable'          => array(
+			'title'   => __( 'Resolve a data variable', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Schema-validate and actually resolve one data variable in a chosen page context.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/inspect-binding-value'          => array(
+			'title'   => __( 'Inspect a binding value', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Report the resolved type and shape at a binding path before a Collection binds it.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/check-rendered-output'          => array(
+			'title'   => __( 'Check rendered output', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Fetch one authenticated front-end render and scan it for silent dynamic-data failures.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/check-render-scenarios'         => array(
+			'title'   => __( 'Check render scenarios', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Run the rendered-output scan across a matrix of query parameters and cookies.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/get-rendered-styles'            => array(
+			'title'   => __( 'Get matched styles', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Read the entity and global CSS rules that target one module, with media context.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/list-settings-sets'             => array(
+			'title'   => __( 'List settings sets', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Enumerate the global settings sets that carry framework CSS and global variables.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		'dbe/validate-js-snippet'            => array(
+			'title'   => __( 'Validate a JS snippet', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Structurally check snippet JavaScript for unbalanced or unterminated syntax without saving.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
+		/* -------------------------------------------------------------- Write */
+		'dbe/apply-subtree-html'             => array(
+			'title'   => __( 'Apply subtree HTML', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Save edited HTML back onto a subtree as a new commit.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/patch-global-css'               => array(
+			'title'   => __( 'Patch global CSS', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Edit one named block of the global stylesheet; everything outside it is preserved.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/patch-entity-css'               => array(
+			'title'   => __( 'Patch entity CSS', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Edit one named block of a template\'s entity CSS as a new commit.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/create-template'                => array(
+			'title'   => __( 'Create template', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Create a Builderius template headlessly, ready for content abilities.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/update-template'                => array(
+			'title'   => __( 'Update template settings', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Change a template\'s title, slug, enabled state or apply rules.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/create-component'               => array(
+			'title'   => __( 'Create component', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Create a reusable Builderius component headlessly.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/manage-component-property'      => array(
+			'title'   => __( 'Manage component properties', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Add, update or remove a component\'s declared properties.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/manage-data-variable'           => array(
+			'title'   => __( 'Manage data variables', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Create, update or delete a dynamic-data variable in the saved state.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
 		),
 		'dbe/manage-js-snippet'              => array(
 			'title'   => __( 'Manage JS snippets', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Create, update or delete a custom JavaScript snippet in the saved state.', 'daveden-builderius-enhancements' ),
-			'group'   => 'data',
+			'group'   => 'write',
 		),
-		/* ------------------------------------------------------------ Release */
-		'dbe/status'                         => array(
-			'title'   => __( 'Save/publish status', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Report each template\'s saved commit against the published release.', 'daveden-builderius-enhancements' ),
-			'group'   => 'release',
+		'dbe/duplicate-template'             => array(
+			'title'   => __( 'Duplicate template', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Copy a template as a disabled working twin — content, entity CSS, variables and snippets included.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/duplicate-component'            => array(
+			'title'   => __( 'Duplicate component', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Copy a component definition with its declared properties, for safe forks of shared blocks.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/manage-visibility-condition'    => array(
+			'title'   => __( 'Manage rendering conditions', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Read, set or clear an element\'s visibility conditions in the saved state.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+		),
+		'dbe/manage-settings-set'            => array(
+			'title'   => __( 'Manage global settings set', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Read or update the global breakpoints, responsive strategy and fonts. Site-wide impact.', 'daveden-builderius-enhancements' ),
+			'group'   => 'write',
+			'caution' => true,
+		),
+		/* ------------------------------------------------------------ Execute */
+		'dbe/restore-global-css-from-commit' => array(
+			'title'   => __( 'Restore global CSS from a commit', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Recover a clobbered stylesheet by re-saving an earlier commit\'s CSS.', 'daveden-builderius-enhancements' ),
+			'group'   => 'execute',
+		),
+		'dbe/delete-template'                => array(
+			'title'   => __( 'Delete template', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Permanently delete a template, its branches and its history. Asks for confirmation.', 'daveden-builderius-enhancements' ),
+			'group'   => 'execute',
+			'caution' => true,
+		),
+		'dbe/delete-component'               => array(
+			'title'   => __( 'Delete component', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Permanently delete an unused component and its history. Asks for confirmation.', 'daveden-builderius-enhancements' ),
+			'group'   => 'execute',
+			'caution' => true,
 		),
 		'dbe/publish'                        => array(
 			'title'   => __( 'Publish a release', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Create and publish a release from saved commits. This is go-live for visitors.', 'daveden-builderius-enhancements' ),
-			'group'   => 'release',
+			'group'   => 'execute',
 			'caution' => true,
 		),
 		'dbe/extract-release'                => array(
 			'title'   => __( 'Extract a release (work on a release)', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Rebuild ALL development state from a published release. Deletes every template, component and settings set first, including commit history and the framework CSS, then recreates them from the release.', 'daveden-builderius-enhancements' ),
-			'group'   => 'release',
+			'group'   => 'execute',
 			'danger'  => true,
 		),
 	);

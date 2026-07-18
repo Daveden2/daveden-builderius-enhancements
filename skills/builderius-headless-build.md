@@ -21,6 +21,8 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
   an empty `<main>`.
 - `dbe/update-template` — only passed fields change; a title-only update
   keeps the slug; type page/doc changes re-term correctly.
+- `dbe/duplicate-template` — an isolated working copy (content, entity CSS,
+  variables, snippets); born disabled with no apply rules unless asked.
 - `dbe/delete-template` — permanent (branches + history); `confirm: true`.
 
 **Structure** (see `builderius-subtree-html`)
@@ -29,6 +31,10 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
 - When authoring new markup, add concise `data-dbe-label` values to meaningful
   sections, layout groups, loops, controls and key content so the finished
   Navigator is easy to scan. The subtree skill contains the naming rules.
+- `dbe/manage-visibility-condition` — get/set/clear an element's rendering
+  conditions (OR-of-AND `groups` of `{name, operator, value}` rules, validated
+  against the installed registry); subtree HTML preserves conditions but
+  cannot express them.
 
 **CSS** (see `builderius-css-safety`)
 - Template-scoped: `dbe/get-entity-css` / `dbe/patch-entity-css` — named
@@ -36,23 +42,38 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
 - Global: `dbe/get-global-css` / `dbe/patch-global-css` — one named block
   per patch, framework preserved; `dbe/restore-global-css-from-commit`
   recovers a clobber.
+- `dbe/get-rendered-styles` — the entity + global rules matching one module
+  (with media context) when no builder tab exists for computed styles.
+- `dbe/list-settings-sets` / `dbe/manage-settings-set` — discover the global
+  settings sets; read/update breakpoints, responsive strategy and fonts
+  (site-wide impact — read first, expected_commit to save).
 
 **Dynamic data** (see `builderius-dynamic-data`)
 - `dbe/get-data-variables` / `dbe/manage-data-variable` — global scope
   (default) drives Collections; entity scope via `template`. snake_case
   names; GraphQL syntax checked at save; the system `wp` variable needs
   `allow_system: true` and can never be renamed or deleted.
+- Verification quartet: `dbe/get-dynamic-data-schema` (live schema, no
+  builder tab) → `dbe/resolve-data-variable` (schema-validate AND resolve in
+  a page context) → `dbe/inspect-binding-value` (is this path a safe
+  Collection source?) → `dbe/check-rendered-output` /
+  `dbe/check-render-scenarios` (prove the render, including query-parameter
+  and cookie matrices).
 
 **JavaScript**
 - `dbe/get-js-snippets` / `dbe/manage-js-snippet` — global (site-wide) or
   per-template. snake_case labels; defaults external file + footer +
   enabled. Vanilla JS in a DOMContentLoaded wrapper, event delegation on
   `data-*` hooks, CSS state classes — never inline styles from JS.
+- `dbe/validate-js-snippet` — structural check (unbalanced/unterminated
+  syntax, pasted HTML) before manage-js-snippet saves.
 
 **Components** (see `builderius-components`)
 - `dbe/list-components` / `dbe/create-component` /
   `dbe/manage-component-property` / `dbe/delete-component`; instances are
   placed as `<dbe-component name="slug" prop="value">` in apply-subtree-html.
+- `dbe/duplicate-component` — fork a shared component (props included)
+  before an experiment; instances keep pointing at the source.
 
 **State & go-live** (see `builderius-save-publish`)
 - `dbe/status` — saved vs published per entity; `dbe/list-commits` — audit
@@ -68,8 +89,10 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
    elements Navigator labels and bind data with Collection loops where content
    is dynamic.
 3. `dbe/patch-entity-css` for the page's styles, in named blocks.
-4. Verify the REAL page logged in (saved commits render for logged-in
-   users — no publish needed): authenticated fetch or browser.
+4. Verify the REAL page: `dbe/check-rendered-output` fetches it as a
+   logged-in user (saved commits render for logged-in users — no publish
+   needed) and scans for leaked Templates, unresolved bindings, PHP errors,
+   expected text and blank labels.
 5. `dbe/publish` only when the user says go.
 
 ## The save contract (applies to every writing ability)
