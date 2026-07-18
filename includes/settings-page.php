@@ -198,6 +198,69 @@ function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
 }
 
 /**
+ * Render the feature toggles for one tab, grouped by the settings-page
+ * sections declared in dbe_feature_sections().
+ *
+ * @param string $tab_slug Current tab slug.
+ * @param array  $features Feature registry from dbe_features().
+ */
+function dbe_render_feature_tab( $tab_slug, $features ) {
+	$sections = dbe_feature_sections();
+	$rendered = array();
+
+	if ( ! empty( $sections[ $tab_slug ] ) ) {
+		foreach ( $sections[ $tab_slug ] as $index => $section ) {
+			$section_features = array();
+			foreach ( $section['features'] as $id ) {
+				if ( isset( $features[ $id ] ) && $features[ $id ]['tab'] === $tab_slug ) {
+					$section_features[ $id ] = $features[ $id ];
+				}
+			}
+			if ( empty( $section_features ) ) {
+				continue;
+			}
+
+			$title_id = 'dbe-section-' . $tab_slug . '-' . $index;
+			?>
+			<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( $title_id ); ?>">
+				<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( $title_id ); ?>"><?php echo esc_html( $section['title'] ); ?></h3>
+				<?php if ( '' !== $section['description'] ) : ?>
+					<p class="dbe-feature-group__desc"><?php echo esc_html( $section['description'] ); ?></p>
+				<?php endif; ?>
+				<?php
+				foreach ( $section_features as $id => $feature ) {
+					$rendered[ $id ] = true;
+					dbe_render_toggle( $id, $feature );
+				}
+				?>
+			</section>
+			<?php
+		}
+	}
+
+	$remaining = array();
+	foreach ( $features as $id => $feature ) {
+		if ( $feature['tab'] === $tab_slug && empty( $rendered[ $id ] ) ) {
+			$remaining[ $id ] = $feature;
+		}
+	}
+
+	if ( empty( $remaining ) ) {
+		return;
+	}
+	?>
+	<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>">
+		<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>"><?php esc_html_e( 'Other enhancements', 'daveden-builderius-enhancements' ); ?></h3>
+		<?php
+		foreach ( $remaining as $id => $feature ) {
+			dbe_render_toggle( $id, $feature );
+		}
+		?>
+	</section>
+	<?php
+}
+
+/**
  * One agent-ability toggle row. Reuses the .dbe-field markup so search,
  * filtering and reset-to-defaults treat abilities like any other toggle.
  *
@@ -454,11 +517,7 @@ function dbe_render_settings_page() {
 					} elseif ( 'abilities' === $slug ) {
 						dbe_render_abilities_panel();
 					} else {
-						foreach ( $features as $id => $feature ) {
-							if ( $feature['tab'] === $slug ) {
-								dbe_render_toggle( $id, $feature );
-							}
-						}
+						dbe_render_feature_tab( $slug, $features );
 					}
 					?>
 				</section>

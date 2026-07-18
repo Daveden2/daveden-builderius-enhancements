@@ -702,26 +702,104 @@
         } catch (e) {}
     }
 
-    /* (d1) Move the target element up or down among its siblings via the builder's
-       own move action (the repaint-and-persist channel). `to` is the desired final
-       position in the sibling order; if a Builderius version treats newIndex as
-       pre-removal instead, adjust the down case here. Selection is by id, so the
-       row stays selected as it moves — no reselect needed. */
-    function moveSibling(id, dir) {
-        if (dbeUndoBusy) { return; }
+    /* (d1) Structural moves all use Builderius' own move action (the repaint-and-
+       persist channel). The shared helper records the previous location for DBE's
+       undo stack, keeps the moved row selected/focused, and announces the result. */
+    function dbeMoveLocation(id) {
         var sf = store();
         var mods = sf.storeGet('modules') || {};
-        if (!mods[id]) { return; }
-        var parent = mods[id].parent || '';
+        var mod = mods[id];
+        if (!mod) { return null; }
+        var parentId = mod.parent || '';
         var idx = sf.storeGet('indexes') || {};
-        var sibs = idx[parent || 'root'] ? [].concat(idx[parent || 'root']) : [];
-        var at = sibs.indexOf(id);
-        if (at < 0) { return; }
-        var to = at + dir;
-        if (to < 0 || to >= sibs.length) { return; }
-        storeMoveModule(sf, id, parent, to);
-        undoToast(dbeFmt(dir < 0 ? dbeT('movedUp', 'Moved “%s” up') : dbeT('movedDown', 'Moved “%s” down'),
-            mods[id].label || dbeT('element', 'element')));
+        var siblings = [].concat(idx[parentId || 'root'] || []);
+        return {
+            sf: sf,
+            mods: mods,
+            mod: mod,
+            parentId: parentId,
+            siblings: siblings,
+            index: siblings.indexOf(id)
+        };
+    }
+
+    function dbeModuleCanContainChildren(mod) {
+        if (!mod) { return false; }
+        if (mod.name === 'Template' || mod.name === 'Collection' || mod.name === 'SubCollection') { return true; }
+        if (mod.name !== 'HtmlElement') { return false; }
+        var tag = String(dbeSettingVal(mod, 'tag') || 'div').toLowerCase();
+        return !DBE_HTML_VOID[tag];
+    }
+
+    function dbeFocusMovedRow(id) {
+        waitFor(function () { return navRowById(id); }, function (row) {
+            if (row) { navSelect(row); }
+        }, 20);
+    }
+
+    function dbeMoveModule(id, newParentId, newIndex, messageKey, messageDefault) {
+        if (dbeUndoBusy) { return; }
+        var from = dbeMoveLocation(id);
+        if (!from || from.index < 0) { return false; }
+        var parentId = newParentId || '';
+        if (from.parentId === parentId && from.index === newIndex) { return false; }
+        storeMoveModule(from.sf, id, parentId, newIndex);
+        if (on('undo_delete')) {
+            dbeHistoryPush({
+                op: 'move',
+                id: id,
+                label: from.mod.label || from.mod.name || dbeT('element', 'element'),
+                parentId: from.parentId,
+                index: from.index
+            });
+        }
+        dbeFocusMovedRow(id);
+        undoToast(dbeFmt(dbeT(messageKey, messageDefault), from.mod.label || from.mod.name || dbeT('element', 'element')));
+        return true;
+    }
+
+    function moveSibling(id, dir) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || loc.index < 0) { return false; }
+        var next = loc.index + dir;
+        if (next < 0 || next >= loc.siblings.length) { return false; }
+        return dbeMoveModule(id, loc.parentId, next,
+            dir < 0 ? 'movedUp' : 'movedDown',
+            dir < 0 ? 'Moved “%s” up' : 'Moved “%s” down');
+    }
+
+    function dbeIndentTarget(id) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || loc.index <= 0) { return null; }
+        var targetId = loc.siblings[loc.index - 1];
+        return dbeModuleCanContainChildren(loc.mods[targetId]) ? targetId : null;
+    }
+
+    function indentElement(id) {
+        var targetId = dbeIndentTarget(id);
+        if (!targetId) { return false; }
+        var indexes = store().storeGet('indexes') || {};
+        return dbeMoveModule(id, targetId, [].concat(indexes[targetId] || []).length,
+            'movedIn', 'Moved “%s” in one level');
+    }
+
+    function dbeCanOutdent(id) {
+        var loc = dbeMoveLocation(id);
+        return !!(loc && loc.parentId && loc.mods[loc.parentId]);
+    }
+
+    function outdentElement(id) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || !loc.parentId) { return false; }
+        var parent = loc.mods[loc.parentId];
+        if (!parent) { return false; }
+        var grandParentId = parent.parent || '';
+        var indexes = loc.sf.storeGet('indexes') || {};
+        var parentSiblings = [].concat(indexes[grandParentId || 'root'] || []);
+        var parentIndex = parentSiblings.indexOf(loc.parentId);
+        if (parentIndex < 0) { return false; }
+        return dbeMoveModule(id, grandParentId, parentIndex + 1,
+            'movedOut', 'Moved “%s” out one level');
     }
 
     /* (d1b) Select the target's parent. The reliable channel is a click on the
@@ -1566,8 +1644,8 @@
         }, true);
     }
 
-    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element ADDS and
-       DELETES. Builderius records history but consumes none of it, and a raw
+    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element adds,
+       deletes and DBE structural moves. Builderius records history but consumes none of it, and a raw
        storeSet neither repaints nor persists, so we reverse each change through
        the builder's own controllers, which repaint tree + canvas natively:
        - a DELETE is reversed by re-adding the subtree: native Copy writes
@@ -1580,10 +1658,10 @@
        inverse onto the other stack, so redo is just the mirror. Module.added and
        Module.deleted feed the two directions; our OWN paste/remove during an
        undo/redo are skipped via dbeUndoBusy so they do not re-enter the stacks.
-       Restored elements get a new id (paste regenerates them) and are appended
+       Structural moves carry their previous parent and index, so their inverse is
+       immediate and preserves identity. Restored elements get a new id (paste regenerates them) and are appended
        last, so position is not preserved and a re-add whose parent was itself
-       restored can fail. Moves and property edits are not covered (no repaint
-       channel for them). The user's clipboard is saved/restored around the
+       restored can fail. Property edits are not covered. The user's clipboard is saved/restored around the
        forgery where the browser allows reading it. */
     var undoStack = [];
     var redoStack = [];
@@ -3235,7 +3313,30 @@
             undoToast(rec.msg || dbeT('editHtmlNotUndoable', 'This change can’t be undone step by step'));
             return;
         }
-        if (rec.op === 'restore') {
+        if (rec.op === 'move') {
+            var current = dbeMoveLocation(rec.id);
+            if (!current || current.index < 0) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotMoveGone', 'Cannot move “%s”: it is no longer here'), rec.label));
+                return;
+            }
+            if (rec.parentId && !current.mods[rec.parentId]) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotMoveParentGone', 'Cannot move “%s”: its destination parent is gone'), rec.label));
+                return;
+            }
+            var inverse = {
+                op: 'move', id: rec.id, label: rec.label,
+                parentId: current.parentId, index: current.index
+            };
+            dbeUndoBusy = true;
+            storeMoveModule(current.sf, rec.id, rec.parentId, rec.index);
+            dbeUndoBusy = false;
+            to.push(inverse);
+            if (to.length > 10) { to.shift(); }
+            dbeFocusMovedRow(rec.id);
+            undoToast(dbeFmt(dbeT('movedBack', 'Moved “%s” back'), rec.label));
+        } else if (rec.op === 'restore') {
             if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
                 from.push(rec);
                 undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
@@ -3501,6 +3602,41 @@
 
     var lastFlyoutParent = null;
 
+    function dbeSvgIcon(name, className) {
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        svg.setAttribute('class', className || '');
+        function shape(tag, attrs) {
+            var el = document.createElementNS(ns, tag);
+            Object.keys(attrs).forEach(function (key) { el.setAttribute(key, attrs[key]); });
+            svg.appendChild(el);
+        }
+        var icons = {
+            'arrow-up': [['path', { d: 'M12 19V5' }], ['path', { d: 'm5 12 7-7 7 7' }]],
+            'arrow-down': [['path', { d: 'M12 5v14' }], ['path', { d: 'm19 12-7 7-7-7' }]],
+            'indent-increase': [['path', { d: 'M3 6h18' }], ['path', { d: 'M3 12h8' }], ['path', { d: 'M3 18h18' }], ['path', { d: 'm15 9 3 3-3 3' }]],
+            'indent-decrease': [['path', { d: 'M3 6h18' }], ['path', { d: 'M13 12h8' }], ['path', { d: 'M3 18h18' }], ['path', { d: 'm9 9-3 3 3 3' }]],
+            'parent': [['path', { d: 'm9 14-5-5 5-5' }], ['path', { d: 'M4 9h10a6 6 0 0 1 6 6v1' }]],
+            'panels': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M9 4v16' }], ['path', { d: 'M15 4v16' }]],
+            'panel-left': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M9 4v16' }]],
+            'panel-right': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M15 4v16' }]],
+            'pointer': [['path', { d: 'm5 3 14 9-6 2-3 6-5-17Z' }]],
+            'dashboard': [['rect', { x: '3', y: '3', width: '7', height: '9', rx: '1' }], ['rect', { x: '14', y: '3', width: '7', height: '5', rx: '1' }], ['rect', { x: '14', y: '12', width: '7', height: '9', rx: '1' }], ['rect', { x: '3', y: '16', width: '7', height: '5', rx: '1' }]],
+            'package': [['path', { d: 'm21 8-9-5-9 5 9 5 9-5Z' }], ['path', { d: 'M3 8v8l9 5 9-5V8' }], ['path', { d: 'M12 13v8' }]],
+            'settings': [['path', { d: 'M4 21v-7' }], ['path', { d: 'M4 10V3' }], ['path', { d: 'M12 21v-9' }], ['path', { d: 'M12 8V3' }], ['path', { d: 'M20 21v-5' }], ['path', { d: 'M20 12V3' }], ['path', { d: 'M1 14h6' }], ['path', { d: 'M9 8h6' }], ['path', { d: 'M17 16h6' }]]
+        };
+        (icons[name] || []).forEach(function (part) { shape(part[0], part[1]); });
+        return svg;
+    }
+
     function makeParent(labelText, first, itemsFactory, disabled) {
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item dbe-ctx-item dbe-ctx-parent' + (first ? ' dbe-ctx-item--first' : '');
@@ -3555,7 +3691,15 @@
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item dbe-ctx-item';
         li.setAttribute('role', 'menuitem');
-        li.textContent = labelText;
+        if (opts.icon) {
+            var label = document.createElement('span');
+            label.className = 'dbe-ctx-label';
+            label.appendChild(dbeSvgIcon(opts.icon, 'dbe-ctx-icon'));
+            label.appendChild(document.createTextNode(labelText));
+            li.appendChild(label);
+        } else {
+            li.textContent = labelText;
+        }
         if (opts.accel) {
             // Right-aligned shortcut hint, mirroring the block editor's menu.
             li.classList.add('dbe-ctx-item--accel');
@@ -3944,8 +4088,8 @@
                 }
             }
 
-            // "Move up" / "Move down" / "Select parent" (element_moves) — single-target.
-            var moveUpLi = null, moveDownLi = null, selectParentLi = null;
+            // Structural moves and parent navigation (element_moves) — single-target.
+            var moveUpLi = null, moveDownLi = null, moveInLi = null, moveOutLi = null, selectParentLi = null;
             if (!multiIds && on('element_moves') && lastCtxId) {
                 var emId = lastCtxId;
                 var emMods = modules() || {};
@@ -3955,9 +4099,19 @@
                     var emIdx = store().storeGet('indexes') || {};
                     var emSibs = [].concat(emIdx[emParent || 'root'] || []);
                     var emAt = emSibs.indexOf(emId);
-                    moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, { disabled: emAt <= 0 });
-                    moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, { disabled: emAt < 0 || emAt >= emSibs.length - 1 });
-                    if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }); }
+                    moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, {
+                        disabled: emAt <= 0, accel: dbeAccel('↑', { alt: true }), icon: 'arrow-up'
+                    });
+                    moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, {
+                        disabled: emAt < 0 || emAt >= emSibs.length - 1, accel: dbeAccel('↓', { alt: true }), icon: 'arrow-down'
+                    });
+                    moveInLi = makeCtxItem(dbeT('moveIn', 'Move in one level'), function () { indentElement(emId); }, {
+                        disabled: !dbeIndentTarget(emId), accel: dbeAccel('→', { alt: true }), icon: 'indent-increase'
+                    });
+                    moveOutLi = makeCtxItem(dbeT('moveOut', 'Move out one level'), function () { outdentElement(emId); }, {
+                        disabled: !dbeCanOutdent(emId), accel: dbeAccel('←', { alt: true }), icon: 'indent-decrease'
+                    });
+                    if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }, { icon: 'parent' }); }
                 }
             }
 
@@ -4039,7 +4193,7 @@
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, importHtmlLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, importHtmlLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -4122,7 +4276,7 @@
                 nameItems,                                                       // Name & style
                 [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
                 [changeTagParent, wrapParent, unwrapLi, editHtmlLi, importHtmlLi].filter(Boolean), // Structure
-                [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
+                [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
                 multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
             ];
@@ -4324,7 +4478,31 @@
             '.uniModTree__favouritesList [data-tooltip-content], .uniFooterPanelBar [data-tooltip-content]'
         ).forEach(function (a) {
             var label = (a.getAttribute('data-tooltip-content') || '').trim();
-            if (label) { setTip(a, label); }
+            if (!label) { return; }
+            var control = a.matches('button, [role="button"]') ? a : a.querySelector('button, [role="button"]');
+            setTip(control || a, label);
+            // The tooltip anchor often wraps the actual favourite button. Once
+            // its copy has moved onto the control, disable the duplicate native
+            // tooltip on the wrapper too.
+            if (control && control !== a) {
+                a.removeAttribute('data-tooltip-content');
+                if (a.hasAttribute('title')) { a.removeAttribute('title'); }
+            }
+        });
+
+        // Edit mode adds a separate remove button before each favourite, but
+        // Builderius leaves those controls unnamed. Borrow the adjacent
+        // favourite button's adopted label so each destructive action names
+        // its target and uses the same tooltip treatment as the rest of the
+        // favourites bar.
+        document.querySelectorAll('.uniModTree__favouritesListItem .closeIcon').forEach(function (btn) {
+            var favourite = btn.parentElement && btn.parentElement.querySelector('.modIcon');
+            var name = favourite && (
+                favourite.getAttribute('aria-label') || favourite.getAttribute('data-dbe-tip')
+            );
+            setTip(btn, name
+                ? dbeFmt(dbeT('tipRemoveFavourite', 'Remove %s from favourites'), name)
+                : dbeT('tipRemoveFavouriteFallback', 'Remove from favourites'));
         });
     }
 
@@ -6676,6 +6854,49 @@
         });
     }
     var DBE_AI_PANEL_ID = 'dbe-ai-terminal-panel';
+    var DBE_AI_ESCAPE_HINT_ID = 'dbe-ai-terminal-escape-hint';
+
+    function dbeTerminalEscapeHint() {
+        var hint = document.getElementById(DBE_AI_ESCAPE_HINT_ID);
+        if (!hint) {
+            hint = document.createElement('span');
+            hint.id = DBE_AI_ESCAPE_HINT_ID;
+            hint.className = 'dbe-visually-hidden';
+            hint.textContent = dbeT('terminalEscapeHint', 'Press Control and the grave accent key to move focus out of the terminal');
+            document.body.appendChild(hint);
+        }
+        return hint;
+    }
+
+    function dbeBindTerminalEscape(frame) {
+        if (!frame) { return; }
+        var doc;
+        try { doc = frame.contentDocument; } catch (e) { doc = null; }
+        if (doc && !doc.dbeTerminalEscapeKeyBound) {
+            doc.dbeTerminalEscapeKeyBound = true;
+            doc.addEventListener('keydown', function (e) {
+                if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== 'Backquote') { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                var tab = document.querySelector('.uniAiChat__terminalTab--active') || document.querySelector('.uniAiChat__terminalTab');
+                var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
+                var target = tab || panel;
+                if (target) { try { target.focus(); } catch (err) {} }
+            }, true);
+            var hint = dbeTerminalEscapeHint();
+            if (frame.getAttribute('aria-describedby') !== hint.id) { frame.setAttribute('aria-describedby', hint.id); }
+        }
+        if (!frame.dbeTerminalEscapeLoadBound) {
+            frame.dbeTerminalEscapeLoadBound = true;
+            frame.addEventListener('load', function () { dbeBindTerminalEscape(frame); });
+        }
+    }
+
+    function ensureTerminalEscapeKeys() {
+        document.querySelectorAll('.uniAiChat__terminalFrame').forEach(dbeBindTerminalEscape);
+    }
+
     function ensureTerminalTabs() {
         dbeObserveTerminalBar();
         dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
@@ -6687,6 +6908,7 @@
             if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
             if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
         }
+        ensureTerminalEscapeKeys();
         var active = null;
         [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
             if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
@@ -7253,9 +7475,14 @@
                 ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
                 ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
             ] : [],
+            on('element_moves') ? [
+                [sc('↑', { alt: true }) + ' · ' + sc('↓', { alt: true }), dbeT('scReorder', 'Move the element among its siblings')],
+                [sc('→', { alt: true }), dbeT('scMoveIn', 'Move the element into its previous sibling')],
+                [sc('←', { alt: true }), dbeT('scMoveOut', 'Move the element out one level')]
+            ] : [],
             [
-                [sc('Z', { cmd: true }), dbeT('scUndo', 'Restore the last deleted element')],
-                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')]
+                [sc('Z', { cmd: true }), dbeT('scUndo', 'Undo the last element change')],
+                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the element change')]
             ],
             on('multi_select') ? [
                 [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
@@ -7264,20 +7491,35 @@
             [
                 [sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]
             ]
-        )],
+        )]
+    ].concat((on('navigator_keyboard') || on('keyboard_shortcuts')) ? [
+        [dbeT('scGroupCanvas', 'Canvas'), [].concat(
+            on('navigator_keyboard') ? [
+                ['↑ ↓', dbeT('scCanvasMove', 'Move between visible elements')],
+                ['→', dbeT('scCanvasChild', 'Open a branch, then select its first child')],
+                ['←', dbeT('scCanvasParent', 'Close a branch, then select its parent')],
+                ['Home · End', dbeT('scCanvasFirstLast', 'First / last visible element')]
+            ] : [],
+            on('keyboard_shortcuts') ? [
+                ['Enter', dbeT('scEnterInteractive', 'Enter interactive canvas mode')],
+                ['Esc', dbeT('scExitInteractive', 'Return to canvas selection mode')]
+            ] : []
+        )]
+    ] : []).concat([
         [dbeT('scGroupContextMenu', 'Context menu'), [
             ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
             ['Home · End', dbeT('scFirstLast', 'First / last item')],
             ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
             ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
         ]]
-    ].concat(on('keyboard_shortcuts') ? [
+    ]).concat(on('keyboard_shortcuts') ? [
         [dbeT('scGroupElements', 'Selected element'), [
             [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate')],
             [sc('X', { cmd: true }), dbeT('scCut', 'Cut')],
             [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
             [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
+            ['Esc', dbeT('scFinishCanvasText', 'Finish editing text in the canvas')],
             [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
         [dbeT('scGroupAreas', 'Move to area'), [
@@ -7286,9 +7528,13 @@
             [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas / preview')],
             [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
         ]]
+    ] : []).concat(on('ai_terminal_tabs') ? [
+        [dbeT('scGroupSenseAi', 'Sense AI'), [
+            [sc('`', { ctrl: true }), dbeT('scExitTerminal', 'Move focus out of the terminal')]
+        ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [
-            [sc('K', { cmd: true, shift: true }), dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
+            [dbePaletteAccel(), dbeT('scOpenPalette', 'Open the command palette')]
         ]]
     ] : []);
     function openShortcutsDialog() {
@@ -7486,6 +7732,13 @@
        a -1 tabindex) when they have no focusable control mounted; the canvas is
        the preview iframe itself. */
     function dbeFocusArea(which) {
+        var wrappers = dbePanelWrappers();
+        var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
+        if (side && dbePanelSideHidden(side, wrappers[side])) {
+            dbeSetPanelVisibility(side, false);
+            setTimeout(function () { dbeFocusArea(which); }, 120);
+            return;
+        }
         var el = null;
         if (which === 'navigator') {
             el = document.querySelector('.uniRightPanel .uni-tree-node-' + (activeId() || '\0'))
@@ -7576,8 +7829,13 @@
         return DBE_PALETTE_KEYS[(CFG.palette || {}).shortcut] || DBE_PALETTE_KEYS['mod-k'];
     }
     function dbePaletteAccel() {
-        var k = dbePaletteKey();
-        return dbeAccel(k.label, { cmd: true, shift: !!k.shift });
+        // SHORTCUT_GROUPS is assembled before DBE_PALETTE_KEYS is assigned, so
+        // derive the display chord directly from configuration at boot time.
+        var choice = (CFG.palette || {}).shortcut || 'mod-k';
+        return dbeAccel(choice === 'mod-slash' ? '/' : 'K', {
+            cmd: true,
+            shift: choice === 'mod-shift-k'
+        });
     }
 
     /* Add (or update) one or more HTML attributes on an existing element through
@@ -7611,6 +7869,7 @@
     function openCommandPalette() {
         var id = activeId(); // the selected element (the palette is keyboard-invoked)
         var hasEl = !!(id && (modules() || {})[id]);
+        var focusReturn = document.activeElement;
         var prior = document.querySelector('dialog.dbe-palette');
         if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
 
@@ -7622,18 +7881,36 @@
         input.className = 'dbe-palette__input';
         input.setAttribute('aria-label', dbeT('searchCommands', 'Search commands'));
         input.placeholder = dbeT('searchCommands', 'Search commands…');
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-autocomplete', 'list');
+        input.setAttribute('aria-expanded', 'true');
+        input.setAttribute('aria-controls', 'dbe-palette-list');
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-palette__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '×';
+        close.addEventListener('click', function () { dlg.close(); });
+        var searchRow = document.createElement('div');
+        searchRow.className = 'dbe-palette__search-row';
+        searchRow.appendChild(input);
+        searchRow.appendChild(close);
         var listEl = document.createElement('ul');
         listEl.className = 'dbe-palette__list';
+        listEl.id = 'dbe-palette-list';
         listEl.setAttribute('role', 'listbox');
         var hintEl = document.createElement('div');
         hintEl.className = 'dbe-palette__hint';
-        dlg.appendChild(input);
+        dlg.appendChild(searchRow);
         dlg.appendChild(listEl);
         dlg.appendChild(hintEl);
         ['keydown', 'pointerdown', 'mousedown', 'click'].forEach(function (type) {
             dlg.addEventListener(type, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { dlg.remove(); });
+        dlg.addEventListener('close', function () {
+            dlg.remove();
+            if (focusReturn && focusReturn.isConnected) { try { focusReturn.focus(); } catch (e) {} }
+        });
         document.body.appendChild(dlg);
 
         function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
@@ -7646,6 +7923,8 @@
             add: dbeT('paletteGroupAdd', 'Add to element'),
             structure: dbeT('paletteGroupStructure', 'Structure'),
             element: dbeT('paletteGroupElement', 'Element'),
+            workspace: dbeT('paletteGroupWorkspace', 'Workspace'),
+            admin: dbeT('paletteGroupAdmin', 'WordPress and Builderius'),
             goto: dbeT('paletteGroupGoto', 'Go to')
         };
 
@@ -7685,6 +7964,23 @@
                 { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
                 { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, 1); }); } }
             );
+            if (on('element_moves')) {
+                var paletteLoc = dbeMoveLocation(id);
+                var canMoveUp = !!(paletteLoc && paletteLoc.index > 0);
+                var canMoveDown = !!(paletteLoc && paletteLoc.index >= 0 && paletteLoc.index < paletteLoc.siblings.length - 1);
+                var canMoveIn = !!dbeIndentTarget(id);
+                var canMoveOut = dbeCanOutdent(id);
+                commands.push(
+                    { group: 'structure', label: dbeT('moveUp', 'Move up'), icon: 'arrow-up', accel: dbeAccel('↑', { alt: true }), disabled: !canMoveUp,
+                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, -1); }); } },
+                    { group: 'structure', label: dbeT('moveDown', 'Move down'), icon: 'arrow-down', accel: dbeAccel('↓', { alt: true }), disabled: !canMoveDown,
+                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, 1); }); } },
+                    { group: 'structure', label: dbeT('moveIn', 'Move in one level'), icon: 'indent-increase', accel: dbeAccel('→', { alt: true }), disabled: !canMoveIn,
+                        reason: dbeT('cannotMoveIn', 'This element cannot move into its previous sibling'), run: function () { runClose(function () { indentElement(id); }); } },
+                    { group: 'structure', label: dbeT('moveOut', 'Move out one level'), icon: 'indent-decrease', accel: dbeAccel('←', { alt: true }), disabled: !canMoveOut,
+                        reason: dbeT('cannotMoveOut', 'This element cannot move out another level'), run: function () { runClose(function () { outdentElement(id); }); } }
+                );
+            }
             if (on('wrap_in')) {
                 commands.push(
                     { group: 'structure', label: dbeT('paletteWrapDiv', 'Wrap in div'), run: function () { runClose(function () { wrap('div', [id]); }); } },
@@ -7733,21 +8029,69 @@
                 { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
+        var panelWrappers = dbePanelWrappers();
+        var leftPanelHidden = dbePanelSideHidden('left', panelWrappers.left);
+        var rightPanelHidden = dbePanelSideHidden('right', panelWrappers.right);
+        var panelsHidden = leftPanelHidden && rightPanelHidden;
         commands.push(
+            { group: 'workspace', icon: 'pointer', label: dbeCanvasInteractive() ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas') : dbeT('enterInteractiveCanvas', 'Enter interactive canvas'),
+                run: function () { runClose(function () { dbeSetCanvasInteractive(!dbeCanvasInteractive()); }); } },
+            { group: 'workspace', icon: 'panels', label: panelsHidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'),
+                run: function () { runClose(function () {
+                    dbeToggleSidePanels(function (changed) {
+                        if (changed) { undoToast(panelsHidden ? dbeT('sidePanelsShown', 'Side panels shown') : dbeT('sidePanelsHidden', 'Side panels hidden')); }
+                    });
+                }); } },
+            { group: 'workspace', icon: 'panel-left', label: leftPanelHidden ? dbeT('showSettingsPanel', 'Show settings panel') : dbeT('hideSettingsPanel', 'Hide settings panel'),
+                run: function () { runClose(function () { dbeSetPanelVisibility('left', !leftPanelHidden); }); } },
+            { group: 'workspace', icon: 'panel-right', label: rightPanelHidden ? dbeT('showNavigatorPanel', 'Show Navigator panel') : dbeT('hideNavigatorPanel', 'Hide Navigator panel'),
+                run: function () { runClose(function () { dbeSetPanelVisibility('right', !rightPanelHidden); }); } },
             { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
             { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
             { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
             { group: 'goto', label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), accel: '?', run: function () { runClose(openShortcutsDialog); } }
         );
+        var adminUrls = CFG.adminUrls || {};
+        if (adminUrls.dashboard) {
+            commands.push({ group: 'admin', icon: 'dashboard', label: dbeT('openWpDashboard', 'Open WordPress dashboard'), href: adminUrls.dashboard });
+        }
+        if (adminUrls.releases) {
+            commands.push({ group: 'admin', icon: 'package', label: dbeT('openBuilderiusReleases', 'Open Builderius releases'), href: adminUrls.releases });
+        }
+        if (adminUrls.settings) {
+            commands.push({ group: 'admin', icon: 'settings', label: dbeT('openBuilderiusSettings', 'Open Builderius settings'), href: adminUrls.settings });
+        }
+
+        var paletteGroupOrder = ['add', 'structure', 'element', 'workspace', 'goto', 'admin'];
+        commands.sort(function (a, b) {
+            return paletteGroupOrder.indexOf(a.group) - paletteGroupOrder.indexOf(b.group);
+        });
 
         var mode = null; // null = list mode; else the active input command
         var buttons = [];
         var groupHeads = []; // divider/heading <li>s, hidden when their group is fully filtered out
+        var activeButton = null;
+
+        function setActiveButton(button) {
+            buttons.forEach(function (b) {
+                var selected = b === button ? 'true' : 'false';
+                if (b.getAttribute('aria-selected') !== selected) { b.setAttribute('aria-selected', selected); }
+            });
+            activeButton = button || null;
+            if (activeButton) {
+                input.setAttribute('aria-activedescendant', activeButton.id);
+                try { activeButton.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+        }
 
         function renderList() {
             listEl.innerHTML = '';
             buttons = [];
             groupHeads = [];
+            activeButton = null;
+            input.removeAttribute('aria-activedescendant');
             var lastGroup = null;
             commands.forEach(function (cmd) {
                 if (cmd.group && cmd.group !== lastGroup) {
@@ -7769,14 +8113,28 @@
                 // presentational (like the group heads above) or it breaks the
                 // listbox→option ownership chain for screen readers.
                 li.setAttribute('role', 'presentation');
-                var btn = document.createElement('button');
-                btn.type = 'button';
+                var btn = document.createElement(cmd.href ? 'a' : 'button');
+                if (cmd.href) {
+                    btn.href = cmd.href;
+                    btn.target = '_blank';
+                    btn.rel = 'noopener';
+                } else {
+                    btn.type = 'button';
+                }
                 btn.className = 'dbe-palette__item';
                 btn.setAttribute('role', 'option');
+                btn.id = 'dbe-palette-option-' + buttons.length;
+                btn.tabIndex = -1;
+                btn.setAttribute('aria-selected', 'false');
+                if (cmd.disabled) { btn.setAttribute('aria-disabled', 'true'); }
+                var command = document.createElement('span');
+                command.className = 'dbe-palette__command';
+                if (cmd.icon) { command.appendChild(dbeSvgIcon(cmd.icon, 'dbe-palette__icon')); }
                 var lab = document.createElement('span');
                 lab.className = 'dbe-palette__label';
                 lab.textContent = cmd.label;
-                btn.appendChild(lab);
+                command.appendChild(lab);
+                btn.appendChild(command);
                 if (cmd.accel) {
                     var acc = document.createElement('span');
                     acc.className = 'dbe-palette__accel';
@@ -7787,7 +8145,11 @@
                 btn.dbeCmd = cmd;
                 btn.dbeGroup = cmd.group;
                 btn.dbeLabel = cmd.label; // filter on the label only, not the accel glyphs
-                btn.addEventListener('click', function () { pick(cmd); });
+                btn.addEventListener('click', function () {
+                    if (cmd.href) { dlg.close(); return; }
+                    pick(cmd);
+                });
+                btn.addEventListener('mouseenter', function () { setActiveButton(btn); });
                 li.appendChild(btn);
                 listEl.appendChild(li);
                 buttons.push(btn);
@@ -7803,13 +8165,24 @@
             groupHeads.forEach(function (h) {
                 h.hidden = !buttons.some(function (b) { return b.dbeGroup === h.dbeGroup && !b.parentElement.hidden; });
             });
+            if (activeButton && activeButton.parentElement.hidden) { setActiveButton(null); }
         }
-        function pick(cmd) { if (cmd.input) { enterInput(cmd); } else { cmd.run(); } }
+        function pick(cmd) {
+            if (cmd.disabled) { undoToast(cmd.reason || dbeT('commandUnavailable', 'That command is not available here')); return; }
+            if (cmd.href) {
+                var link = buttons.filter(function (button) { return button.dbeCmd === cmd; })[0];
+                if (link) { link.click(); }
+                return;
+            }
+            if (cmd.input) { enterInput(cmd); } else { cmd.run(); }
+        }
         function enterInput(cmd) {
             mode = cmd;
+            setActiveButton(null);
             listEl.innerHTML = '';
             input.value = '';
             input.placeholder = cmd.ph || cmd.label;
+            input.setAttribute('aria-expanded', 'false');
             hintEl.textContent = cmd.label;
             input.focus();
         }
@@ -7817,6 +8190,7 @@
             mode = null;
             input.value = '';
             input.placeholder = dbeT('searchCommands', 'Search commands…');
+            input.setAttribute('aria-expanded', 'true');
             renderList(); applyFilter();
             input.focus();
         }
@@ -7827,8 +8201,7 @@
                 e.preventDefault();
                 if (mode) { mode.run(input.value); return; }
                 var vis = visible();
-                var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
-                var pickBtn = cur || vis[0];
+                var pickBtn = activeButton || vis[0];
                 if (pickBtn) { pick(pickBtn.dbeCmd); }
                 return;
             }
@@ -7840,10 +8213,10 @@
             e.preventDefault();
             var vis2 = visible();
             if (!vis2.length) { return; }
-            var cur2 = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
-            var i = vis2.indexOf(cur2);
+            var i = vis2.indexOf(activeButton);
             var next = e.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % vis2.length) : (i < 0 ? vis2.length - 1 : (i - 1 + vis2.length) % vis2.length);
-            vis2[next].focus();
+            setActiveButton(vis2[next]);
+            input.focus();
         });
 
         renderList();
@@ -7862,6 +8235,199 @@
         if (document.querySelector('dialog[open]')) { return; }
         e.preventDefault(); e.stopPropagation();
         openCommandPalette();
+    }
+
+    /* The preview is a same-origin iframe. Once focus enters it, key events no
+       longer bubble to the builder document, so bridge the canvas-specific keys
+       into that document. */
+    var dbeKeyboardFrame = null;
+
+    function dbeCanvasTextEditingKeydown(e) {
+        if (e.key !== 'Escape') { return; }
+        var target = e.target;
+        var editor = target && target.closest
+            ? target.closest('uni-inline-editing[contenteditable="true"]')
+            : null;
+        if (!editor) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        // Builderius commits and exits inline editing through this control's
+        // native blur handler, including its selection-overlay refresh.
+        editor.blur();
+    }
+
+    function dbeCanvasInteractive() {
+        try {
+            var mode = store().storeGet('overlayMode');
+            if (mode) { return mode !== 'selectModule'; }
+        } catch (e) {}
+        var toggle = document.querySelector('.overlayToggleIcon');
+        return !!(toggle && toggle.classList.contains('active'));
+    }
+
+    function dbeCanvasStatus(message) {
+        var status = document.querySelector('.dbe-canvas-status');
+        if (!status) {
+            status = document.createElement('div');
+            status.className = 'dbe-canvas-status dbe-visually-hidden';
+            status.setAttribute('role', 'status');
+            document.body.appendChild(status);
+        }
+        status.textContent = '';
+        setTimeout(function () { status.textContent = message; }, 20);
+    }
+
+    function dbeSetCanvasInteractive(interactive) {
+        if (dbeCanvasInteractive() === interactive) { return false; }
+        var toggle = document.querySelector('.overlayToggleIcon');
+        if (toggle) { clickSeq(toggle); }
+        else {
+            try { store().storeSet('overlayMode', interactive ? 'interact' : 'selectModule'); } catch (e) { return false; }
+        }
+        dbeCanvasStatus(interactive
+            ? dbeT('canvasInteractiveOn', 'Interactive canvas mode')
+            : dbeT('canvasSelectionOn', 'Canvas selection mode'));
+        if (!interactive) {
+            var frame = document.getElementById('builderInner');
+            if (frame) { setTimeout(function () { try { frame.focus(); } catch (e) {} }, 0); }
+        }
+        return true;
+    }
+
+    function dbeCanvasRows() {
+        var root = navRootList();
+        if (!root) { return []; }
+        return [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).filter(function (row) {
+            var parent = navParentRow(row);
+            while (parent) {
+                if (!navRowExpanded(parent)) { return false; }
+                parent = navParentRow(parent);
+            }
+            return true;
+        });
+    }
+
+    function dbeCanvasSelectRow(row) {
+        if (!row) { return; }
+        clickSeq(row);
+        var label = (row.textContent || '').trim() || dbeT('element', 'Element');
+        dbeCanvasStatus(dbeFmt(dbeT('canvasSelected', 'Selected %s'), label));
+    }
+
+    function dbeCanvasNavigationKeydown(e) {
+        if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; }
+        var target = e.target;
+        if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], .monaco-editor')) { return; }
+
+        if (dbeCanvasInteractive()) {
+            // This listener runs in the bubble phase, so page widgets get the
+            // first opportunity to handle Escape themselves.
+            if (on('keyboard_shortcuts') && e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                dbeSetCanvasInteractive(false);
+            }
+            return;
+        }
+
+        if (on('keyboard_shortcuts') && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            dbeSetCanvasInteractive(true);
+            return;
+        }
+        if (!on('navigator_keyboard') || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+
+        var rows = dbeCanvasRows();
+        if (!rows.length) { return; }
+        var current = navRowById(activeId());
+        var i = rows.indexOf(current);
+        e.preventDefault();
+        e.stopPropagation();
+        if (i < 0) {
+            dbeCanvasSelectRow((e.key === 'ArrowUp' || e.key === 'End') ? rows[rows.length - 1] : rows[0]);
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                if (i < rows.length - 1) { dbeCanvasSelectRow(rows[i + 1]); }
+                break;
+            case 'ArrowUp':
+                if (i > 0) { dbeCanvasSelectRow(rows[i - 1]); }
+                break;
+            case 'Home':
+                dbeCanvasSelectRow(rows[0]);
+                break;
+            case 'End':
+                dbeCanvasSelectRow(rows[rows.length - 1]);
+                break;
+            case 'ArrowRight':
+                if (navRowExpandable(current) && !navRowExpanded(current)) {
+                    navToggleExpand(current);
+                } else if (navRowExpandable(current) && navRowExpanded(current)) {
+                    var child = rows[i + 1];
+                    if (child && navRowLi(current).contains(child)) { dbeCanvasSelectRow(child); }
+                }
+                break;
+            case 'ArrowLeft':
+                if (navRowExpandable(current) && navRowExpanded(current)) {
+                    navToggleExpand(current);
+                } else {
+                    dbeCanvasSelectRow(navParentRow(current));
+                }
+                break;
+        }
+    }
+
+    function dbeBindKeyboardFrameDocument(frame) {
+        var doc;
+        try { doc = frame && frame.contentDocument; } catch (e) { return; }
+        if (!doc) { return; }
+        if (on('command_palette') && !doc.dbePaletteKeyBound) {
+            doc.addEventListener('keydown', dbePaletteKeydown, true);
+            doc.dbePaletteKeyBound = true;
+        }
+        if (on('keyboard_shortcuts') && !doc.dbeCanvasTextEditingKeyBound) {
+            doc.addEventListener('keydown', dbeCanvasTextEditingKeydown, true);
+            doc.dbeCanvasTextEditingKeyBound = true;
+        }
+        if ((on('navigator_keyboard') || on('keyboard_shortcuts')) && !doc.dbeCanvasNavigationKeyBound) {
+            doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
+            doc.dbeCanvasNavigationKeyBound = true;
+        }
+    }
+
+    function ensureKeyboardIframeBridge() {
+        var frame = document.getElementById('builderInner');
+        if (!frame) { return; }
+        if (dbeKeyboardFrame !== frame) {
+            dbeKeyboardFrame = frame;
+            frame.addEventListener('load', function () { dbeBindKeyboardFrameDocument(frame); });
+        }
+        dbeBindKeyboardFrameDocument(frame);
+    }
+
+    function ensureCanvasModeControl() {
+        var toggle = document.querySelector('.overlayToggleIcon');
+        if (!toggle) { return; }
+        var interactive = dbeCanvasInteractive();
+        var label = interactive
+            ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas')
+            : dbeT('enterInteractiveCanvas', 'Enter interactive canvas');
+        if (toggle.getAttribute('role') !== 'button') { toggle.setAttribute('role', 'button'); }
+        if (toggle.getAttribute('tabindex') !== '0') { toggle.setAttribute('tabindex', '0'); }
+        if (toggle.getAttribute('aria-pressed') !== String(interactive)) { toggle.setAttribute('aria-pressed', String(interactive)); }
+        if (toggle.getAttribute('aria-label') !== label) { toggle.setAttribute('aria-label', label); }
+        if (toggle.dbeCanvasModeKeyBound) { return; }
+        toggle.dbeCanvasModeKeyBound = true;
+        toggle.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            dbeSetCanvasInteractive(!dbeCanvasInteractive());
+        });
     }
 
     /* Top-bar palette button: a pointer-visible way into the palette, and the
@@ -8316,15 +8882,116 @@
        (while widening the right wrapper to 600px), and reading the left panel
        alone mistook that tab for the hide toggle — panels vanished and the
        width pins dropped every time it opened. */
-    function dbeSyncPanelsHidden() {
-        function collapsed(el) {
-            return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
-        }
+    function dbePanelCollapsed(el) {
+        return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
+    }
+
+    var DBE_PANEL_VISIBILITY_KEY = 'dbeBuilderPanelVisibility';
+
+    function dbePanelVisibility() {
+        var state = {};
+        try { state = JSON.parse(localStorage.getItem(DBE_PANEL_VISIBILITY_KEY) || '{}') || {}; } catch (e) {}
+        return { left: state.left === true, right: state.right === true };
+    }
+
+    function dbeApplyPanelVisibility(state) {
+        var next = state || dbePanelVisibility();
+        document.documentElement.classList.toggle('dbe-left-panel-hidden', next.left);
+        document.documentElement.classList.toggle('dbe-right-panel-hidden', next.right);
+        return next;
+    }
+
+    function dbeSavePanelVisibility(state) {
+        var next = { left: state.left === true, right: state.right === true };
+        try { localStorage.setItem(DBE_PANEL_VISIBILITY_KEY, JSON.stringify(next)); } catch (e) {}
+        dbeApplyPanelVisibility(next);
+        dbeSyncPanelsHidden();
+        return next;
+    }
+
+    function dbeSetPanelVisibility(side, hidden) {
+        var state = dbePanelVisibility();
+        state[side] = !!hidden;
+        return dbeSavePanelVisibility(state);
+    }
+
+    function dbePanelWrappers() {
         var rp = document.querySelector('.uniRightPanel');
-        var hidden = collapsed(document.querySelector('.uniLeftPanelOuter')) &&
-            (!rp || collapsed(rp.parentElement));
+        return {
+            left: document.querySelector('.uniLeftPanelOuter'),
+            right: rp && rp.parentElement
+        };
+    }
+
+    function dbePanelsAreHidden() {
+        var wrappers = dbePanelWrappers();
+        return dbePanelSideHidden('left', wrappers.left) && (!wrappers.right || dbePanelSideHidden('right', wrappers.right));
+    }
+
+    function dbePanelSideHidden(side, wrapper) {
+        return document.documentElement.classList.contains('dbe-' + side + '-panel-hidden') || dbePanelCollapsed(wrapper);
+    }
+
+    function dbeSidePanelsButton() {
+        return [].slice.call(document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton')).filter(function (b) {
+            var path = b.querySelector('svg path');
+            return path && (path.getAttribute('d') || '').indexOf('M14.4551') === 0;
+        })[0] || null;
+    }
+
+    function dbeSyncPanelToggle(button, hidden) {
+        if (!button) { return; }
+        var label = hidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)');
+        if (button.getAttribute('aria-label') !== label) { button.setAttribute('aria-label', label); }
+        var pressed = hidden ? 'true' : 'false';
+        if (button.getAttribute('aria-pressed') !== pressed) { button.setAttribute('aria-pressed', pressed); }
+        if (on('tooltips') && button.getAttribute('data-dbe-tip') !== label) { button.setAttribute('data-dbe-tip', label); }
+        if (on('command_palette') && !button.dbePersistedPanelsBound) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                var nextHidden = !dbePanelsAreHidden();
+                dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
+            }, true);
+            button.dbePersistedPanelsBound = true;
+        }
+    }
+
+    function dbeSetPanelHiddenState(wrapper, hidden) {
+        if (!wrapper) { return; }
+        if (hidden) {
+            if (!wrapper.hasAttribute('inert')) { wrapper.setAttribute('inert', ''); }
+            if (wrapper.getAttribute('aria-hidden') !== 'true') { wrapper.setAttribute('aria-hidden', 'true'); }
+        } else {
+            if (wrapper.hasAttribute('inert')) { wrapper.removeAttribute('inert'); }
+            if (wrapper.hasAttribute('aria-hidden')) { wrapper.removeAttribute('aria-hidden'); }
+        }
+    }
+
+    function dbeSyncPanelsHidden() {
+        if (on('command_palette')) { dbeApplyPanelVisibility(); }
+        var wrappers = dbePanelWrappers();
+        var leftHidden = dbePanelSideHidden('left', wrappers.left);
+        var rightHidden = !wrappers.right || dbePanelSideHidden('right', wrappers.right);
+        var hidden = dbePanelsAreHidden();
+        if (document.activeElement &&
+            ((leftHidden && wrappers.left && wrappers.left.contains(document.activeElement)) ||
+                (rightHidden && wrappers.right && wrappers.right.contains(document.activeElement)))) {
+            var fallback = document.querySelector('.dbe-palette-btn') || document.getElementById('builderInner') || dbeSidePanelsButton();
+            if (fallback) { try { fallback.focus(); } catch (e) {} }
+        }
         document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
+        dbeSetPanelHiddenState(wrappers.left, leftHidden);
+        dbeSetPanelHiddenState(wrappers.right, rightHidden);
+        dbeSyncPanelToggle(dbeSidePanelsButton(), hidden);
         return hidden;
+    }
+
+    function dbeToggleSidePanels(done) {
+        var wantHidden = !dbePanelsAreHidden();
+        dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+        if (done) { done(true); }
+        return true;
     }
 
     function ensurePanelHandles() {
@@ -10161,10 +10828,30 @@
 
     function navOnKeydown(e) {
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
-        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave modified combos to the builder
         var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
         var root = navRootList();
         if (!btn || !root || !root.contains(btn)) { return; }
+        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && on('element_moves') && /^Arrow/.test(e.key)) {
+            var id = navRowId(btn);
+            if (!id) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var moved = false;
+            if (e.key === 'ArrowUp') { moved = moveSibling(id, -1); }
+            else if (e.key === 'ArrowDown') { moved = moveSibling(id, 1); }
+            else if (e.key === 'ArrowLeft') { moved = outdentElement(id); }
+            else if (e.key === 'ArrowRight') { moved = indentElement(id); }
+            if (!moved) {
+                undoToast(e.key === 'ArrowLeft'
+                    ? dbeT('cannotMoveOut', 'This element cannot move out another level')
+                    : (e.key === 'ArrowRight'
+                        ? dbeT('cannotMoveIn', 'This element cannot move into its previous sibling')
+                        : dbeT('cannotMoveFurther', 'This element cannot move any further')));
+            }
+            return;
+        }
+        if (!on('navigator_keyboard')) { return; }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave other modified combos to the builder
         var rows = navVisibleRows(root);
         var i = rows.indexOf(btn);
         if (i === -1) { return; }
@@ -10208,7 +10895,7 @@
     function ensureNavKeyboard() {
         var root = navRootList();
         if (!root) { return; }
-        navSyncAria();
+        if (on('navigator_keyboard')) { navSyncAria(); }
         var panel = document.querySelector('.uniRightPanel');
         if (!panel || panel.dbeNavKeyBound) { return; }
         // Bound on the stable panel (the tree lists are replaced on re-render), so
@@ -10661,7 +11348,13 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('command_palette')) { try { ensurePaletteButton(); } catch (e) {} }
+            if (on('command_palette')) {
+                try { ensurePaletteButton(); } catch (e) {}
+            }
+            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard')) {
+                try { ensureKeyboardIframeBridge(); } catch (e) {}
+            }
+            if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
@@ -10675,13 +11368,13 @@
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
             }
-            if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
+            if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
-            if (on('panel_resize') || on('css_code_default')) { try { dbeSyncPanelsHidden(); } catch (e) {} }
+            try { dbeSyncPanelsHidden(); } catch (e) {}
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
             if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
@@ -10712,7 +11405,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions') || on('condition_helpers')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 

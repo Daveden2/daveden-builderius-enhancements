@@ -117,19 +117,21 @@ function dbe_builder_css() {
 }
 
 /**
- * Theme/density bootstrap printed on wp_head (before the styles, so the first
- * paint is already in the right theme), followed by the concatenated chrome CSS.
+ * Theme, density and workspace bootstrap printed on wp_head (before the styles,
+ * so the first paint already has the user's preferences), followed by the
+ * concatenated chrome CSS.
  */
 function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) ) {
 		$bootstrap = array(
-			'theme'      => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
-			'density'    => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
-			'panelWidth' => dbe_enabled( 'panel_resize' ),
+			'theme'           => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
+			'density'         => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
+			'panelWidth'      => dbe_enabled( 'panel_resize' ),
+			'panelVisibility' => dbe_enabled( 'command_palette' ),
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
@@ -178,6 +180,13 @@ function dbe_print_builder_head() {
 				if (!isNaN(pw)) {
 					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
 				}
+			}
+			if (cfg.panelVisibility) {
+				try {
+					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
+					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
+					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
+				} catch (e) {}
 			}
 		})(document.documentElement);
 		</script>
@@ -231,6 +240,12 @@ function dbe_print_builder_footer() {
 		'heartbeat'  => dbe_heartbeat_config(),
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
+	);
+
+	$config['adminUrls'] = array(
+		'dashboard' => admin_url(),
+		'releases'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-releases' ) : '',
+		'settings'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-settings' ) : '',
 	);
 
 	// Server-side presence beats ride the presence_heartbeat toggle; the

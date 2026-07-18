@@ -20,6 +20,10 @@
    instead of letting anything overlap. The breakpoint cluster trades exact
    viewport-centring for no-overlap at these widths. Above 1280px the
    native layout is untouched. */
+.uniGlobalBreakpoints__modalIcon {
+    min-inline-size: 24px; /* WCAG 2.5.8 pointer-target size */
+}
+
 @media (max-width: 1279px) {
     /* min-inline-size auto (not 0): the flex content-based minimum. It lets
        the columns drop their 350px reservations while still refusing to

@@ -75,6 +75,31 @@
   margin-block: 20px 8px;
 }
 
+.dbe-feature-group {
+  margin-block-start: 20px;
+}
+
+.dbe-feature-group:first-of-type {
+  margin-block-start: 0;
+}
+
+.dbe-feature-group[hidden] {
+  display: none;
+}
+
+.dbe-feature-group__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2327;
+}
+
+.dbe-feature-group__desc {
+  max-width: 65ch;
+  margin: 4px 0 10px;
+  color: #50575e;
+}
+
 /* --- Search and filtering --- */
 .dbe-settings-tools {
   display: flex;

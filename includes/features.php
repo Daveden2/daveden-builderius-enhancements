@@ -30,6 +30,89 @@ function dbe_tabs() {
 }
 
 /**
+ * Logical settings-page sections inside each feature tab, in display order.
+ *
+ * The feature registry remains the source of truth for each toggle; these
+ * sections only control how the settings page groups and prioritises them.
+ *
+ * @return array<string,array<int,array{title:string,description:string,features:array<int,string>}>>
+ */
+function dbe_feature_sections() {
+	return array(
+		'appearance' => array(
+			array(
+				'title'       => __( 'Start here', 'daveden-builderius-enhancements' ),
+				'description' => __( 'The broad builder polish most people will notice on every session.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'theme_switcher', 'density_toggle', 'focus_visibility', 'controls_styling', 'design_tokens' ),
+			),
+			array(
+				'title'       => __( 'Builder chrome', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Layout and scanning improvements for the top bar, tabs, searches and side panels.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'panel_resize', 'topbar_toolbar', 'tab_styling', 'search_affordance', 'tree_row_styling' ),
+			),
+		),
+		'navigator'  => array(
+			array(
+				'title'       => __( 'Find and understand elements', 'daveden-builderius-enhancements' ),
+				'description' => __( 'The highest-value Navigator upgrades for finding, reading and moving through the tree.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'tree_search', 'reveal_selected', 'navigator_keyboard', 'collapse_expand_all', 'tag_badges', 'icon_declutter' ),
+			),
+			array(
+				'title'       => __( 'Act on the tree', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Tools for working faster once the right element is in view.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'navigator_row_actions', 'favourites_reorder', 'panel_detach' ),
+			),
+		),
+		'editing'    => array(
+			array(
+				'title'       => __( 'Accessibility foundations', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Keyboard and screen-reader fixes that make the builder chrome reachable before adding power tools.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'settings_accordions', 'select_combobox', 'panel_tabs', 'footer_toolbar', 'inserter_keyboard', 'builderius_menu', 'ai_terminal_tabs', 'chrome_landmarks' ),
+			),
+			array(
+				'title'       => __( 'Everyday element actions', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Frequent right-click and Navigator actions, kept near the top because they change day-to-day editing speed.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'context_menu', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'wrap_in' ),
+			),
+			array(
+				'title'       => __( 'Element helpers', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Targeted helpers for attributes, images, display conditions and component properties.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'attr_helpers', 'image_defaults', 'condition_helpers', 'properties_reorder' ),
+			),
+			array(
+				'title'       => __( 'Power tools', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Experimental or Pro-only tools for bulk editing and faster command-driven work.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'command_palette', 'keyboard_shortcuts', 'edit_as_html', 'import_html', 'tag_change' ),
+			),
+		),
+		'styles'     => array(
+			array(
+				'title'       => __( 'CSS editor workflow', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Pro-focused helpers for opening, reading and protecting the CSS code editor.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'css_code_default', 'scope_bar', 'css_hint_dialog', 'hide_minimap' ),
+			),
+			array(
+				'title'       => __( 'Class naming', 'daveden-builderius-enhancements' ),
+				'description' => __( 'Naming support for cleaner selectors before CSS is written.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'auto_bem' ),
+			),
+		),
+		'workflow'   => array(
+			array(
+				'title'       => __( 'Saving and protection', 'daveden-builderius-enhancements' ),
+				'description' => __( 'The safeguards and shortcuts that protect builder work and make saving clearer.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'save_shortcut', 'save_state_cue', 'presence_heartbeat', 'css_block_guard', 'save_split_button' ),
+			),
+			array(
+				'title'       => __( 'Guidance and previewing', 'daveden-builderius-enhancements' ),
+				'description' => __( 'On-screen guidance plus canvas helpers for checking responsive behaviour and overlay contrast.', 'daveden-builderius-enhancements' ),
+				'features'    => array( 'tooltips', 'shortcuts_overlay', 'preview_resize', 'overlay_contrast' ),
+			),
+		),
+	);
+}
+
+/**
  * The feature registry.
  *
  * Each entry:
@@ -147,7 +230,7 @@ function dbe_features() {
 		'ai_terminal_tabs'      => array(
 			'title'       => __( 'Accessible AI session tabs', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Proper tabs and keyboard access for the Sense AI sessions.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the Sense AI terminal session tabs (Claude Code, Gemini CLI and so on) as a proper tab list for screen readers and the keyboard: the tabs announce which session is active, arrow keys move between them and switch with one Tab stop, the terminal below is exposed as their tab panel, and the "new session" button gets a clear name in place of its bare plus sign, plus a proper pop-up menu (arrow keys to choose an agent, Escape to close). Purely additive: clicking to switch is left to Builderius.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the Sense AI terminal session tabs (Claude Code, Gemini CLI and so on) as a proper tab list for screen readers and the keyboard: the tabs announce which session is active, arrow keys move between them and switch with one Tab stop, the terminal below is exposed as their tab panel, and the "new session" button gets a clear name in place of its bare plus sign, plus a proper pop-up menu (arrow keys to choose an agent, Escape to close). In reachable remote terminals, Ctrl+` moves focus back to the active session tab so xterm cannot trap keyboard users. Purely additive: clicking to switch is left to Builderius.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -232,7 +315,7 @@ function dbe_features() {
 		'navigator_keyboard'    => array(
 			'title'       => __( 'Navigator keyboard tree', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Full arrow-key navigation of the tree, WordPress style.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the Navigator behave like the WordPress list view: the arrow keys move through the elements (the canvas selection follows), the right arrow opens a branch and steps into it, the left arrow closes it and steps out to the parent, and Home and End jump to the first and last. The same keys navigate the canvas while it is in selection mode, including when the Navigator panel is hidden. The tree is exposed to screen readers as a proper tree, so each element announces its level, whether it is expanded, and its position.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '79-navigator-keyboard.css' ),
 			'js'          => true,
@@ -277,8 +360,8 @@ function dbe_features() {
 		),
 		'element_moves'         => array(
 			'title'       => __( 'Move & navigate elements', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Move up, move down and select parent in the right-click menu.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds Move up, Move down and Select parent to the right-click menu, so you can reorder an element among its siblings or step the selection up a level.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Reorder, indent and outdent elements from the keyboard or menus.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Move an element among its siblings with Alt+Up/Down, move it into its previous sibling with Alt+Right, or move it out one level with Alt+Left while its Navigator row is focused. The same actions appear in the right-click menu and command palette, alongside Select parent for navigation.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'js'          => true,
@@ -310,9 +393,9 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'undo_delete'           => array(
-			'title'       => __( 'Undo / redo add & delete', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Cmd/Ctrl+Z restores deleted elements and undoes adds.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Press Cmd/Ctrl+Z to undo adding or deleting an element: a deleted element is restored, and one you just added is removed. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step. Moving elements and changing their settings are not covered.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Undo / redo element changes', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Undo element adds, deletes and structural moves.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Press Cmd/Ctrl+Z to undo adding, deleting or structurally moving an element. A deleted element is restored, an added element is removed, and a reordered, indented or outdented element returns to its previous position. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step; settings changes are not covered.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'shared_css'  => array( '01-infra.css' ),
@@ -379,7 +462,7 @@ function dbe_features() {
 		'keyboard_shortcuts'    => array(
 			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Block-editor-style shortcuts for the selected element.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker) and rename (F2). The new actions also appear in the right-click menu. Plus shortcuts to jump between the builder’s regions (the Navigator, settings panel, canvas and Inserter). Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker), rename (F2), and finish inline text editing in the canvas (Escape). In the canvas, Enter switches from element selection to the interactive page and Escape returns to selection mode. The native interactive-canvas control also becomes keyboard operable. The new element actions appear in the right-click menu, alongside shortcuts to jump between the builder’s regions. Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -425,7 +508,7 @@ function dbe_features() {
 		'command_palette'       => array(
 			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+K, with a top-bar button.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette. With an element selected it can add classes, add HTML attributes and add child elements with a minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}, including attributes: a.btn[href=/contact/ target=_blank]{Contact}), plus run the element actions and jump between the builder’s regions. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette, including when focus is inside the preview canvas. Add classes, HTML attributes and child elements with minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), run element and structure actions, persistently show or hide either side panel, jump between builder regions, and open key WordPress or Builderius admin pages in a new tab. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
 			'shared_css'   => array( '01-infra.css', '03-topbar-layout.css', '30-context-menu.css' ),

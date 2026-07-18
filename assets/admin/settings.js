@@ -69,6 +69,9 @@
         Array.prototype.slice.call(panel.querySelectorAll('.dbe-field')).forEach(function (field) {
           field.hidden = false;
         });
+        Array.prototype.slice.call(panel.querySelectorAll('.dbe-feature-group')).forEach(function (group) {
+          group.hidden = false;
+        });
       });
       wrap.classList.remove('dbe-filter-mode');
       bar.hidden = false;
@@ -108,10 +111,26 @@
           return;
         }
         var panelCount = 0;
-        Array.prototype.slice.call(panel.querySelectorAll('.dbe-field')).forEach(function (field) {
-          var matches = fieldMatches(field, query, mode);
-          field.hidden = !matches;
-          if (matches) { panelCount += 1; count += 1; }
+        var groups = Array.prototype.slice.call(panel.querySelectorAll('.dbe-feature-group'));
+        if (groups.length) {
+          groups.forEach(function (group) {
+            var groupCount = 0;
+            Array.prototype.slice.call(group.querySelectorAll('.dbe-field')).forEach(function (field) {
+              var matches = fieldMatches(field, query, mode);
+              field.hidden = !matches;
+              if (matches) { groupCount += 1; panelCount += 1; count += 1; }
+            });
+            group.hidden = groupCount === 0;
+          });
+        } else {
+          Array.prototype.slice.call(panel.querySelectorAll('.dbe-field')).forEach(function (field) {
+            var matches = fieldMatches(field, query, mode);
+            field.hidden = !matches;
+            if (matches) { panelCount += 1; count += 1; }
+          });
+        }
+        Array.prototype.slice.call(panel.querySelectorAll('.dbe-feature-group')).forEach(function (group) {
+          if (!group.querySelector('.dbe-field')) { group.hidden = true; }
         });
         panel.hidden = panelCount === 0;
       });
