@@ -37,6 +37,8 @@
     var noResultsClear = form.querySelector('.dbe-no-results-clear');
     var filterStatus = form.querySelector('.dbe-filter-status');
     var resetDefaults = form.querySelector('.dbe-reset-defaults');
+    var presetButtons = Array.prototype.slice.call(form.querySelectorAll('.dbe-apply-preset'));
+    var presetStatus = form.querySelector('.dbe-preset-status');
     var savebar = form.querySelector('.dbe-savebar');
     var saveStatus = form.querySelector('.dbe-save-status');
     var submit = form.querySelector('#submit');
@@ -78,7 +80,7 @@
       if (clearFilters) { clearFilters.hidden = true; }
       if (noResults) { noResults.hidden = true; }
       if (filterStatus) { filterStatus.textContent = ''; }
-      if (savebar) { savebar.hidden = slug === 'dashboard'; }
+      if (savebar) { savebar.hidden = slug === 'dashboard' && !isDirty(); }
       try { sessionStorage.setItem(STORE_KEY, slug); } catch (e) { /* private mode */ }
     }
 
@@ -234,6 +236,25 @@
         applyFilters();
       });
     }
+
+    presetButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        var changed = 0;
+        (button.dataset.features || '').split(',').filter(Boolean).forEach(function (featureId) {
+          var control = document.getElementById('dbe-f-' + featureId);
+          if (!control || control.disabled || control.checked) { return; }
+          control.checked = true;
+          changed += 1;
+        });
+        if (presetStatus) {
+          presetStatus.textContent = changed === 0
+            ? presetStatus.dataset.none
+            : (changed === 1 ? presetStatus.dataset.one : presetStatus.dataset.many.replace('%s', String(changed)));
+        }
+        updateDirty(changed ? (savebar ? savebar.dataset.preset : '') : '');
+        applyFilters();
+      });
+    });
 
     form.addEventListener('submit', function () { submitting = true; });
     window.addEventListener('beforeunload', function (e) {

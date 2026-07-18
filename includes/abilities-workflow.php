@@ -498,7 +498,7 @@ function dbe_ability_rekey_config( $config ) {
  * @return string|WP_Error The new commit name.
  */
 function dbe_ability_copy_config_to( $new_post, $config, $description ) {
-	$config = dbe_ability_rekey_config( $config );
+	$config   = dbe_ability_rekey_config( $config );
 	$resolved = dbe_ability_resolve_commit( $new_post );
 	if ( is_wp_error( $resolved ) && 'dbe_no_commit' !== $resolved->get_error_code() ) {
 		return $resolved;
@@ -551,7 +551,7 @@ function dbe_ability_duplicate_template( $input ) {
 
 	$title = trim( (string) ( $input['title'] ?? '' ) );
 	if ( '' === $title ) {
-		/* translators: %s: source template title. */
+		/* translators: %s: source item title. */
 		$title = sprintf( __( '%s copy', 'daveden-builderius-enhancements' ), $source->post_title );
 	}
 
@@ -633,7 +633,7 @@ function dbe_ability_duplicate_component( $input ) {
 
 	$title = trim( (string) ( $input['title'] ?? '' ) );
 	if ( '' === $title ) {
-		/* translators: %s: source component title. */
+		/* translators: %s: source item title. */
 		$title = sprintf( __( '%s copy', 'daveden-builderius-enhancements' ), $source->post_title );
 	}
 

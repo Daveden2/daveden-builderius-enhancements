@@ -1,0 +1,36 @@
+/* Selection context shown only while the Navigator is hidden. The compact
+   breadcrumb stays in builder chrome, so page styles cannot affect it. */
+
+.dbe-canvas-selection-context {
+	position: absolute;
+	z-index: 19;
+	inset-block-start: 12px;
+	inset-inline-start: 12px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-inline-size: calc(100% - 24px);
+	padding: 6px 10px;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	background: var(--dbe-l1);
+	color: var(--dbe-text);
+	font: 12px/1.4 var(--dbe-ui-font);
+	box-shadow: 0 4px 16px var(--dbe-shadow);
+	cursor: help;
+	pointer-events: auto;
+}
+
+.dbe-canvas-selection-context strong {
+	flex: 0 0 auto;
+	font-weight: 600;
+	color: var(--dbe-accent);
+}
+
+.dbe-canvas-selection-context span {
+	min-inline-size: 0;
+	overflow: hidden;
+	color: var(--dbe-text-2);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

@@ -572,15 +572,37 @@
        `addModule` with an EXISTING id upserts the module (settings replaced, no
        duplicate module or index entry) and repaints — so class/attribute edits on
        an existing element need no native-control driving. `mutate` receives the
-       (cloned) settings array to modify. Returns false if the id is gone. */
-    function dbeUpdateModuleSettings(id, mutate) {
+       (cloned) settings array to modify. `historyLabel` opts user-initiated
+       property edits into settings-level Undo; housekeeping upserts omit it.
+       `replacementLabel` lets an undo restore a follow-the-tag label in the
+       same atomic upsert as its settings. Returns false if the id is gone. */
+    function dbeUpdateModuleSettings(id, mutate, historyLabel, replacementLabel) {
         var sf = store();
         var mods = sf.storeGet('modules') || {};
         if (!mods[id]) { return false; }
         var updated = JSON.parse(JSON.stringify(mods[id]));
+        var previousSettings = JSON.parse(JSON.stringify(updated.settings || []));
         updated.settings = updated.settings || [];
         mutate(updated.settings);
-        sf.storeSet('addModule', { module: updated });
+        if (typeof replacementLabel === 'string') { updated.label = replacementLabel; }
+        // Builderius uses addModule as an upsert channel and fires its
+        // Module.added hook even when this id already exists. Keep that hook out
+        // of DBE's structural history: treating a class, attribute or tag update
+        // as a newly added element would make Cmd/Ctrl+Z remove the whole module.
+        var wasBusy = dbeUndoBusy;
+        dbeUndoBusy = true;
+        try { sf.storeSet('addModule', { module: updated }); }
+        finally { dbeUndoBusy = wasBusy; }
+        if (historyLabel && !wasBusy && on('undo_delete')) {
+            dbeHistoryPush({
+                op: 'settings',
+                id: id,
+                label: mods[id].label || mods[id].name || dbeT('element', 'element'),
+                change: historyLabel,
+                moduleLabel: mods[id].label || '',
+                settings: previousSettings
+            });
+        }
         // The canvas repaints from `modules`, but the settings panel for the
         // selected element is hydrated on SELECTION and does not re-read this write
         // — so an edit to the active element would not show in the panel (its class
@@ -626,7 +648,7 @@
             if (!tc) { tc = { name: 'tagClass', value: [] }; settings.push(tc); }
             if (!Array.isArray(tc.value)) { tc.value = []; }
             classes.forEach(function (c) { if (tc.value.indexOf(c) === -1) { tc.value.push(c); } });
-        });
+        }, dbeT('classChanges', 'class changes'));
     }
 
     /* (im) Image defaults (image_defaults). A fresh Image element is an
@@ -754,7 +776,7 @@
             });
         }
         dbeFocusMovedRow(id);
-        undoToast(dbeFmt(dbeT(messageKey, messageDefault), from.mod.label || from.mod.name || dbeT('element', 'element')));
+        undoToast(dbeFmt(dbeT(messageKey, messageDefault), from.mod.label || from.mod.name || dbeT('element', 'element')), 'undo');
         return true;
     }
 
@@ -1466,10 +1488,17 @@
         return Object.keys(mods).filter(function (id) { return dbeMultiSel.has(id); });
     }
 
-    function disableCtxItem(li) {
+    function dbeSetDisabledReason(li, label, reason) {
+        if (!reason) { return; }
+        li.setAttribute('data-dbe-tip', reason);
+        li.setAttribute('aria-label', label + '. ' + reason);
+    }
+
+    function disableCtxItem(li, reason) {
         if (li.classList.contains('dbe-ctx-disabled')) { return; }
         li.classList.add('disabled', 'dbe-ctx-disabled');
         li.setAttribute('aria-disabled', 'true');
+        dbeSetDisabledReason(li, (li.textContent || '').trim(), reason);
         // Native items' React handlers sit on ancestor containers — stopping
         // propagation at the item blocks them without touching the handlers.
         ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
@@ -1485,8 +1514,8 @@
         function next() {
             if (i >= ids.length) {
                 undoToast(doneMsg || dbeFmt(dbeTn(removed,
-                    'removedElementsOne', 'Removed %s element (Cmd+Z restores one at a time)',
-                    'removedElementsMany', 'Removed %s elements (Cmd+Z restores one at a time)'), removed));
+                    'removedElementsOne', 'Deleted %s element (Cmd+Z restores one at a time)',
+                    'removedElementsMany', 'Deleted %s elements (Cmd+Z restores one at a time)'), removed), removed ? 'undo' : null);
                 return;
             }
             var id = ids[i];
@@ -1667,19 +1696,70 @@
     var redoStack = [];
     var dbeUndoBusy = false;
     var toastTimer = null;
+    var toastDuration = 2600;
 
-    function undoToast(msg) {
+    function dbeHistoryActionAvailable(action) {
+        var stack = action === 'redo' ? redoStack : undoStack;
+        var rec = stack[stack.length - 1];
+        return on('undo_delete') && !!rec && rec.op !== 'barrier';
+    }
+
+    function dbeHideToast(t) {
+        clearTimeout(toastTimer);
+        t.classList.remove('is-visible');
+        t.setAttribute('aria-hidden', 'true');
+        var action = t.querySelector('.dbe-undo-toast__action');
+        if (action) { action.tabIndex = -1; }
+    }
+
+    function dbeScheduleToast(t) {
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { dbeHideToast(t); }, toastDuration);
+    }
+
+    function undoToast(msg, action) {
         var t = document.querySelector('.dbe-undo-toast');
         if (!t) {
             t = document.createElement('div');
             t.className = 'dbe-undo-toast';
-            t.setAttribute('role', 'status'); // polite live region for SRs
+            t.addEventListener('mouseenter', function () { clearTimeout(toastTimer); });
+            t.addEventListener('mouseleave', function () { dbeScheduleToast(t); });
+            t.addEventListener('focusin', function () { clearTimeout(toastTimer); });
+            t.addEventListener('focusout', function () {
+                setTimeout(function () {
+                    if (!t.contains(document.activeElement)) { dbeScheduleToast(t); }
+                }, 0);
+            });
             document.body.appendChild(t);
         }
-        t.textContent = msg;
+        t.innerHTML = '';
+        t.removeAttribute('aria-hidden');
+        var message = document.createElement('span');
+        message.className = 'dbe-undo-toast__message';
+        message.setAttribute('role', 'status'); // polite live region for SRs
+        message.textContent = msg;
+        t.appendChild(message);
+
+        var hasAction = (action === 'undo' || action === 'redo') && dbeHistoryActionAvailable(action);
+        if (hasAction) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'dbe-undo-toast__action';
+            button.textContent = action === 'redo' ? dbeT('redoAction', 'Redo') : dbeT('undoAction', 'Undo');
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                button.disabled = true;
+                button.blur();
+                dbeHideToast(t);
+                if (action === 'redo') { performRedo(); } else { performUndo(); }
+            });
+            t.appendChild(button);
+        }
+        t.classList.toggle('has-action', hasAction);
         t.classList.add('is-visible');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { t.classList.remove('is-visible'); }, 2600);
+        toastDuration = hasAction ? 8000 : 2600;
+        dbeScheduleToast(t);
     }
 
     // Collect the subtree rooted at id from a modules map, reparenting the root
@@ -2482,6 +2562,14 @@
         };
     }
 
+    function dbeHtmlUndoWarning(id, text) {
+        var warning = document.createElement('p');
+        warning.id = id;
+        warning.className = 'dbe-html__undo-warning';
+        warning.textContent = text;
+        return warning;
+    }
+
     function openEditHtmlDialog(rootId) {
         if (dbeHtmlBusy) { return; }
         var mods = modules() || {};
@@ -2535,6 +2623,11 @@
         status.setAttribute('role', 'status');
         dlg.appendChild(status);
 
+        var undoWarning = dbeHtmlUndoWarning('dbe-edit-html-undo-warning',
+            dbeT('editHtmlUndoWarning', 'Applying these changes can’t be undone. Cancel keeps the current element unchanged.'));
+        dlg.setAttribute('aria-describedby', undoWarning.id);
+        dlg.appendChild(undoWarning);
+
         var foot = document.createElement('div');
         foot.className = 'dbe-html__foot';
         var cancel = document.createElement('button');
@@ -2574,7 +2667,7 @@
                     dbeHtmlBusy = false;
                     // Seal step-undo behind a barrier: the reconcile is one
                     // compound op, so a Cmd+Z now must not revert an earlier action.
-                    dbeHistoryBarrier(dbeT('editHtmlNotUndoable', 'Edit as HTML can’t be undone — reopen it to revert your changes'));
+                    dbeHistoryBarrier(dbeT('editHtmlNotUndoable', 'Edit as HTML can’t be undone. Edit the element again to correct it.'));
                     var msg = dbeFmt(dbeT('htmlApplied', 'HTML applied: %1$s updated, %2$s added, %3$s removed'),
                         counts.kept, counts.added, counts.removed);
                     if (parsed.stripped.length) {
@@ -3020,6 +3113,11 @@
         status.setAttribute('role', 'status');
         dlg.appendChild(status);
 
+        var undoWarning = dbeHtmlUndoWarning('dbe-import-html-undo-warning',
+            dbeT('importHtmlUndoWarning', 'This import can’t be undone as one action. Delete the new elements to remove them.'));
+        dlg.setAttribute('aria-describedby', undoWarning.id);
+        dlg.appendChild(undoWarning);
+
         var foot = document.createElement('div');
         foot.className = 'dbe-html__foot';
         var cancel = document.createElement('button');
@@ -3117,7 +3215,7 @@
             // Seal step-undo behind a barrier (same reasoning as Edit as HTML):
             // the import lands several elements as one op the add/delete stack
             // can't unwind cleanly, so Cmd+Z must not revert an earlier action.
-            dbeHistoryBarrier(dbeT('importHtmlNotUndoable', 'Import HTML can’t be undone — delete the imported elements to remove them'));
+            dbeHistoryBarrier(dbeT('importHtmlNotUndoable', 'Import HTML can’t be undone as one action. Delete the imported elements to remove them.'));
             undoToast(dbeFmt(dbeTn(count,
                 'htmlImportedOne', 'Imported %s element',
                 'htmlImportedMany', 'Imported %s elements'), count));
@@ -3188,10 +3286,10 @@
         dbeUpdateModuleSettings(id, function (settings) {
             var t = settings.filter(function (s) { return s.name === 'tag'; })[0];
             if (t) { t.value = newTag; } else { settings.push({ name: 'tag', value: newTag }); }
-        });
-        // Follow-the-tag labels only; a custom label is the user's and stays.
-        if (labelWasDefault) { commitRename(id, newTag); }
-        undoToast(dbeFmt(dbeT('tagChangedTo', 'Tag changed to <%s>'), newTag));
+        }, dbeT('tagChange', 'tag change'), labelWasDefault ? newTag : undefined);
+        // Follow-the-tag labels update in the same module upsert; a custom label
+        // is the user's and stays. Keeping it atomic also makes rapid Undo safe.
+        undoToast(dbeFmt(dbeT('tagChangedTo', 'Tag changed to <%s>'), newTag), 'undo');
     }
 
     /* A menu row's label with any injected accel hint (.dbe-ctx-accel) left
@@ -3315,7 +3413,7 @@
     /* Pop a record off `from`, run its op (restore a removed subtree, or remove
        an added element), and push the inverse op onto `to`. Undo and redo are the
        same routine run over opposite stacks. */
-    function dbeRunHistory(from, to, emptyKey, emptyDef) {
+    function dbeRunHistory(from, to, emptyKey, emptyDef, successAction) {
         if (dbeUndoBusy) { return; }
         var rec = from.pop();
         if (!rec) { undoToast(dbeT(emptyKey, emptyDef)); return; }
@@ -3327,7 +3425,33 @@
             undoToast(rec.msg || dbeT('editHtmlNotUndoable', 'This change can’t be undone step by step'));
             return;
         }
-        if (rec.op === 'move') {
+        if (rec.op === 'settings') {
+            var settingsMods = modules() || {};
+            var settingsMod = settingsMods[rec.id];
+            if (!settingsMod) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotUpdateGone', 'Cannot update “%s”: it is no longer here'), rec.label));
+                return;
+            }
+            var settingsInverse = {
+                op: 'settings', id: rec.id, label: rec.label, change: rec.change,
+                moduleLabel: settingsMod.label || '',
+                settings: JSON.parse(JSON.stringify(settingsMod.settings || []))
+            };
+            dbeUndoBusy = true;
+            try {
+                dbeUpdateModuleSettings(rec.id, function (settings) {
+                    var restored = JSON.parse(JSON.stringify(rec.settings || []));
+                    settings.length = 0;
+                    restored.forEach(function (setting) { settings.push(setting); });
+                }, null, rec.moduleLabel);
+            } finally { dbeUndoBusy = false; }
+            to.push(settingsInverse);
+            if (to.length > 10) { to.shift(); }
+            undoToast(dbeFmt(successAction === 'redo'
+                ? dbeT('undidPropertyChange', 'Undid %1$s for “%2$s”')
+                : dbeT('redidPropertyChange', 'Redid %1$s for “%2$s”'), rec.change, rec.label), successAction);
+        } else if (rec.op === 'move') {
             var current = dbeMoveLocation(rec.id);
             if (!current || current.index < 0) {
                 from.push(rec);
@@ -3349,7 +3473,7 @@
             to.push(inverse);
             if (to.length > 10) { to.shift(); }
             dbeFocusMovedRow(rec.id);
-            undoToast(dbeFmt(dbeT('movedBack', 'Moved “%s” back'), rec.label));
+            undoToast(dbeFmt(dbeT('movedBack', 'Moved “%s” back'), rec.label), successAction);
         } else if (rec.op === 'restore') {
             if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
                 from.push(rec);
@@ -3361,7 +3485,7 @@
                 dbeUndoBusy = false;
                 if (!newId) { from.push(rec); undoToast(msg || dbeT('undoFailedNotRestored', 'Undo failed: element not restored')); return; }
                 to.push({ op: 'remove', id: newId, label: rec.label, parentId: rec.parentId, subtree: rec.subtree });
-                undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label));
+                undoToast(dbeFmt(dbeT('restored', 'Restored “%s”'), rec.label), successAction);
             });
         } else { // 'remove'
             var mods = modules() || {};
@@ -3378,14 +3502,14 @@
                     dbeUndoBusy = false;
                     if (!ok) { from.push(rec); undoToast(dbeT('undoFailedRemove', 'Undo failed: could not remove the element')); return; }
                     to.push({ op: 'restore', id: rec.id, label: rec.label, parentId: parentId, subtree: subtree });
-                    undoToast(dbeFmt(dbeT('removed', 'Removed “%s”'), rec.label));
+                    undoToast(dbeFmt(dbeT('removed', 'Removed “%s”'), rec.label), successAction);
                 }, 300);
             });
         }
     }
 
-    function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo'); }
-    function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo'); }
+    function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo. DBE undo covers element adds, deletes, moves and DBE property changes.', 'redo'); }
+    function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo', 'undo'); }
 
     /* --- Paste where you click (navigator_paste) ---
        Native Paste always inserts into the ACTIVE module (or at root when
@@ -3591,7 +3715,7 @@
         dialog.style.top = top + 'px';
     }
 
-    function makeFlyout(items) {
+    function makeFlyout(items, labelText) {
         // Rebuild the native menu wrapper chain so the flyout inherits the card
         // styling and the .uniContextMenu list/item resets.
         var fly = document.createElement('div');
@@ -3601,6 +3725,7 @@
         var menu = document.createElement('div');
         menu.className = 'uniContextMenu';
         menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', labelText);
         var ul = document.createElement('ul');
         items.forEach(function (li) {
             li.tabIndex = -1; // roving tabindex — the keydown handler moves focus
@@ -3651,7 +3776,7 @@
         return svg;
     }
 
-    function makeParent(labelText, first, itemsFactory, disabled) {
+    function makeParent(labelText, first, itemsFactory, disabled, disabledReason) {
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item dbe-ctx-item dbe-ctx-parent' + (first ? ' dbe-ctx-item--first' : '');
         li.setAttribute('role', 'menuitem');
@@ -3667,12 +3792,13 @@
         if (disabled) {
             li.classList.add('disabled', 'dbe-ctx-disabled');
             li.setAttribute('aria-disabled', 'true');
+            dbeSetDisabledReason(li, labelText, disabledReason);
             return li; // no flyout wiring: not hoverable, not keyboard-openable
         }
         function openFlyout() {
             clearTimeout(submenuCloseTimer);
             removeSubmenus();
-            var fly = makeFlyout(itemsFactory());
+            var fly = makeFlyout(itemsFactory(), labelText);
             // The native menu is a <dialog> shown with showModal(): it paints in
             // the top layer (above any z-index) and everything OUTSIDE it is
             // inert. A sibling flyout is therefore visible but can never receive
@@ -3698,8 +3824,8 @@
 
     /* A plain injected leaf item. Mirrors the inline Rename / Auto-BEM pattern:
        mousedown closes the menu, then runs the action. A disabled item renders
-       greyed and non-interactive, and stays out of the keyboard focus ring
-       (menuScopeItems skips aria-disabled rows). */
+       greyed and non-interactive, but remains in the roving keyboard sequence
+       so users can discover it and hear why it is unavailable. */
     function makeCtxItem(labelText, onActivate, opts) {
         opts = opts || {};
         var li = document.createElement('li');
@@ -3726,7 +3852,7 @@
         if (opts.disabled) {
             li.classList.add('disabled', 'dbe-ctx-disabled');
             li.setAttribute('aria-disabled', 'true');
-            if (opts.tip) { li.setAttribute('data-dbe-tip', opts.tip); }
+            dbeSetDisabledReason(li, labelText, opts.tip);
             return li;
         }
         li.addEventListener('mousedown', function (ev) {
@@ -3812,13 +3938,14 @@
        (focus moves to its first item), and ArrowLeft/Escape to come back to the
        parent. Escape at the top level falls through to the dialog's native
        cancel. Activation dispatches the same pointer-event sequence the mouse
-       produces, so native and injected items behave identically. Skips the
-       disabled "Actions" header row. */
+       produces, so native and injected items behave identically. Disabled
+       actions remain focusable but cannot activate; non-action heading and
+       selection-note rows stay outside the roving sequence. */
     function menuScopeItems(dialog, li) {
         var fly = li && li.closest('.dbe-ctx-submenu');
         var root = fly || dialog;
         return [].slice.call(root.querySelectorAll('li.uniContextMenu__item')).filter(function (item) {
-            if (item.classList.contains('disabled') || item.getAttribute('aria-disabled') === 'true') { return false; }
+            if (item.classList.contains('dbe-ctx-heading') || item.classList.contains('dbe-ctx-note')) { return false; }
             return fly ? true : !item.closest('.dbe-ctx-submenu');
         });
     }
@@ -3849,7 +3976,9 @@
                 items[ev.key === 'Home' ? 0 : items.length - 1].focus();
                 break;
             case 'ArrowRight':
-                if (li && !inFly && typeof li._dbeOpenFlyout === 'function') {
+                if (li && li.getAttribute('aria-disabled') === 'true') {
+                    break;
+                } else if (li && !inFly && typeof li._dbeOpenFlyout === 'function') {
                     var fly = li._dbeOpenFlyout();
                     var firstItem = fly && fly.querySelector('li.uniContextMenu__item');
                     if (firstItem) { firstItem.focus(); }
@@ -3865,7 +3994,9 @@
                 break;
             case 'Enter':
             case ' ':
-                if (li && typeof li._dbeOpenFlyout === 'function') {
+                if (li && li.getAttribute('aria-disabled') === 'true') {
+                    break;
+                } else if (li && typeof li._dbeOpenFlyout === 'function') {
                     var fly2 = li._dbeOpenFlyout();
                     var firstItem2 = fly2 && fly2.querySelector('li.uniContextMenu__item');
                     if (firstItem2) { firstItem2.focus(); }
@@ -3886,12 +4017,15 @@
         if (!dialog) { return; }
         [].slice.call(dialog.querySelectorAll('li.uniContextMenu__item')).forEach(function (li) {
             li.tabIndex = -1;
+            if (li.classList.contains('disabled') && li.getAttribute('aria-disabled') !== 'true') {
+                li.setAttribute('aria-disabled', 'true');
+            }
         });
         if (!dialog.dbeMenuKeysBound) {
             dialog.dbeMenuKeysBound = true;
             dialog.addEventListener('keydown', onMenuKeydown, true);
         }
-        // Focus the first enabled item so a Shift+F10 / Menu-key open is usable;
+        // Focus the first action so a Shift+F10 / Menu-key open is usable;
         // after a right-click :focus-visible stays off, so no ring for mouse
         // users. Skipped while undo/redo is auto-driving a hidden menu.
         if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
@@ -3915,13 +4049,11 @@
     }
 
     /* The element context menu. With context_menu ON the items are re-laid into
-       one flat, logically-clustered list (separator borders between clusters, no
-       nested groups): Duplicate · Copy/Paste · Rename/Reset/Auto-BEM ·
-       Wrap in…/Unwrap · Move up/down/Select parent/Expand · Create Component/
-       Save to… · Remove. Native items keep their React handlers when re-parented.
-       Flyouts survive only where an action branches (Wrap in…, Save to…). With
-       context_menu OFF the injected items are appended after the untouched
-       native ones. */
+       logical clusters with compact flyouts for insert, move/navigation and
+       advanced tools. Frequent actions remain flat; branching and lower-use
+       actions stay one arrow-key step away. Native items keep their React
+       handlers when re-parented. With context_menu OFF the injected items are
+       appended after the untouched native ones. */
     function onContextMenuShow() {
         requestAnimationFrame(function () {
             removeSubmenus();
@@ -3964,7 +4096,7 @@
                 // Single-target native actions don't apply to a multi-selection.
                 [].slice.call(container.querySelectorAll('.uniContextMenu__item')).forEach(function (li) {
                     if (/^(Duplicate|Copy|Paste|Remove|Create Component)$/.test((li.textContent || '').trim())) {
-                        disableCtxItem(li);
+                        disableCtxItem(li, dbeT('singleElementOnly', 'Available when one element is selected'));
                     }
                 });
             }
@@ -3973,6 +4105,7 @@
 
             // "Rename" / "Reset label" -> inline edit on the tree row (single row only)
             var nameItems = [];
+            var advancedItems = [];
             if (!multiIds && on('inline_rename')) {
                 var renameLi = document.createElement('li');
                 renameLi.className = 'uniContextMenu__item dbe-ctx-item';
@@ -4037,7 +4170,7 @@
                         // while open our own dialog could not take focus).
                         setTimeout(function () { openAutoBemDialog(id); }, 120);
                     });
-                    nameItems.push(bemLi);
+                    advancedItems.push(bemLi);
                 }
             }
 
@@ -4075,7 +4208,7 @@
                 removeNLi = document.createElement('li');
                 removeNLi.className = 'uniContextMenu__item dbe-ctx-item dbe-ctx-item--first';
                 removeNLi.setAttribute('role', 'menuitem');
-                removeNLi.textContent = dbeFmt(dbeT('removeNElements', 'Remove %s elements'), multiIds.length);
+                removeNLi.textContent = dbeFmt(dbeT('deleteNElements', 'Delete %s elements'), multiIds.length);
                 removeNLi.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -4114,16 +4247,20 @@
                     var emSibs = [].concat(emIdx[emParent || 'root'] || []);
                     var emAt = emSibs.indexOf(emId);
                     moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, {
-                        disabled: emAt <= 0, accel: dbeAccel('↑', { alt: true }), icon: 'arrow-up'
+                        disabled: emAt <= 0, accel: dbeAccel('↑', { alt: true }), icon: 'arrow-up',
+                        tip: dbeT('cannotMoveUp', 'Already first among its siblings')
                     });
                     moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, {
-                        disabled: emAt < 0 || emAt >= emSibs.length - 1, accel: dbeAccel('↓', { alt: true }), icon: 'arrow-down'
+                        disabled: emAt < 0 || emAt >= emSibs.length - 1, accel: dbeAccel('↓', { alt: true }), icon: 'arrow-down',
+                        tip: dbeT('cannotMoveDown', 'Already last among its siblings')
                     });
                     moveInLi = makeCtxItem(dbeT('moveIn', 'Move in one level'), function () { indentElement(emId); }, {
-                        disabled: !dbeIndentTarget(emId), accel: dbeAccel('→', { alt: true }), icon: 'indent-increase'
+                        disabled: !dbeIndentTarget(emId), accel: dbeAccel('→', { alt: true }), icon: 'indent-increase',
+                        tip: dbeT('cannotMoveIn', 'Needs a previous sibling that can contain elements')
                     });
                     moveOutLi = makeCtxItem(dbeT('moveOut', 'Move out one level'), function () { outdentElement(emId); }, {
-                        disabled: !dbeCanOutdent(emId), accel: dbeAccel('←', { alt: true }), icon: 'indent-decrease'
+                        disabled: !dbeCanOutdent(emId), accel: dbeAccel('←', { alt: true }), icon: 'indent-decrease',
+                        tip: dbeT('cannotMoveOut', 'Already at the outermost available level')
                     });
                     if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }, { icon: 'parent' }); }
                 }
@@ -4137,7 +4274,7 @@
                 var ksId = lastCtxId;
                 cutLi = makeCtxItem(dbeT('cut', 'Cut'), function () {
                     driveContextMenuItem(ksId, 'Copy', function (ok) {
-                        if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); }
+                        if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); }); }
                     });
                 }, { accel: dbeAccel('X', { cmd: true }) });
                 addBeforeLi = makeCtxItem(dbeT('addBefore', 'Add element before'), function () { setTimeout(function () { openElementPicker(ksId, -1); }, 60); }, { accel: dbeAccel('T', { cmd: true, alt: true }) });
@@ -4161,6 +4298,7 @@
                         disabled: true,
                         tip: dbeT('editAsHtmlOnlyElements', 'Only subtrees of plain elements can be edited as HTML')
                     });
+                    advancedItems.push(editHtmlLi);
                 })();
             }
 
@@ -4182,6 +4320,7 @@
                         disabled: true,
                         tip: dbeT('importHtmlOnlyElements', 'HTML can only be imported into a plain element')
                     });
+                    advancedItems.push(importHtmlLi);
                 })();
             }
 
@@ -4196,7 +4335,7 @@
                         changeTagParent = makeParent(dbeT('changeTag', 'Change tag…'), false, function () {
                             return DBE_TAG_CHOICES.map(function (tg) {
                                 return makeCtxItem('<' + tg + '>', function () { dbeChangeTag(ctId, tg); },
-                                    tg === curTag ? { disabled: true } : {});
+                                    tg === curTag ? { disabled: true, tip: dbeT('currentTag', 'Current tag') } : {});
                             });
                         });
                     }
@@ -4206,8 +4345,8 @@
             /* --- Flat layout (context_menu off): append injected items after the
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
-                var injected = nameItems.concat(
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, importHtmlLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
+                var injected = nameItems.concat(advancedItems,
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -4226,9 +4365,9 @@
                                 makeWrapItem('collection', dbeT('collectionTemplateLabel', 'Collection + template'))
                             ];
                         },
-                        wrapDisabled
+                        wrapDisabled,
+                        dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')
                     );
-                    if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
                 if (changeTagParent) { container.appendChild(changeTagParent); }
@@ -4266,32 +4405,48 @@
                         makeWrapItem('template', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('templateLabel', 'Template'))),
                         makeWrapItem('collection', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('collectionTemplateLabel', 'Collection + template')))
                     ];
-                }, wrapDisabled);
-                if (wrapDisabled) { wrapParent.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
+                }, wrapDisabled, dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together'));
             }
 
             // Reuse cluster: Create Component + Save to. Keep Save as a flyout only
             // when it branches (>1 native item); a lone Save item goes flat.
             var saveItem = null;
             if (natSave.length > 1) {
-                saveItem = makeParent(dbeT('saveTo', 'Save to…'), false, function () { return natSave; }, !!multiIds);
+                saveItem = makeParent(dbeT('saveTo', 'Save to…'), false, function () { return natSave; }, !!multiIds,
+                    dbeT('singleElementOnly', 'Available when one element is selected'));
             } else if (natSave.length === 1) {
                 saveItem = natSave[0];
-                if (multiIds) { disableCtxItem(saveItem); }
+                if (multiIds) { disableCtxItem(saveItem, dbeT('singleElementOnly', 'Available when one element is selected')); }
             }
+
+            // Keep the primary menu short enough to scan. These actions remain
+            // one arrow-key step away inside focused flyouts, and are still
+            // individually searchable from the command palette where offered.
+            var insertItems = [addBeforeLi, addAfterLi].filter(Boolean);
+            var insertParent = insertItems.length
+                ? makeParent(dbeT('insertActions', 'Insert…'), false, function () { return insertItems; })
+                : null;
+            var moveNavigateItems = [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean);
+            var moveNavigateParent = moveNavigateItems.length
+                ? makeParent(dbeT('moveNavigate', 'Move and navigate…'), false, function () { return moveNavigateItems; })
+                : null;
+            var moreToolsParent = advancedItems.length
+                ? makeParent(dbeT('moreElementTools', 'More element tools…'), false, function () { return advancedItems; })
+                : null;
 
             // Assemble the clusters in order; empty ones drop out. The first item
             // of every cluster after the first gets a top-border separator via
             // .dbe-ctx-item--first — no separator <li>, so the keyboard focus ring
-            // (which skips only disabled rows) is untouched.
+            // (which skips only non-action rows) is untouched.
             var clusters = [
                 natDuplicate,                                                    // Clone
                 natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
-                nameItems,                                                       // Name & style
-                [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
-                [changeTagParent, wrapParent, unwrapLi, editHtmlLi, importHtmlLi].filter(Boolean), // Structure
-                [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
+                nameItems,                                                       // Name
+                insertParent ? [insertParent] : [],                              // Insert
+                [changeTagParent, wrapParent, unwrapLi].filter(Boolean),          // Structure
+                moveNavigateParent ? [moveNavigateParent] : [],                  // Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
+                moreToolsParent ? [moreToolsParent] : [],                        // Advanced
                 multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
             ];
 
@@ -4306,6 +4461,18 @@
             // After clustering (which matches native rows by textContent): append
             // the shortcut hints, so the hint text never corrupts those matches.
             if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
+
+            // The native menu has a role but no name. Name it after its target
+            // so a screen reader does not announce an unexplained bare “menu”.
+            var menuEl = container.closest('[role="menu"]') || (ctxDialog && ctxDialog.querySelector('[role="menu"]'));
+            if (menuEl) {
+                var ctxModsForLabel = modules() || {};
+                var ctxModForLabel = lastCtxId && ctxModsForLabel[lastCtxId];
+                var ctxTargetLabel = ctxModForLabel && (ctxModForLabel.label || defaultLabelFor(lastCtxId));
+                menuEl.setAttribute('aria-label', multiIds
+                    ? dbeFmt(dbeT('selectedElementsActions', 'Actions for %s selected elements'), multiIds.length)
+                    : dbeFmt(dbeT('elementActionsFor', 'Actions for %s'), ctxTargetLabel || dbeT('element', 'element')));
+            }
 
             setupMenuKeyboard(container);
             fitContextMenu(ctxDialog);
@@ -5224,14 +5391,12 @@
             bar.className = 'dbe-scope-bar';
             var badge = document.createElement('span');
             badge.className = 'dbe-scope-badge';
-            // Builderius shows a class's EXISTING rules in the editor no matter
-            // which scope is active — the scope only routes where edits are
-            // saved. Spell that out, or a rule seen under Global (but stored in
-            // Template) gets silently forked into global CSS by an edit.
+            // Builderius initially shows a class's existing rules no matter
+            // which scope is active. The isolation guard below protects rules
+            // stored elsewhere; explain that outcome rather than the confusing
+            // native model behind it.
             badge.setAttribute('data-dbe-tip',
-                dbeT('scopeBadgeTip', 'Scope controls where edits are SAVED. The editor shows the ' +
-                'selector’s existing rules from both scopes, so a rule you ' +
-                'see here may be stored in the other scope.'));
+                dbeT('scopeBadgeTip', 'Choose where edits are saved. If these rules live in the other scope, the editor is protected until you switch scope or add rules here.'));
             badge.tabIndex = 0;
             bar.appendChild(badge);
             var sw = document.createElement('div');
@@ -7143,32 +7308,52 @@
         }, true);
     }
 
-    /* (j) Navigator search: filter box above the tree. Non-matching rows dim
-       (not hide) so the structure stays readable; matches are re-applied after
-       every tree re-render via schedule(). */
+    /* (j) Navigator search: filter box above the tree. Non-matching branches
+       hide, while ancestors of a matching row stay visible so its document
+       structure remains understandable. Re-applied after every tree render. */
     var treeQuery = '';
     var treeSearchDebounce = null;
     function applyTreeFilter() {
         var q = treeQuery.trim().toLowerCase();
         // schedule() re-runs this on every tree mutation; with no filter active
-        // and nothing dimmed there is nothing to do, so skip the full-tree
+        // and nothing hidden there is nothing to do, so skip the full-tree
         // textContent walk (one cheap existence probe instead).
-        if (!q && !document.querySelector('.uniRightPanel .dbe-tree-dim')) {
+        if (!q && !document.querySelector('.uniRightPanel .dbe-tree-filtered-out')) {
             var idleCount = document.querySelector('.dbe-tree-search__count');
             if (idleCount && idleCount.textContent !== '') { idleCount.textContent = ''; }
             return;
         }
-        var rows = document.querySelectorAll('.uniRightPanel .uniModTree__item');
-        var total = 0, hits = 0;
+        var rows = [].slice.call(document.querySelectorAll('.uniRightPanel .uniModTree__item'));
+        var total = rows.length;
+        var matches = q ? rows.filter(function (row) {
+            return (row.textContent || '').toLowerCase().indexOf(q) !== -1;
+        }) : rows;
+        var visible = new Set(matches);
+        // Builderius renders the tree as a flat sequence carrying aria-level.
+        // Walk backwards from every match to retain its nearest ancestor at
+        // each level, so the result never loses its structural context.
+        matches.forEach(function (match) {
+            var level = parseInt(match.getAttribute('aria-level'), 10) || 1;
+            for (var i = rows.indexOf(match) - 1; i >= 0 && level > 1; i--) {
+                var candidateLevel = parseInt(rows[i].getAttribute('aria-level'), 10) || 1;
+                if (candidateLevel < level) {
+                    visible.add(rows[i]);
+                    level = candidateLevel;
+                }
+            }
+        });
         rows.forEach(function (row) {
-            total += 1;
-            var match = !q || (row.textContent || '').toLowerCase().indexOf(q) !== -1;
-            row.classList.toggle('dbe-tree-dim', !!q && !match);
-            if (match) { hits += 1; }
+            row.classList.remove('dbe-tree-dim'); // clean up the previous implementation
+            row.classList.toggle('dbe-tree-filtered-out', !!q && !visible.has(row));
         });
         var count = document.querySelector('.dbe-tree-search__count');
         if (count) {
-            var msg = q ? (hits + ' of ' + total + ' elements match') : '';
+            var hits = matches.length;
+            var msg = !q ? '' : hits === 0
+                ? dbeT('treeNoMatches', 'No matching elements')
+                : dbeFmt(dbeTn(total,
+                    'treeMatchesOne', '%1$s of %2$s element matches',
+                    'treeMatchesMany', '%1$s of %2$s elements match'), hits, total);
             if (count.textContent !== msg) { count.textContent = msg; }
         }
     }
@@ -7206,14 +7391,97 @@
         tree.parentNode.insertBefore(wrap, tree);
     }
 
-    /* (k) Unsaved-changes cue. Builderius records a history snapshot per
-       module operation and warns on unload, but gives no visible cue. Dirty =
-       history has grown past the baseline; the baseline resets when the Save
-       button is clicked. Settings-only edits that skip history are missed —
-       the native beforeunload warning still covers those. */
+    /* (k) Save-state cue. Builderius records a history snapshot per module
+       operation and exposes shouldSaveData for settings-only edits. A successful
+       save replaces history with one freshly timestamped snapshot; the public
+       afterSaveAllSettings hook runs after success AND failure. Together those
+       signals let the cue report Unsaved -> Saving… -> Saved without declaring
+       success merely because Save was clicked. */
     var saveBaseline = null;
+    var dbeSaveState = '';
+    var dbeSavePending = null;
+    var dbeSaveTimer = null;
+    var dbeSaveHookBound = false;
+    var dbeSaveIgnoreDirtyUntil = 0;
+    var dbeSaveLastStamp = 0;
     function historyLen() {
         try { return (store().storeGet('history') || []).length; } catch (e) { return null; }
+    }
+    function dbeSaveStamp() {
+        try {
+            var h = store().storeGet('history') || [];
+            return h.length === 1 && h[0] && Number(h[0].timestamp) ? Number(h[0].timestamp) : 0;
+        } catch (e) { return 0; }
+    }
+    function dbeShouldSave() {
+        try { return store().storeGet('shouldSaveData') === true; } catch (e) { return false; }
+    }
+    function dbeRenderSaveCue() {
+        var cue = document.querySelector('.dbe-save-cue');
+        if (!cue) { return; }
+        var len = historyLen();
+        if (len === null) { return; }
+        if (saveBaseline === null) { saveBaseline = len; }
+        var dirty = len > saveBaseline || (Date.now() > dbeSaveIgnoreDirtyUntil && dbeShouldSave());
+        if (dbeSaveState === 'saved' && len > saveBaseline) { dbeSaveState = ''; }
+        var state = dbeSaveState || (dirty ? 'dirty' : '');
+        var text = state === 'saving' ? dbeT('saving', 'Saving…')
+            : state === 'saved' ? dbeT('saved', 'Saved')
+                : state === 'error' ? dbeT('saveFailed', 'Save failed. Changes remain unsaved; try again.')
+                    : dbeT('unsaved', 'Unsaved');
+        cue.textContent = text;
+        ['dirty', 'saving', 'saved', 'error'].forEach(function (name) {
+            cue.classList.toggle('is-' + name, state === name);
+        });
+    }
+    function dbeShowSavedState(stamp) {
+        dbeSaveLastStamp = stamp;
+        saveBaseline = historyLen();
+        dbeSaveIgnoreDirtyUntil = Date.now() + 500;
+        dbeSaveState = 'saved';
+        clearTimeout(dbeSaveTimer);
+        dbeSaveTimer = setTimeout(function () {
+            if (dbeSaveState === 'saved') { dbeSaveState = ''; dbeRenderSaveCue(); }
+        }, 2000);
+        dbeRenderSaveCue();
+    }
+    function dbeFinishSave() {
+        var stamp = dbeSaveStamp();
+        if (!dbeSavePending) {
+            // Save options can commit without clicking the main Save button.
+            // They cannot show the pre-request state, but a fresh snapshot can
+            // still confirm Saved without guessing from a menu label.
+            if (stamp && stamp !== dbeSaveLastStamp) { dbeShowSavedState(stamp); }
+            return;
+        }
+        var pending = dbeSavePending;
+        dbeSavePending = null;
+        clearTimeout(dbeSaveTimer);
+        var confirmed = stamp >= pending.started && stamp !== pending.beforeStamp;
+        if (confirmed) { dbeShowSavedState(stamp); }
+        else { dbeSaveState = 'error'; dbeRenderSaveCue(); }
+    }
+    function dbeBeginSave() {
+        clearTimeout(dbeSaveTimer);
+        dbeSavePending = { started: Date.now(), beforeStamp: dbeSaveStamp() };
+        dbeSaveState = 'saving';
+        dbeRenderSaveCue();
+        // Session-expiry failures can stop before saveAllSettings runs, so its
+        // finally hook never fires. Do not leave the cue saying Saving forever.
+        dbeSaveTimer = setTimeout(function () {
+            if (!dbeSavePending) { return; }
+            dbeSavePending = null;
+            dbeSaveState = 'error';
+            dbeRenderSaveCue();
+        }, 30000);
+    }
+    function hookSaveStatus() {
+        if (dbeSaveHookBound) { return; }
+        try {
+            dbeSaveLastStamp = dbeSaveStamp();
+            window.Builderius.API.hooks.addAction('builderius.storeAction.afterSaveAllSettings', 'dbeSaveStatus', dbeFinishSave);
+            dbeSaveHookBound = true;
+        } catch (e) {}
     }
     var dbeSaveClickBound = false;
     function ensureSaveCue() {
@@ -7233,14 +7501,7 @@
                 // The caret strip inside the button opens the Save menu without
                 // saving — opening it must not rebaseline the Unsaved cue.
                 if (e.target.closest('.saveBtn .actions')) { return; }
-                // Give the save request a beat, then treat the current state as
-                // clean. Optimistic: a save that fails re-flags only on the next
-                // history-growing edit — the native beforeunload warning remains
-                // the backstop for that window.
-                setTimeout(function () {
-                    saveBaseline = historyLen();
-                    ensureSaveCue();
-                }, 500);
+                dbeBeginSave();
             }, true);
         }
         var cue = document.querySelector('.dbe-save-cue');
@@ -7248,13 +7509,9 @@
             cue = document.createElement('span');
             cue.className = 'dbe-save-cue';
             cue.setAttribute('role', 'status');
-            cue.textContent = dbeT('unsaved', 'Unsaved');
             save.parentNode.insertBefore(cue, save);
         }
-        var len = historyLen();
-        if (len === null) { return; }
-        if (saveBaseline === null) { saveBaseline = len; }
-        cue.classList.toggle('is-dirty', len > saveBaseline);
+        dbeRenderSaveCue();
     }
 
     /* (k2) Cmd/Ctrl+S saves the template (save_shortcut). The browser's
@@ -7264,8 +7521,8 @@
        saving from the middle of typing is exactly what the WordPress block
        editor does. Acts (and suppresses the browser dialog) only when the
        native Save button is actually present; the programmatic click also
-       bubbles through the save cue's delegated listener, so the "Unsaved"
-       marker rebaselines exactly as a pointer click would. */
+       bubbles through the save cue's delegated listener, so keyboard and
+       pointer saves report the same Saving/Saved state. */
     function bindSaveShortcut() {
         document.addEventListener('keydown', function (e) {
             if (e.repeat || (e.key || '').toLowerCase() !== 's') { return; }
@@ -7515,8 +7772,8 @@
                 ['Home · End', dbeT('scCanvasFirstLast', 'First / last visible element')]
             ] : [],
             on('keyboard_shortcuts') ? [
-                ['Enter', dbeT('scEnterInteractive', 'Enter interactive canvas mode')],
-                ['Esc', dbeT('scExitInteractive', 'Return to canvas selection mode')]
+                ['Enter', dbeT('scEnterInteractive', 'Edit selected text; otherwise interact with the page')],
+                ['Esc', dbeT('scExitInteractive', 'Return to selecting elements')]
             ] : []
         )]
     ] : []).concat([
@@ -7718,7 +7975,7 @@
             waitFor(function () {
                 return document.querySelector('.uniRightPanel .uni-tree-node-' + newId) || null;
             }, function (row) { if (row) { clickSeq(row); } });
-            undoToast(dbeFmt(dbeT('addedElement', 'Added %s'), '<' + tag + '>'));
+            undoToast(dbeFmt(dbeT('addedElement', 'Added %s'), '<' + tag + '>'), 'undo');
         }
 
         filter.addEventListener('input', applyFilter);
@@ -7804,13 +8061,13 @@
         if (code === 'KeyD' && e.shiftKey && !e.altKey) {                       // Duplicate
             if (!id) { return; }
             e.preventDefault(); e.stopPropagation();
-            driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } });
+            driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element'), 'undo'); } });
         } else if (code === 'KeyX' && !e.shiftKey && !e.altKey) {               // Cut = Copy then Remove
             if (!id) { return; }
             e.preventDefault(); e.stopPropagation();
             driveContextMenuItem(id, 'Copy', function (ok) {
                 if (!ok) { return; }
-                driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); });
+                driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); });
             });
         } else if (e.altKey && !e.shiftKey && (code === 'KeyT' || code === 'KeyY')) { // Add before / after
             if (!id) { return; }
@@ -7865,7 +8122,7 @@
                 var existing = ha.value.filter(function (a) { return a.name === p.name; })[0];
                 if (existing) { existing.value = p.value; } else { ha.value.push({ name: p.name, value: p.value }); }
             });
-        });
+        }, dbeT('attributeChanges', 'attribute changes'));
     }
 
     /* Parse an attribute string into {name,value} pairs. Multiple attributes are
@@ -7915,6 +8172,7 @@
         listEl.setAttribute('role', 'listbox');
         var hintEl = document.createElement('div');
         hintEl.className = 'dbe-palette__hint';
+        hintEl.setAttribute('role', 'status');
         dlg.appendChild(searchRow);
         dlg.appendChild(listEl);
         dlg.appendChild(hintEl);
@@ -7945,29 +8203,32 @@
         var commands = [];
         if (hasEl) {
             commands.push(
-                { group: 'add', label: dbeT('paletteAddClass', 'Add classes'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddClass', 'Add classes'), input: true, ph: dbeT('phClass', 'class1 class2  (or .a.b)'),
+                    empty: dbeT('paletteEnterClass', 'Enter at least one class'), run: function (v) {
                     var cls = v.replace(/^\./, '').split(/[\s.]+/).filter(Boolean);
-                    if (!cls.length) { return; }
+                    if (!cls.length) { paletteInputError(dbeT('paletteEnterClass', 'Enter at least one class')); return; }
                     runClose(function () {
                         if (dbeAddClasses(id, cls)) {
-                            undoToast(dbeFmt(dbeTn(cls.length, 'addedClassesOne', 'Added %s class', 'addedClassesMany', 'Added %s classes'), cls.length));
+                            undoToast(dbeFmt(dbeTn(cls.length, 'addedClassesOne', 'Added %s class', 'addedClassesMany', 'Added %s classes'), cls.length), 'undo');
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddAttr', 'Add attributes'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'), run: function (v) {
+                { group: 'add', label: dbeT('paletteAddAttr', 'Add attributes'), input: true, ph: dbeT('phAttr', 'name=value; name2=value2'),
+                    empty: dbeT('paletteEnterAttribute', 'Enter an attribute name'), run: function (v) {
                     var pairs = dbeParseAttributes(v);
-                    if (!pairs.length) { return; }
+                    if (!pairs.length) { paletteInputError(dbeT('paletteEnterAttribute', 'Enter an attribute name')); return; }
                     runClose(function () {
                         if (dbeAddAttributes(id, pairs)) {
-                            undoToast(dbeFmt(dbeTn(pairs.length, 'addedAttribute', 'Added attribute %s', 'addedAttributesMany', 'Added %s attributes'), pairs.length === 1 ? pairs[0].name : pairs.length));
+                            undoToast(dbeFmt(dbeTn(pairs.length, 'addedAttribute', 'Added attribute %s', 'addedAttributesMany', 'Added %s attributes'), pairs.length === 1 ? pairs[0].name : pairs.length), 'undo');
                         }
                     });
                 } },
-                { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
+                { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}',
+                    empty: dbeT('paletteEnterElement', 'Enter an element abbreviation'), run: function (v) {
                     var roots;
-                    try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
+                    try { roots = dbeEmmetParse(v); } catch (e) { paletteInputError(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
                     var structErr = dbeEmmetStructureError(id, roots);
-                    if (structErr) { undoToast(structErr); return; }
+                    if (structErr) { paletteInputError(structErr); return; }
                     runClose(function () {
                         var n = dbeEmmetInsert(id, roots);
                         undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
@@ -7986,13 +8247,13 @@
                 var canMoveOut = dbeCanOutdent(id);
                 commands.push(
                     { group: 'structure', label: dbeT('moveUp', 'Move up'), icon: 'arrow-up', accel: dbeAccel('↑', { alt: true }), disabled: !canMoveUp,
-                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, -1); }); } },
+                        reason: dbeT('cannotMoveUp', 'Already first among its siblings'), run: function () { runClose(function () { moveSibling(id, -1); }); } },
                     { group: 'structure', label: dbeT('moveDown', 'Move down'), icon: 'arrow-down', accel: dbeAccel('↓', { alt: true }), disabled: !canMoveDown,
-                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, 1); }); } },
+                        reason: dbeT('cannotMoveDown', 'Already last among its siblings'), run: function () { runClose(function () { moveSibling(id, 1); }); } },
                     { group: 'structure', label: dbeT('moveIn', 'Move in one level'), icon: 'indent-increase', accel: dbeAccel('→', { alt: true }), disabled: !canMoveIn,
-                        reason: dbeT('cannotMoveIn', 'This element cannot move into its previous sibling'), run: function () { runClose(function () { indentElement(id); }); } },
+                        reason: dbeT('cannotMoveIn', 'Needs a previous sibling that can contain elements'), run: function () { runClose(function () { indentElement(id); }); } },
                     { group: 'structure', label: dbeT('moveOut', 'Move out one level'), icon: 'indent-decrease', accel: dbeAccel('←', { alt: true }), disabled: !canMoveOut,
-                        reason: dbeT('cannotMoveOut', 'This element cannot move out another level'), run: function () { runClose(function () { outdentElement(id); }); } }
+                        reason: dbeT('cannotMoveOut', 'Already at the outermost available level'), run: function () { runClose(function () { outdentElement(id); }); } }
                 );
             }
             if (on('wrap_in')) {
@@ -8004,7 +8265,10 @@
                 );
             }
             commands.push(
-                { group: 'element', label: dbeT('rename', 'Rename'), accel: 'F2', input: true, ph: 'New name', run: function (v) {
+                { group: 'element', label: dbeT('editText', 'Edit text'), accel: 'Enter', disabled: !dbeCanvasTextTarget(),
+                    reason: dbeT('cannotEditText', 'Select an element with editable text'), run: function () { runClose(dbeCanvasStartTextEditing); } },
+                { group: 'element', label: dbeT('rename', 'Rename'), accel: 'F2', input: true, ph: 'New name',
+                    empty: dbeT('paletteEnterName', 'Enter a new name'), run: function (v) {
                     if (!v.trim()) { return; }
                     runClose(function () { commitRename(id, v.trim()); });
                 } }
@@ -8020,14 +8284,15 @@
                 commands.push(
                     { group: 'element', label: dbeT('paletteChangeTag', 'Change tag'), input: true,
                         ph: dbeFmt(dbeT('phTag', 'section, h2, figure…  (now <%s>)'), dbeChangeTagEligible(id)),
+                        empty: dbeT('paletteEnterTag', 'Enter a new HTML tag'),
                         run: function (v) {
                             var tg = dbeCleanTagInput(v);
                             if (!tg) {
-                                undoToast(dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), String(v || '').trim() || '—'));
+                                paletteInputError(dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), String(v || '').trim() || '—'));
                                 return;
                             }
                             if (tg === dbeChangeTagEligible(id)) {
-                                undoToast(dbeFmt(dbeT('tagAlready', 'Already <%s>'), tg));
+                                paletteInputError(dbeFmt(dbeT('tagAlready', 'Already <%s>'), tg));
                                 return;
                             }
                             runClose(function () { dbeChangeTag(id, tg); });
@@ -8035,10 +8300,10 @@
                 );
             }
             commands.push(
-                { group: 'element', label: dbeT('paletteDuplicate', 'Duplicate'), accel: dbeAccel('D', { cmd: true, shift: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
+                { group: 'element', label: dbeT('paletteDuplicate', 'Duplicate'), accel: dbeAccel('D', { cmd: true, shift: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element'), 'undo'); } }); }); } },
                 { group: 'element', label: dbeT('paletteCopy', 'Copy'), accel: dbeAccel('C', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { undoToast(dbeT('copiedElement', 'Copied element')); } }); }); } },
-                { group: 'element', label: dbeT('paletteCut', 'Cut'), accel: dbeAccel('X', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element')); }); } }); }); } },
-                { group: 'element', label: dbeT('paletteDelete', 'Delete'), accel: dbeT('accelDelete', 'Del'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element')); }); }); } },
+                { group: 'element', label: dbeT('paletteCut', 'Cut'), accel: dbeAccel('X', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); }); } }); }); } },
+                { group: 'element', label: dbeT('paletteDelete', 'Delete'), accel: dbeT('accelDelete', 'Del'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element'), 'undo'); }); }); } },
                 // Settings show the selected element's settings — only useful with one.
                 { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
@@ -8048,7 +8313,7 @@
         var rightPanelHidden = dbePanelSideHidden('right', panelWrappers.right);
         var panelsHidden = leftPanelHidden && rightPanelHidden;
         commands.push(
-            { group: 'workspace', icon: 'pointer', label: dbeCanvasInteractive() ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas') : dbeT('enterInteractiveCanvas', 'Enter interactive canvas'),
+            { group: 'workspace', icon: 'pointer', label: dbeCanvasInteractive() ? dbeT('exitInteractiveCanvas', 'Select elements') : dbeT('enterInteractiveCanvas', 'Interact with page'),
                 run: function () { runClose(function () { dbeSetCanvasInteractive(!dbeCanvasInteractive()); }); } },
             { group: 'workspace', icon: 'panels', label: panelsHidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'),
                 run: function () { runClose(function () {
@@ -8144,10 +8409,23 @@
                 var command = document.createElement('span');
                 command.className = 'dbe-palette__command';
                 if (cmd.icon) { command.appendChild(dbeSvgIcon(cmd.icon, 'dbe-palette__icon')); }
+                var copy = document.createElement('span');
+                copy.className = 'dbe-palette__copy';
                 var lab = document.createElement('span');
                 lab.className = 'dbe-palette__label';
+                lab.id = btn.id + '-label';
                 lab.textContent = cmd.label;
-                command.appendChild(lab);
+                copy.appendChild(lab);
+                btn.setAttribute('aria-labelledby', lab.id);
+                if (cmd.disabled && cmd.reason) {
+                    var reason = document.createElement('span');
+                    reason.className = 'dbe-palette__reason';
+                    reason.id = btn.id + '-reason';
+                    reason.textContent = cmd.reason;
+                    copy.appendChild(reason);
+                    btn.setAttribute('aria-describedby', reason.id);
+                }
+                command.appendChild(copy);
                 btn.appendChild(command);
                 if (cmd.accel) {
                     var acc = document.createElement('span');
@@ -8180,6 +8458,10 @@
                 h.hidden = !buttons.some(function (b) { return b.dbeGroup === h.dbeGroup && !b.parentElement.hidden; });
             });
             if (activeButton && activeButton.parentElement.hidden) { setActiveButton(null); }
+            hintEl.classList.remove('dbe-palette__hint--error');
+            hintEl.textContent = q && visible().length === 0
+                ? dbeT('paletteNoMatch', 'No matching commands')
+                : (!q && !hasEl ? dbeT('paletteNoEl', 'No element selected — element commands are hidden') : '');
         }
         function pick(cmd) {
             if (cmd.disabled) { undoToast(cmd.reason || dbeT('commandUnavailable', 'That command is not available here')); return; }
@@ -8198,7 +8480,14 @@
             input.placeholder = cmd.ph || cmd.label;
             input.setAttribute('aria-expanded', 'false');
             hintEl.textContent = cmd.label;
+            hintEl.classList.remove('dbe-palette__hint--error');
             input.focus();
+        }
+        function paletteInputError(message) {
+            hintEl.classList.add('dbe-palette__hint--error');
+            // Clear first so repeating the same invalid submission is announced.
+            hintEl.textContent = '';
+            setTimeout(function () { hintEl.textContent = message; }, 20);
         }
         function exitInput() {
             mode = null;
@@ -8209,11 +8498,24 @@
             input.focus();
         }
 
-        input.addEventListener('input', applyFilter);
+        input.addEventListener('input', function () {
+            if (mode) {
+                hintEl.classList.remove('dbe-palette__hint--error');
+                hintEl.textContent = mode.label;
+                return;
+            }
+            applyFilter();
+        });
         dlg.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (mode) { mode.run(input.value); return; }
+                if (mode) {
+                    if (!input.value.trim()) {
+                        paletteInputError(mode.empty || dbeT('paletteEnterValue', 'Enter a value'));
+                        return;
+                    }
+                    mode.run(input.value); return;
+                }
                 var vis = visible();
                 var pickBtn = activeButton || vis[0];
                 if (pickBtn) { pick(pickBtn.dbeCmd); }
@@ -8271,6 +8573,74 @@
         editor.blur();
     }
 
+    /* Builderius exposes no public "start inline editing" action. Reuse its
+       native double-click channel, but only for a selected HtmlElement that
+       actually owns a content setting. That keeps Enter's existing canvas-mode
+       action for containers, images and every non-text module. */
+    function dbeCanvasTextTarget() {
+        var id = activeId();
+        var mods = modules();
+        var mod = id && mods && mods[id];
+        if (!mod || mod.name !== 'HtmlElement' || !((mod.settings || []).some(function (s) { return s.name === 'content'; }))) {
+            return null;
+        }
+        var frame = document.getElementById('builderInner');
+        var doc;
+        try { doc = frame && frame.contentDocument; } catch (e) { doc = null; }
+        if (!doc) { return null; }
+        var matches = [].slice.call(doc.querySelectorAll('.uni-node-' + id));
+        return matches.filter(function (el) { return el.getClientRects().length; })[0] || matches[0] || null;
+    }
+
+    function dbeCanvasStartTextEditing() {
+        var target = dbeCanvasTextTarget();
+        if (!target) { return false; }
+        var view = target.ownerDocument.defaultView;
+        var rect = target.getBoundingClientRect();
+        var opts = {
+            bubbles: true,
+            cancelable: true,
+            view: view,
+            detail: 2,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2
+        };
+        target.dispatchEvent(new view.MouseEvent('dblclick', opts));
+        return true;
+    }
+
+    function dbeSyncCanvasEditingIndicator(doc) {
+        if (!doc) { return; }
+        var editing = !!doc.querySelector('uni-inline-editing[contenteditable="true"]');
+        var wasEditing = doc.dbeCanvasTextEditingActive;
+        doc.dbeCanvasTextEditingActive = editing;
+        var indicator = document.querySelector('.dbe-canvas-editing-indicator');
+
+        if (editing && !indicator) {
+            var host = document.querySelector('.uniIframePanel__outer');
+            if (!host) { return; }
+            indicator = document.createElement('div');
+            indicator.className = 'dbe-canvas-editing-indicator';
+            // The hidden live region below owns the natural-language
+            // announcement. Keep this compact visual cue out of the
+            // accessibility tree to avoid announcing the same state twice.
+            indicator.setAttribute('aria-hidden', 'true');
+            indicator.innerHTML =
+                '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.75V13h1.25l7.37-7.37-1.25-1.25L3 11.75Zm9.59-7.09a.66.66 0 0 0 0-.93l-.32-.32a.66.66 0 0 0-.93 0l-.52.52 1.25 1.25.52-.52Z" fill="currentColor"/></svg>' +
+                '<strong>' + dbeT('canvasTextEditing', 'Editing text') + '</strong>' +
+                '<span>' + dbeT('canvasFinishHint', 'Esc to finish') + '</span>';
+            host.appendChild(indicator);
+        } else if (!editing && indicator) {
+            indicator.remove();
+        }
+
+        if (editing && wasEditing !== true) {
+            dbeCanvasStatus(dbeT('canvasTextEditingAnnounce', 'Editing text. Press Escape to finish.'));
+        } else if (!editing && wasEditing === true) {
+            dbeCanvasStatus(dbeT('canvasTextFinished', 'Finished editing text'));
+        }
+    }
+
     function dbeCanvasInteractive() {
         try {
             var mode = store().storeGet('overlayMode');
@@ -8300,8 +8670,8 @@
             try { store().storeSet('overlayMode', interactive ? 'interact' : 'selectModule'); } catch (e) { return false; }
         }
         dbeCanvasStatus(interactive
-            ? dbeT('canvasInteractiveOn', 'Interactive canvas mode')
-            : dbeT('canvasSelectionOn', 'Canvas selection mode'));
+            ? dbeT('canvasInteractiveOn', 'Interacting with page. Press Escape to select elements.')
+            : dbeT('canvasSelectionOn', 'Selecting elements.'));
         if (!interactive) {
             var frame = document.getElementById('builderInner');
             if (frame) { setTimeout(function () { try { frame.focus(); } catch (e) {} }, 0); }
@@ -8348,7 +8718,7 @@
         if (on('keyboard_shortcuts') && e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            dbeSetCanvasInteractive(true);
+            if (!dbeCanvasStartTextEditing()) { dbeSetCanvasInteractive(true); }
             return;
         }
         if (!on('navigator_keyboard') || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
@@ -8407,6 +8777,13 @@
             doc.addEventListener('keydown', dbeCanvasTextEditingKeydown, true);
             doc.dbeCanvasTextEditingKeyBound = true;
         }
+        if (on('keyboard_shortcuts') && !doc.dbeCanvasTextEditingObserver) {
+            doc.dbeCanvasTextEditingObserver = new MutationObserver(function () {
+                dbeSyncCanvasEditingIndicator(doc);
+            });
+            doc.dbeCanvasTextEditingObserver.observe(doc.documentElement, { childList: true, subtree: true });
+        }
+        if (on('keyboard_shortcuts')) { dbeSyncCanvasEditingIndicator(doc); }
         if ((on('navigator_keyboard') || on('keyboard_shortcuts')) && !doc.dbeCanvasNavigationKeyBound) {
             doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
             doc.dbeCanvasNavigationKeyBound = true;
@@ -8428,8 +8805,8 @@
         if (!toggle) { return; }
         var interactive = dbeCanvasInteractive();
         var label = interactive
-            ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas')
-            : dbeT('enterInteractiveCanvas', 'Enter interactive canvas');
+            ? dbeT('exitInteractiveCanvas', 'Select elements')
+            : dbeT('enterInteractiveCanvas', 'Interact with page');
         if (toggle.getAttribute('role') !== 'button') { toggle.setAttribute('role', 'button'); }
         if (toggle.getAttribute('tabindex') !== '0') { toggle.setAttribute('tabindex', '0'); }
         if (toggle.getAttribute('aria-pressed') !== String(interactive)) { toggle.setAttribute('aria-pressed', String(interactive)); }
@@ -8998,6 +9375,7 @@
         dbeSetPanelHiddenState(wrappers.left, leftHidden);
         dbeSetPanelHiddenState(wrappers.right, rightHidden);
         dbeSyncPanelToggle(dbeSidePanelsButton(), hidden);
+        if (on('reveal_selected')) { try { dbeSyncSelectionContext(); } catch (e) {} }
         return hidden;
     }
 
@@ -10603,6 +10981,59 @@
        storeGet compare that only acts when the id actually changes. */
     var dbeLastRevealedId = null;
     var dbeRevealTimer = null;
+    var dbeSelectionContextState = '';
+
+    function dbeSelectionPath(id) {
+        var mods = modules() || {};
+        var chain = [];
+        var seen = {};
+        while (id && mods[id] && !seen[id] && chain.length < 100) {
+            seen[id] = true;
+            chain.unshift(String(mods[id].label || mods[id].name || dbeT('element', 'element')).trim());
+            id = mods[id].parent || '';
+        }
+        return chain.filter(Boolean);
+    }
+
+    /* When the Navigator is collapsed, its selected row and ancestry disappear.
+       Keep a compact, non-interactive breadcrumb in the builder chrome so the
+       extra canvas space does not cost the user their current location. */
+    function dbeSyncSelectionContext() {
+        var current = document.querySelector('.dbe-canvas-selection-context');
+        var wrappers = dbePanelWrappers();
+        var id = activeId();
+        if (!id || !dbePanelSideHidden('right', wrappers.right)) {
+            if (current) { current.remove(); }
+            dbeSelectionContextState = '';
+            return;
+        }
+
+        var path = dbeSelectionPath(id);
+        if (!path.length) {
+            if (current) { current.remove(); }
+            dbeSelectionContextState = '';
+            return;
+        }
+        var fullPath = path.join(' › ');
+        var visiblePath = path.length > 4 ? ['…'].concat(path.slice(-3)).join(' › ') : fullPath;
+        var nextState = id + '|' + fullPath;
+        if (current && dbeSelectionContextState === nextState) { return; }
+
+        var host = document.querySelector('.uniIframePanel__outer');
+        if (!host) { return; }
+        if (!current) {
+            current = document.createElement('div');
+            current.className = 'dbe-canvas-selection-context';
+            current.appendChild(document.createElement('strong'));
+            current.appendChild(document.createElement('span'));
+            host.appendChild(current);
+        }
+        current.querySelector('strong').textContent = dbeT('selectionContext', 'Selected');
+        current.querySelector('span').textContent = visiblePath;
+        current.setAttribute('aria-label', dbeFmt(dbeT('selectionContextLabel', 'Selected element: %s'), fullPath));
+        current.title = fullPath;
+        dbeSelectionContextState = nextState;
+    }
     /* Bring the row into view inside the Navigator's OWN scroll box. The tree
        nests several overflow:visible wrappers inside one scrollable container, so
        walk up to the nearest ancestor that actually scrolls (auto/scroll overflow,
@@ -10664,7 +11095,9 @@
         dbeLastRevealedId = activeId();
         dbeRevealTimer = setInterval(function () {
             try { revealActiveInTree(); } catch (e) {}
+            try { dbeSyncSelectionContext(); } catch (e) {}
         }, 200);
+        try { dbeSyncSelectionContext(); } catch (e) {}
     }
 
     /* (nk) Navigator keyboard tree (navigator_keyboard). The element Navigator is
@@ -10857,10 +11290,12 @@
             else if (e.key === 'ArrowRight') { moved = indentElement(id); }
             if (!moved) {
                 undoToast(e.key === 'ArrowLeft'
-                    ? dbeT('cannotMoveOut', 'This element cannot move out another level')
+                    ? dbeT('cannotMoveOut', 'Already at the outermost available level')
                     : (e.key === 'ArrowRight'
-                        ? dbeT('cannotMoveIn', 'This element cannot move into its previous sibling')
-                        : dbeT('cannotMoveFurther', 'This element cannot move any further')));
+                        ? dbeT('cannotMoveIn', 'Needs a previous sibling that can contain elements')
+                        : (e.key === 'ArrowUp'
+                            ? dbeT('cannotMoveUp', 'Already first among its siblings')
+                            : dbeT('cannotMoveDown', 'Already last among its siblings'))));
             }
             return;
         }
@@ -11204,7 +11639,7 @@
         driveContextMenuItem(id, 'Duplicate', function (ok) {
             raDup.disabled = false;
             if (!ok) { return; }
-            undoToast(dbeT('duplicated', 'Duplicated element'));
+            undoToast(dbeT('duplicated', 'Duplicated element'), 'undo');
             // Land focus on the copy: the new id is whatever appeared in the
             // store under the same parent (the dbeRestoreOp diff pattern).
             waitFor(function () {
@@ -11255,7 +11690,7 @@
         driveContextMenuItem(id, 'Remove', function (ok) {
             raDel.disabled = false;
             if (!ok) { return; }
-            undoToast(dbeT('deletedElement', 'Deleted element'));
+            undoToast(dbeT('deletedElement', 'Deleted element'), 'undo');
             // Move focus off the cluster onto the landing row straight away
             // (its node usually still exists pre-re-render), so raHide has no
             // stranded focus to rescue, then re-assert once the tree settles.
@@ -11546,6 +11981,9 @@
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }
 
+        // Confirm save-state transitions from Builderius's completion hook.
+        if (on('save_state_cue')) { hookSaveStatus(); }
+
         // Save split-button menu (experimental, off by default).
         if (on('save_split_button')) { bindSaveMenuKeys(); }
 
@@ -11607,9 +12045,8 @@
                template slug + dirty state as a short-lived transient: on
                every dirty-state TRANSITION, plus a slow keep-alive while the
                state holds (the server record expires at ~3× this cadence).
-               Dirty mirrors the save cue's heuristic — the store history has
-               grown past the last save — with its own baseline so it works
-               with the save_state_cue toggle off. */
+               Builderius's own shouldSaveData flag covers module history and
+               settings-only edits, and only clears after a successful save. */
             var pr = CFG.presence || {};
             if (pr.url && pr.nonce) {
                 var prTabId = '';
@@ -11624,29 +12061,15 @@
                 } catch (e) {
                     prTabId = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
                 }
-                var prBaseline = null;
                 var prLastDirty = null;
                 var prLastSent = 0;
-                document.addEventListener('click', function (e) {
-                    if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
-                    if (e.target.closest('.saveBtn .actions')) { return; }
-                    // Optimistic, like the save cue: treat the state as
-                    // clean shortly after Save is pressed.
-                    setTimeout(function () {
-                        prBaseline = historyLen();
-                        sendBeat(true);
-                    }, 600);
-                }, true);
                 function prSlug() {
                     try {
                         return new URLSearchParams(location.search).get('builderius_template') || '';
                     } catch (e) { return ''; }
                 }
                 function prDirty() {
-                    var len = historyLen();
-                    if (len === null) { return false; }
-                    if (prBaseline === null) { prBaseline = len; }
-                    return len > prBaseline;
+                    return dbeShouldSave();
                 }
                 function sendBeat(force, clear) {
                     var slug = prSlug();

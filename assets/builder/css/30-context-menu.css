@@ -76,6 +76,10 @@
     cursor: default !important;
 }
 .uniContextMenu__item.dbe-ctx-disabled:hover { background: transparent !important; }
+.uniContextMenu__item.dbe-ctx-disabled:focus-visible {
+    opacity: 1 !important;
+    color: var(--dbe-muted) !important;
+}
 li.dbe-ctx-note,
 li.dbe-ctx-heading {
     padding-block: 6px !important;

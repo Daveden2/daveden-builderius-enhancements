@@ -26,7 +26,10 @@ tab open.
   their real tag with the binding attribute, Templates as real `<template>`
   elements, components as `<dbe-component>`, and modules the editor cannot
   express (code blocks, composites) as `<dbe-keep>` placeholders that
-  round-trip verbatim.
+  round-trip verbatim. Because the complete reconcile cannot yet be undone as
+  one operation, the dialog now states that before Apply; cancelling keeps the
+  current element unchanged. The post-action guidance no longer misleadingly
+  suggests that reopening the editor can restore the previous version.
 * Added: **Import HTML**. Paste markup and watch a live preview of the module
   tree it will build, then insert it into (or after) the target. Structurally
   identical sibling blocks are detected and offered for collapse into a
@@ -34,7 +37,9 @@ tab open.
   values into the Collection's data as literal JSON. `<template>` maps to a
   Template, a data binding or `data-dbe-module="collection"` to a Collection,
   and a pasted `<svg>` becomes an editable SvgCode element rather than being
-  stripped.
+  stripped. The dialog warns before insertion that a complete import cannot
+  be undone as one action and explains that the new elements can be deleted
+  afterwards.
 * Added: **Change tag**. Change an element's HTML tag from a flyout on the
   Navigator's right-click menu or through a typed command in the palette,
   for Collections and SubCollections as well as plain elements, keeping the
@@ -45,6 +50,60 @@ tab open.
   modules. Documented in `docs/emmet-guide.md`.
 * Added: **Paste where you click** in the Navigator (on by default), so a
   pasted element lands at the row you point at rather than at the tree root.
+* Improved: a text element highlighted in the canvas can now enter
+  Builderius's native inline editor with **Enter**, matching the existing
+  double-click gesture; Escape finishes the edit. A persistent **Editing text —
+  Esc to finish** indicator makes the active mode visible for keyboard and
+  pointer entry alike. Its screen-reader announcement is a single natural
+  sentence rather than a duplicate of the compact visual label. On elements
+  without editable text, Enter now uses the clearer **Interact with page**
+  wording, and Escape returns to **Select elements**. **Edit text** is also
+  available from the command palette.
+* Improved: Navigator search now hides non-matching branches while keeping
+  each match's ancestors visible, with a localised result count and a clear
+  **No matching elements** state. Element context menus are named after their
+  target for screen readers, empty Undo feedback explains which element
+  changes DBE can recover, and CSS-scope guidance now describes the protected
+  editing behaviour directly.
+* Improved: **Follow selection in the tree** now keeps a compact selected-element
+  path above the canvas whenever the Navigator is hidden. Long paths retain the
+  last three items on screen, while the full hierarchy remains available
+  as the control's accessible name and tooltip.
+* Added: five additive **quick-start presets** on the settings dashboard for
+  accessibility, keyboard workflow, visual polish, safer editing and power
+  editing. Applying a preset only enables its listed settings, preserves every
+  other choice, marks the experimental preset clearly and waits for the user
+  to review and save the changes.
+* Improved: the selected-element context menu keeps frequent actions at the
+  top level while grouping insertion, structural movement/navigation and
+  advanced element tools into labelled keyboard-operable flyouts. This cuts
+  the longest menu from 23 top-level entries to 15 without hiding an action.
+* Improved: unavailable context-menu commands remain reachable with the arrow
+  keys instead of disappearing from the keyboard sequence. Each announces why
+  it cannot currently run—for example, the element is already at the edge,
+  the selected elements are not siblings, or the action needs one selection—
+  and ignores activation. Heading and selection-summary rows remain skipped.
+  The command palette now shows the same reasons directly beneath unavailable
+  commands and exposes them as accessible descriptions, including precise
+  first/last-sibling guidance for Move up and Move down.
+* Improved: confirmation messages for recoverable element additions, deletes,
+  duplicates, cuts and structural moves now include an **Undo** button instead
+  of relying on users to recall Cmd/Ctrl+Z. After undoing, the same message
+  offers **Redo**. The action remains visible longer, pauses while hovered or
+  focused, and is never offered for changes DBE cannot safely reverse.
+* Fixed: class, attribute and tag updates use Builderius's module-upsert channel,
+  which also emits its “module added” event. DBE now records those as reversible
+  settings changes instead of structural additions, so Cmd/Ctrl+Z restores the
+  earlier properties rather than removing the existing element or crossing
+  into an unrelated older action. Their confirmation messages now offer Undo.
+* Improved: **Save status** now reports **Unsaved**, **Saving…** and confirmed
+  **Saved** states. It includes settings-only edits, leaves failed saves marked
+  unsaved with a retry instruction, and only clears after Builderius creates a
+  fresh saved snapshot. Dirty-tab protection uses the same native dirty signal.
+* Improved: command-palette searches now show **No matching commands** instead
+  of an unexplained blank list. Input commands keep the user's value and show
+  concise inline guidance for missing or invalid classes, attributes, element
+  abbreviations, names and HTML tags.
 * Security: every markup-entry path shares one sanitiser that strips script
   elements, event handlers, `javascript:`/`vbscript:` and script-bearing
   `data:` URLs, and unknown tags, and reports what it removed. Inline SVG is

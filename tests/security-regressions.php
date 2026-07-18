@@ -147,21 +147,21 @@ if ( function_exists( 'dbe_ability_binding_warnings' ) ) {
 		'A triple-square Collection binding was reported as invalid.'
 	);
 
-	$double_square_collection = $square_bracket_collection;
+	$double_square_collection                      = $square_bracket_collection;
 	$double_square_collection['attrs'][0]['value'] = '[[wp.posts]]';
 	dbe_test_assert(
 		array() === dbe_ability_binding_warnings( $double_square_collection ),
 		'A double-square Collection binding was reported as invalid.'
 	);
 
-	$url_context_collection = $square_bracket_collection;
+	$url_context_collection                      = $square_bracket_collection;
 	$url_context_collection['attrs'][0]['value'] = 'https://dbe-playground.test/wp-json/dbe-test/v1/items';
 	dbe_test_assert(
 		array() === dbe_ability_binding_warnings( $url_context_collection ),
 		'A URL-like Collection data-b-context source was reported as invalid.'
 	);
 
-	$url_attr_collection = $square_bracket_collection;
+	$url_attr_collection          = $square_bracket_collection;
 	$url_attr_collection['attrs'] = array(
 		array(
 			'name'  => 'data-source-url',
@@ -173,7 +173,7 @@ if ( function_exists( 'dbe_ability_binding_warnings' ) ) {
 		'A bare Collection data-source-url source was accepted without interactive wiring.'
 	);
 
-	$interactive_url_collection = $square_bracket_collection;
+	$interactive_url_collection          = $square_bracket_collection;
 	$interactive_url_collection['attrs'] = array(
 		array(
 			'name'  => 'data-b-context',
@@ -193,7 +193,7 @@ if ( function_exists( 'dbe_ability_binding_warnings' ) ) {
 		'An interactive URL Collection source was reported as invalid.'
 	);
 
-	$bad_url_collection = $url_attr_collection;
+	$bad_url_collection                      = $url_attr_collection;
 	$bad_url_collection['attrs'][0]['value'] = 'javascript:alert(1)';
 	dbe_test_assert(
 		array() !== dbe_ability_binding_warnings( $bad_url_collection ),
@@ -270,7 +270,9 @@ if ( function_exists( 'dbe_ability_render_token_user' ) ) {
 	// The loopback render token: garbage, oversized and consumed tokens must
 	// never authenticate, a valid token must authenticate exactly once, and
 	// an already-authenticated request must be left untouched.
-	$dbe_prev_header = $_SERVER['HTTP_X_DBE_RENDER_TOKEN'] ?? null;
+	$dbe_prev_header = isset( $_SERVER['HTTP_X_DBE_RENDER_TOKEN'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DBE_RENDER_TOKEN'] ) )
+		: null;
 	try {
 		$_SERVER['HTTP_X_DBE_RENDER_TOKEN'] = 'not-a-real-token';
 		dbe_test_assert( false === dbe_ability_render_token_user( false ), 'A garbage render token authenticated.' );
@@ -281,7 +283,7 @@ if ( function_exists( 'dbe_ability_render_token_user' ) ) {
 		$dbe_token = wp_generate_password( 64, false, false );
 		set_transient( 'dbe_render_token_' . hash( 'sha256', $dbe_token ), array( 'user' => (int) $admins[0] ), 60 );
 		$_SERVER['HTTP_X_DBE_RENDER_TOKEN'] = $dbe_token;
-		dbe_test_assert( (int) $admins[0] === dbe_ability_render_token_user( false ), 'A valid render token did not authenticate its minting user.' );
+		dbe_test_assert( dbe_ability_render_token_user( false ) === (int) $admins[0], 'A valid render token did not authenticate its minting user.' );
 		dbe_test_assert( false === dbe_ability_render_token_user( false ), 'A render token authenticated twice — it must be single use.' );
 
 		set_transient( 'dbe_render_token_' . hash( 'sha256', $dbe_token ), array( 'user' => (int) $admins[0] ), 60 );

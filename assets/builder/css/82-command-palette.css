@@ -114,7 +114,6 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 .dbe-palette__item[aria-disabled="true"] {
 	color: var(--dbe-muted);
 	cursor: not-allowed;
-	opacity: 0.75;
 }
 .dbe-palette__item[hidden] { display: none; }
 
@@ -123,6 +122,16 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	align-items: center;
 	gap: 9px;
 	min-inline-size: 0;
+}
+.dbe-palette__copy {
+	display: grid;
+	gap: 2px;
+	min-inline-size: 0;
+}
+.dbe-palette__reason {
+	font-size: 12px;
+	line-height: 1.35;
+	color: var(--dbe-muted);
 }
 .dbe-palette__icon {
 	inline-size: 16px;
@@ -172,3 +181,4 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	min-block-size: 1em;
 }
 .dbe-palette__hint:empty { display: none; }
+.dbe-palette__hint--error { color: var(--dbe-danger); }

@@ -164,6 +164,17 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 .dbe-html__status--warn { color: var(--dbe-danger); }
 .dbe-html__status:empty { display: none; }
 
+.dbe-html__undo-warning {
+	background: var(--dbe-l2);
+	border: 1px solid var(--dbe-line);
+	border-inline-start: 3px solid var(--dbe-warn-line);
+	border-radius: var(--dbe-r-sm);
+	color: var(--dbe-text-2);
+	font-size: 12px;
+	margin: 10px 0 0;
+	padding: 7px 10px;
+}
+
 .dbe-html__apply:disabled {
 	opacity: 0.55;
 	cursor: not-allowed;

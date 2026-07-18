@@ -2,6 +2,43 @@
 
    The quick element picker opened by Add-before / Add-after: a small modal with
    a filter input over a scrollable, keyboard-navigable list of elements. */
+
+/* Persistent canvas mode cue. It lives in the builder chrome rather than the
+   preview document, so page CSS cannot restyle it and it never covers or
+   intercepts the text being edited. */
+.dbe-canvas-editing-indicator {
+	position: absolute;
+	z-index: 20;
+	inset-block-start: 12px;
+	inset-inline-start: 50%;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--dbe-accent);
+	border-radius: var(--dbe-r-md);
+	background: var(--dbe-l1);
+	color: var(--dbe-text);
+	font: 12px/1.4 var(--dbe-ui-font);
+	box-shadow: 0 4px 16px var(--dbe-shadow);
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+.dbe-canvas-editing-indicator svg {
+	flex: 0 0 auto;
+	inline-size: 16px;
+	block-size: 16px;
+	color: var(--dbe-accent);
+}
+.dbe-canvas-editing-indicator strong {
+	font-weight: 600;
+}
+.dbe-canvas-editing-indicator span {
+	padding-inline-start: 8px;
+	border-inline-start: 1px solid var(--dbe-line-hi);
+	color: var(--dbe-text-2);
+}
+
 dialog.dbe-el-picker {
 	inline-size: min(320px, 92vw);
 	max-block-size: min(70vh, 560px);

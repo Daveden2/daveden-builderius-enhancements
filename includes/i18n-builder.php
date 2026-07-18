@@ -46,7 +46,7 @@ function dbe_builder_strings() {
 		/* translators: 1: number of elements, 2: wrapper type (div, collection + template). */
 		'wrappedMany'                   => __( 'Wrapped %1$s elements in %2$s', 'daveden-builderius-enhancements' ),
 		'wrapTypeCollection'            => __( 'collection + template', 'daveden-builderius-enhancements' ),
-		/* translators: %s: element label. */
+		/* translators: %s: target label. */
 		'movedUp'                       => __( 'Moved “%s” up', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
 		'movedDown'                     => __( 'Moved “%s” down', 'daveden-builderius-enhancements' ),
@@ -54,9 +54,12 @@ function dbe_builder_strings() {
 		'movedIn'                       => __( 'Moved “%s” in one level', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
 		'movedOut'                      => __( 'Moved “%s” out one level', 'daveden-builderius-enhancements' ),
-		'cannotMoveFurther'             => __( 'This element cannot move any further', 'daveden-builderius-enhancements' ),
-		'cannotMoveIn'                  => __( 'This element cannot move into its previous sibling', 'daveden-builderius-enhancements' ),
-		'cannotMoveOut'                 => __( 'This element cannot move out another level', 'daveden-builderius-enhancements' ),
+		'cannotMoveUp'                  => __( 'Already first among its siblings', 'daveden-builderius-enhancements' ),
+		'cannotMoveDown'                => __( 'Already last among its siblings', 'daveden-builderius-enhancements' ),
+		'cannotMoveIn'                  => __( 'Needs a previous sibling that can contain elements', 'daveden-builderius-enhancements' ),
+		'cannotMoveOut'                 => __( 'Already at the outermost available level', 'daveden-builderius-enhancements' ),
+		'singleElementOnly'             => __( 'Available when one element is selected', 'daveden-builderius-enhancements' ),
+		'currentTag'                    => __( 'Current tag', 'daveden-builderius-enhancements' ),
 		'nothingToUnwrap'               => __( 'Nothing to unwrap: this element has no children', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements. */
 		'unwrappedOne'                  => __( 'Unwrapped %s element', 'daveden-builderius-enhancements' ),
@@ -99,13 +102,24 @@ function dbe_builder_strings() {
 
 		// Remove several elements.
 		/* translators: %s: number of elements removed. */
-		'removedElementsOne'            => __( 'Removed %s element (Cmd+Z restores one at a time)', 'daveden-builderius-enhancements' ),
+		'removedElementsOne'            => __( 'Deleted %s element (Cmd+Z restores one at a time)', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of elements removed. */
-		'removedElementsMany'           => __( 'Removed %s elements (Cmd+Z restores one at a time)', 'daveden-builderius-enhancements' ),
+		'removedElementsMany'           => __( 'Deleted %s elements (Cmd+Z restores one at a time)', 'daveden-builderius-enhancements' ),
 
 		// Undo / redo element adds & deletes.
-		'nothingToUndo'                 => __( 'Nothing to undo', 'daveden-builderius-enhancements' ),
+		'nothingToUndo'                 => __( 'Nothing to undo. DBE undo covers element adds, deletes, moves and DBE property changes.', 'daveden-builderius-enhancements' ),
 		'nothingToRedo'                 => __( 'Nothing to redo', 'daveden-builderius-enhancements' ),
+		'undoAction'                    => __( 'Undo', 'daveden-builderius-enhancements' ),
+		'redoAction'                    => __( 'Redo', 'daveden-builderius-enhancements' ),
+		'classChanges'                  => __( 'class changes', 'daveden-builderius-enhancements' ),
+		'attributeChanges'              => __( 'attribute changes', 'daveden-builderius-enhancements' ),
+		'tagChange'                     => __( 'tag change', 'daveden-builderius-enhancements' ),
+		/* translators: 1: type of property change, 2: element label. */
+		'undidPropertyChange'           => __( 'Undid %1$s for “%2$s”', 'daveden-builderius-enhancements' ),
+		/* translators: 1: type of property change, 2: element label. */
+		'redidPropertyChange'           => __( 'Redid %1$s for “%2$s”', 'daveden-builderius-enhancements' ),
+		/* translators: %s: element label. */
+		'cannotUpdateGone'              => __( 'Cannot update “%s”: it is no longer here', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
 		'cannotRestoreParentGone'       => __( 'Cannot restore “%s”: its parent is gone', 'daveden-builderius-enhancements' ),
 		/* translators: %s: element label. */
@@ -130,6 +144,10 @@ function dbe_builder_strings() {
 		// Paste where you click.
 		'pasteAtTop'                    => __( 'Paste at top level', 'daveden-builderius-enhancements' ),
 		'navigatorAreaMenu'             => __( 'Navigator actions', 'daveden-builderius-enhancements' ),
+		/* translators: %s: target label. */
+		'elementActionsFor'             => __( 'Actions for %s', 'daveden-builderius-enhancements' ),
+		/* translators: %s: number of selected elements. */
+		'selectedElementsActions'       => __( 'Actions for %s selected elements', 'daveden-builderius-enhancements' ),
 		'pasteNothing'                  => __( 'Nothing to paste: copy an element first', 'daveden-builderius-enhancements' ),
 		'pasteSelectFailed'             => __( 'Paste failed: could not select the element', 'daveden-builderius-enhancements' ),
 		'pasteMenuFailed'               => __( 'Paste failed: could not reach Paste', 'daveden-builderius-enhancements' ),
@@ -138,7 +156,7 @@ function dbe_builder_strings() {
 		// Right-click menu.
 		'expandChildren'                => __( 'Expand children', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of selected elements. */
-		'removeNElements'               => __( 'Remove %s elements', 'daveden-builderius-enhancements' ),
+		'deleteNElements'               => __( 'Delete %s elements', 'daveden-builderius-enhancements' ),
 		'unwrap'                        => __( 'Unwrap', 'daveden-builderius-enhancements' ),
 		'moveUp'                        => __( 'Move up', 'daveden-builderius-enhancements' ),
 		'moveDown'                      => __( 'Move down', 'daveden-builderius-enhancements' ),
@@ -159,6 +177,9 @@ function dbe_builder_strings() {
 		'collectionTemplateLabel'       => __( 'Collection + template', 'daveden-builderius-enhancements' ),
 		'onlySiblingsWrapped'           => __( 'Only sibling elements can be wrapped together', 'daveden-builderius-enhancements' ),
 		'saveTo'                        => __( 'Save to…', 'daveden-builderius-enhancements' ),
+		'insertActions'                 => __( 'Insert…', 'daveden-builderius-enhancements' ),
+		'moveNavigate'                  => __( 'Move and navigate…', 'daveden-builderius-enhancements' ),
+		'moreElementTools'              => __( 'More element tools…', 'daveden-builderius-enhancements' ),
 
 		// Navigator header buttons.
 		'collapseSubtrees'              => __( 'Collapse subtrees', 'daveden-builderius-enhancements' ),
@@ -188,7 +209,7 @@ function dbe_builder_strings() {
 		'tipInsertDynamicData'          => __( 'Insert dynamic data', 'daveden-builderius-enhancements' ),
 		'tipCanvasWidth'                => __( 'Canvas width in pixels', 'daveden-builderius-enhancements' ),
 		'tipCanvasZoom'                 => __( 'Canvas zoom, percent', 'daveden-builderius-enhancements' ),
-		/* translators: %s: the snippet or variable title. */
+		/* translators: %s: target label. */
 		'tipItemActions'                => __( 'Actions for %s', 'daveden-builderius-enhancements' ),
 		'tipItemActionsFallback'        => __( 'Item actions', 'daveden-builderius-enhancements' ),
 		/* translators: 1: breakpoint label, 2: maximum width in pixels. */
@@ -218,7 +239,7 @@ function dbe_builder_strings() {
 		'contentTab'                    => __( 'Content', 'daveden-builderius-enhancements' ),
 		'stylesTab'                     => __( 'Styles', 'daveden-builderius-enhancements' ),
 		// CSS selector hint (css_hint_dialog). Tokens are separate DOM code nodes.
-		// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment -- %local% and %selector% are literal Builderius tokens shown to the user, not printf placeholders.
+		/* translators: %local% and %selector% are literal Builderius CSS scope tokens. */
 		'cssHintBanner'                 => __( 'How %local%, %selector% & breakpoints work', 'daveden-builderius-enhancements' ),
 		'cssHintOpen'                   => __( 'Selector and breakpoint help', 'daveden-builderius-enhancements' ),
 		'cssHintDismiss'                => __( 'Dismiss hint', 'daveden-builderius-enhancements' ),
@@ -232,7 +253,7 @@ function dbe_builder_strings() {
 		'cssHintBreakpointsTail'        => __( ' as breakpoint-variable values.', 'daveden-builderius-enhancements' ),
 		'or'                            => __( 'or', 'daveden-builderius-enhancements' ),
 		'switchingScope'                => __( 'Switching scope…', 'daveden-builderius-enhancements' ),
-		'scopeBadgeTip'                 => __( 'Scope controls where edits are SAVED. The editor shows the selector’s existing rules from both scopes, so a rule you see here may be stored in the other scope.', 'daveden-builderius-enhancements' ),
+		'scopeBadgeTip'                 => __( 'Choose where edits are saved. If these rules live in the other scope, the editor is protected until you switch scope or add rules here.', 'daveden-builderius-enhancements' ),
 		'cssScope'                      => __( 'CSS scope', 'daveden-builderius-enhancements' ),
 		'scopeAllCss'                   => __( 'All CSS', 'daveden-builderius-enhancements' ),
 		'scopeAllCssTip'                => __( 'Show the full CSS for the active scope and jump to this selector', 'daveden-builderius-enhancements' ),
@@ -316,12 +337,15 @@ function dbe_builder_strings() {
 
 		// Save cue.
 		'unsaved'                       => __( 'Unsaved', 'daveden-builderius-enhancements' ),
+		'saving'                        => __( 'Saving…', 'daveden-builderius-enhancements' ),
+		'saved'                         => __( 'Saved', 'daveden-builderius-enhancements' ),
+		'saveFailed'                    => __( 'Save failed. Changes remain unsaved; try again.', 'daveden-builderius-enhancements' ),
 
 		// Save shortcut.
 		'scSave'                        => __( 'Save the template', 'daveden-builderius-enhancements' ),
 
 		// Class-chip menu.
-		/* translators: %s: CSS class name */
+		/* translators: %s: target label. */
 		'chipMenuFor'                   => __( 'Actions for %s', 'daveden-builderius-enhancements' ),
 
 		// Keyboard shortcuts overlay.
@@ -346,8 +370,8 @@ function dbe_builder_strings() {
 		'scCanvasChild'                 => __( 'Open a branch, then select its first child', 'daveden-builderius-enhancements' ),
 		'scCanvasParent'                => __( 'Close a branch, then select its parent', 'daveden-builderius-enhancements' ),
 		'scCanvasFirstLast'             => __( 'First / last visible element', 'daveden-builderius-enhancements' ),
-		'scEnterInteractive'            => __( 'Enter interactive canvas mode', 'daveden-builderius-enhancements' ),
-		'scExitInteractive'             => __( 'Return to canvas selection mode', 'daveden-builderius-enhancements' ),
+		'scEnterInteractive'            => __( 'Edit selected text; otherwise interact with the page', 'daveden-builderius-enhancements' ),
+		'scExitInteractive'             => __( 'Return to selecting elements', 'daveden-builderius-enhancements' ),
 		'scExitTerminal'                => __( 'Move focus out of the terminal', 'daveden-builderius-enhancements' ),
 		'scMove'                        => __( 'Move between items (wraps)', 'daveden-builderius-enhancements' ),
 		'scFirstLast'                   => __( 'First / last item', 'daveden-builderius-enhancements' ),
@@ -463,6 +487,13 @@ function dbe_builder_strings() {
 		'paletteGroupAdmin'             => __( 'WordPress and Builderius', 'daveden-builderius-enhancements' ),
 		'paletteGroupGoto'              => __( 'Go to', 'daveden-builderius-enhancements' ),
 		'commandUnavailable'            => __( 'That command is not available here', 'daveden-builderius-enhancements' ),
+		'paletteNoMatch'                => __( 'No matching commands', 'daveden-builderius-enhancements' ),
+		'paletteEnterClass'             => __( 'Enter at least one class', 'daveden-builderius-enhancements' ),
+		'paletteEnterAttribute'         => __( 'Enter an attribute name', 'daveden-builderius-enhancements' ),
+		'paletteEnterElement'           => __( 'Enter an element abbreviation', 'daveden-builderius-enhancements' ),
+		'paletteEnterName'              => __( 'Enter a new name', 'daveden-builderius-enhancements' ),
+		'paletteEnterTag'               => __( 'Enter a new HTML tag', 'daveden-builderius-enhancements' ),
+		'paletteEnterValue'             => __( 'Enter a value', 'daveden-builderius-enhancements' ),
 		'openWpDashboard'               => __( 'Open WordPress dashboard', 'daveden-builderius-enhancements' ),
 		'openBuilderiusReleases'        => __( 'Open Builderius releases', 'daveden-builderius-enhancements' ),
 		'openBuilderiusSettings'        => __( 'Open Builderius settings', 'daveden-builderius-enhancements' ),
@@ -471,12 +502,26 @@ function dbe_builder_strings() {
 		'goToNavigator'                 => __( 'Go to Navigator', 'daveden-builderius-enhancements' ),
 		'goToSettings'                  => __( 'Go to settings', 'daveden-builderius-enhancements' ),
 		'goToCanvas'                    => __( 'Go to canvas', 'daveden-builderius-enhancements' ),
-		'enterInteractiveCanvas'        => __( 'Enter interactive canvas', 'daveden-builderius-enhancements' ),
-		'exitInteractiveCanvas'         => __( 'Exit interactive canvas', 'daveden-builderius-enhancements' ),
-		'canvasInteractiveOn'           => __( 'Interactive canvas mode', 'daveden-builderius-enhancements' ),
-		'canvasSelectionOn'             => __( 'Canvas selection mode', 'daveden-builderius-enhancements' ),
+		'enterInteractiveCanvas'        => __( 'Interact with page', 'daveden-builderius-enhancements' ),
+		'exitInteractiveCanvas'         => __( 'Select elements', 'daveden-builderius-enhancements' ),
+		'canvasInteractiveOn'           => __( 'Interacting with page. Press Escape to select elements.', 'daveden-builderius-enhancements' ),
+		'canvasSelectionOn'             => __( 'Selecting elements.', 'daveden-builderius-enhancements' ),
+		'canvasTextEditing'             => __( 'Editing text', 'daveden-builderius-enhancements' ),
+		'canvasTextEditingAnnounce'     => __( 'Editing text. Press Escape to finish.', 'daveden-builderius-enhancements' ),
+		'canvasFinishHint'              => __( 'Esc to finish', 'daveden-builderius-enhancements' ),
+		'canvasTextFinished'            => __( 'Finished editing text', 'daveden-builderius-enhancements' ),
+		'editText'                      => __( 'Edit text', 'daveden-builderius-enhancements' ),
+		'cannotEditText'                => __( 'Select an element with editable text', 'daveden-builderius-enhancements' ),
 		/* translators: %s: selected element label. */
 		'canvasSelected'                => __( 'Selected %s', 'daveden-builderius-enhancements' ),
+		'selectionContext'              => __( 'Selected', 'daveden-builderius-enhancements' ),
+		/* translators: %s: selected element hierarchy, for example Hero > Content > Heading. */
+		'selectionContextLabel'         => __( 'Selected element: %s', 'daveden-builderius-enhancements' ),
+		'treeNoMatches'                 => __( 'No matching elements', 'daveden-builderius-enhancements' ),
+		/* translators: 1: number of matching elements, 2: total number of elements. */
+		'treeMatchesOne'                => __( '%1$s of %2$s element matches', 'daveden-builderius-enhancements' ),
+		/* translators: 1: number of matching elements, 2: total number of elements. */
+		'treeMatchesMany'               => __( '%1$s of %2$s elements match', 'daveden-builderius-enhancements' ),
 		'openInserterCmd'               => __( 'Open Inserter', 'daveden-builderius-enhancements' ),
 		'copiedElement'                 => __( 'Copied element', 'daveden-builderius-enhancements' ),
 		'deletedElement'                => __( 'Deleted element', 'daveden-builderius-enhancements' ),
@@ -531,8 +576,10 @@ function dbe_builder_strings() {
 		'editHtmlUnknownMarker'         => __( 'Unrecognised marker(s): %s. A new element will be created and the original removed.', 'daveden-builderius-enhancements' ),
 		/* translators: 1: elements updated, 2: elements added, 3: elements removed. */
 		'htmlApplied'                   => __( 'HTML applied: %1$s updated, %2$s added, %3$s removed', 'daveden-builderius-enhancements' ),
-		'editHtmlNotUndoable'           => __( 'Edit as HTML can’t be undone — reopen it to revert your changes', 'daveden-builderius-enhancements' ),
-		'importHtmlNotUndoable'         => __( 'Import HTML can’t be undone — delete the imported elements to remove them', 'daveden-builderius-enhancements' ),
+		'editHtmlUndoWarning'           => __( 'Applying these changes can’t be undone. Cancel keeps the current element unchanged.', 'daveden-builderius-enhancements' ),
+		'editHtmlNotUndoable'           => __( 'Edit as HTML can’t be undone. Edit the element again to correct it.', 'daveden-builderius-enhancements' ),
+		'importHtmlUndoWarning'         => __( 'This import can’t be undone as one action. Delete the new elements to remove them.', 'daveden-builderius-enhancements' ),
+		'importHtmlNotUndoable'         => __( 'Import HTML can’t be undone as one action. Delete the imported elements to remove them.', 'daveden-builderius-enhancements' ),
 		/* translators: %s: comma-separated list of stripped tags/attributes. */
 		'htmlStripped'                  => __( '(stripped: %s)', 'daveden-builderius-enhancements' ),
 		// Import HTML.

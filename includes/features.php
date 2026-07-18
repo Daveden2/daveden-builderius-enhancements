@@ -113,6 +113,44 @@ function dbe_feature_sections() {
 }
 
 /**
+ * Curated, additive feature presets for the settings dashboard.
+ *
+ * Applying a preset only enables its listed features; it never disables an
+ * existing choice and the user must still save the settings form.
+ *
+ * @return array<string,array{title:string,description:string,features:array<int,string>}>
+ */
+function dbe_feature_presets() {
+	return array(
+		'accessibility' => array(
+			'title'       => __( 'Accessibility essentials', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Keyboard routes, screen-reader structure, visible focus and clearer controls across the builder.', 'daveden-builderius-enhancements' ),
+			'features'    => array( 'focus_visibility', 'controls_styling', 'topbar_toolbar', 'footer_toolbar', 'select_combobox', 'ai_terminal_tabs', 'panel_tabs', 'settings_accordions', 'chrome_landmarks', 'navigator_keyboard', 'inserter_keyboard', 'builderius_menu', 'tooltips', 'overlay_contrast' ),
+		),
+		'keyboard'      => array(
+			'title'       => __( 'Keyboard workflow', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Fast movement, element actions, command search, shortcuts and reliable saving without leaving the keyboard.', 'daveden-builderius-enhancements' ),
+			'features'    => array( 'navigator_keyboard', 'inserter_keyboard', 'panel_tabs', 'settings_accordions', 'footer_toolbar', 'context_menu', 'element_moves', 'inline_rename', 'keyboard_shortcuts', 'command_palette', 'shortcuts_overlay', 'save_shortcut', 'focus_visibility' ),
+		),
+		'visual'        => array(
+			'title'       => __( 'Visual polish', 'daveden-builderius-enhancements' ),
+			'description' => __( 'A calmer theme, clearer hierarchy and more readable controls without changing editing behaviour.', 'daveden-builderius-enhancements' ),
+			'features'    => array( 'design_tokens', 'tab_styling', 'search_affordance', 'controls_styling', 'focus_visibility', 'tree_row_styling', 'theme_switcher', 'density_toggle', 'tag_badges', 'icon_declutter', 'panel_resize', 'overlay_contrast' ),
+		),
+		'safety'        => array(
+			'title'       => __( 'Safer editing', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Undo, save-state feedback, conflict protection and guarded CSS workflows that reduce accidental loss.', 'daveden-builderius-enhancements' ),
+			'features'    => array( 'undo_delete', 'save_state_cue', 'save_shortcut', 'presence_heartbeat', 'css_block_guard', 'scope_bar', 'css_hint_dialog', 'attr_helpers', 'image_defaults', 'condition_helpers' ),
+		),
+		'power'         => array(
+			'title'       => __( 'Power editing', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Command-driven structure, HTML and class tools for experienced Builderius users. Includes experimental features.', 'daveden-builderius-enhancements' ),
+			'features'    => array( 'context_menu', 'wrap_in', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'keyboard_shortcuts', 'command_palette', 'edit_as_html', 'import_html', 'tag_change', 'css_code_default', 'scope_bar', 'auto_bem', 'hide_minimap' ),
+		),
+	);
+}
+
+/**
  * The feature registry.
  *
  * Each entry:
@@ -289,7 +327,7 @@ function dbe_features() {
 		'tree_search'           => array(
 			'title'       => __( 'Navigator search', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'A filter box for the Navigator tree.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds a filter box above the tree that dims any row whose label or HTML tag does not match what you type.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Adds a filter box above the tree that hides non-matching branches while keeping the ancestors of matching elements visible for context. A live count reports the results.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '70-tree-search.css' ),
 			'shared_css'  => array( '02-nav-layout.css' ),
@@ -306,10 +344,10 @@ function dbe_features() {
 		),
 		'reveal_selected'       => array(
 			'title'       => __( 'Follow selection in the tree', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'The tree opens and scrolls to whatever you select.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view, so your selection is never hidden in a collapsed part of the tree.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'The tree follows your selection; a path remains when it is hidden.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'When you click an element in the preview, the Navigator opens the branches down to it and scrolls it into view. If the Navigator is hidden, a compact path above the canvas keeps the selected element in context.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
-			'css'         => array(),
+			'css'         => array( '78-selection-context.css' ),
 			'js'          => true,
 		),
 		'navigator_keyboard'    => array(
@@ -323,7 +361,7 @@ function dbe_features() {
 		'navigator_row_actions' => array(
 			'title'       => __( 'Navigator row quick actions', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Duplicate and Delete buttons on the hovered or focused row.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Shows Duplicate and Delete buttons at the right edge of a Navigator row when you point at it or move keyboard focus onto it. From a focused row, Tab reaches the buttons and Escape returns to the row; after duplicating, focus lands on the copy, and after deleting it moves to a neighbouring row. Delete asks for a confirming second press, and remains undoable with Ctrl/Cmd+Z while Undo delete is on. Can also be set to sit permanently on the selected row.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Shows Duplicate and Delete buttons at the right edge of a Navigator row when you point at it or move keyboard focus onto it. From a focused row, Tab reaches the buttons and Escape returns to the row; after duplicating, focus lands on the copy, and after deleting it moves to a neighbouring row. Delete asks for a confirming second press, then offers Undo when Undo / redo element changes is on. Can also be set to sit permanently on the selected row.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '83-row-actions.css' ),
 			'shared_css'  => array( '01-infra.css' ),
@@ -343,7 +381,7 @@ function dbe_features() {
 		'context_menu'          => array(
 			'title'       => __( 'Right-click menu enhancements', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'A flatter, keyboard-friendly right-click menu.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Reorganises the Navigator right-click menu into one flat, logically grouped list, so everyday actions are one click away. Includes full keyboard support (arrow keys, Home/End, Escape) and keeps submenus only where an action branches (Wrap in…, Save to…). Also adds a right-click copy and remove menu to the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Reorganises the Navigator right-click menu around the actions used most often, with compact flyouts for inserting, moving and advanced tools. Includes full keyboard support (arrow keys, Home/End and Escape); unavailable commands remain discoverable and explain why they cannot currently run. Also adds a right-click copy and remove menu to the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'shared_css'  => array( '30-context-menu.css' ),
@@ -394,8 +432,8 @@ function dbe_features() {
 		),
 		'undo_delete'           => array(
 			'title'       => __( 'Undo / redo element changes', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Undo element adds, deletes and structural moves.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Press Cmd/Ctrl+Z to undo adding, deleting or structurally moving an element. A deleted element is restored, an added element is removed, and a reordered, indented or outdented element returns to its previous position. Add Shift (Cmd/Ctrl+Shift+Z) to redo. A brief message confirms each step; settings changes are not covered.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Undo element structure and selected DBE property changes.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'shared_css'  => array( '01-infra.css' ),
@@ -462,7 +500,7 @@ function dbe_features() {
 		'keyboard_shortcuts'    => array(
 			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Block-editor-style shortcuts for the selected element.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker), rename (F2), and finish inline text editing in the canvas (Escape). In the canvas, Enter switches from element selection to the interactive page and Escape returns to selection mode. The native interactive-canvas control also becomes keyboard operable. The new element actions appear in the right-click menu, alongside shortcuts to jump between the builder’s regions. Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker), rename (F2), and edit text in the canvas (Enter to start, Escape to finish). A persistent canvas indicator shows when text editing is active. For elements without editable text, Enter lets you interact with the page and Escape returns to selecting elements. The native canvas-mode control also becomes keyboard operable. The new element actions appear in the right-click menu, alongside shortcuts to jump between the builder’s regions. Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -472,7 +510,7 @@ function dbe_features() {
 		'edit_as_html'          => array(
 			'title'        => __( 'Edit as HTML', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Edit an element and its children as HTML markup.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds Edit as HTML to the right-click menu. Existing data-dbe-id markers preserve labels, conditions and other settings; components use <dbe-component>, while unsupported modules use <dbe-keep> and remain unchanged. A review step shows updated, added, removed and sanitised items before anything is applied. Scripts, event handlers, dangerous URLs and unknown elements are removed. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Edit as HTML to the right-click menu. Existing data-dbe-id markers preserve labels, conditions and other settings; components use <dbe-component>, while unsupported modules use <dbe-keep> and remain unchanged. A review step shows updated, added, removed and sanitised items before anything is applied, with a clear warning that the complete operation cannot be undone. Scripts, event handlers, dangerous URLs and unknown elements are removed. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -484,7 +522,7 @@ function dbe_features() {
 		'import_html'           => array(
 			'title'        => __( 'Import HTML', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Paste HTML and turn it into real elements.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Pasted <template> elements become Template modules, and an element carrying a data-b-context attribute (or data-dbe-module="collection") becomes a Collection, so dynamic lists can be imported ready to bind. Add data-dbe-label="…" to any element to name it in the Navigator. Script tags, event-handler attributes, javascript:, vbscript: and script-bearing data: URLs, and unknown elements are stripped before anything is created. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Pasted <template> elements become Template modules, and an element carrying a data-b-context attribute (or data-dbe-module="collection") becomes a Collection, so dynamic lists can be imported ready to bind. Add data-dbe-label="…" to any element to name it in the Navigator. Script tags, event-handler attributes, javascript:, vbscript: and script-bearing data: URLs, and unknown elements are stripped before anything is created. The dialog warns that a complete import cannot be undone as one action. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '85-edit-html.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
@@ -508,7 +546,7 @@ function dbe_features() {
 		'command_palette'       => array(
 			'title'        => __( 'Command palette', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'A searchable command palette on Cmd/Ctrl+K, with a top-bar button.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette, including when focus is inside the preview canvas. Add classes, HTML attributes and child elements with minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), run element and structure actions, persistently show or hide either side panel, jump between builder regions, and open key WordPress or Builderius admin pages in a new tab. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Press Cmd/Ctrl+K (the shortcut is changeable below) or use the palette button in the top bar for a searchable command palette, including when focus is inside the preview canvas. Add classes, HTML attributes and child elements with minimal Emmet syntax (e.g. section.hero>h1{Title}+p{Lead}), run element and structure actions, persistently show or hide either side panel, jump between builder regions, and open key WordPress or Builderius admin pages in a new tab. Unavailable commands stay visible and explain what is needed; empty searches and invalid input receive inline guidance. Event-handler attributes and javascript: URLs are stripped. Experimental.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '82-command-palette.css' ),
 			'shared_css'   => array( '01-infra.css', '03-topbar-layout.css', '30-context-menu.css' ),
@@ -558,7 +596,7 @@ function dbe_features() {
 		'css_hint_dialog'       => array(
 			'title'       => __( 'Tidy selector hint', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'A compact, dismissible hint under the CSS editor.', 'daveden-builderius-enhancements' ),
-			// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment -- %local% and %selector% are literal Builderius tokens shown to the user, not printf placeholders.
+			/* translators: %local% and %selector% are literal Builderius CSS scope tokens. */
 			'description' => __( 'Replaces Builderius’ two-line %local% / %selector% notification under the CSS editor with a compact, dismissible hint, reclaiming the vertical space for the editor. The full explanation moves into a dialog and is reworded so both tokens are described consistently and breakpoints are explained the same way for each (the stock wording differs between them).', 'daveden-builderius-enhancements' ),
 			'tab'         => 'styles',
 			'css'         => array( '44-css-hint.css' ),
@@ -583,9 +621,9 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'save_state_cue'        => array(
-			'title'       => __( 'Unsaved-changes marker', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'An unsaved-changes marker beside the Save button.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Shows an “Unsaved” marker next to the Save button whenever the template has changes that would be lost on reload.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Save status', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Unsaved, Saving and Saved status beside the Save button.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Shows when module or settings changes are unsaved, when a save is running and when it has succeeded. A failed save keeps the changes marked as unsaved and prompts you to try again.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array( '72-save-cue.css' ),
 			'shared_css'  => array( '03-topbar-layout.css' ),

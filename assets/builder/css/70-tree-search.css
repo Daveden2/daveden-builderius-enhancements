@@ -1,5 +1,5 @@
-/* Navigator search: a filter box above the tree. Non-matching rows dim
-   rather than hide, so document structure stays visible and clickable. */
+/* Navigator search: a filter box above the tree. Non-matching branches hide;
+   ancestors of matching rows stay visible to preserve structural context. */
 .dbe-tree-search {
     padding: 8px 10px 2px !important;
 }
@@ -23,4 +23,4 @@
     color: var(--dbe-muted) !important;
     min-block-size: 15px !important;
 }
-.uniModTree__item.dbe-tree-dim { opacity: .35 !important; }
+.uniModTree__item.dbe-tree-filtered-out { display: none !important; }

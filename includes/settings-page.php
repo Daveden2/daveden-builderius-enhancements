@@ -383,6 +383,8 @@ function dbe_render_abilities_panel() {
  */
 function dbe_render_dashboard_panel() {
 	$features = dbe_features();
+	/* translators: %s: number of settings enabled by a preset. */
+	$preset_many = __( 'Preset ready: %s settings enabled. Review the changes, then save.', 'daveden-builderius-enhancements' );
 	?>
 	<div class="dbe-dashboard">
 		<p><?php esc_html_e( 'Daveden Builder Enhancements adds independent appearance, accessibility, editing and workflow tools to Builderius.', 'daveden-builderius-enhancements' ); ?></p>
@@ -406,6 +408,46 @@ function dbe_render_dashboard_panel() {
 				<?php esc_html_e( 'Daveden on YouTube', 'daveden-builderius-enhancements' ); ?>
 			</a>
 		</p>
+		<section class="dbe-presets" aria-labelledby="dbe-presets-title">
+			<h3 id="dbe-presets-title"><?php esc_html_e( 'Quick-start presets', 'daveden-builderius-enhancements' ); ?></h3>
+			<p class="dbe-presets__intro"><?php esc_html_e( 'Enable a coherent set of features in one step. Presets add to your current choices; review the changes, then save when you are ready.', 'daveden-builderius-enhancements' ); ?></p>
+			<div class="dbe-presets__grid">
+				<?php foreach ( dbe_feature_presets() as $preset_id => $preset ) : ?>
+					<?php $description_id = 'dbe-preset-' . $preset_id . '-description'; ?>
+					<article class="dbe-preset<?php echo 'power' === $preset_id ? ' dbe-preset--experimental' : ''; ?>">
+						<div class="dbe-preset__heading">
+							<h4><?php echo esc_html( $preset['title'] ); ?></h4>
+							<?php if ( 'power' === $preset_id ) : ?>
+								<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Includes experimental', 'daveden-builderius-enhancements' ); ?></span>
+							<?php endif; ?>
+						</div>
+						<p id="<?php echo esc_attr( $description_id ); ?>"><?php echo esc_html( $preset['description'] ); ?></p>
+						<button
+							type="button"
+							class="button dbe-apply-preset"
+							data-features="<?php echo esc_attr( implode( ',', $preset['features'] ) ); ?>"
+							aria-describedby="<?php echo esc_attr( $description_id ); ?>"
+						>
+							<?php
+							printf(
+								/* translators: %s: feature preset name. */
+								esc_html__( 'Enable %s', 'daveden-builderius-enhancements' ),
+								esc_html( $preset['title'] )
+							);
+							?>
+						</button>
+					</article>
+				<?php endforeach; ?>
+			</div>
+			<p
+				class="dbe-preset-status"
+				role="status"
+				aria-live="polite"
+				data-none="<?php esc_attr_e( 'Every available setting in this preset is already enabled.', 'daveden-builderius-enhancements' ); ?>"
+				data-one="<?php esc_attr_e( 'Preset ready: 1 setting enabled. Review the changes, then save.', 'daveden-builderius-enhancements' ); ?>"
+				data-many="<?php echo esc_attr( $preset_many ); ?>"
+			></p>
+		</section>
 		<figure class="dbe-dashboard__video">
 			<iframe
 				src="https://www.youtube-nocookie.com/embed/PnwovfnCQsQ"
@@ -545,6 +587,7 @@ function dbe_render_settings_page() {
 				data-clean="<?php esc_attr_e( 'No unsaved changes', 'daveden-builderius-enhancements' ); ?>"
 				data-dirty="<?php esc_attr_e( 'You have unsaved changes', 'daveden-builderius-enhancements' ); ?>"
 				data-reset="<?php esc_attr_e( 'Defaults restored. Save to keep them.', 'daveden-builderius-enhancements' ); ?>"
+				data-preset="<?php esc_attr_e( 'Preset ready. Review the changes, then save.', 'daveden-builderius-enhancements' ); ?>"
 			>
 				<span class="dbe-save-status" role="status" aria-live="polite"></span>
 				<?php submit_button( __( 'Save changes', 'daveden-builderius-enhancements' ), 'primary', 'submit', false ); ?>
