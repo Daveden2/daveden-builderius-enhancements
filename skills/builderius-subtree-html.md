@@ -66,7 +66,8 @@ the smallest subtree that contains your change.
   props are validated against what the component declares
   (`dbe/list-components` is the reference; authoring lives in the
   `builderius-components` skill).
-- `data-dbe-label="…"` names an element in the Navigator.
+- `data-dbe-label="…"` names an element in the Navigator. It is consumed as
+  module metadata and does not render as a front-end HTML attribute.
 - Inline `<svg>` is stripped server-side (PHP would lowercase `viewBox`);
   use the builder's Edit-as-HTML dialog for SVG work, or a `<dbe-keep>` for
   an existing SvgCode module.
@@ -78,6 +79,33 @@ the smallest subtree that contains your change.
   automatically when they strip those attributes).
 - Script tags, event handlers and dangerous URLs are always stripped and
   reported in `stripped`.
+
+## Navigator labels for authored elements
+
+When creating or substantially rebuilding markup, add `data-dbe-label` to
+meaningful structural elements and important working parts. A useful Navigator
+should explain the page at a glance rather than read as a wall of `Div`,
+`Paragraph` and `Template` rows.
+
+- Label sections, major layout groups, Collections/Templates, forms, controls
+  and key content such as headings, media and calls to action.
+- Use short, human-readable role names: `Hero`, `Hero heading`, `Services
+  grid`, `Service item template`, `Contact form`, `Submit button`.
+- Use a consistent section prefix where it disambiguates repeated parts, such
+  as `Pricing heading` and `Pricing cards`.
+- Do not label every incidental wrapper or repeat the bare tag name. Leave a
+  label off when it would add no information.
+- Preserve useful labels on retained elements. To rename one deliberately,
+  keep its `data-dbe-id` and change or add `data-dbe-label`.
+
+```html
+<section data-dbe-label="Services">
+  <h2 data-dbe-label="Services heading">What we do</h2>
+  <div class="services-grid" data-dbe-label="Services grid">
+    <!-- cards -->
+  </div>
+</section>
+```
 
 ## Collections (loops) in the HTML path
 

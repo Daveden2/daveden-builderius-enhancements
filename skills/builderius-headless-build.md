@@ -26,6 +26,9 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
 **Structure** (see `builderius-subtree-html`)
 - `dbe/get-tree-outline` → `dbe/get-subtree-html` → `dbe/apply-subtree-html`
   (dry run first, then save with `expected_commit`).
+- When authoring new markup, add concise `data-dbe-label` values to meaningful
+  sections, layout groups, loops, controls and key content so the finished
+  Navigator is easy to scan. The subtree skill contains the naming rules.
 
 **CSS** (see `builderius-css-safety`)
 - Template-scoped: `dbe/get-entity-css` / `dbe/patch-entity-css` — named
@@ -61,8 +64,9 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
    `apply_rules` for a location) — enabled from birth, but nothing public
    until publish.
 2. `dbe/get-subtree-html` → author the whole page structure in ONE
-   `dbe/apply-subtree-html` call (dry run, then save). Bind data with
-   Collection loops where content is dynamic.
+   `dbe/apply-subtree-html` call (dry run, then save). Give meaningful new
+   elements Navigator labels and bind data with Collection loops where content
+   is dynamic.
 3. `dbe/patch-entity-css` for the page's styles, in named blocks.
 4. Verify the REAL page logged in (saved commits render for logged-in
    users — no publish needed): authenticated fetch or browser.

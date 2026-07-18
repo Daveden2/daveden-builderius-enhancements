@@ -84,7 +84,9 @@ Place and edit instances with `dbe/apply-subtree-html` on the template:
 1. `dbe/create-component` with `title` and `props`.
 2. `dbe/get-subtree-html` (`entity_type: "component"`) → author internals
    in one `dbe/apply-subtree-html`, binding `[[props.x]]` where instances
-   should vary.
+   should vary. Add concise `data-dbe-label` values to the component root and
+   meaningful internal groups, controls and bound content so instances are
+   straightforward to inspect in the Navigator.
 3. `dbe/patch-entity-css` (`entity_type: "component"`) for its styles —
    scoped to the component, shipped with every instance.
 4. Place instances in a template; verify the rendered page logged in.
