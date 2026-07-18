@@ -2,9 +2,9 @@
 
 The **Daveden Builder Enhancements** plugin is a community-driven quality-of-life, theming and accessibility enhancements companion plugin for the
 [Builderius](https://builderius.io/) builder UI. Each feature is added behind its own toggle and can be found in
-(admin menu: **Builderius → Builder Enhance**. By [Daveden](https://youtube.com/@daveden2).
+Find it under **Builderius → Builder Enhancements** in WordPress. By [Daveden](https://youtube.com/@daveden2).
 
-<img width="866" height="650" alt="The Builder Enhance menu item as a submenu of the Builderius option in the WP Dashboard" src="https://github.com/user-attachments/assets/b0793f33-96cd-4c10-93e6-56064dd8ab70" />
+<img width="866" height="650" alt="The Builder Enhancements menu item under Builderius in the WordPress dashboard" src="https://github.com/user-attachments/assets/b0793f33-96cd-4c10-93e6-56064dd8ab70" />
 
 Every tweak touches only the builder chrome to speed up the developer's workflow while building. It doesn't affect the front
 end of the site. Also, each feature is intended to be retired as a native equivalent lands in core Builderius.

@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 1.14.0
+Stable tag: 2.0.0-dev-13
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -14,7 +14,7 @@ Quality-of-life, theming and accessibility enhancements for the Builderius build
 
 Daveden Builder Enhancements refines the Builderius builder's own interface with independent toggles across six areas: appearance and theming (light / dark / auto, density, design tokens), a friendlier Navigator (search, keyboard tree, row quick actions, detachable panel), editing tools (a flatter right-click menu, wrap and unwrap, inline rename, undo/redo, element shortcuts and a command palette), Styles-panel helpers, and workflow extras such as Cmd/Ctrl+S to save. Keyboard and screen-reader access is a design goal throughout.
 
-Everything is configured under **Builderius → Builder Enhance**, and every feature can be switched off without affecting the rest.
+Everything is configured under **Builderius → Builder Enhancements**, and every feature can be switched off without affecting the rest.
 
 The plugin targets Builderius 1.3.5-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
 
@@ -36,7 +36,7 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 1. Download the latest release zip from the GitHub repository and install it via Plugins → Add New Plugin → Upload Plugin (or unzip it into `wp-content/plugins/`, keeping the folder name).
 2. Make sure Builderius is installed and active, then activate the plugin.
-3. Adjust the toggles under Builderius → Builder Enhance — sensible defaults are on out of the box.
+3. Adjust the toggles under Builderius → Builder Enhancements — sensible defaults are on out of the box.
 
 == Frequently Asked Questions ==
 
@@ -120,4 +120,4 @@ Older releases are documented in CHANGELOG.md in the plugin repository.
 == Upgrade Notice ==
 
 = 1.13.0 =
-Adds Navigator row quick actions: accessible Duplicate and Delete buttons on the hovered or focused Navigator row, on by default. Toggle or tune it under Builderius → Builder Enhance → Navigator.
+Adds Navigator row quick actions: accessible Duplicate and Delete buttons on the hovered or focused Navigator row, on by default. Toggle or tune it under Builderius → Builder Enhancements → Navigator.

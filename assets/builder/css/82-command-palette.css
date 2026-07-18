@@ -1,5 +1,30 @@
 /* Command palette (command_palette): a centered modal with a search input over a
    scrollable, keyboard-navigable command list. */
+
+/* Persisted workspace modes. This file loads after the panel-width features, so
+   these zero-width states win without rewriting Builderius' inline layout. */
+html.dbe-left-panel-hidden .uniLeftPanelOuter {
+	inline-size: 0 !important;
+	min-inline-size: 0 !important;
+	max-inline-size: 0 !important;
+	flex: 0 0 0 !important;
+	overflow: hidden !important;
+}
+html.dbe-right-panel-hidden .uniIframePanel:has(.uniRightPanel) {
+	inline-size: 100% !important;
+	margin-inline-end: 0 !important;
+}
+html.dbe-right-panel-hidden .uniMainPanel div:has(> .uniRightPanel) {
+	inline-size: 0 !important;
+	min-inline-size: 0 !important;
+	max-inline-size: 0 !important;
+	overflow: hidden !important;
+}
+html.dbe-left-panel-hidden .dbe-panel-handle[data-side="left"],
+html.dbe-right-panel-hidden .dbe-panel-handle[data-side="right"] {
+	display: none !important;
+}
+
 dialog.dbe-palette {
 	inline-size: min(460px, 94vw);
 	max-block-size: min(70vh, 560px);
@@ -15,6 +40,13 @@ dialog.dbe-palette {
 }
 dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 
+.dbe-palette__search-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 40px;
+	align-items: stretch;
+	border-block-end: 1px solid var(--dbe-line);
+}
+
 .dbe-palette__input {
 	inline-size: 100%;
 	box-sizing: border-box;
@@ -24,10 +56,29 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	color: var(--dbe-text);
 	background: var(--dbe-l1);
 	border: 0;
-	border-block-end: 1px solid var(--dbe-line);
 }
 .dbe-palette__input:focus-visible { outline: none; }
 .dbe-palette__input::placeholder { color: var(--dbe-muted); }
+
+.dbe-palette__close {
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-inline-start: 1px solid var(--dbe-line);
+	background: var(--dbe-l1);
+	color: var(--dbe-muted);
+	font: inherit;
+	font-size: 20px;
+	cursor: pointer;
+}
+.dbe-palette__close:hover {
+	background: var(--dbe-l2);
+	color: var(--dbe-text);
+}
+.dbe-palette__close:focus-visible {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -3px;
+}
 
 .dbe-palette__list {
 	margin: 0;
@@ -50,17 +101,39 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	color: var(--dbe-text);
 	font: inherit;
 	text-align: start;
+	text-decoration: none;
 	cursor: pointer;
 	transition: background var(--dbe-t), color var(--dbe-t);
 }
 .dbe-palette__item:hover { background: var(--dbe-accent-tint); }
-.dbe-palette__item:focus-visible,
-.dbe-palette__item:focus {
+.dbe-palette__item[aria-selected="true"] {
 	outline: 2px solid var(--dbe-focus);
 	outline-offset: -2px;
 	background: var(--dbe-accent-tint);
 }
+.dbe-palette__item[aria-disabled="true"] {
+	color: var(--dbe-muted);
+	cursor: not-allowed;
+	opacity: 0.75;
+}
 .dbe-palette__item[hidden] { display: none; }
+
+.dbe-palette__command {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	min-inline-size: 0;
+}
+.dbe-palette__icon {
+	inline-size: 16px;
+	block-size: 16px;
+	flex: none;
+	color: var(--dbe-muted);
+}
+.dbe-palette__item:hover .dbe-palette__icon,
+.dbe-palette__item[aria-selected="true"] .dbe-palette__icon {
+	color: var(--dbe-accent);
+}
 
 /* The shortcut hint, right-aligned like the block editor's context menu. */
 .dbe-palette__accel {

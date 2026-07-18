@@ -26,7 +26,7 @@ function dbe_print_preview_overlay_fix() {
 	if ( ! isset( $_GET['builderius_inner_preview'] ) ) {
 		return;
 	}
-	if ( ! is_user_logged_in() || ! current_user_can( 'edit_posts' ) || ! dbe_enabled( 'overlay_contrast' ) ) {
+	if ( ! is_user_logged_in() || ! current_user_can( 'builderius-development' ) || ! dbe_enabled( 'overlay_contrast' ) ) {
 		return;
 	}
 

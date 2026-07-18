@@ -20,11 +20,11 @@ permissions:
 
 jobs:
   attach-zip:
-    if: ${{ !contains(github.event.release.body, '<!-- published-by: auto-release -->') }}
+    if: "${{ !contains(github.event.release.body, '<!-- published-by: auto-release -->') }}"
     runs-on: ubuntu-latest
     steps:
       - name: Check out the released tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ github.event.release.tag_name }}
 
@@ -66,9 +66,17 @@ jobs:
           [ "$fail" -eq 0 ] || exit 1
 
       - name: Build the distributable zip
-        run: bash bin/build-zip.sh
+        run: |
+          set -euo pipefail
+          bash bin/build-zip.sh
+          cd dist
+          sha256sum daveden-builderius-enhancements.zip > daveden-builderius-enhancements.zip.sha256
 
       - name: Attach the zip to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/daveden-builderius-enhancements.zip --clobber
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            dist/daveden-builderius-enhancements.zip \
+            dist/daveden-builderius-enhancements.zip.sha256 \
+            --clobber

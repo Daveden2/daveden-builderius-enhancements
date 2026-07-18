@@ -304,16 +304,59 @@
 
     /* Random module id in Builderius' shape ('u' + 9 hex). Lifted from wrap()'s
        closure so element-insertion helpers (picker, Emmet palette) can share it. */
-    function dbeMakeId() {
-        return 'u' + Array.from({ length: 9 }, function () {
-            return Math.floor(Math.random() * 16).toString(16);
-        }).join('');
+    function dbeMakeId(existing) {
+        var used = existing || modules() || {};
+        var id;
+        do {
+            id = 'u' + Array.from({ length: 9 }, function () {
+                return Math.floor(Math.random() * 16).toString(16);
+            }).join('');
+        } while (used[id]);
+        return id;
     }
 
-    /* Build an HtmlElement module object for a tag, with optional classes/id/text.
-       Mirrors the native insert shape used by wrap() — the tag lives in a `tag`
-       setting, classes in a `tagClass` array setting. (id/text handling for the
-       Emmet palette is resolved in phase 3 against the live settings shape.) */
+    /* Attributes whose value becomes a navigable or fetchable URL. Kept as one
+       shared set so every markup-entry channel gates the same names. */
+    var DBE_URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, poster: 1, 'xlink:href': 1 };
+
+    /* Whether a URL value uses a scheme that can execute or smuggle script.
+       Builderius renders htmlAttribute / contentSvg raw, so a stored
+       javascript:/vbscript: URL — or a data: URL carrying a markup document
+       (text/html, xhtml, or an SVG, all of which can hold script) — would run
+       for anyone viewing the page. Raster image data URLs are legitimate (the
+       plugin seeds one as an image placeholder) and stay allowed. The value is
+       already DOM-parsed, so entities are resolved; in-scheme whitespace and
+       control characters are stripped first, the way a browser does before it
+       acts on the URL, so "java\tscript:" cannot slip past. */
+    function dbeDangerousUrl(value) {
+        // eslint-disable-next-line no-control-regex -- deliberate: browsers ignore control chars mid-scheme, so "java\tscript:" must not slip past.
+        var v = String(value == null ? '' : value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+        if (/^(?:javascript|vbscript):/.test(v)) { return true; }
+        if (v.indexOf('data:') === 0) {
+            // Allow only raster image data URLs; block markup/script-bearing
+            // ones, including image/svg+xml (an SVG document can carry script).
+            return !/^data:image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon|vnd\.microsoft\.icon)[;,]/.test(v);
+        }
+        return false;
+    }
+
+    /* Shared attribute gate for every markup-entry channel (the Import/Edit
+       HTML dialogs and the Emmet palette). Builderius renders htmlAttribute
+       values raw (twig |raw), so sanitisation has to happen here, at entry.
+       Returns a short reason string when the attribute must not be stored,
+       null when it is fine. The dbe markers are blocked as stored attributes
+       everywhere — the dialogs consume them as identity before this gate. */
+    function dbeAttrBlocked(name, value) {
+        var n = String(name || '').toLowerCase();
+        if (!n || n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { return n || 'attribute'; }
+        if (n.indexOf('on') === 0) { return n; }
+        if (DBE_URL_ATTRS[n] && dbeDangerousUrl(value)) { return n + '="' + String(value).slice(0, 12) + '…"'; }
+        return null;
+    }
+
+    /* Build an HtmlElement module object for a tag, with optional
+       classes/id/text/attrs. Mirrors the native insert shape used by wrap() —
+       the tag lives in a `tag` setting, classes in a `tagClass` array setting. */
     function dbeElementModule(tag, opts) {
         opts = opts || {};
         var settings = [{ name: 'tag', value: tag }];
@@ -323,22 +366,38 @@
         // class/attr driving.
         if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: opts.text }); }
         if (opts.classes && opts.classes.length) { settings.push({ name: 'tagClass', value: opts.classes.slice() }); }
-        if (opts.id) { settings.push({ name: 'htmlAttribute', value: [{ name: 'id', value: opts.id }] }); }
+        var attrList = [];
+        if (opts.id) { attrList.push({ name: 'id', value: opts.id }); }
+        (opts.attrs || []).forEach(function (a) {
+            if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as the HTML dialogs
+            attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+        });
+        if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
         var label = tag.charAt(0).toUpperCase() + tag.slice(1);
         return { id: dbeMakeId(), name: 'HtmlElement', label: label, settings: settings };
     }
 
-    /* Minimal Emmet parser (command_palette): tag, .class, #id, > child, + sibling,
-       * multiply, {text}. No grouping (), climb-up ^, numbering $ or [attr].
-       Returns an array of root nodes {tag,id,classes,text,count,children}; throws
-       (a plain value) on a parse error. */
+    /* Minimal Emmet parser (command_palette): tag, .class, #id, [attr=value],
+       > child, + sibling, * multiply, {text}. No grouping (), climb-up ^ or
+       numbering $. Attribute values may be bare, "double" or 'single' quoted
+       ([href=/contact/ target=_blank], [aria-label="Main menu"]); a bare name
+       ([hidden]) stores an empty value, which renders as the bare attribute.
+       Returns an array of root nodes {tag,id,classes,attrs,text,count,children};
+       throws (a plain value) on a parse error. */
     function dbeEmmetParse(str) {
         var s = (str || '').trim();
         var i = 0;
         function parseElement() {
-            var node = { tag: '', id: '', classes: [], text: null, count: 1, children: [] };
-            var tm = /^[A-Za-z][A-Za-z0-9]*/.exec(s.slice(i));
-            if (tm) { node.tag = tm[0]; i += tm[0].length; }
+            var node = { tag: '', subTag: null, id: '', classes: [], attrs: [], text: null, count: 1, children: [] };
+            // name:name — the colon suffix is the rendered tag for the
+            // collection reserved words (collection:ul); semantic checks
+            // (reserved word only, known non-void tag) happen after parsing.
+            var tm = /^([A-Za-z][A-Za-z0-9]*)(?::([A-Za-z][A-Za-z0-9]*))?/.exec(s.slice(i));
+            if (tm && tm[0]) {
+                node.tag = tm[1];
+                if (tm[2] != null) { node.subTag = tm[2]; }
+                i += tm[0].length;
+            }
             while (i < s.length) {
                 var c = s[i];
                 if (c === '#') {
@@ -347,12 +406,22 @@
                 } else if (c === '.') {
                     i++; var cm = /^[A-Za-z0-9_-]+/.exec(s.slice(i)); if (!cm) { throw 0; }
                     node.classes.push(cm[0]); i += cm[0].length;
+                } else if (c === '[') {
+                    var abEnd = s.indexOf(']', i); if (abEnd < 0) { throw 0; }
+                    var inner = s.slice(i + 1, abEnd);
+                    var re = /([A-Za-z_:][-A-Za-z0-9_:.]*)(?:=("([^"]*)"|'([^']*)'|[^\s\]]+))?/g;
+                    var am;
+                    while ((am = re.exec(inner))) {
+                        var av = am[3] != null ? am[3] : (am[4] != null ? am[4] : (am[2] != null ? am[2] : ''));
+                        node.attrs.push({ name: am[1], value: av });
+                    }
+                    i = abEnd + 1;
                 } else if (c === '{') {
                     var end = s.indexOf('}', i); if (end < 0) { throw 0; }
                     node.text = s.slice(i + 1, end); i = end + 1;
                 } else { break; }
             }
-            if (!node.tag && !node.classes.length && !node.id && node.text == null) { throw 0; }
+            if (!node.tag && !node.classes.length && !node.id && node.text == null && !node.attrs.length) { throw 0; }
             if (s[i] === '*') {
                 i++; var nm = /^[0-9]+/.exec(s.slice(i)); if (!nm) { throw 0; }
                 node.count = Math.max(1, Math.min(50, parseInt(nm[0], 10))); i += nm[0].length;
@@ -372,9 +441,60 @@
         return roots;
     }
 
+    /* Reserved Emmet words: `collection`, `subcollection` and `template`
+       build the dynamic modules instead of elements. Shaping mirrors the
+       HTML import: classes/id/attrs apply; {text} has no rendering channel
+       on any of them, so it drops. A Collection gets the native insert
+       defaults (interactive off; div tag unless `collection:ul` names the
+       rendered tag) — bind it afterwards, or pass [data-b-context=…]
+       inline. */
+    var DBE_EMMET_WORDS = { collection: 'Collection', subcollection: 'SubCollection', template: 'Template' };
+
     function dbeEmmetNodeToModule(node) {
+        var word = DBE_EMMET_WORDS[(node.tag || '').toLowerCase()];
+        if (word) {
+            var settings = [];
+            if (word !== 'Template') {
+                settings.push({ name: 'interactiveMode', value: false });
+                settings.push({ name: 'tag', value: (node.subTag && dbeCleanTagInput(node.subTag)) || 'div' });
+            }
+            if (node.id) { settings.push({ name: 'tagId', value: node.id }); }
+            if (node.classes.length) { settings.push({ name: 'tagClass', value: node.classes.slice() }); }
+            var attrList = [];
+            (node.attrs || []).forEach(function (a) {
+                if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as elements
+                attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+            });
+            if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
+            return { id: dbeMakeId(), name: word, label: word, settings: settings };
+        }
         var tag = node.tag || ((node.text != null && !node.classes.length && !node.id) ? 'span' : 'div');
-        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text });
+        return dbeElementModule(tag, { classes: node.classes, id: node.id, text: node.text, attrs: node.attrs });
+    }
+
+    /* Validate a parsed Emmet tree BEFORE anything inserts. The only rule left
+       is the :tag suffix: it belongs to the collection words and must name a
+       known non-void tag. There is deliberately NO collection-children rule —
+       a Builderius Collection repeats its <template> child and renders any
+       other (static) children once, so static elements alongside the template
+       are valid (see the note on the removed dbeValidateParsedRoots). targetId
+       is kept in the signature for callers and future rules. */
+    function dbeEmmetStructureError(targetId, roots) {
+        var err = null;
+        (function walk(list) {
+            list.forEach(function (n) {
+                if (err) { return; }
+                var w = DBE_EMMET_WORDS[(n.tag || '').toLowerCase()];
+                // collection:ul is valid; div:foo and collection:script are not.
+                if (n.subTag != null
+                    && (!(w === 'Collection' || w === 'SubCollection') || !dbeCleanTagInput(n.subTag))) {
+                    err = dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), n.tag + ':' + n.subTag);
+                    return;
+                }
+                walk(n.children);
+            });
+        })(roots);
+        return err;
     }
 
     /* Insert a parsed Emmet tree relative to targetId: as its last children when it
@@ -582,26 +702,104 @@
         } catch (e) {}
     }
 
-    /* (d1) Move the target element up or down among its siblings via the builder's
-       own move action (the repaint-and-persist channel). `to` is the desired final
-       position in the sibling order; if a Builderius version treats newIndex as
-       pre-removal instead, adjust the down case here. Selection is by id, so the
-       row stays selected as it moves — no reselect needed. */
-    function moveSibling(id, dir) {
-        if (dbeUndoBusy) { return; }
+    /* (d1) Structural moves all use Builderius' own move action (the repaint-and-
+       persist channel). The shared helper records the previous location for DBE's
+       undo stack, keeps the moved row selected/focused, and announces the result. */
+    function dbeMoveLocation(id) {
         var sf = store();
         var mods = sf.storeGet('modules') || {};
-        if (!mods[id]) { return; }
-        var parent = mods[id].parent || '';
+        var mod = mods[id];
+        if (!mod) { return null; }
+        var parentId = mod.parent || '';
         var idx = sf.storeGet('indexes') || {};
-        var sibs = idx[parent || 'root'] ? [].concat(idx[parent || 'root']) : [];
-        var at = sibs.indexOf(id);
-        if (at < 0) { return; }
-        var to = at + dir;
-        if (to < 0 || to >= sibs.length) { return; }
-        storeMoveModule(sf, id, parent, to);
-        undoToast(dbeFmt(dir < 0 ? dbeT('movedUp', 'Moved “%s” up') : dbeT('movedDown', 'Moved “%s” down'),
-            mods[id].label || dbeT('element', 'element')));
+        var siblings = [].concat(idx[parentId || 'root'] || []);
+        return {
+            sf: sf,
+            mods: mods,
+            mod: mod,
+            parentId: parentId,
+            siblings: siblings,
+            index: siblings.indexOf(id)
+        };
+    }
+
+    function dbeModuleCanContainChildren(mod) {
+        if (!mod) { return false; }
+        if (mod.name === 'Template' || mod.name === 'Collection' || mod.name === 'SubCollection') { return true; }
+        if (mod.name !== 'HtmlElement') { return false; }
+        var tag = String(dbeSettingVal(mod, 'tag') || 'div').toLowerCase();
+        return !DBE_HTML_VOID[tag];
+    }
+
+    function dbeFocusMovedRow(id) {
+        waitFor(function () { return navRowById(id); }, function (row) {
+            if (row) { navSelect(row); }
+        }, 20);
+    }
+
+    function dbeMoveModule(id, newParentId, newIndex, messageKey, messageDefault) {
+        if (dbeUndoBusy) { return; }
+        var from = dbeMoveLocation(id);
+        if (!from || from.index < 0) { return false; }
+        var parentId = newParentId || '';
+        if (from.parentId === parentId && from.index === newIndex) { return false; }
+        storeMoveModule(from.sf, id, parentId, newIndex);
+        if (on('undo_delete')) {
+            dbeHistoryPush({
+                op: 'move',
+                id: id,
+                label: from.mod.label || from.mod.name || dbeT('element', 'element'),
+                parentId: from.parentId,
+                index: from.index
+            });
+        }
+        dbeFocusMovedRow(id);
+        undoToast(dbeFmt(dbeT(messageKey, messageDefault), from.mod.label || from.mod.name || dbeT('element', 'element')));
+        return true;
+    }
+
+    function moveSibling(id, dir) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || loc.index < 0) { return false; }
+        var next = loc.index + dir;
+        if (next < 0 || next >= loc.siblings.length) { return false; }
+        return dbeMoveModule(id, loc.parentId, next,
+            dir < 0 ? 'movedUp' : 'movedDown',
+            dir < 0 ? 'Moved “%s” up' : 'Moved “%s” down');
+    }
+
+    function dbeIndentTarget(id) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || loc.index <= 0) { return null; }
+        var targetId = loc.siblings[loc.index - 1];
+        return dbeModuleCanContainChildren(loc.mods[targetId]) ? targetId : null;
+    }
+
+    function indentElement(id) {
+        var targetId = dbeIndentTarget(id);
+        if (!targetId) { return false; }
+        var indexes = store().storeGet('indexes') || {};
+        return dbeMoveModule(id, targetId, [].concat(indexes[targetId] || []).length,
+            'movedIn', 'Moved “%s” in one level');
+    }
+
+    function dbeCanOutdent(id) {
+        var loc = dbeMoveLocation(id);
+        return !!(loc && loc.parentId && loc.mods[loc.parentId]);
+    }
+
+    function outdentElement(id) {
+        var loc = dbeMoveLocation(id);
+        if (!loc || !loc.parentId) { return false; }
+        var parent = loc.mods[loc.parentId];
+        if (!parent) { return false; }
+        var grandParentId = parent.parent || '';
+        var indexes = loc.sf.storeGet('indexes') || {};
+        var parentSiblings = [].concat(indexes[grandParentId || 'root'] || []);
+        var parentIndex = parentSiblings.indexOf(loc.parentId);
+        if (parentIndex < 0) { return false; }
+        return dbeMoveModule(id, grandParentId, parentIndex + 1,
+            'movedOut', 'Moved “%s” out one level');
     }
 
     /* (d1b) Select the target's parent. The reliable channel is a click on the
@@ -1446,8 +1644,8 @@
         }, true);
     }
 
-    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element ADDS and
-       DELETES. Builderius records history but consumes none of it, and a raw
+    /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element adds,
+       deletes and DBE structural moves. Builderius records history but consumes none of it, and a raw
        storeSet neither repaints nor persists, so we reverse each change through
        the builder's own controllers, which repaint tree + canvas natively:
        - a DELETE is reversed by re-adding the subtree: native Copy writes
@@ -1460,10 +1658,10 @@
        inverse onto the other stack, so redo is just the mirror. Module.added and
        Module.deleted feed the two directions; our OWN paste/remove during an
        undo/redo are skipped via dbeUndoBusy so they do not re-enter the stacks.
-       Restored elements get a new id (paste regenerates them) and are appended
+       Structural moves carry their previous parent and index, so their inverse is
+       immediate and preserves identity. Restored elements get a new id (paste regenerates them) and are appended
        last, so position is not preserved and a re-add whose parent was itself
-       restored can fail. Moves and property edits are not covered (no repaint
-       channel for them). The user's clipboard is saved/restored around the
+       restored can fail. Property edits are not covered. The user's clipboard is saved/restored around the
        forgery where the browser allows reading it. */
     var undoStack = [];
     var redoStack = [];
@@ -1504,6 +1702,20 @@
         redoStack = [];
     }
 
+    /* Seal off the plugin's step-undo after a compound reconcile (Edit as HTML,
+       Import HTML). Those run as one many-step operation the simple add/delete
+       stack can't represent, so a Cmd+Z straight after would otherwise revert
+       an unrelated EARLIER action. A sticky barrier record sits on top instead:
+       Cmd+Z onto it explains the change isn't step-undoable and reverts nothing,
+       and it re-pushes itself so the earlier history stays parked behind it (not
+       destroyed) rather than being crossed. New actions still stack above it and
+       undo normally. Only meaningful while undo_delete owns Cmd+Z; a no-op
+       otherwise, and to be retired once Builderius ships native history. */
+    function dbeHistoryBarrier(msg) {
+        if (!on('undo_delete')) { return; }
+        dbeHistoryPush({ op: 'barrier', msg: msg });
+    }
+
     function hookHistoryCapture() {
         try {
             var api = window.Builderius.API.hooks;
@@ -1542,6 +1754,1430 @@
                 });
             });
         } catch (e) {}
+    }
+
+    /* ============================ Edit as HTML ============================
+       (edit_as_html, Pro). Right-click an element -> "Edit as HTML" opens the
+       element and its subtree as readable, pretty-printed HTML in a dialog;
+       Apply parses the edited markup, sanitises it and reconciles it back
+       onto the module tree.
+
+       Identity: every serialised element carries a data-dbe-id marker. On
+       re-parse, a node whose marker matches a module in the ORIGINAL subtree
+       KEEPS that module — its id, label, conditions and every setting the
+       HTML doesn't express survive; only tag / id / class / attributes /
+       leading text are updated. Unmarked nodes become new HtmlElements;
+       original modules whose marker is gone are removed. A duplicated marker
+       counts only once (first in document order) — the copy becomes new.
+
+       Channels: kept nodes update via the addModule upsert; new nodes via
+       storeAddModule; ordering/reparenting via storeMoveModule; removals via
+       the native menu Remove (the only delete that repaints AND persists),
+       driven sequentially on the top-most removed nodes only (children go
+       with their parent). Retained nodes are moved FIRST so deleting an old
+       parent cannot take a retained descendant with it. dbeUndoBusy is held across the whole apply so
+       the individual add/delete steps record nothing; instead the apply drops
+       one sticky barrier (dbeHistoryBarrier) so a Cmd+Z straight after reports
+       the change isn't step-undoable and can't revert an earlier action. Whole-
+       operation undo is deferred to Builderius' upcoming native history.
+
+       Model limits (v1, by design): a subtree is editable when every module
+       in it is a type the dialogs express (see DBE_HTML_MODULES: HtmlElement,
+       Collection, SubCollection, Template, SvgCode, Component). A subtree
+       containing anything else — HtmlCode or a composite — disables the menu
+       item with a tip. `content` (the module's raw leading text, which may carry [[tokens]]
+       or inline HTML) serialises raw; on re-parse only leading TEXT becomes
+       content again, so inline elements typed inside text become real child
+       elements, and text between elements becomes a span — same rendering,
+       more structure. */
+
+    var DBE_HTML_VOID = {
+        img: 1, input: 1, br: 1, hr: 1, area: 1, base: 1, col: 1, embed: 1,
+        link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1
+    };
+    var DBE_HTML_KNOWN_TAGS = ('a abbr address area article aside audio b bdi bdo blockquote br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr i img input ins kbd label legend li main mark menu meter nav ol optgroup option output p picture pre progress q rp rt ruby s samp search section select small source span strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul var video wbr')
+        .split(' ').reduce(function (m, t) { m[t] = 1; return m; }, {});
+
+    function dbeSettingVal(mod, name) {
+        var s = ((mod && mod.settings) || []).filter(function (x) { return x.name === name; })[0];
+        return s ? s.value : undefined;
+    }
+
+    /* The module types the HTML dialogs can express. Collections and
+       Templates joined once verified live: a Collection's data binding is an
+       ordinary data-b-context attribute and its tag/classes are ordinary
+       settings, and a Template is purely a type boundary that serialises as
+       a real <template> element — everything HTML can't say (interactiveMode,
+       rendering conditions) rides along on the kept-marker upsert. SvgCode
+       is a LEAF: it serialises as its raw contentSvg markup and an <svg> in
+       pasted markup becomes one. A Component is also a LEAF: it serialises as
+       a <dbe-component name="slug"> custom element carrying its property
+       overrides (see dbeComponentRegistry). Still excluded: HtmlCode and the
+       composites. */
+    var DBE_HTML_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1, Template: 1, SvgCode: 1, Component: 1 };
+
+    /* Map every registered component to its label and declared property names
+       for the <dbe-component> syntax. Labels + slugs come from componentsList
+       ({name: slug, title: label}); the declared props live on each
+       component's own config in componentsData[slug].settings, entry
+       `componentTmplProperties` ([{type,name,label,placeholder}]) — the same
+       shape the server ability reads from template.settings. Serialising a
+       component needs none of this (the slug + overrides are on the instance);
+       the registry is for validating pasted props and defaulting new-instance
+       labels. Kept as the client twin of dbe_ability_component_registry(). */
+    function dbeComponentRegistry() {
+        var reg = {};
+        var list = store().storeGet('componentsList') || [];
+        var data = store().storeGet('componentsData') || {};
+        list.forEach(function (c) {
+            if (!c || !c.name) { return; }
+            var props = {};
+            var cfg = data[c.name];
+            ((cfg && cfg.settings) || []).forEach(function (s) {
+                if (s.name === 'componentTmplProperties' && Array.isArray(s.value)) {
+                    s.value.forEach(function (def) {
+                        if (def && def.name) { props[String(def.name).toLowerCase()] = def; }
+                    });
+                }
+            });
+            reg[c.name] = { label: c.title || c.name, props: props };
+        });
+        return reg;
+    }
+
+    /* Editable = the ROOT is a type the dialogs express. Descendants need not
+       be: a non-expressible module inside the subtree (an HtmlCode block, a
+       saved/composite module) serialises as a <dbe-keep> placeholder that
+       round-trips it verbatim, so only the root has to be something the markup
+       can actually stand in for. Matches the server ability, which rejects a
+       non-expressible ROOT but keeps non-expressible descendants. */
+    function dbeHtmlEditable(rootId) {
+        var m = (modules() || {})[rootId];
+        return !!(m && DBE_HTML_MODULES[m.name]);
+    }
+
+    function dbeHtmlEscapeAttr(v) {
+        return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
+    function dbeSerializeSubtree(rootId) {
+        var mods = modules() || {};
+        var idx = store().storeGet('indexes') || {};
+        function ser(id, depth) {
+            var m = mods[id];
+            if (!m) { return ''; }
+            var pad = new Array(depth + 1).join('  ');
+            // A module the dialogs can't express (HtmlCode, a saved/composite
+            // module) serialises as a <dbe-keep> placeholder. On apply the
+            // marker preserves it and its whole subtree verbatim, so the user
+            // edits around it. Same shape as the server ability.
+            if (!DBE_HTML_MODULES[m.name]) {
+                return pad + '<dbe-keep data-dbe-id="' + id + '"><!-- '
+                    + dbeHtmlEscapeAttr(m.name + ': ' + (m.label || ''))
+                    + ' — preserved as-is, leave this element in place --></dbe-keep>';
+            }
+            // An SvgCode module serialises as its raw markup; the identity
+            // marker rides on the <svg> tag itself (the markup IS the
+            // contentSvg setting — there is no separate tag to carry it).
+            if (m.name === 'SvgCode') {
+                var svg = String(dbeSettingVal(m, 'contentSvg') || '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+                svg = svg.replace(/<svg\b/i, '<svg data-dbe-id="' + id + '"');
+                return svg.split('\n').map(function (l) { return pad + l; }).join('\n');
+            }
+            // A Component instance serialises as a lowercase custom element
+            // carrying its slug and property overrides. It is a LEAF (its
+            // internals live in the component definition, not the instance).
+            // Lowercase, not Astro <SiteHeader> PascalCase — HTML parsers
+            // lowercase tag names, so the capitalisation would not round-trip.
+            if (m.name === 'Component') {
+                var slug = String(dbeSettingVal(m, 'componentName') || '');
+                var copen = '<dbe-component name="' + dbeHtmlEscapeAttr(slug) + '"';
+                (dbeSettingVal(m, 'componentProperties') || []).forEach(function (p) {
+                    if (!p || !p.name) { return; }
+                    copen += ' ' + p.name + '="' + dbeHtmlEscapeAttr(p.value == null ? '' : p.value) + '"';
+                });
+                copen += ' data-dbe-id="' + id + '"></dbe-component>';
+                return pad + copen;
+            }
+            // A Template module has no tag setting: it IS the <template>
+            // boundary. Collections carry a normal tag setting (ul, div…).
+            var tag = m.name === 'Template'
+                ? 'template'
+                : String(dbeSettingVal(m, 'tag') || 'div').toLowerCase();
+            var open = '<' + tag;
+            var tagId = dbeSettingVal(m, 'tagId');
+            if (tagId) { open += ' id="' + dbeHtmlEscapeAttr(tagId) + '"'; }
+            var classes = dbeSettingVal(m, 'tagClass');
+            if (Array.isArray(classes) && classes.length) { open += ' class="' + dbeHtmlEscapeAttr(classes.join(' ')) + '"'; }
+            var bindingAttr = false;
+            (dbeSettingVal(m, 'htmlAttribute') || []).forEach(function (a) {
+                if (!a || !a.name || a.name === 'data-dbe-id') { return; }
+                var an = String(a.name).toLowerCase();
+                if (an === 'data-b-context' || an === 'data-source') { bindingAttr = true; }
+                // A value-less entry (the panel's empty-attribute shape) round-trips as name="".
+                open += (a.value == null || a.value === '')
+                    ? ' ' + a.name + '=""'
+                    : ' ' + a.name + '="' + dbeHtmlEscapeAttr(a.value) + '"';
+            });
+            // A Collection/SubCollection whose binding is not stored as a
+            // data-b-context/data-source attribute would re-parse as a plain
+            // HtmlElement and fail the marker type check, so declare the type.
+            if (!bindingAttr && (m.name === 'Collection' || m.name === 'SubCollection')) {
+                open += ' data-dbe-module="' + m.name.toLowerCase() + '"';
+            }
+            open += ' data-dbe-id="' + id + '">';
+            if (DBE_HTML_VOID[tag]) { return pad + open; }
+            var content = dbeSettingVal(m, 'content');
+            var text = content == null ? '' : String(content);
+            var kids = idx[id] || [];
+            if (!kids.length) {
+                if (text.length <= 70 && text.indexOf('\n') === -1) { return pad + open + text + '</' + tag + '>'; }
+                return pad + open + '\n' + pad + '  ' + text + '\n' + pad + '</' + tag + '>';
+            }
+            var lines = [pad + open];
+            if (text !== '') { lines.push(pad + '  ' + text); }
+            kids.forEach(function (k) { lines.push(ser(k, depth + 1)); });
+            lines.push(pad + '</' + tag + '>');
+            return lines.join('\n');
+        }
+        return ser(rootId, 0);
+    }
+
+    /* Parse + sanitise markup into plain trees of
+       {existingId, tag, tagId, classes, attrs, content, children}. Returns
+       {roots, stripped} — a fragment may have several sibling roots (the
+       Import flow); the Edit flow enforces exactly one on top. Strips (and
+       reports) anything unsafe or unknown. origIds = the id set the
+       data-dbe-id markers may claim — pass {} to treat every element as new
+       (markers pointing anywhere else are always ignored, so a dialog can
+       never capture another part of the page). */
+    var DBE_HTML_LIMITS = { bytes: 262144, nodes: 5000, depth: 100 };
+
+    function dbeParseHtmlFragment(html, origIds) {
+        var byteLength = new Blob([String(html)]).size;
+        if (byteLength > DBE_HTML_LIMITS.bytes) {
+            throw dbeFmt(dbeT('htmlErrTooLarge', 'The HTML is too large (%1$s bytes; maximum %2$s).'),
+                byteLength, DBE_HTML_LIMITS.bytes);
+        }
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var allNodes = doc.body.querySelectorAll('*').length;
+        if (allNodes > DBE_HTML_LIMITS.nodes) {
+            throw dbeFmt(dbeT('htmlErrTooManyNodes', 'The HTML contains too many elements (%1$s; maximum %2$s).'),
+                allNodes, DBE_HTML_LIMITS.nodes);
+        }
+        var depthStack = [].slice.call(doc.body.children).map(function (el) { return { el: el, depth: 1 }; });
+        while (depthStack.length) {
+            var depthItem = depthStack.pop();
+            if (depthItem.depth > DBE_HTML_LIMITS.depth) {
+                throw dbeFmt(dbeT('htmlErrTooDeep', 'The HTML nesting exceeds the maximum depth of %s.'), DBE_HTML_LIMITS.depth);
+            }
+            var depthHost = (depthItem.el.tagName.toLowerCase() === 'template' && depthItem.el.content) ? depthItem.el.content : depthItem.el;
+            [].slice.call(depthHost.children).forEach(function (child) {
+                depthStack.push({ el: child, depth: depthItem.depth + 1 });
+            });
+        }
+        var stripped = [];
+        var claimed = {};
+        // data-dbe-id markers that matched nothing in origIds — probably typos.
+        // Each becomes a new element (and the id it meant to keep is removed),
+        // so the Edit dialog warns about them. Callers with no origIds (Import,
+        // where every element is new by design) simply ignore this.
+        var unknownMarkers = {};
+        var registry = dbeComponentRegistry();
+        var STRIP_TAGS = { script: 1, style: 1, link: 1, meta: 1, iframe: 1, object: 1, embed: 1, noscript: 1, base: 1, math: 1 };
+        function claim(marker, moduleName, representation) {
+            marker = String(marker || '').trim();
+            if (!marker) { return false; }
+            if (!origIds[marker] || claimed[marker]) {
+                unknownMarkers[marker] = true;
+                return false;
+            }
+            var expected = origIds[marker];
+            var valid = representation === 'keep' ? !DBE_HTML_MODULES[expected] : expected === moduleName;
+            if (!valid) {
+                throw dbeFmt(
+                    dbeT('htmlErrMarkerType', 'Marked element %1$s is a %2$s but was submitted as %3$s.'),
+                    marker, expected, moduleName);
+            }
+            claimed[marker] = true;
+            return true;
+        }
+        /* An <svg> becomes an SvgCode module carrying its raw markup — the
+           module renders `contentSvg` raw (twig |raw), so the same entry
+           gate applies INSIDE the subtree before it is stored: script
+           elements, on* handlers and javascript: URLs are cut out. A
+           data-dbe-id on the <svg> itself keeps its module like any other
+           element (the serialiser plants it there); markers deeper inside
+           are just removed — the inner markup is one opaque setting. */
+        function convertSvg(el) {
+            var node = { existingId: null, module: 'SvgCode', tag: 'svg', tagId: '', classes: [], attrs: [], content: '', children: [], svg: '', label: '' };
+            var marker = el.getAttribute('data-dbe-id');
+            if (claim(marker, 'SvgCode', 'svg')) { node.existingId = marker; }
+            // The Navigator label lives on the <svg> itself; read it before the
+            // attribute scrub below removes the marker from the stored markup.
+            var svgLabel = el.getAttribute('data-dbe-label');
+            if (svgLabel) { node.label = String(svgLabel).replace(/\s+/g, ' ').trim(); }
+            // The whole SVG is stored as one opaque raw string, so it gets the
+            // same gate as element attributes plus SVG-specific element vectors.
+            // One walk over the subtree: drop script-bearing / markup-smuggling
+            // elements, then scrub dangerous attributes on whatever remains.
+            // Element names are checked by lower-cased localName (the HTML
+            // parser keeps SVG locals like foreignObject camel-cased, so a CSS
+            // type selector is unreliable across namespaces).
+            var SVG_DROP = { script: 1, foreignobject: 1, style: 1, handler: 1, listener: 1 };
+            var SVG_ANIM = { animate: 1, set: 1, animatetransform: 1, animatemotion: 1 };
+            var ariaNoted = false;
+            [el].concat([].slice.call(el.querySelectorAll('*'))).forEach(function (d) {
+                if (d !== el && !el.contains(d)) { return; } // removed with an ancestor already
+                var ln = (d.localName || d.tagName || '').toLowerCase();
+                if (d !== el && SVG_DROP[ln]) { stripped.push('<' + ln + '>'); d.parentNode.removeChild(d); return; }
+                // <use> pulling in an external document is an injection vector;
+                // a local #id reference is fine.
+                if (ln === 'use') {
+                    var uref = (d.getAttribute('href') || d.getAttribute('xlink:href') || '').trim();
+                    if (uref && uref.charAt(0) !== '#') { stripped.push('<use external>'); d.parentNode.removeChild(d); return; }
+                }
+                // An animation that retargets href to a dangerous URL is the
+                // SVG equivalent of an inline handler — SMIL sets it at runtime.
+                if (SVG_ANIM[ln]) {
+                    var target = (d.getAttribute('attributeName') || '').toLowerCase();
+                    if (target === 'href' || target === 'xlink:href') {
+                        var vals = [d.getAttribute('to'), d.getAttribute('from'), d.getAttribute('by')]
+                            .concat((d.getAttribute('values') || '').split(';'));
+                        if (vals.some(function (x) { return x && dbeDangerousUrl(x); })) {
+                            stripped.push('<' + ln + '>'); d.parentNode.removeChild(d); return;
+                        }
+                    }
+                }
+                [].slice.call(d.attributes).forEach(function (a) {
+                    var n = a.name.toLowerCase();
+                    if (n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { d.removeAttribute(a.name); return; }
+                    if (n.indexOf('on') === 0) { stripped.push(n); d.removeAttribute(a.name); return; }
+                    // Builderius' save-time SVG validator (svgOrDynamic) only
+                    // accepts markup identical to its sanitised form, and the
+                    // sanitiser's attribute allowlist has no aria-* and no
+                    // focusable. Stored anyway (some save paths skip the
+                    // validator), such an SVG silently EMPTIES the template's
+                    // deliverable HTML at commit/publish time — a blank page.
+                    // Strip them here and say so; hide a decorative icon from
+                    // assistive tech via a wrapper instead (e.g. a span with
+                    // aria-hidden="true"), which Builderius does allow.
+                    if (n === 'focusable' || n.indexOf('aria-') === 0) {
+                        if (!ariaNoted) {
+                            ariaNoted = true;
+                            stripped.push('aria-*/focusable inside <svg> (Builderius disallows them — wrap the <svg> in an aria-hidden span instead)');
+                        }
+                        d.removeAttribute(a.name);
+                        return;
+                    }
+                    if (DBE_URL_ATTRS[n] && dbeDangerousUrl(a.value)) {
+                        stripped.push(n + '="' + String(a.value).slice(0, 12) + '…"');
+                        d.removeAttribute(a.name);
+                    }
+                });
+            });
+            // Dedent: the serialiser indents the whole block to its tree
+            // depth, and outerHTML keeps that inner whitespace — strip the
+            // common indent so repeated edit round-trips don't stack it up.
+            var svgLines = el.outerHTML.split('\n');
+            if (svgLines.length > 1) {
+                var indents = svgLines.slice(1).filter(function (l) { return l.trim(); })
+                    .map(function (l) { return /^\s*/.exec(l)[0].length; });
+                var minIndent = indents.length ? Math.min.apply(null, indents) : 0;
+                node.svg = [svgLines[0]].concat(svgLines.slice(1).map(function (l) {
+                    return l.slice(minIndent);
+                })).join('\n');
+            } else {
+                node.svg = svgLines[0];
+            }
+            return node;
+        }
+        function convert(el) {
+            var tag = el.tagName.toLowerCase();
+            if (tag === 'svg') { return convertSvg(el); }
+            // A keep-placeholder preserves a non-expressible module and its
+            // whole subtree; its own children (the human-hint comment) are
+            // ignored. The marker must point into the original subtree.
+            if (tag === 'dbe-keep') {
+                var kMarker = el.getAttribute('data-dbe-id');
+                if (claim(kMarker, 'non-expressible module', 'keep')) { return { keep: kMarker }; }
+                stripped.push('<dbe-keep> (invalid, unknown or duplicate marker)');
+                return null;
+            }
+            // A component instance: <dbe-component name="slug" prop="value" …>.
+            // `name` selects the component; every other attribute (bar the dbe
+            // markers) is a property override validated against what the
+            // component declares. It is a leaf — any children are ignored.
+            if (tag === 'dbe-component') {
+                var cslug = String(el.getAttribute('name') || '').trim();
+                if (!cslug || !registry[cslug]) {
+                    var invalidComponentMarker = String(el.getAttribute('data-dbe-id') || '').trim();
+                    if (invalidComponentMarker && origIds[invalidComponentMarker] && !claimed[invalidComponentMarker]) {
+                        throw dbeFmt(
+                            dbeT('htmlErrUnknownMarkedComponent', 'Marked element %1$s uses the unknown component “%2$s”. Choose an available component or restore the original name.'),
+                            invalidComponentMarker, cslug || dbeT('blankValue', 'blank'));
+                    }
+                    var avail = Object.keys(registry).join(', ');
+                    stripped.push('<dbe-component name="' + cslug + '"> (' + (avail ? 'unknown component; available: ' + avail : 'no components registered') + ')');
+                    return null;
+                }
+                var cnode = { existingId: null, module: 'Component', componentName: cslug, props: [], children: [], label: '' };
+                var declared = registry[cslug].props;
+                var cMarker = '';
+                [].slice.call(el.attributes).forEach(function (a) {
+                    var an = a.name.toLowerCase();
+                    if (an === 'name') { return; }
+                    if (an === 'data-dbe-id') {
+                        cMarker = a.value;
+                        return;
+                    }
+                    if (an === 'data-dbe-label') { cnode.label = String(a.value).replace(/\s+/g, ' ').trim(); return; }
+                    // A prop the component does not declare cannot resolve, so
+                    // it is dropped with a note rather than stored as dead data.
+                    if (!declared[an]) {
+                        stripped.push(an + ' (not a property of ' + cslug + ')');
+                        return;
+                    }
+                    cnode.props.push({ name: declared[an].name, value: a.value });
+                });
+                if (claim(cMarker, 'Component', 'component')) { cnode.existingId = cMarker; }
+                return cnode;
+            }
+            if (STRIP_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
+            if (!DBE_HTML_KNOWN_TAGS[tag]) { stripped.push('<' + tag + '>'); return null; }
+            var node = { existingId: null, module: 'HtmlElement', tag: tag, tagId: '', classes: [], attrs: [], content: '', children: [], label: '' };
+            if (tag === 'template') { node.module = 'Template'; }
+            var nodeMarker = '';
+            [].slice.call(el.attributes).forEach(function (a) {
+                var n = a.name.toLowerCase();
+                var v = a.value;
+                if (n === 'data-dbe-id') {
+                    nodeMarker = v;
+                    return;
+                }
+                // Navigator label for the element. Consumed, never stored — sets
+                // a new element's label, or renames a kept one. A blank value
+                // falls through to the default (tag-derived) label.
+                if (n === 'data-dbe-label') { node.label = String(v).replace(/\s+/g, ' ').trim(); return; }
+                // Explicit module marker for NEW nodes (kept nodes take their
+                // type from the live module regardless). Consumed, never stored.
+                if (n === 'data-dbe-module') {
+                    var mv = String(v).toLowerCase();
+                    if (mv === 'collection') { node.module = 'Collection'; }
+                    else if (mv === 'subcollection') { node.module = 'SubCollection'; }
+                    return;
+                }
+                if (n === 'id') { node.tagId = v; return; }
+                if (n === 'class') { node.classes = v.split(/\s+/).filter(Boolean); return; }
+                // A data binding implies a Collection: data-b-context is how a
+                // Collection stores what it loops over, and it stays a stored
+                // attribute (verified live on the gallery Collection).
+                if (n === 'data-b-context' && node.module === 'HtmlElement') { node.module = 'Collection'; }
+                if (n === 'data-source' && node.module === 'HtmlElement') { node.module = 'SubCollection'; }
+                // The one shared gate (dbeAttrBlocked): on* handlers and
+                // javascript:/vbscript:/script-bearing data: URLs. Markers and
+                // id/class/data-b-context are handled above, so they never
+                // reach it here.
+                var blocked = dbeAttrBlocked(n, v);
+                if (blocked) { stripped.push(blocked); return; }
+                node.attrs.push({ name: n, value: v });
+            });
+            if (claim(nodeMarker, node.module, 'element')) { node.existingId = nodeMarker; }
+            var seenElement = false;
+            // DOMParser parks a <template> element's children in its .content
+            // fragment, not .childNodes — read from wherever they actually are.
+            var kidsHost = (tag === 'template' && el.content) ? el.content : el;
+            [].slice.call(kidsHost.childNodes).forEach(function (ch) {
+                if (ch.nodeType === 3) {
+                    var t = ch.textContent.replace(/\s+/g, ' ').trim();
+                    if (!t) { return; }
+                    if (!seenElement) { node.content += (node.content ? ' ' : '') + t; }
+                    else {
+                        // Text after an element has no home in the content-first
+                        // model — synthesise a span so nothing silently drops.
+                        node.children.push({ existingId: null, tag: 'span', tagId: '', classes: [], attrs: [], content: t, children: [] });
+                    }
+                    return;
+                }
+                if (ch.nodeType === 1) {
+                    var c = convert(ch);
+                    if (c) { node.children.push(c); seenElement = true; }
+                }
+            });
+            return node;
+        }
+        var roots = [].slice.call(doc.body.children).map(convert).filter(Boolean);
+        return { roots: roots, stripped: stripped, unknownMarkers: Object.keys(unknownMarkers) };
+    }
+
+    /* The Edit-as-HTML shape: one root, or a structural error. */
+    function dbeParseHtmlTree(html, origIds, rootId) {
+        var parsed = dbeParseHtmlFragment(html, origIds);
+        if (parsed.roots.length !== 1) {
+            throw dbeT('htmlErrOneRoot', 'The HTML must have exactly one root element');
+        }
+        // The root carries the subtree's identity, so it can't be a preserved
+        // placeholder — there would be nothing to edit.
+        if (parsed.roots[0].keep) {
+            throw dbeT('htmlErrRootKeep', 'The root element can’t be a preserved (<dbe-keep>) placeholder');
+        }
+        if (rootId && parsed.roots[0].module !== origIds[rootId]) {
+            throw dbeFmt(
+                dbeT('htmlErrRootType', 'The subtree root is a %1$s and cannot be submitted as %2$s.'),
+                origIds[rootId], parsed.roots[0].module);
+        }
+        return { tree: parsed.roots[0], stripped: parsed.stripped, unknownMarkers: parsed.unknownMarkers };
+    }
+
+    /* Settings for a parsed node, shaped by its module type: a Template has
+       no tag setting (the <template> boundary IS its identity) and neither
+       Templates nor Collections take content — leading text inside them has
+       no rendering channel, so it is dropped rather than stored dead. */
+    function dbeNodeSettings(node) {
+        var moduleName = node.module || 'HtmlElement';
+        // An SvgCode module IS its markup — one opaque setting, nothing else
+        // (the module excludes tagClass/tagId/htmlAttribute; id and class
+        // live inside the markup string).
+        if (moduleName === 'SvgCode') { return [{ name: 'contentSvg', value: node.svg || '' }]; }
+        // A Component is identified by its slug, with optional prop overrides;
+        // it carries none of the tag/class/content settings below.
+        if (moduleName === 'Component') {
+            var cs = [{ name: 'componentName', value: node.componentName }];
+            if (node.props && node.props.length) { cs.push({ name: 'componentProperties', value: node.props.slice() }); }
+            return cs;
+        }
+        var s = [];
+        if (moduleName !== 'Template') { s.push({ name: 'tag', value: node.tag }); }
+        if (node.tagId) { s.push({ name: 'tagId', value: node.tagId }); }
+        if (node.classes.length) { s.push({ name: 'tagClass', value: node.classes.slice() }); }
+        if (node.attrs.length) { s.push({ name: 'htmlAttribute', value: node.attrs.slice() }); }
+        if (node.content && moduleName === 'HtmlElement') { s.push({ name: 'content', value: node.content }); }
+        return s;
+    }
+
+    /* No structural rule is imposed on a parsed Collection's children: a
+       Builderius Collection repeats its <template> child and renders any other
+       (static) children once around it, so static elements alongside the
+       template are valid (core's DataContentModules… render listener keys the
+       repetition off the <template> child and leaves the rest static). An
+       earlier "a collection may only contain <template> elements" rule was
+       wrong and rejected legitimate static content, so it is gone. */
+
+    /* Reconcile the parsed tree onto the live subtree. done(counts). */
+    function dbeApplyHtmlTree(rootId, tree, done) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        var idx = sf.storeGet('indexes') || {};
+        tree.existingId = rootId; // the root's identity is never negotiable
+
+        var kept = {};
+        (function mark(n) {
+            // A keep placeholder preserves its module AND its entire live
+            // subtree, none of which appears in the parsed tree — so mark the
+            // whole store subtree kept, or the descendants would fall into the
+            // delete set and be removed out from under the preserved module.
+            if (n.keep) {
+                (function keepAll(id) { kept[id] = true; (idx[id] || []).forEach(keepAll); })(n.keep);
+                return;
+            }
+            if (n.existingId) { kept[n.existingId] = true; }
+            (n.children || []).forEach(mark);
+        })(tree);
+
+        var origIdsInOrder = [];
+        (function collect(id) {
+            origIdsInOrder.push(id);
+            (idx[id] || []).forEach(collect);
+        })(rootId);
+        var deleted = {};
+        origIdsInOrder.forEach(function (id) { if (!kept[id]) { deleted[id] = true; } });
+        // Only the top-most removed nodes need driving — children go with them.
+        var topDeleted = origIdsInOrder.filter(function (id) {
+            return deleted[id] && !deleted[(mods[id] && mods[id].parent) || ''];
+        });
+
+        var counts = { kept: 0, added: 0, removed: Object.keys(deleted).length };
+        var wasBusy = dbeUndoBusy;
+        dbeUndoBusy = true;
+
+        function build() {
+            var sf2 = store();
+            function place(node, parentId, index) {
+                var id;
+                if (node.keep) {
+                    // Preserve the module and its subtree untouched; only its
+                    // position among siblings may have changed. No settings
+                    // rewrite, no recursion — the store subtree stays as-is.
+                    if (parentId !== null) { storeMoveModule(sf2, node.keep, parentId, index); }
+                    counts.kept += 1;
+                    return;
+                }
+                if (node.existingId) {
+                    var live = sf2.storeGet('modules') || {};
+                    var m = live[node.existingId] && JSON.parse(JSON.stringify(live[node.existingId]));
+                    if (m) {
+                        // The live module's TYPE always wins over whatever the
+                        // markup guessed, and shapes which settings we write
+                        // (a kept Template never gets a tag setting back).
+                        node.module = m.name;
+                        // Replace only the HTML-expressible settings; everything
+                        // else (conditions, interactiveMode…) rides along.
+                        var keep = (m.settings || []).filter(function (x) {
+                            return ['tag', 'tagId', 'tagClass', 'htmlAttribute', 'content', 'contentSvg', 'componentName', 'componentProperties'].indexOf(x.name) === -1;
+                        });
+                        m.settings = keep.concat(dbeNodeSettings(node));
+                        // A data-dbe-label on a kept element renames it; without
+                        // one the live label rides along untouched.
+                        if (node.label) { m.label = node.label; }
+                        sf2.storeSet('addModule', { module: m }); // existing id = upsert
+                        counts.kept += 1;
+                    }
+                    id = node.existingId;
+                    if (parentId !== null) { storeMoveModule(sf2, id, parentId, index); }
+                } else {
+                    var moduleName = node.module || 'HtmlElement';
+                    var newLabel = node.label;
+                    if (!newLabel) {
+                        if (moduleName === 'HtmlElement') {
+                            newLabel = node.tag.charAt(0).toUpperCase() + node.tag.slice(1);
+                        } else if (moduleName === 'Component') {
+                            var creg = dbeComponentRegistry();
+                            newLabel = (creg[node.componentName] && creg[node.componentName].label) || moduleName;
+                        } else {
+                            newLabel = moduleName;
+                        }
+                    }
+                    var mod = {
+                        id: dbeMakeId(sf2.storeGet('modules') || {}), name: moduleName,
+                        label: newLabel,
+                        settings: dbeNodeSettings(node)
+                    };
+                    storeAddModule(sf2, mod, parentId, index);
+                    counts.added += 1;
+                    id = mod.id;
+                }
+                (node.children || []).forEach(function (c, i) { place(c, id, i); });
+            }
+            place(tree, null, 0); // null parent = the root stays where it is
+
+            // Only after retained descendants have reached their new parents is
+            // it safe to remove obsolete ancestors through the native menu.
+            (function removeNext(i) {
+                if (i >= topDeleted.length) {
+                    dbeUndoBusy = wasBusy;
+                    if (activeId() === rootId) { dbeReselectToRehydrate(rootId); }
+                    done(counts);
+                    return;
+                }
+                driveContextMenuItem(topDeleted[i], 'Remove', function () {
+                    setTimeout(function () { removeNext(i + 1); }, 150);
+                });
+            })(0);
+        }
+
+        build();
+    }
+
+    var dbeHtmlBusy = false;
+
+    /* The code field for the HTML dialogs: a Monaco editor with HTML syntax
+       highlighting when the builder's bundle exposes it (window.Builderius.
+       API.monaco — there is no window.monaco), else the plain textarea the
+       dialogs shipped with. Returns a uniform handle so the callers never
+       branch: { el, getValue, setValue, focus, onChange, layout, dispose }.
+       Monaco needs a laid-out, sized container, so layout() is called once the
+       dialog has shown; the light theme comes free from 60-theme.css inverting
+       .monaco-editor, exactly as for the CSS editor. */
+    function dbeMakeCodeEditor(opts) {
+        opts = opts || {};
+        var api = window.Builderius && window.Builderius.API && window.Builderius.API.monaco;
+        if (api && api.editor && typeof api.editor.create === 'function') {
+            var host = document.createElement('div');
+            host.className = 'dbe-html__editor dbe-html__editor--monaco';
+            var ed = null;
+            try {
+                ed = api.editor.create(host, {
+                    value: opts.value || '',
+                    language: 'html',
+                    theme: 'vs-dark', // 60-theme.css inverts .monaco-editor for the light theme
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    wordWrap: 'on',
+                    lineNumbers: 'on',
+                    fontSize: 13,
+                    tabSize: 2,
+                    scrollBeyondLastLine: false,
+                    fixedOverflowWidgets: true,
+                    ariaLabel: opts.ariaLabel || ''
+                });
+            } catch (e) { ed = null; }
+            if (ed) {
+                /* Recede the data-dbe-id markers. They must stay on every
+                   element for identity, but they are machine ids, not content
+                   — dimming them lets the real markup (tags, classes, text)
+                   read clearly. Monaco finds the ranges; a debounced
+                   re-decorate keeps them dim as the text changes. */
+                var markerDecos = [];
+                var decoTimer = null;
+                function decorateMarkers() {
+                    try {
+                        var model = ed.getModel();
+                        if (!model) { return; }
+                        var matches = model.findMatches(' ?data-dbe-id="[^"]*"', false, true, false, null, false);
+                        markerDecos = ed.deltaDecorations(markerDecos, matches.map(function (mm) {
+                            return { range: mm.range, options: { inlineClassName: 'dbe-html-marker-dim' } };
+                        }));
+                    } catch (e) {}
+                }
+                decorateMarkers();
+                ed.onDidChangeModelContent(function () {
+                    if (decoTimer) { clearTimeout(decoTimer); }
+                    decoTimer = setTimeout(decorateMarkers, 120);
+                });
+                return {
+                    el: host,
+                    isMonaco: true,
+                    getValue: function () { return ed.getValue(); },
+                    // Guard the write so an unchanged re-set can't move the caret.
+                    setValue: function (v) { if (ed.getValue() !== v) { ed.setValue(v); decorateMarkers(); } },
+                    focus: function () { try { ed.focus(); } catch (e) {} },
+                    cursorStart: function () { try { ed.setPosition({ lineNumber: 1, column: 1 }); } catch (e) {} },
+                    onChange: function (cb) { ed.onDidChangeModelContent(cb); },
+                    layout: function () { try { ed.layout(); } catch (e) {} },
+                    dispose: function () { if (decoTimer) { clearTimeout(decoTimer); } try { ed.dispose(); } catch (e) {} }
+                };
+            }
+            host.remove();
+        }
+        // Fallback: the original plain textarea.
+        var ta = document.createElement('textarea');
+        ta.className = 'dbe-html__editor';
+        ta.spellcheck = false;
+        if (opts.ariaLabel) { ta.setAttribute('aria-label', opts.ariaLabel); }
+        ta.value = opts.value || '';
+        return {
+            el: ta,
+            isMonaco: false,
+            getValue: function () { return ta.value; },
+            setValue: function (v) { ta.value = v; },
+            focus: function () { ta.focus(); },
+            cursorStart: function () { try { ta.setSelectionRange(0, 0); } catch (e) {} },
+            onChange: function (cb) { ta.addEventListener('input', cb); },
+            layout: function () {},
+            dispose: function () {}
+        };
+    }
+
+    function openEditHtmlDialog(rootId) {
+        if (dbeHtmlBusy) { return; }
+        var mods = modules() || {};
+        if (!mods[rootId]) { return; }
+
+        // The original subtree's ids — fixed while the dialog is open. A marker
+        // matching one of these keeps that module; anything else is new.
+        var origIds = {};
+        (function collect(id) {
+            origIds[id] = mods[id] ? mods[id].name : '';
+            ((store().storeGet('indexes') || {})[id] || []).forEach(collect);
+        })(rootId);
+
+        var old = document.querySelector('dialog.dbe-html');
+        if (old) { old.remove(); }
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-html';
+        dlg.setAttribute('aria-label', dbeT('editAsHtml', 'Edit as HTML'));
+
+        var head = document.createElement('div');
+        head.className = 'dbe-html__head';
+        var title = document.createElement('h2');
+        title.className = 'dbe-html__title';
+        title.textContent = dbeFmt(dbeT('editAsHtmlTitle', 'Edit as HTML — %s'), mods[rootId].label || mods[rootId].name);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-html__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '✕';
+        close.addEventListener('click', function () { dlg.close(); });
+        head.appendChild(title);
+        head.appendChild(close);
+        dlg.appendChild(head);
+
+        var hint = document.createElement('p');
+        hint.className = 'dbe-html__hint';
+        var hintText = document.createElement('span');
+        hintText.textContent = dbeT('editAsHtmlHint',
+            'Keep an element’s data-dbe-id marker and its label, conditions and other settings survive the edit; elements without one are created fresh, and removed markers remove their elements. Scripts, event handlers and unknown tags are stripped.');
+        hint.appendChild(hintText);
+        dlg.appendChild(hint);
+
+        var editor = dbeMakeCodeEditor({
+            value: dbeSerializeSubtree(rootId),
+            ariaLabel: dbeT('editAsHtmlEditor', 'HTML markup')
+        });
+        dlg.appendChild(editor.el);
+
+        var status = document.createElement('p');
+        status.className = 'dbe-html__status';
+        status.setAttribute('role', 'status');
+        dlg.appendChild(status);
+
+        var foot = document.createElement('div');
+        foot.className = 'dbe-html__foot';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'dbe-html__cancel';
+        cancel.textContent = dbeT('cancel', 'Cancel');
+        cancel.addEventListener('click', function () { dlg.close(); });
+        var apply = document.createElement('button');
+        apply.type = 'button';
+        apply.className = 'dbe-html__apply';
+        apply.textContent = dbeT('reviewChanges', 'Review changes');
+        var reviewedHtml = null;
+        apply.addEventListener('click', function () {
+            var parsed;
+            var currentHtml = editor.getValue();
+            try {
+                parsed = dbeParseHtmlTree(currentHtml, origIds, rootId);
+            } catch (msg) {
+                status.textContent = typeof msg === 'string' ? msg : dbeT('htmlErrParse', 'Could not parse the HTML');
+                return;
+            }
+            if (reviewedHtml !== currentHtml) {
+                reviewedHtml = currentHtml;
+                apply.textContent = dbeT('applyChanges', 'Apply changes');
+                updatePreview();
+                status.textContent = dbeT('editHtmlReviewReady', 'Review complete.') + ' ' + status.textContent;
+                apply.focus();
+                return;
+            }
+            // The dialog is showModal(): it must close before the apply queue
+            // can drive tree rows and the native Remove menu.
+            dlg.close();
+            dbeHtmlBusy = true;
+            expandSubtree(rootId); // removal drives need reachable rows
+            setTimeout(function () {
+                dbeApplyHtmlTree(rootId, parsed.tree, function (counts) {
+                    dbeHtmlBusy = false;
+                    // Seal step-undo behind a barrier: the reconcile is one
+                    // compound op, so a Cmd+Z now must not revert an earlier action.
+                    dbeHistoryBarrier(dbeT('editHtmlNotUndoable', 'Edit as HTML can’t be undone — reopen it to revert your changes'));
+                    var msg = dbeFmt(dbeT('htmlApplied', 'HTML applied: %1$s updated, %2$s added, %3$s removed'),
+                        counts.kept, counts.added, counts.removed);
+                    if (parsed.stripped.length) {
+                        var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                        msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+                    }
+                    if (parsed.unknownMarkers && parsed.unknownMarkers.length) {
+                        msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
+                            'Unrecognised marker(s): %s. A new element will be created and the original removed.'),
+                            parsed.unknownMarkers.join(', '));
+                    }
+                    undoToast(msg);
+                });
+            }, 120);
+        });
+        foot.appendChild(cancel);
+        foot.appendChild(apply);
+        dlg.appendChild(foot);
+
+        /* Live outcome preview: on every edit, parse the markup against the
+           original ids and report what Apply would do — the client twin of the
+           ability's dry run. Invalid markup (unparseable, or not exactly one
+           root) disables Apply with the reason, so the edit is never applied
+           blind. Debounced so a Monaco/textarea keystroke storm stays cheap. */
+        function updatePreview() {
+            var parsed;
+            try {
+                parsed = dbeParseHtmlTree(editor.getValue(), origIds, rootId);
+            } catch (e) {
+                status.textContent = typeof e === 'string' ? e : dbeT('htmlErrParse', 'Could not parse the HTML');
+                status.classList.add('dbe-html__status--warn');
+                apply.disabled = true;
+                return;
+            }
+            apply.disabled = false;
+            var c = dbePreviewCounts(parsed.tree, origIds, rootId);
+            var msg = dbeFmt(dbeT('editHtmlWillApply', 'Will apply: %1$s updated, %2$s added, %3$s removed'),
+                c.updated, c.added, c.removed);
+            if (parsed.stripped.length) {
+                var uniq = parsed.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                msg += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            // A marker that matches nothing here is almost always a typo: the
+            // element it meant to keep will instead be removed and recreated.
+            // Flag it (warn colour) but leave Apply enabled — a genuinely new
+            // element carrying a stray marker is still a valid, if unusual, edit.
+            if (parsed.unknownMarkers.length) {
+                msg += ' ' + dbeFmt(dbeT('editHtmlUnknownMarker',
+                    'Unrecognised marker(s): %s. A new element will be created and the original removed.'),
+                    parsed.unknownMarkers.join(', '));
+                status.classList.add('dbe-html__status--warn');
+            } else {
+                status.classList.remove('dbe-html__status--warn');
+            }
+            status.textContent = msg;
+        }
+        var previewTimer = null;
+        editor.onChange(function () {
+            if (previewTimer) { clearTimeout(previewTimer); }
+            reviewedHtml = null;
+            apply.textContent = dbeT('reviewChanges', 'Review changes');
+            previewTimer = setTimeout(updatePreview, 150);
+        });
+
+        // Same isolation as the Auto-BEM dialog: keys and pointer events must
+        // not reach the builder's global handlers (Delete removes the selected
+        // element; an outside click handler reverts native control toggles).
+        dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { if (previewTimer) { clearTimeout(previewTimer); } editor.dispose(); dlg.remove(); });
+        document.body.appendChild(dlg);
+        dlg.showModal();
+        editor.layout(); // Monaco was created in the pre-show (0-size) dialog
+        editor.focus();
+        editor.cursorStart();
+        updatePreview(); // seed the status line before the first edit
+    }
+
+    /* ============================ Import HTML ============================
+       (import_html, Pro). "Import HTML…" on an element's right-click menu:
+       paste markup into a dialog, watch a live preview of the elements it
+       will create, then insert them — into the target as its last children,
+       or, when the target is a void element (img, hr…), after it as
+       siblings (the same slot rule as the Emmet palette). Parsing and
+       sanitisation are Edit-as-HTML's (dbeParseHtmlFragment with an empty
+       marker set, so every pasted element becomes a NEW module — stray
+       data-dbe-id markers in pasted markup are ignored). Multiple sibling
+       roots are fine here. The insert runs under dbeUndoBusy: one import is
+       one action, and per-module undo records would only let Cmd+Z pick it
+       apart node by node from the wrong end. */
+
+    function dbeInsertParsedNode(sf, node, parentId, index) {
+        var moduleName = node.module || 'HtmlElement';
+        var mod = {
+            id: dbeMakeId(), name: moduleName,
+            label: node.label || (moduleName === 'HtmlElement'
+                ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
+                : moduleName),
+            settings: dbeNodeSettings(node)
+        };
+        storeAddModule(sf, mod, parentId, index);
+        var count = 1;
+        node.children.forEach(function (c, i) { count += dbeInsertParsedNode(sf, c, mod.id, i).count; });
+        return { id: mod.id, count: count };
+    }
+
+    /* Where pasted roots land relative to targetId: inside (last children)
+       for a normal element, after it (siblings) for a void one. */
+    function dbeImportSlot(targetId) {
+        var sf = store();
+        var mods = sf.storeGet('modules') || {};
+        if (!mods[targetId]) { return null; }
+        var tag = String(dbeSettingVal(mods[targetId], 'tag') || '').toLowerCase();
+        var indexes = sf.storeGet('indexes') || {};
+        if (!DBE_HTML_VOID[tag]) {
+            return { parentId: targetId, index: (indexes[targetId] || []).length, into: true };
+        }
+        var parentId = mods[targetId].parent || '';
+        var sibs = [].concat(indexes[parentId || 'root'] || []);
+        return { parentId: parentId, index: sibs.indexOf(targetId) + 1, into: false };
+    }
+
+    /* ---- Repetition detection (import_html) ----
+       Real-world pasted markup usually carries N rendered copies of what
+       should be ONE template: a ul of lookalike lis, a grid of identical
+       cards, a tbody of matching rows. Spot those and offer to collapse
+       each group into a Collection whose Template holds the first copy.
+
+       Similarity = a recursive structural signature (tag + sorted classes +
+       the children's signatures); text and attribute VALUES are ignored, so
+       "the same card with different words" matches. Guards against false
+       positives: a plain container needs at least TWO matching items, and
+       unless it is a ul/ol the item itself must have structure (classes or
+       children) — three bare <p>s are prose, not a list. A container
+       already marked as a Collection (data-b-context / data-dbe-module)
+       qualifies from ONE plain item: the binding already declares the
+       intent, and wrapping the static children in a <template> is exactly
+       what makes that markup valid. */
+    function dbeNodeSignature(n) {
+        return n.tag + '[' + n.classes.slice().sort().join('.') + '](' +
+            n.children.map(dbeNodeSignature).join(',') + ')';
+    }
+    function dbeRepeatCandidate(n) {
+        var moduleName = n.module || 'HtmlElement';
+        var declared = moduleName === 'Collection' || moduleName === 'SubCollection';
+        if (!declared && moduleName !== 'HtmlElement') { return false; }
+        var kids = n.children;
+        if (kids.length < (declared ? 1 : 2)) { return false; }
+        if (!kids.every(function (c) { return (c.module || 'HtmlElement') === 'HtmlElement'; })) { return false; }
+        var sig = dbeNodeSignature(kids[0]);
+        if (!kids.every(function (c) { return dbeNodeSignature(c) === sig; })) { return false; }
+        if (!declared && n.tag !== 'ul' && n.tag !== 'ol'
+            && !kids[0].classes.length && !kids[0].children.length) { return false; }
+        return true;
+    }
+    function dbeFindRepeats(roots) {
+        var found = [];
+        function walk(n) {
+            if (dbeRepeatCandidate(n)) { found.push(n); }
+            n.children.forEach(walk);
+        }
+        roots.forEach(walk);
+        return found;
+    }
+    /* ---- Repeat wiring (import_html) ----
+       A field name for a lifted value, derived from what a human called the
+       thing: the BEM leaf of the node's first class (hiw__step-title →
+       title), else the tag, plus the attribute name for attribute fields.
+       Uniqued with a numeric suffix — mustache keys must not collide. */
+    function dbeFieldSlug(node, attrName, used) {
+        var base = '';
+        if (node.classes && node.classes.length) {
+            base = node.classes[0];
+            var bem = base.lastIndexOf('__');
+            if (bem !== -1) { base = base.slice(bem + 2); }
+            base = base.split('--')[0];
+        }
+        if (!base) { base = node.tag || 'field'; }
+        if (attrName) { base += '_' + attrName; }
+        base = base.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field';
+        var name = base;
+        var n = 2;
+        while (used[name]) { name = base + '_' + n; n += 1; }
+        used[name] = true;
+        return name;
+    }
+    /* Lift the values that VARY between the N copies of a repeat group into
+       an array of items — one object per copy, in document order — and
+       replace them in the first copy (the one the Template keeps) with
+       {{field}} placeholders. Values identical in every copy stay static in
+       the markup; they are presentation, not data. Positional twin-walks are
+       safe because dbeFindRepeats only groups copies with identical
+       structural signatures. Attributes match by NAME (the signature ignores
+       them, so order and presence can differ; an attribute missing from a
+       copy lifts as ''). SVG markup and component instances are opaque — a
+       copy-to-copy difference there cannot become a mustache field, so the
+       first copy's version stands and `stats.opaque` counts it for the
+       dialog's honesty note. */
+    function dbeExtractRepeatData(copies, stats) {
+        var used = {};
+        var items = copies.map(function () { return {}; });
+        function differs(vals) {
+            for (var i = 1; i < vals.length; i += 1) {
+                if (vals[i] !== vals[0]) { return true; }
+            }
+            return false;
+        }
+        function attrVal(n, name) {
+            var attrs = n.attrs || [];
+            for (var i = 0; i < attrs.length; i += 1) {
+                if (attrs[i].name === name) { return attrs[i].value == null ? '' : attrs[i].value; }
+            }
+            return '';
+        }
+        function walk(nodes) {
+            var first = nodes[0];
+            if ((first.module || 'HtmlElement') === 'Component') {
+                if (differs(nodes.map(function (n) { return JSON.stringify(n.props || []); }))) { stats.opaque += 1; }
+                return;
+            }
+            if (first.svg != null && first.svg !== '') {
+                if (differs(nodes.map(function (n) { return n.svg || ''; }))) { stats.opaque += 1; }
+                return;
+            }
+            var contents = nodes.map(function (n) { return n.content || ''; });
+            if (differs(contents)) {
+                var f = dbeFieldSlug(first, '', used);
+                items.forEach(function (it, i) { it[f] = contents[i]; });
+                first.content = '{{' + f + '}}';
+            }
+            (first.attrs || []).forEach(function (a) {
+                var vals = nodes.map(function (n) { return attrVal(n, a.name); });
+                if (differs(vals)) {
+                    var fa = dbeFieldSlug(first, a.name, used);
+                    items.forEach(function (it, i) { it[fa] = vals[i]; });
+                    a.value = '{{' + fa + '}}';
+                }
+            });
+            first.children.forEach(function (c, ci) {
+                walk(nodes.map(function (n) { return n.children[ci]; }));
+            });
+        }
+        walk(copies);
+        return items;
+    }
+    /* A collapsed COPY of the parsed roots: each candidate container becomes
+       a Collection holding one Template that wraps its first item. Without
+       wiring the other copies drop and nested candidates inside the kept
+       item still collapse. With `wire` on, the copies' varying content is
+       lifted first (dbeExtractRepeatData) and stored as literal JSON in the
+       collection's data-b-context — the attribute a Builderius Collection
+       loops its <template> over — so nothing is lost and the section renders
+       all N items from data. A wired group's subtree is left alone after the
+       lift: inner repeats are already captured positionally as fields, and
+       collapsing them again would re-drop content the items now carry. A
+       container that already declares a data-b-context keeps it — the
+       binding is the author's. */
+    function dbeCollapseRepeats(roots, wire) {
+        var clone = JSON.parse(JSON.stringify(roots));
+        var stats = { opaque: 0 };
+        function collapse(n) {
+            if ((n.module || 'HtmlElement') === 'HtmlElement') { n.module = 'Collection'; }
+            n.content = '';
+            n.children = [{
+                existingId: null, module: 'Template', tag: 'template',
+                tagId: '', classes: [], attrs: [], content: '',
+                children: [n.children[0]]
+            }];
+        }
+        function walk(n) {
+            if (n.keep || !n.children) { return; }
+            if (dbeRepeatCandidate(n)) {
+                var hasCtx = (n.attrs || []).some(function (a) { return a.name === 'data-b-context'; });
+                if (wire && !hasCtx && n.children.length > 1) {
+                    n.attrs.push({
+                        name: 'data-b-context',
+                        value: JSON.stringify(dbeExtractRepeatData(n.children, stats))
+                    });
+                    collapse(n);
+                    return;
+                }
+                collapse(n);
+            }
+            n.children.forEach(walk);
+        }
+        clone.forEach(walk);
+        return { roots: clone, opaque: stats.opaque };
+    }
+
+    function dbePreviewLines(roots) {
+        var lines = [];
+        function walk(n, d) {
+            var pad = new Array(d + 1).join('  ');
+            // A component leaf reads by its slug and any prop overrides, not a tag.
+            if ((n.module || 'HtmlElement') === 'Component') {
+                var cl = pad + '<' + n.componentName + '> [Component]';
+                if (n.label) { cl += ' » ' + n.label; }
+                (n.props || []).forEach(function (p) { cl += ' ' + p.name + '="' + p.value + '"'; });
+                lines.push(cl);
+                return;
+            }
+            var line = pad + '<' + n.tag + '>';
+            if ((n.module || 'HtmlElement') !== 'HtmlElement') { line += ' [' + n.module + ']'; }
+            if (n.label) { line += ' » ' + n.label; }
+            if (n.classes.length) { line += ' .' + n.classes.join(' .'); }
+            // A wired collection reads by its item count, not the JSON blob.
+            var ctx = (n.attrs || []).filter(function (a) { return a.name === 'data-b-context'; })[0];
+            if (ctx) {
+                var count = 0;
+                try {
+                    var arr = JSON.parse(ctx.value);
+                    count = Array.isArray(arr) ? arr.length : 0;
+                } catch (e) { /* hand-written binding — no count to show */ }
+                if (count) {
+                    line += ' ' + dbeFmt(dbeTn(count,
+                        'previewItemsOne', '(%s item)',
+                        'previewItemsMany', '(%s items)'), count);
+                }
+            }
+            if (n.content) {
+                var t = n.content.length > 34 ? n.content.slice(0, 34) + '…' : n.content;
+                line += ' “' + t + '”';
+            }
+            lines.push(line);
+            n.children.forEach(function (c) { walk(c, d + 1); });
+        }
+        roots.forEach(function (r) { walk(r, 0); });
+        return lines;
+    }
+
+    /* What an Edit-as-HTML apply WOULD do to the subtree rooted at rootId,
+       computed from the parsed tree without touching the store — the client
+       twin of the ability's dry run. A node keeping a marker from the original
+       subtree is an update; one without is an addition; an original id absent
+       from the markup is a removal. The root's identity is forced to rootId,
+       exactly as dbeApplyHtmlTree does. */
+    function dbePreviewCounts(root, origIds, rootId) {
+        var idx = store().storeGet('indexes') || {};
+        if (root && !root.keep) { root.existingId = rootId; }
+        // Two tallies: `updated` matches what the apply reports (one per
+        // kept element or keep placeholder, NOT per preserved descendant),
+        // while `preserved` records every id staying — keep descendants
+        // included — so the removed count doesn't over-count them.
+        var preserved = {};
+        var updated = 0;
+        var added = 0;
+        (function walk(n) {
+            if (!n) { return; }
+            if (n.keep) {
+                (function keepAll(id) { preserved[id] = true; (idx[id] || []).forEach(keepAll); })(n.keep);
+                updated += 1;
+                return;
+            }
+            if (n.existingId && origIds[n.existingId]) { preserved[n.existingId] = true; updated += 1; }
+            else { added += 1; }
+            (n.children || []).forEach(walk);
+        })(root);
+        var removed = 0;
+        Object.keys(origIds).forEach(function (id) { if (!preserved[id]) { removed += 1; } });
+        return { updated: updated, added: added, removed: removed };
+    }
+
+    function openImportHtmlDialog(targetId) {
+        if (dbeHtmlBusy) { return; }
+        var mods = modules() || {};
+        if (!mods[targetId]) { return; }
+
+        var old = document.querySelector('dialog.dbe-html');
+        if (old) { old.remove(); }
+        var dlg = document.createElement('dialog');
+        dlg.className = 'dbe-html dbe-html--import';
+        dlg.setAttribute('aria-label', dbeT('importHtml', 'Import HTML'));
+
+        var head = document.createElement('div');
+        head.className = 'dbe-html__head';
+        var title = document.createElement('h2');
+        title.className = 'dbe-html__title';
+        var slot = dbeImportSlot(targetId);
+        title.textContent = dbeFmt(
+            slot && slot.into
+                ? dbeT('importHtmlTitleInto', 'Import HTML into %s')
+                : dbeT('importHtmlTitleAfter', 'Import HTML after %s'),
+            mods[targetId].label || mods[targetId].name);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-html__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '✕';
+        close.addEventListener('click', function () { dlg.close(); });
+        head.appendChild(title);
+        head.appendChild(close);
+        dlg.appendChild(head);
+
+        var hint = document.createElement('p');
+        hint.className = 'dbe-html__hint';
+        hint.textContent = dbeT('importHtmlHint',
+            'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator, or insert a component with <dbe-component name="slug">.');
+        dlg.appendChild(hint);
+
+        var editor = dbeMakeCodeEditor({ ariaLabel: dbeT('importHtmlEditor', 'HTML to import') });
+        dlg.appendChild(editor.el);
+
+        // Repetition offer — shown only when the parsed markup contains
+        // groups of structurally identical siblings (see dbeFindRepeats).
+        var optionRow = document.createElement('label');
+        optionRow.className = 'dbe-html__option';
+        optionRow.style.display = 'none';
+        var collapseCheck = document.createElement('input');
+        collapseCheck.type = 'checkbox';
+        var optionText = document.createElement('span');
+        optionRow.appendChild(collapseCheck);
+        optionRow.appendChild(optionText);
+        dlg.appendChild(optionRow);
+
+        // Sub-offer of the collapse: lift the copies' varying content into
+        // each collection's data-b-context as literal JSON, instead of
+        // dropping copies 2..N. Only meaningful once collapse is on.
+        var wireRow = document.createElement('label');
+        wireRow.className = 'dbe-html__option dbe-html__option--sub';
+        wireRow.style.display = 'none';
+        var wireCheck = document.createElement('input');
+        wireCheck.type = 'checkbox';
+        var wireText = document.createElement('span');
+        wireText.textContent = dbeT('importWireData',
+            'Extract the repeated content into each collection’s data source (JSON)');
+        wireRow.appendChild(wireCheck);
+        wireRow.appendChild(wireText);
+        dlg.appendChild(wireRow);
+
+        var previewLabel = document.createElement('p');
+        previewLabel.className = 'dbe-html__preview-label';
+        previewLabel.textContent = dbeT('importHtmlPreview', 'Preview');
+        dlg.appendChild(previewLabel);
+        var preview = document.createElement('pre');
+        preview.className = 'dbe-html__preview';
+        preview.setAttribute('aria-label', dbeT('importHtmlPreview', 'Preview'));
+        dlg.appendChild(preview);
+
+        var status = document.createElement('p');
+        status.className = 'dbe-html__status';
+        status.setAttribute('role', 'status');
+        dlg.appendChild(status);
+
+        var foot = document.createElement('div');
+        foot.className = 'dbe-html__foot';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'dbe-html__cancel';
+        cancel.textContent = dbeT('cancel', 'Cancel');
+        cancel.addEventListener('click', function () { dlg.close(); });
+        var insert = document.createElement('button');
+        insert.type = 'button';
+        insert.className = 'dbe-html__apply';
+        insert.textContent = dbeT('insertHtml', 'Insert');
+        insert.disabled = true;
+        foot.appendChild(cancel);
+        foot.appendChild(insert);
+        dlg.appendChild(foot);
+
+        var parsed = null;
+        var previewTimer = null;
+        function refreshPreview() {
+            var html = editor.getValue();
+            parsed = null;
+            insert.disabled = true;
+            status.textContent = '';
+            if (!html.trim()) {
+                preview.textContent = dbeT('importHtmlEmpty', 'Nothing to preview yet.');
+                return;
+            }
+            var p = dbeParseHtmlFragment(html, {});
+            if (!p.roots.length) {
+                preview.textContent = '';
+                optionRow.style.display = 'none';
+                status.textContent = dbeT('htmlErrNoElements', 'No usable elements found in that HTML');
+                return;
+            }
+            var repeats = dbeFindRepeats(p.roots).length;
+            optionRow.style.display = repeats ? '' : 'none';
+            if (repeats) {
+                optionText.textContent = dbeFmt(dbeTn(repeats,
+                    'importCollapseOne', 'Collapse %s repeated group into a collection',
+                    'importCollapseMany', 'Collapse %s repeated groups into collections'), repeats);
+            }
+            var collapsing = !!(repeats && collapseCheck.checked);
+            wireRow.style.display = collapsing ? '' : 'none';
+            var collapsed = collapsing ? dbeCollapseRepeats(p.roots, wireCheck.checked) : null;
+            var roots = collapsing ? collapsed.roots : p.roots;
+            parsed = { roots: roots, stripped: p.stripped };
+            preview.textContent = dbePreviewLines(roots).join('\n');
+            var total = dbePreviewLines(roots).length;
+            var note = dbeFmt(dbeTn(total,
+                'importCountOne', '%s element will be created.',
+                'importCountMany', '%s elements will be created.'), total);
+            if (p.stripped.length) {
+                var uniq = p.stripped.filter(function (v, i, a) { return a.indexOf(v) === i; });
+                note += ' ' + dbeFmt(dbeT('htmlStripped', '(stripped: %s)'), uniq.join(', '));
+            }
+            if (collapsing && wireCheck.checked) {
+                note += ' ' + dbeT('importCollapseWiredNote', 'Each collection stores its items as JSON in its data-b-context attribute.');
+                if (collapsed.opaque) {
+                    note += ' ' + dbeT('importCollapseOpaqueNote', 'SVGs or components that differ between copies keep the first copy’s version.');
+                }
+            } else if (collapsing) {
+                note += ' ' + dbeT('importCollapseBindNote', 'New collections still need their data binding.');
+            }
+            status.textContent = note;
+            insert.disabled = false;
+        }
+        editor.onChange(function () {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(refreshPreview, 250);
+        });
+        collapseCheck.addEventListener('change', refreshPreview);
+        wireCheck.addEventListener('change', refreshPreview);
+
+        insert.addEventListener('click', function () {
+            if (!parsed || !parsed.roots.length) { return; }
+            var liveSlot = dbeImportSlot(targetId); // re-read: the tree may have moved on
+            if (!liveSlot) { status.textContent = dbeT('importHtmlTargetGone', 'The target element no longer exists'); return; }
+            var roots = parsed.roots;
+            // A Collection target accepts static elements as well as templates
+            // (the <template> child is the repeatable, the rest render once), so
+            // no root-type restriction is applied here.
+            dlg.close();
+            var wasBusy = dbeUndoBusy;
+            dbeUndoBusy = true;
+            var count = 0;
+            var firstId = null;
+            try {
+                var sf = store();
+                roots.forEach(function (r, i) {
+                    var res = dbeInsertParsedNode(sf, r, liveSlot.parentId, liveSlot.index + i);
+                    count += res.count;
+                    if (firstId === null) { firstId = res.id; }
+                });
+            } finally { dbeUndoBusy = wasBusy; }
+            // Seal step-undo behind a barrier (same reasoning as Edit as HTML):
+            // the import lands several elements as one op the add/delete stack
+            // can't unwind cleanly, so Cmd+Z must not revert an earlier action.
+            dbeHistoryBarrier(dbeT('importHtmlNotUndoable', 'Import HTML can’t be undone — delete the imported elements to remove them'));
+            undoToast(dbeFmt(dbeTn(count,
+                'htmlImportedOne', 'Imported %s element',
+                'htmlImportedMany', 'Imported %s elements'), count));
+            // Land the selection on the first imported root, like wrap() does.
+            if (firstId) {
+                waitFor(function () {
+                    return document.querySelector('.uniRightPanel .uni-tree-node-' + firstId) || null;
+                }, function (row) { if (row) { clickSeq(row); } });
+            }
+        });
+
+        dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
+            dlg.addEventListener(t, function (e) { e.stopPropagation(); });
+        });
+        dlg.addEventListener('close', function () { editor.dispose(); dlg.remove(); });
+        document.body.appendChild(dlg);
+        dlg.showModal();
+        editor.layout(); // Monaco was created in the pre-show (0-size) dialog
+        refreshPreview();
+        editor.focus();
+    }
+
+    /* ============================ Change tag ============================
+       (tag_change, Pro). "Change tag…" flyout on an element's right-click
+       menu: swaps the `tag` setting through the addModule upsert (repaint +
+       persist), and when the label was just the old tag it follows the new
+       one through the native rename channel. Void tags are excluded both as
+       source and target — an img's attributes make no sense on a div and
+       vice versa; the settings panel's own tag select handles those.
+       Collections and SubCollections carry the same real `tag` setting, so
+       they are taggable too; a Template has no tag at all. The command
+       palette's "Change tag" takes a TYPED tag instead of the curated
+       flyout list — anything on the known-tag list (the one the HTML
+       dialogs accept, so script/style/iframe are already off it) goes. */
+    var DBE_TAG_MODULES = { HtmlElement: 1, Collection: 1, SubCollection: 1 };
+    var DBE_TAG_CHOICES = [
+        'div', 'span', 'section', 'article', 'aside', 'header', 'footer',
+        'nav', 'main', 'figure', 'figcaption', 'p',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'blockquote', 'a', 'button'
+    ];
+
+    /* The current tag when `id` can change tag (a taggable module type with
+       a non-void tag), else ''. */
+    function dbeChangeTagEligible(id) {
+        var m = (modules() || {})[id];
+        var tag = m && DBE_TAG_MODULES[m.name]
+            ? String(dbeSettingVal(m, 'tag') || '').toLowerCase() : '';
+        return (tag && !DBE_HTML_VOID[tag]) ? tag : '';
+    }
+
+    /* Normalise a typed tag ("H2", "<h2>") and validate it: known tag,
+       non-void. Returns the clean tag, or null when it must be refused. */
+    function dbeCleanTagInput(v) {
+        var t = String(v || '').trim().toLowerCase().replace(/^</, '').replace(/>$/, '').trim();
+        if (!/^[a-z][a-z0-9]*$/.test(t)) { return null; }
+        return (DBE_HTML_KNOWN_TAGS[t] && !DBE_HTML_VOID[t]) ? t : null;
+    }
+
+    function dbeChangeTag(id, newTag) {
+        var mods = modules() || {};
+        var m = mods[id];
+        if (!m) { return; }
+        var oldTag = String(dbeSettingVal(m, 'tag') || '').toLowerCase();
+        if (!oldTag || oldTag === newTag) { return; }
+        var labelWasDefault = (m.label || '').toLowerCase() === oldTag;
+        dbeUpdateModuleSettings(id, function (settings) {
+            var t = settings.filter(function (s) { return s.name === 'tag'; })[0];
+            if (t) { t.value = newTag; } else { settings.push({ name: 'tag', value: newTag }); }
+        });
+        // Follow-the-tag labels only; a custom label is the user's and stays.
+        if (labelWasDefault) { commitRename(id, newTag); }
+        undoToast(dbeFmt(dbeT('tagChangedTo', 'Tag changed to <%s>'), newTag));
     }
 
     /* A menu row's label with any injected accel hint (.dbe-ctx-accel) left
@@ -1669,7 +3305,38 @@
         if (dbeUndoBusy) { return; }
         var rec = from.pop();
         if (!rec) { undoToast(dbeT(emptyKey, emptyDef)); return; }
-        if (rec.op === 'restore') {
+        // A compound-reconcile barrier: report that the change isn't
+        // step-undoable, revert nothing, and put the barrier straight back so
+        // the parked earlier history is never crossed. Redo never produces one.
+        if (rec.op === 'barrier') {
+            from.push(rec);
+            undoToast(rec.msg || dbeT('editHtmlNotUndoable', 'This change can’t be undone step by step'));
+            return;
+        }
+        if (rec.op === 'move') {
+            var current = dbeMoveLocation(rec.id);
+            if (!current || current.index < 0) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotMoveGone', 'Cannot move “%s”: it is no longer here'), rec.label));
+                return;
+            }
+            if (rec.parentId && !current.mods[rec.parentId]) {
+                from.push(rec);
+                undoToast(dbeFmt(dbeT('cannotMoveParentGone', 'Cannot move “%s”: its destination parent is gone'), rec.label));
+                return;
+            }
+            var inverse = {
+                op: 'move', id: rec.id, label: rec.label,
+                parentId: current.parentId, index: current.index
+            };
+            dbeUndoBusy = true;
+            storeMoveModule(current.sf, rec.id, rec.parentId, rec.index);
+            dbeUndoBusy = false;
+            to.push(inverse);
+            if (to.length > 10) { to.shift(); }
+            dbeFocusMovedRow(rec.id);
+            undoToast(dbeFmt(dbeT('movedBack', 'Moved “%s” back'), rec.label));
+        } else if (rec.op === 'restore') {
             if (rec.parentId && !document.querySelector('.uniRightPanel .uni-tree-node-' + rec.parentId)) {
                 from.push(rec);
                 undoToast(dbeFmt(dbeT('cannotRestoreParentGone', 'Cannot restore “%s”: its parent is gone'), rec.label));
@@ -1705,6 +3372,134 @@
 
     function performUndo() { dbeRunHistory(undoStack, redoStack, 'nothingToUndo', 'Nothing to undo'); }
     function performRedo() { dbeRunHistory(redoStack, undoStack, 'nothingToRedo', 'Nothing to redo'); }
+
+    /* --- Paste where you click (navigator_paste) ---
+       Native Paste always inserts into the ACTIVE module (or at root when
+       nothing is selected); the row whose menu you opened is irrelevant. So
+       right-click → Paste on an unselected row pastes into the wrong place,
+       and the only way to aim it is the select-first dance. Two repairs:
+       (1) Row menus: when the right-clicked row is not the selection,
+           intercept the native Paste item, select that row (same retry
+           cadence as the undo restore — the tree can be mid-re-render),
+           then re-drive the native Paste on it.
+       (2) The empty area below the tree gets a small menu of its own with
+           "Paste at top level": clear the selection so the native
+           fall-back-to-root path runs.
+       Both routes end in the REAL native Paste channel — a raw store insert
+       would not survive a save. The paste target row is tracked here rather
+       than through lastCtxId so the feature works with every other
+       context-menu feature switched off. */
+    var dbePasteCtxRow = null; // tree-row id the current menu was opened on, or null
+
+    /* The native Paste item of the open tree menu, when our re-target should
+       take over; null when native paste already does the right thing. */
+    function dbePasteNativeItem(e) {
+        var li = e.target && e.target.closest && e.target.closest('dialog.uniBuilderContextMenu[open] li.uniContextMenu__item');
+        if (!li || li.classList.contains('dbe-ctx-item')) { return null; }
+        // Auto-driven menus (undo restore, wrap, our own re-drive) are exempt.
+        if (document.documentElement.classList.contains('dbe-auto-ctx')) { return null; }
+        if (nativeCtxLabel(li) !== 'Paste') { return null; }
+        if (!dbePasteCtxRow || activeId() === dbePasteCtxRow) { return null; }
+        return li;
+    }
+
+    /* Snapshot the module map now; the returned function polls for a pasted
+       module under parentId and toasts when nothing arrives (an empty or
+       foreign clipboard makes native Paste a silent no-op). */
+    function dbeWatchPasteResult(parentId) {
+        var beforeIds = Object.keys(modules() || {});
+        return function () {
+            waitFor(function () {
+                var mods = modules() || {};
+                return Object.keys(mods).find(function (id) {
+                    return beforeIds.indexOf(id) === -1 && (mods[id].parent || '') === parentId;
+                }) || null;
+            }, function (newId) {
+                if (!newId) { undoToast(dbeT('pasteNothing', 'Nothing to paste: copy an element first')); }
+            });
+        };
+    }
+
+    function dbePasteInto(targetId) {
+        var attempts = 0;
+        (function sel() {
+            var row = document.querySelector('.uniRightPanel .uni-tree-node-' + targetId);
+            if (row) { clickSeq(row); }
+            waitFor(function () { return activeId() === targetId || null; }, function (ok) {
+                if (!ok) {
+                    if (++attempts < 4) { sel(); }
+                    else { undoToast(dbeT('pasteSelectFailed', 'Paste failed: could not select the element')); }
+                    return;
+                }
+                var settled = dbeWatchPasteResult(targetId);
+                driveContextMenuItem(targetId, 'Paste', function (done) {
+                    if (!done) { undoToast(dbeT('pasteMenuFailed', 'Paste failed: could not reach Paste')); return; }
+                    settled();
+                });
+            }, 20);
+        })();
+    }
+
+    function dbePasteAtRoot() {
+        // Any row's menu will do — with no active module, native Paste falls
+        // back to root (the same channel the root-level undo restore uses).
+        var anyRow = document.querySelector('.uniRightPanel .uniModTree__item');
+        var m = anyRow && anyRow.className.toString().match(/uni-tree-node-(\w+)/);
+        if (!m) { undoToast(dbeT('pasteNoRows', 'Paste at top level needs at least one element in the tree')); return; }
+        try { store().storeSet('activeModule', ''); } catch (e) {}
+        var settled = dbeWatchPasteResult('');
+        driveContextMenuItem(m[1], 'Paste', function (done) {
+            if (!done) { undoToast(dbeT('pasteMenuFailed', 'Paste failed: could not reach Paste')); return; }
+            settled();
+        });
+    }
+
+    function bindPasteTarget() {
+        // Which row (if any) the menu-opening right-click landed on. Cleared
+        // when the menu hides, so a menu that arrives by another route (e.g.
+        // a stale id from an earlier right-click) can never misdirect a paste.
+        document.addEventListener('contextmenu', function (e) {
+            if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+            var btn = e.target && e.target.closest && e.target.closest('.uniModTree__item');
+            var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
+            dbePasteCtxRow = m ? m[1] : null;
+        }, true);
+        try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; }); } catch (e) {}
+        // Swallow the whole activation sequence: the native item may act on
+        // any of these, and the menu keyboard model activates through the
+        // same synthetic chain (clickSeq); the flow itself runs on click.
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) {
+            document.addEventListener(t, function (e) {
+                if (dbePasteNativeItem(e)) { e.preventDefault(); e.stopPropagation(); }
+            }, true);
+        });
+        document.addEventListener('click', function (e) {
+            if (!dbePasteNativeItem(e)) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var target = dbePasteCtxRow; // read before the hide hook clears it
+            try { window.Builderius.API.hooks.doAction('builderius.contextMenu.hide'); } catch (err) {}
+            dbePasteInto(target);
+        }, true);
+    }
+
+    function bindTreeAreaMenu() {
+        document.addEventListener('contextmenu', function (e) {
+            if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
+            var t = e.target;
+            if (!t || !t.closest) { return; }
+            // Only the tree's empty container area — rows keep the native menu,
+            // and header buttons / the tree-search input keep their own roles.
+            if (!t.closest('.uniRightPanel .uniModTree__container')) { return; }
+            if (t.closest('.uniModTree__item, button, input, a')) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var focusReturn = document.querySelector('.uniRightPanel .uniModTree__item[tabindex="0"]');
+            renderChipCard(focusReturn, e.clientX, e.clientY, [
+                { label: dbeT('pasteAtTop', 'Paste at top level'), fn: dbePasteAtRoot }
+            ], dbeT('navigatorAreaMenu', 'Navigator actions'));
+        }, true);
+    }
 
     function bindUndoKeys() {
         document.addEventListener('keydown', function (e) {
@@ -1807,6 +3602,41 @@
 
     var lastFlyoutParent = null;
 
+    function dbeSvgIcon(name, className) {
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        svg.setAttribute('class', className || '');
+        function shape(tag, attrs) {
+            var el = document.createElementNS(ns, tag);
+            Object.keys(attrs).forEach(function (key) { el.setAttribute(key, attrs[key]); });
+            svg.appendChild(el);
+        }
+        var icons = {
+            'arrow-up': [['path', { d: 'M12 19V5' }], ['path', { d: 'm5 12 7-7 7 7' }]],
+            'arrow-down': [['path', { d: 'M12 5v14' }], ['path', { d: 'm19 12-7 7-7-7' }]],
+            'indent-increase': [['path', { d: 'M3 6h18' }], ['path', { d: 'M3 12h8' }], ['path', { d: 'M3 18h18' }], ['path', { d: 'm15 9 3 3-3 3' }]],
+            'indent-decrease': [['path', { d: 'M3 6h18' }], ['path', { d: 'M13 12h8' }], ['path', { d: 'M3 18h18' }], ['path', { d: 'm9 9-3 3 3 3' }]],
+            'parent': [['path', { d: 'm9 14-5-5 5-5' }], ['path', { d: 'M4 9h10a6 6 0 0 1 6 6v1' }]],
+            'panels': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M9 4v16' }], ['path', { d: 'M15 4v16' }]],
+            'panel-left': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M9 4v16' }]],
+            'panel-right': [['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }], ['path', { d: 'M15 4v16' }]],
+            'pointer': [['path', { d: 'm5 3 14 9-6 2-3 6-5-17Z' }]],
+            'dashboard': [['rect', { x: '3', y: '3', width: '7', height: '9', rx: '1' }], ['rect', { x: '14', y: '3', width: '7', height: '5', rx: '1' }], ['rect', { x: '14', y: '12', width: '7', height: '9', rx: '1' }], ['rect', { x: '3', y: '16', width: '7', height: '5', rx: '1' }]],
+            'package': [['path', { d: 'm21 8-9-5-9 5 9 5 9-5Z' }], ['path', { d: 'M3 8v8l9 5 9-5V8' }], ['path', { d: 'M12 13v8' }]],
+            'settings': [['path', { d: 'M4 21v-7' }], ['path', { d: 'M4 10V3' }], ['path', { d: 'M12 21v-9' }], ['path', { d: 'M12 8V3' }], ['path', { d: 'M20 21v-5' }], ['path', { d: 'M20 12V3' }], ['path', { d: 'M1 14h6' }], ['path', { d: 'M9 8h6' }], ['path', { d: 'M17 16h6' }]]
+        };
+        (icons[name] || []).forEach(function (part) { shape(part[0], part[1]); });
+        return svg;
+    }
+
     function makeParent(labelText, first, itemsFactory, disabled) {
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item dbe-ctx-item dbe-ctx-parent' + (first ? ' dbe-ctx-item--first' : '');
@@ -1861,7 +3691,15 @@
         var li = document.createElement('li');
         li.className = 'uniContextMenu__item dbe-ctx-item';
         li.setAttribute('role', 'menuitem');
-        li.textContent = labelText;
+        if (opts.icon) {
+            var label = document.createElement('span');
+            label.className = 'dbe-ctx-label';
+            label.appendChild(dbeSvgIcon(opts.icon, 'dbe-ctx-icon'));
+            label.appendChild(document.createTextNode(labelText));
+            li.appendChild(label);
+        } else {
+            li.textContent = labelText;
+        }
         if (opts.accel) {
             // Right-aligned shortcut hint, mirroring the block editor's menu.
             li.classList.add('dbe-ctx-item--accel');
@@ -2250,8 +4088,8 @@
                 }
             }
 
-            // "Move up" / "Move down" / "Select parent" (element_moves) — single-target.
-            var moveUpLi = null, moveDownLi = null, selectParentLi = null;
+            // Structural moves and parent navigation (element_moves) — single-target.
+            var moveUpLi = null, moveDownLi = null, moveInLi = null, moveOutLi = null, selectParentLi = null;
             if (!multiIds && on('element_moves') && lastCtxId) {
                 var emId = lastCtxId;
                 var emMods = modules() || {};
@@ -2261,9 +4099,19 @@
                     var emIdx = store().storeGet('indexes') || {};
                     var emSibs = [].concat(emIdx[emParent || 'root'] || []);
                     var emAt = emSibs.indexOf(emId);
-                    moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, { disabled: emAt <= 0 });
-                    moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, { disabled: emAt < 0 || emAt >= emSibs.length - 1 });
-                    if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }); }
+                    moveUpLi = makeCtxItem(dbeT('moveUp', 'Move up'), function () { moveSibling(emId, -1); }, {
+                        disabled: emAt <= 0, accel: dbeAccel('↑', { alt: true }), icon: 'arrow-up'
+                    });
+                    moveDownLi = makeCtxItem(dbeT('moveDown', 'Move down'), function () { moveSibling(emId, 1); }, {
+                        disabled: emAt < 0 || emAt >= emSibs.length - 1, accel: dbeAccel('↓', { alt: true }), icon: 'arrow-down'
+                    });
+                    moveInLi = makeCtxItem(dbeT('moveIn', 'Move in one level'), function () { indentElement(emId); }, {
+                        disabled: !dbeIndentTarget(emId), accel: dbeAccel('→', { alt: true }), icon: 'indent-increase'
+                    });
+                    moveOutLi = makeCtxItem(dbeT('moveOut', 'Move out one level'), function () { outdentElement(emId); }, {
+                        disabled: !dbeCanOutdent(emId), accel: dbeAccel('←', { alt: true }), icon: 'indent-decrease'
+                    });
+                    if (emParent) { selectParentLi = makeCtxItem(dbeT('selectParent', 'Select parent'), function () { selectParentOf(emId); }, { icon: 'parent' }); }
                 }
             }
 
@@ -2282,11 +4130,70 @@
                 addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
             }
 
+            // "Edit as HTML" (edit_as_html, Pro) — plain-element subtrees only;
+            // otherwise offered disabled with the reason as its tooltip.
+            var editHtmlLi = null;
+            if (!multiIds && on('edit_as_html') && lastCtxId) {
+                (function () {
+                    var ehId = lastCtxId;
+                    var ehMods = modules() || {};
+                    if (!ehMods[ehId]) { return; }
+                    var eligible = dbeHtmlEditable(ehId);
+                    editHtmlLi = makeCtxItem(dbeT('editAsHtml', 'Edit as HTML'), function () {
+                        // Let the menu dialog finish closing (showModal — while
+                        // open our own dialog could not take focus).
+                        setTimeout(function () { openEditHtmlDialog(ehId); }, 120);
+                    }, eligible ? {} : {
+                        disabled: true,
+                        tip: dbeT('editAsHtmlOnlyElements', 'Only subtrees of plain elements can be edited as HTML')
+                    });
+                })();
+            }
+
+            // "Import HTML…" (import_html, Pro) — paste markup, preview, insert.
+            // Any plain element target works (voids take the pasted roots as
+            // siblings); other module types are offered disabled with the why.
+            var importHtmlLi = null;
+            if (!multiIds && on('import_html') && lastCtxId) {
+                (function () {
+                    var ihId = lastCtxId;
+                    var ihMods = modules() || {};
+                    var ihMod = ihMods[ihId];
+                    if (!ihMod) { return; }
+                    // SvgCode is expressible but a leaf — nothing imports INTO it.
+                    var ok = !!DBE_HTML_MODULES[ihMod.name] && ihMod.name !== 'SvgCode';
+                    importHtmlLi = makeCtxItem(dbeT('importHtmlEllipsis', 'Import HTML…'), function () {
+                        setTimeout(function () { openImportHtmlDialog(ihId); }, 120);
+                    }, ok ? {} : {
+                        disabled: true,
+                        tip: dbeT('importHtmlOnlyElements', 'HTML can only be imported into a plain element')
+                    });
+                })();
+            }
+
+            // "Change tag…" flyout (tag_change, Pro) — non-void taggable
+            // modules (plain elements and Collections; a Template has no tag).
+            var changeTagParent = null;
+            if (!multiIds && on('tag_change') && lastCtxId) {
+                (function () {
+                    var ctId = lastCtxId;
+                    var curTag = dbeChangeTagEligible(ctId);
+                    if (curTag) {
+                        changeTagParent = makeParent(dbeT('changeTag', 'Change tag…'), false, function () {
+                            return DBE_TAG_CHOICES.map(function (tg) {
+                                return makeCtxItem('<' + tg + '>', function () { dbeChangeTag(ctId, tg); },
+                                    tg === curTag ? { disabled: true } : {});
+                            });
+                        });
+                    }
+                })();
+            }
+
             /* --- Flat layout (context_menu off): append injected items after the
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean)
+                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, editHtmlLi, importHtmlLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -2310,6 +4217,7 @@
                     if (wrapDisabled) { flatWrap.setAttribute('data-dbe-tip', dbeT('onlySiblingsWrapped', 'Only sibling elements can be wrapped together')); }
                     container.appendChild(flatWrap);
                 }
+                if (changeTagParent) { container.appendChild(changeTagParent); }
                 // After the rows are placed: append shortcut hints to the native
                 // rows. Done last so it never mutates the textContent the layout
                 // above matches native items by (Remove-last, cluster detection).
@@ -2367,8 +4275,8 @@
                 natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                 nameItems,                                                       // Name & style
                 [addBeforeLi, addAfterLi].filter(Boolean),                       // Insert
-                [wrapParent, unwrapLi].filter(Boolean),                          // Structure
-                [moveUpLi, moveDownLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
+                [changeTagParent, wrapParent, unwrapLi, editHtmlLi, importHtmlLi].filter(Boolean), // Structure
+                [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean),// Position / navigate
                 natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
                 multiIds ? (removeNLi ? [removeNLi] : []) : natRemove            // Destructive
             ];
@@ -2570,7 +4478,31 @@
             '.uniModTree__favouritesList [data-tooltip-content], .uniFooterPanelBar [data-tooltip-content]'
         ).forEach(function (a) {
             var label = (a.getAttribute('data-tooltip-content') || '').trim();
-            if (label) { setTip(a, label); }
+            if (!label) { return; }
+            var control = a.matches('button, [role="button"]') ? a : a.querySelector('button, [role="button"]');
+            setTip(control || a, label);
+            // The tooltip anchor often wraps the actual favourite button. Once
+            // its copy has moved onto the control, disable the duplicate native
+            // tooltip on the wrapper too.
+            if (control && control !== a) {
+                a.removeAttribute('data-tooltip-content');
+                if (a.hasAttribute('title')) { a.removeAttribute('title'); }
+            }
+        });
+
+        // Edit mode adds a separate remove button before each favourite, but
+        // Builderius leaves those controls unnamed. Borrow the adjacent
+        // favourite button's adopted label so each destructive action names
+        // its target and uses the same tooltip treatment as the rest of the
+        // favourites bar.
+        document.querySelectorAll('.uniModTree__favouritesListItem .closeIcon').forEach(function (btn) {
+            var favourite = btn.parentElement && btn.parentElement.querySelector('.modIcon');
+            var name = favourite && (
+                favourite.getAttribute('aria-label') || favourite.getAttribute('data-dbe-tip')
+            );
+            setTip(btn, name
+                ? dbeFmt(dbeT('tipRemoveFavourite', 'Remove %s from favourites'), name)
+                : dbeT('tipRemoveFavouriteFallback', 'Remove from favourites'));
         });
     }
 
@@ -4922,6 +6854,49 @@
         });
     }
     var DBE_AI_PANEL_ID = 'dbe-ai-terminal-panel';
+    var DBE_AI_ESCAPE_HINT_ID = 'dbe-ai-terminal-escape-hint';
+
+    function dbeTerminalEscapeHint() {
+        var hint = document.getElementById(DBE_AI_ESCAPE_HINT_ID);
+        if (!hint) {
+            hint = document.createElement('span');
+            hint.id = DBE_AI_ESCAPE_HINT_ID;
+            hint.className = 'dbe-visually-hidden';
+            hint.textContent = dbeT('terminalEscapeHint', 'Press Control and the grave accent key to move focus out of the terminal');
+            document.body.appendChild(hint);
+        }
+        return hint;
+    }
+
+    function dbeBindTerminalEscape(frame) {
+        if (!frame) { return; }
+        var doc;
+        try { doc = frame.contentDocument; } catch (e) { doc = null; }
+        if (doc && !doc.dbeTerminalEscapeKeyBound) {
+            doc.dbeTerminalEscapeKeyBound = true;
+            doc.addEventListener('keydown', function (e) {
+                if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== 'Backquote') { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                var tab = document.querySelector('.uniAiChat__terminalTab--active') || document.querySelector('.uniAiChat__terminalTab');
+                var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
+                var target = tab || panel;
+                if (target) { try { target.focus(); } catch (err) {} }
+            }, true);
+            var hint = dbeTerminalEscapeHint();
+            if (frame.getAttribute('aria-describedby') !== hint.id) { frame.setAttribute('aria-describedby', hint.id); }
+        }
+        if (!frame.dbeTerminalEscapeLoadBound) {
+            frame.dbeTerminalEscapeLoadBound = true;
+            frame.addEventListener('load', function () { dbeBindTerminalEscape(frame); });
+        }
+    }
+
+    function ensureTerminalEscapeKeys() {
+        document.querySelectorAll('.uniAiChat__terminalFrame').forEach(dbeBindTerminalEscape);
+    }
+
     function ensureTerminalTabs() {
         dbeObserveTerminalBar();
         dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
@@ -4933,6 +6908,7 @@
             if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
             if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
         }
+        ensureTerminalEscapeKeys();
         var active = null;
         [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
             if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
@@ -5499,9 +7475,14 @@
                 ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
                 ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
             ] : [],
+            on('element_moves') ? [
+                [sc('↑', { alt: true }) + ' · ' + sc('↓', { alt: true }), dbeT('scReorder', 'Move the element among its siblings')],
+                [sc('→', { alt: true }), dbeT('scMoveIn', 'Move the element into its previous sibling')],
+                [sc('←', { alt: true }), dbeT('scMoveOut', 'Move the element out one level')]
+            ] : [],
             [
-                [sc('Z', { cmd: true }), dbeT('scUndo', 'Restore the last deleted element')],
-                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the delete')]
+                [sc('Z', { cmd: true }), dbeT('scUndo', 'Undo the last element change')],
+                [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the element change')]
             ],
             on('multi_select') ? [
                 [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
@@ -5510,20 +7491,35 @@
             [
                 [sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]
             ]
-        )],
+        )]
+    ].concat((on('navigator_keyboard') || on('keyboard_shortcuts')) ? [
+        [dbeT('scGroupCanvas', 'Canvas'), [].concat(
+            on('navigator_keyboard') ? [
+                ['↑ ↓', dbeT('scCanvasMove', 'Move between visible elements')],
+                ['→', dbeT('scCanvasChild', 'Open a branch, then select its first child')],
+                ['←', dbeT('scCanvasParent', 'Close a branch, then select its parent')],
+                ['Home · End', dbeT('scCanvasFirstLast', 'First / last visible element')]
+            ] : [],
+            on('keyboard_shortcuts') ? [
+                ['Enter', dbeT('scEnterInteractive', 'Enter interactive canvas mode')],
+                ['Esc', dbeT('scExitInteractive', 'Return to canvas selection mode')]
+            ] : []
+        )]
+    ] : []).concat([
         [dbeT('scGroupContextMenu', 'Context menu'), [
             ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
             ['Home · End', dbeT('scFirstLast', 'First / last item')],
             ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
             ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
         ]]
-    ].concat(on('keyboard_shortcuts') ? [
+    ]).concat(on('keyboard_shortcuts') ? [
         [dbeT('scGroupElements', 'Selected element'), [
             [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate')],
             [sc('X', { cmd: true }), dbeT('scCut', 'Cut')],
             [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
             [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')],
             ['F2', dbeT('scRename', 'Rename')],
+            ['Esc', dbeT('scFinishCanvasText', 'Finish editing text in the canvas')],
             [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
         [dbeT('scGroupAreas', 'Move to area'), [
@@ -5532,9 +7528,13 @@
             [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas / preview')],
             [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
         ]]
+    ] : []).concat(on('ai_terminal_tabs') ? [
+        [dbeT('scGroupSenseAi', 'Sense AI'), [
+            [sc('`', { ctrl: true }), dbeT('scExitTerminal', 'Move focus out of the terminal')]
+        ]]
     ] : []).concat(on('command_palette') ? [
         [dbeT('scGroupPalette', 'Command palette'), [
-            [sc('K', { cmd: true, shift: true }), dbeT('scOpenPalette', 'Open the command palette (add classes / attributes / elements)')]
+            [dbePaletteAccel(), dbeT('scOpenPalette', 'Open the command palette')]
         ]]
     ] : []);
     function openShortcutsDialog() {
@@ -5732,6 +7732,13 @@
        a -1 tabindex) when they have no focusable control mounted; the canvas is
        the preview iframe itself. */
     function dbeFocusArea(which) {
+        var wrappers = dbePanelWrappers();
+        var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
+        if (side && dbePanelSideHidden(side, wrappers[side])) {
+            dbeSetPanelVisibility(side, false);
+            setTimeout(function () { dbeFocusArea(which); }, 120);
+            return;
+        }
         var el = null;
         if (which === 'navigator') {
             el = document.querySelector('.uniRightPanel .uni-tree-node-' + (activeId() || '\0'))
@@ -5822,8 +7829,13 @@
         return DBE_PALETTE_KEYS[(CFG.palette || {}).shortcut] || DBE_PALETTE_KEYS['mod-k'];
     }
     function dbePaletteAccel() {
-        var k = dbePaletteKey();
-        return dbeAccel(k.label, { cmd: true, shift: !!k.shift });
+        // SHORTCUT_GROUPS is assembled before DBE_PALETTE_KEYS is assigned, so
+        // derive the display chord directly from configuration at boot time.
+        var choice = (CFG.palette || {}).shortcut || 'mod-k';
+        return dbeAccel(choice === 'mod-slash' ? '/' : 'K', {
+            cmd: true,
+            shift: choice === 'mod-shift-k'
+        });
     }
 
     /* Add (or update) one or more HTML attributes on an existing element through
@@ -5857,6 +7869,7 @@
     function openCommandPalette() {
         var id = activeId(); // the selected element (the palette is keyboard-invoked)
         var hasEl = !!(id && (modules() || {})[id]);
+        var focusReturn = document.activeElement;
         var prior = document.querySelector('dialog.dbe-palette');
         if (prior) { try { prior.close(); } catch (e) {} prior.remove(); }
 
@@ -5868,18 +7881,36 @@
         input.className = 'dbe-palette__input';
         input.setAttribute('aria-label', dbeT('searchCommands', 'Search commands'));
         input.placeholder = dbeT('searchCommands', 'Search commands…');
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-autocomplete', 'list');
+        input.setAttribute('aria-expanded', 'true');
+        input.setAttribute('aria-controls', 'dbe-palette-list');
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'dbe-palette__close';
+        close.setAttribute('aria-label', dbeT('close', 'Close'));
+        close.textContent = '×';
+        close.addEventListener('click', function () { dlg.close(); });
+        var searchRow = document.createElement('div');
+        searchRow.className = 'dbe-palette__search-row';
+        searchRow.appendChild(input);
+        searchRow.appendChild(close);
         var listEl = document.createElement('ul');
         listEl.className = 'dbe-palette__list';
+        listEl.id = 'dbe-palette-list';
         listEl.setAttribute('role', 'listbox');
         var hintEl = document.createElement('div');
         hintEl.className = 'dbe-palette__hint';
-        dlg.appendChild(input);
+        dlg.appendChild(searchRow);
         dlg.appendChild(listEl);
         dlg.appendChild(hintEl);
         ['keydown', 'pointerdown', 'mousedown', 'click'].forEach(function (type) {
             dlg.addEventListener(type, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { dlg.remove(); });
+        dlg.addEventListener('close', function () {
+            dlg.remove();
+            if (focusReturn && focusReturn.isConnected) { try { focusReturn.focus(); } catch (e) {} }
+        });
         document.body.appendChild(dlg);
 
         function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
@@ -5892,6 +7923,8 @@
             add: dbeT('paletteGroupAdd', 'Add to element'),
             structure: dbeT('paletteGroupStructure', 'Structure'),
             element: dbeT('paletteGroupElement', 'Element'),
+            workspace: dbeT('paletteGroupWorkspace', 'Workspace'),
+            admin: dbeT('paletteGroupAdmin', 'WordPress and Builderius'),
             goto: dbeT('paletteGroupGoto', 'Go to')
         };
 
@@ -5919,6 +7952,8 @@
                 { group: 'add', label: dbeT('paletteAddEmmet', 'Add elements (Emmet)'), input: true, ph: 'div.card>h3{Title}+p{Text}', run: function (v) {
                     var roots;
                     try { roots = dbeEmmetParse(v); } catch (e) { undoToast(dbeFmt(dbeT('emmetInvalid', 'Could not parse: %s'), v)); return; }
+                    var structErr = dbeEmmetStructureError(id, roots);
+                    if (structErr) { undoToast(structErr); return; }
                     runClose(function () {
                         var n = dbeEmmetInsert(id, roots);
                         undoToast(dbeFmt(dbeTn(n, 'emmetAddedOne', 'Added %s element', 'emmetAddedMany', 'Added %s elements'), n));
@@ -5929,6 +7964,23 @@
                 { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
                 { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, 1); }); } }
             );
+            if (on('element_moves')) {
+                var paletteLoc = dbeMoveLocation(id);
+                var canMoveUp = !!(paletteLoc && paletteLoc.index > 0);
+                var canMoveDown = !!(paletteLoc && paletteLoc.index >= 0 && paletteLoc.index < paletteLoc.siblings.length - 1);
+                var canMoveIn = !!dbeIndentTarget(id);
+                var canMoveOut = dbeCanOutdent(id);
+                commands.push(
+                    { group: 'structure', label: dbeT('moveUp', 'Move up'), icon: 'arrow-up', accel: dbeAccel('↑', { alt: true }), disabled: !canMoveUp,
+                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, -1); }); } },
+                    { group: 'structure', label: dbeT('moveDown', 'Move down'), icon: 'arrow-down', accel: dbeAccel('↓', { alt: true }), disabled: !canMoveDown,
+                        reason: dbeT('cannotMoveFurther', 'This element cannot move any further'), run: function () { runClose(function () { moveSibling(id, 1); }); } },
+                    { group: 'structure', label: dbeT('moveIn', 'Move in one level'), icon: 'indent-increase', accel: dbeAccel('→', { alt: true }), disabled: !canMoveIn,
+                        reason: dbeT('cannotMoveIn', 'This element cannot move into its previous sibling'), run: function () { runClose(function () { indentElement(id); }); } },
+                    { group: 'structure', label: dbeT('moveOut', 'Move out one level'), icon: 'indent-decrease', accel: dbeAccel('←', { alt: true }), disabled: !canMoveOut,
+                        reason: dbeT('cannotMoveOut', 'This element cannot move out another level'), run: function () { runClose(function () { outdentElement(id); }); } }
+                );
+            }
             if (on('wrap_in')) {
                 commands.push(
                     { group: 'structure', label: dbeT('paletteWrapDiv', 'Wrap in div'), run: function () { runClose(function () { wrap('div', [id]); }); } },
@@ -5948,6 +8000,26 @@
                     { group: 'element', label: dbeT('autoBem', 'Auto-BEM'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
                 );
             }
+            // Change tag by TYPING the tag — the flyout's curated list is a
+            // mouse affordance; here any known non-void tag goes.
+            if (on('tag_change') && dbeChangeTagEligible(id)) {
+                commands.push(
+                    { group: 'element', label: dbeT('paletteChangeTag', 'Change tag'), input: true,
+                        ph: dbeFmt(dbeT('phTag', 'section, h2, figure…  (now <%s>)'), dbeChangeTagEligible(id)),
+                        run: function (v) {
+                            var tg = dbeCleanTagInput(v);
+                            if (!tg) {
+                                undoToast(dbeFmt(dbeT('tagInvalid', 'Not a usable HTML tag: %s'), String(v || '').trim() || '—'));
+                                return;
+                            }
+                            if (tg === dbeChangeTagEligible(id)) {
+                                undoToast(dbeFmt(dbeT('tagAlready', 'Already <%s>'), tg));
+                                return;
+                            }
+                            runClose(function () { dbeChangeTag(id, tg); });
+                        } }
+                );
+            }
             commands.push(
                 { group: 'element', label: dbeT('paletteDuplicate', 'Duplicate'), accel: dbeAccel('D', { cmd: true, shift: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element')); } }); }); } },
                 { group: 'element', label: dbeT('paletteCopy', 'Copy'), accel: dbeAccel('C', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { undoToast(dbeT('copiedElement', 'Copied element')); } }); }); } },
@@ -5957,21 +8029,69 @@
                 { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
+        var panelWrappers = dbePanelWrappers();
+        var leftPanelHidden = dbePanelSideHidden('left', panelWrappers.left);
+        var rightPanelHidden = dbePanelSideHidden('right', panelWrappers.right);
+        var panelsHidden = leftPanelHidden && rightPanelHidden;
         commands.push(
+            { group: 'workspace', icon: 'pointer', label: dbeCanvasInteractive() ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas') : dbeT('enterInteractiveCanvas', 'Enter interactive canvas'),
+                run: function () { runClose(function () { dbeSetCanvasInteractive(!dbeCanvasInteractive()); }); } },
+            { group: 'workspace', icon: 'panels', label: panelsHidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'),
+                run: function () { runClose(function () {
+                    dbeToggleSidePanels(function (changed) {
+                        if (changed) { undoToast(panelsHidden ? dbeT('sidePanelsShown', 'Side panels shown') : dbeT('sidePanelsHidden', 'Side panels hidden')); }
+                    });
+                }); } },
+            { group: 'workspace', icon: 'panel-left', label: leftPanelHidden ? dbeT('showSettingsPanel', 'Show settings panel') : dbeT('hideSettingsPanel', 'Hide settings panel'),
+                run: function () { runClose(function () { dbeSetPanelVisibility('left', !leftPanelHidden); }); } },
+            { group: 'workspace', icon: 'panel-right', label: rightPanelHidden ? dbeT('showNavigatorPanel', 'Show Navigator panel') : dbeT('hideNavigatorPanel', 'Hide Navigator panel'),
+                run: function () { runClose(function () { dbeSetPanelVisibility('right', !rightPanelHidden); }); } },
             { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
             { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
             { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
             { group: 'goto', label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), accel: '?', run: function () { runClose(openShortcutsDialog); } }
         );
+        var adminUrls = CFG.adminUrls || {};
+        if (adminUrls.dashboard) {
+            commands.push({ group: 'admin', icon: 'dashboard', label: dbeT('openWpDashboard', 'Open WordPress dashboard'), href: adminUrls.dashboard });
+        }
+        if (adminUrls.releases) {
+            commands.push({ group: 'admin', icon: 'package', label: dbeT('openBuilderiusReleases', 'Open Builderius releases'), href: adminUrls.releases });
+        }
+        if (adminUrls.settings) {
+            commands.push({ group: 'admin', icon: 'settings', label: dbeT('openBuilderiusSettings', 'Open Builderius settings'), href: adminUrls.settings });
+        }
+
+        var paletteGroupOrder = ['add', 'structure', 'element', 'workspace', 'goto', 'admin'];
+        commands.sort(function (a, b) {
+            return paletteGroupOrder.indexOf(a.group) - paletteGroupOrder.indexOf(b.group);
+        });
 
         var mode = null; // null = list mode; else the active input command
         var buttons = [];
         var groupHeads = []; // divider/heading <li>s, hidden when their group is fully filtered out
+        var activeButton = null;
+
+        function setActiveButton(button) {
+            buttons.forEach(function (b) {
+                var selected = b === button ? 'true' : 'false';
+                if (b.getAttribute('aria-selected') !== selected) { b.setAttribute('aria-selected', selected); }
+            });
+            activeButton = button || null;
+            if (activeButton) {
+                input.setAttribute('aria-activedescendant', activeButton.id);
+                try { activeButton.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+        }
 
         function renderList() {
             listEl.innerHTML = '';
             buttons = [];
             groupHeads = [];
+            activeButton = null;
+            input.removeAttribute('aria-activedescendant');
             var lastGroup = null;
             commands.forEach(function (cmd) {
                 if (cmd.group && cmd.group !== lastGroup) {
@@ -5993,14 +8113,28 @@
                 // presentational (like the group heads above) or it breaks the
                 // listbox→option ownership chain for screen readers.
                 li.setAttribute('role', 'presentation');
-                var btn = document.createElement('button');
-                btn.type = 'button';
+                var btn = document.createElement(cmd.href ? 'a' : 'button');
+                if (cmd.href) {
+                    btn.href = cmd.href;
+                    btn.target = '_blank';
+                    btn.rel = 'noopener';
+                } else {
+                    btn.type = 'button';
+                }
                 btn.className = 'dbe-palette__item';
                 btn.setAttribute('role', 'option');
+                btn.id = 'dbe-palette-option-' + buttons.length;
+                btn.tabIndex = -1;
+                btn.setAttribute('aria-selected', 'false');
+                if (cmd.disabled) { btn.setAttribute('aria-disabled', 'true'); }
+                var command = document.createElement('span');
+                command.className = 'dbe-palette__command';
+                if (cmd.icon) { command.appendChild(dbeSvgIcon(cmd.icon, 'dbe-palette__icon')); }
                 var lab = document.createElement('span');
                 lab.className = 'dbe-palette__label';
                 lab.textContent = cmd.label;
-                btn.appendChild(lab);
+                command.appendChild(lab);
+                btn.appendChild(command);
                 if (cmd.accel) {
                     var acc = document.createElement('span');
                     acc.className = 'dbe-palette__accel';
@@ -6011,7 +8145,11 @@
                 btn.dbeCmd = cmd;
                 btn.dbeGroup = cmd.group;
                 btn.dbeLabel = cmd.label; // filter on the label only, not the accel glyphs
-                btn.addEventListener('click', function () { pick(cmd); });
+                btn.addEventListener('click', function () {
+                    if (cmd.href) { dlg.close(); return; }
+                    pick(cmd);
+                });
+                btn.addEventListener('mouseenter', function () { setActiveButton(btn); });
                 li.appendChild(btn);
                 listEl.appendChild(li);
                 buttons.push(btn);
@@ -6027,13 +8165,24 @@
             groupHeads.forEach(function (h) {
                 h.hidden = !buttons.some(function (b) { return b.dbeGroup === h.dbeGroup && !b.parentElement.hidden; });
             });
+            if (activeButton && activeButton.parentElement.hidden) { setActiveButton(null); }
         }
-        function pick(cmd) { if (cmd.input) { enterInput(cmd); } else { cmd.run(); } }
+        function pick(cmd) {
+            if (cmd.disabled) { undoToast(cmd.reason || dbeT('commandUnavailable', 'That command is not available here')); return; }
+            if (cmd.href) {
+                var link = buttons.filter(function (button) { return button.dbeCmd === cmd; })[0];
+                if (link) { link.click(); }
+                return;
+            }
+            if (cmd.input) { enterInput(cmd); } else { cmd.run(); }
+        }
         function enterInput(cmd) {
             mode = cmd;
+            setActiveButton(null);
             listEl.innerHTML = '';
             input.value = '';
             input.placeholder = cmd.ph || cmd.label;
+            input.setAttribute('aria-expanded', 'false');
             hintEl.textContent = cmd.label;
             input.focus();
         }
@@ -6041,6 +8190,7 @@
             mode = null;
             input.value = '';
             input.placeholder = dbeT('searchCommands', 'Search commands…');
+            input.setAttribute('aria-expanded', 'true');
             renderList(); applyFilter();
             input.focus();
         }
@@ -6051,8 +8201,7 @@
                 e.preventDefault();
                 if (mode) { mode.run(input.value); return; }
                 var vis = visible();
-                var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
-                var pickBtn = cur || vis[0];
+                var pickBtn = activeButton || vis[0];
                 if (pickBtn) { pick(pickBtn.dbeCmd); }
                 return;
             }
@@ -6064,10 +8213,10 @@
             e.preventDefault();
             var vis2 = visible();
             if (!vis2.length) { return; }
-            var cur2 = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.dbe-palette__item') : null;
-            var i = vis2.indexOf(cur2);
+            var i = vis2.indexOf(activeButton);
             var next = e.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % vis2.length) : (i < 0 ? vis2.length - 1 : (i - 1 + vis2.length) % vis2.length);
-            vis2[next].focus();
+            setActiveButton(vis2[next]);
+            input.focus();
         });
 
         renderList();
@@ -6086,6 +8235,199 @@
         if (document.querySelector('dialog[open]')) { return; }
         e.preventDefault(); e.stopPropagation();
         openCommandPalette();
+    }
+
+    /* The preview is a same-origin iframe. Once focus enters it, key events no
+       longer bubble to the builder document, so bridge the canvas-specific keys
+       into that document. */
+    var dbeKeyboardFrame = null;
+
+    function dbeCanvasTextEditingKeydown(e) {
+        if (e.key !== 'Escape') { return; }
+        var target = e.target;
+        var editor = target && target.closest
+            ? target.closest('uni-inline-editing[contenteditable="true"]')
+            : null;
+        if (!editor) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        // Builderius commits and exits inline editing through this control's
+        // native blur handler, including its selection-overlay refresh.
+        editor.blur();
+    }
+
+    function dbeCanvasInteractive() {
+        try {
+            var mode = store().storeGet('overlayMode');
+            if (mode) { return mode !== 'selectModule'; }
+        } catch (e) {}
+        var toggle = document.querySelector('.overlayToggleIcon');
+        return !!(toggle && toggle.classList.contains('active'));
+    }
+
+    function dbeCanvasStatus(message) {
+        var status = document.querySelector('.dbe-canvas-status');
+        if (!status) {
+            status = document.createElement('div');
+            status.className = 'dbe-canvas-status dbe-visually-hidden';
+            status.setAttribute('role', 'status');
+            document.body.appendChild(status);
+        }
+        status.textContent = '';
+        setTimeout(function () { status.textContent = message; }, 20);
+    }
+
+    function dbeSetCanvasInteractive(interactive) {
+        if (dbeCanvasInteractive() === interactive) { return false; }
+        var toggle = document.querySelector('.overlayToggleIcon');
+        if (toggle) { clickSeq(toggle); }
+        else {
+            try { store().storeSet('overlayMode', interactive ? 'interact' : 'selectModule'); } catch (e) { return false; }
+        }
+        dbeCanvasStatus(interactive
+            ? dbeT('canvasInteractiveOn', 'Interactive canvas mode')
+            : dbeT('canvasSelectionOn', 'Canvas selection mode'));
+        if (!interactive) {
+            var frame = document.getElementById('builderInner');
+            if (frame) { setTimeout(function () { try { frame.focus(); } catch (e) {} }, 0); }
+        }
+        return true;
+    }
+
+    function dbeCanvasRows() {
+        var root = navRootList();
+        if (!root) { return []; }
+        return [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).filter(function (row) {
+            var parent = navParentRow(row);
+            while (parent) {
+                if (!navRowExpanded(parent)) { return false; }
+                parent = navParentRow(parent);
+            }
+            return true;
+        });
+    }
+
+    function dbeCanvasSelectRow(row) {
+        if (!row) { return; }
+        clickSeq(row);
+        var label = (row.textContent || '').trim() || dbeT('element', 'Element');
+        dbeCanvasStatus(dbeFmt(dbeT('canvasSelected', 'Selected %s'), label));
+    }
+
+    function dbeCanvasNavigationKeydown(e) {
+        if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; }
+        var target = e.target;
+        if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], .monaco-editor')) { return; }
+
+        if (dbeCanvasInteractive()) {
+            // This listener runs in the bubble phase, so page widgets get the
+            // first opportunity to handle Escape themselves.
+            if (on('keyboard_shortcuts') && e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                dbeSetCanvasInteractive(false);
+            }
+            return;
+        }
+
+        if (on('keyboard_shortcuts') && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            dbeSetCanvasInteractive(true);
+            return;
+        }
+        if (!on('navigator_keyboard') || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+
+        var rows = dbeCanvasRows();
+        if (!rows.length) { return; }
+        var current = navRowById(activeId());
+        var i = rows.indexOf(current);
+        e.preventDefault();
+        e.stopPropagation();
+        if (i < 0) {
+            dbeCanvasSelectRow((e.key === 'ArrowUp' || e.key === 'End') ? rows[rows.length - 1] : rows[0]);
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                if (i < rows.length - 1) { dbeCanvasSelectRow(rows[i + 1]); }
+                break;
+            case 'ArrowUp':
+                if (i > 0) { dbeCanvasSelectRow(rows[i - 1]); }
+                break;
+            case 'Home':
+                dbeCanvasSelectRow(rows[0]);
+                break;
+            case 'End':
+                dbeCanvasSelectRow(rows[rows.length - 1]);
+                break;
+            case 'ArrowRight':
+                if (navRowExpandable(current) && !navRowExpanded(current)) {
+                    navToggleExpand(current);
+                } else if (navRowExpandable(current) && navRowExpanded(current)) {
+                    var child = rows[i + 1];
+                    if (child && navRowLi(current).contains(child)) { dbeCanvasSelectRow(child); }
+                }
+                break;
+            case 'ArrowLeft':
+                if (navRowExpandable(current) && navRowExpanded(current)) {
+                    navToggleExpand(current);
+                } else {
+                    dbeCanvasSelectRow(navParentRow(current));
+                }
+                break;
+        }
+    }
+
+    function dbeBindKeyboardFrameDocument(frame) {
+        var doc;
+        try { doc = frame && frame.contentDocument; } catch (e) { return; }
+        if (!doc) { return; }
+        if (on('command_palette') && !doc.dbePaletteKeyBound) {
+            doc.addEventListener('keydown', dbePaletteKeydown, true);
+            doc.dbePaletteKeyBound = true;
+        }
+        if (on('keyboard_shortcuts') && !doc.dbeCanvasTextEditingKeyBound) {
+            doc.addEventListener('keydown', dbeCanvasTextEditingKeydown, true);
+            doc.dbeCanvasTextEditingKeyBound = true;
+        }
+        if ((on('navigator_keyboard') || on('keyboard_shortcuts')) && !doc.dbeCanvasNavigationKeyBound) {
+            doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
+            doc.dbeCanvasNavigationKeyBound = true;
+        }
+    }
+
+    function ensureKeyboardIframeBridge() {
+        var frame = document.getElementById('builderInner');
+        if (!frame) { return; }
+        if (dbeKeyboardFrame !== frame) {
+            dbeKeyboardFrame = frame;
+            frame.addEventListener('load', function () { dbeBindKeyboardFrameDocument(frame); });
+        }
+        dbeBindKeyboardFrameDocument(frame);
+    }
+
+    function ensureCanvasModeControl() {
+        var toggle = document.querySelector('.overlayToggleIcon');
+        if (!toggle) { return; }
+        var interactive = dbeCanvasInteractive();
+        var label = interactive
+            ? dbeT('exitInteractiveCanvas', 'Exit interactive canvas')
+            : dbeT('enterInteractiveCanvas', 'Enter interactive canvas');
+        if (toggle.getAttribute('role') !== 'button') { toggle.setAttribute('role', 'button'); }
+        if (toggle.getAttribute('tabindex') !== '0') { toggle.setAttribute('tabindex', '0'); }
+        if (toggle.getAttribute('aria-pressed') !== String(interactive)) { toggle.setAttribute('aria-pressed', String(interactive)); }
+        if (toggle.getAttribute('aria-label') !== label) { toggle.setAttribute('aria-label', label); }
+        if (toggle.dbeCanvasModeKeyBound) { return; }
+        toggle.dbeCanvasModeKeyBound = true;
+        toggle.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            dbeSetCanvasInteractive(!dbeCanvasInteractive());
+        });
     }
 
     /* Top-bar palette button: a pointer-visible way into the palette, and the
@@ -6540,15 +8882,116 @@
        (while widening the right wrapper to 600px), and reading the left panel
        alone mistook that tab for the hide toggle — panels vanished and the
        width pins dropped every time it opened. */
-    function dbeSyncPanelsHidden() {
-        function collapsed(el) {
-            return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
-        }
+    function dbePanelCollapsed(el) {
+        return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
+    }
+
+    var DBE_PANEL_VISIBILITY_KEY = 'dbeBuilderPanelVisibility';
+
+    function dbePanelVisibility() {
+        var state = {};
+        try { state = JSON.parse(localStorage.getItem(DBE_PANEL_VISIBILITY_KEY) || '{}') || {}; } catch (e) {}
+        return { left: state.left === true, right: state.right === true };
+    }
+
+    function dbeApplyPanelVisibility(state) {
+        var next = state || dbePanelVisibility();
+        document.documentElement.classList.toggle('dbe-left-panel-hidden', next.left);
+        document.documentElement.classList.toggle('dbe-right-panel-hidden', next.right);
+        return next;
+    }
+
+    function dbeSavePanelVisibility(state) {
+        var next = { left: state.left === true, right: state.right === true };
+        try { localStorage.setItem(DBE_PANEL_VISIBILITY_KEY, JSON.stringify(next)); } catch (e) {}
+        dbeApplyPanelVisibility(next);
+        dbeSyncPanelsHidden();
+        return next;
+    }
+
+    function dbeSetPanelVisibility(side, hidden) {
+        var state = dbePanelVisibility();
+        state[side] = !!hidden;
+        return dbeSavePanelVisibility(state);
+    }
+
+    function dbePanelWrappers() {
         var rp = document.querySelector('.uniRightPanel');
-        var hidden = collapsed(document.querySelector('.uniLeftPanelOuter')) &&
-            (!rp || collapsed(rp.parentElement));
+        return {
+            left: document.querySelector('.uniLeftPanelOuter'),
+            right: rp && rp.parentElement
+        };
+    }
+
+    function dbePanelsAreHidden() {
+        var wrappers = dbePanelWrappers();
+        return dbePanelSideHidden('left', wrappers.left) && (!wrappers.right || dbePanelSideHidden('right', wrappers.right));
+    }
+
+    function dbePanelSideHidden(side, wrapper) {
+        return document.documentElement.classList.contains('dbe-' + side + '-panel-hidden') || dbePanelCollapsed(wrapper);
+    }
+
+    function dbeSidePanelsButton() {
+        return [].slice.call(document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton')).filter(function (b) {
+            var path = b.querySelector('svg path');
+            return path && (path.getAttribute('d') || '').indexOf('M14.4551') === 0;
+        })[0] || null;
+    }
+
+    function dbeSyncPanelToggle(button, hidden) {
+        if (!button) { return; }
+        var label = hidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)');
+        if (button.getAttribute('aria-label') !== label) { button.setAttribute('aria-label', label); }
+        var pressed = hidden ? 'true' : 'false';
+        if (button.getAttribute('aria-pressed') !== pressed) { button.setAttribute('aria-pressed', pressed); }
+        if (on('tooltips') && button.getAttribute('data-dbe-tip') !== label) { button.setAttribute('data-dbe-tip', label); }
+        if (on('command_palette') && !button.dbePersistedPanelsBound) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                var nextHidden = !dbePanelsAreHidden();
+                dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
+            }, true);
+            button.dbePersistedPanelsBound = true;
+        }
+    }
+
+    function dbeSetPanelHiddenState(wrapper, hidden) {
+        if (!wrapper) { return; }
+        if (hidden) {
+            if (!wrapper.hasAttribute('inert')) { wrapper.setAttribute('inert', ''); }
+            if (wrapper.getAttribute('aria-hidden') !== 'true') { wrapper.setAttribute('aria-hidden', 'true'); }
+        } else {
+            if (wrapper.hasAttribute('inert')) { wrapper.removeAttribute('inert'); }
+            if (wrapper.hasAttribute('aria-hidden')) { wrapper.removeAttribute('aria-hidden'); }
+        }
+    }
+
+    function dbeSyncPanelsHidden() {
+        if (on('command_palette')) { dbeApplyPanelVisibility(); }
+        var wrappers = dbePanelWrappers();
+        var leftHidden = dbePanelSideHidden('left', wrappers.left);
+        var rightHidden = !wrappers.right || dbePanelSideHidden('right', wrappers.right);
+        var hidden = dbePanelsAreHidden();
+        if (document.activeElement &&
+            ((leftHidden && wrappers.left && wrappers.left.contains(document.activeElement)) ||
+                (rightHidden && wrappers.right && wrappers.right.contains(document.activeElement)))) {
+            var fallback = document.querySelector('.dbe-palette-btn') || document.getElementById('builderInner') || dbeSidePanelsButton();
+            if (fallback) { try { fallback.focus(); } catch (e) {} }
+        }
         document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
+        dbeSetPanelHiddenState(wrappers.left, leftHidden);
+        dbeSetPanelHiddenState(wrappers.right, rightHidden);
+        dbeSyncPanelToggle(dbeSidePanelsButton(), hidden);
         return hidden;
+    }
+
+    function dbeToggleSidePanels(done) {
+        var wantHidden = !dbePanelsAreHidden();
+        dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+        if (done) { done(true); }
+        return true;
     }
 
     function ensurePanelHandles() {
@@ -6603,18 +9046,39 @@
         try { return localStorage.getItem(DBE_HINT_KEY) === '1'; } catch (e) { return false; }
     }
 
-    function cssHintBodyHtml() {
-        // One consistent structure for both tokens, breakpoints stated once for
-        // both. The strings carry <code> markup for the tokens; they are our own
-        // trusted copy (i18n-builder.php).
-        return '<dl class="dbe-css-hint-dl">' +
-            '<dt><code>%local%</code></dt><dd>' +
-            dbeT('cssHintLocal', 'Targets this element only, through its automatic class. Use <code>%#local%</code> to target it by ID instead.') + '</dd>' +
-            '<dt><code>%selector%</code></dt><dd>' +
-            dbeT('cssHintSelector', 'Targets every element that uses the current class.') + '</dd>' +
-            '<dt>' + dbeT('cssHintBreakpointsTerm', 'Breakpoints') + '</dt><dd>' +
-            dbeT('cssHintBreakpoints', 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use the breakpoint variables <code>--desktop</code>, <code>--tablet</code> and <code>--mobile</code> as values.') + '</dd>' +
-            '</dl>';
+    function cssHintCode(value) {
+        var code = document.createElement('code');
+        code.textContent = value;
+        return code;
+    }
+
+    function cssHintBody() {
+        var dl = document.createElement('dl');
+        dl.className = 'dbe-css-hint-dl';
+        function row(term, parts) {
+            var dt = document.createElement('dt');
+            var dd = document.createElement('dd');
+            if (term && term.nodeType) { dt.appendChild(term); } else { dt.textContent = term; }
+            parts.forEach(function (part) {
+                dd.appendChild(part && part.nodeType ? part : document.createTextNode(part));
+            });
+            dl.appendChild(dt);
+            dl.appendChild(dd);
+        }
+        row(cssHintCode('%local%'), [
+            dbeT('cssHintLocalLead', 'Targets this element only, through its automatic class. Use '),
+            cssHintCode('%#local%'),
+            dbeT('cssHintLocalTail', ' to target it by ID instead.')
+        ]);
+        row(cssHintCode('%selector%'), [
+            dbeT('cssHintSelector', 'Targets every element that uses the current class.')
+        ]);
+        row(dbeT('cssHintBreakpointsTerm', 'Breakpoints'), [
+            dbeT('cssHintBreakpointsLead', 'Switch breakpoint in the top bar to write CSS for a specific screen size. Inside a rule you can also use '),
+            cssHintCode('--desktop'), ', ', cssHintCode('--tablet'), ' ', dbeT('or', 'or'), ' ', cssHintCode('--mobile'),
+            dbeT('cssHintBreakpointsTail', ' as breakpoint-variable values.')
+        ]);
+        return dl;
     }
 
     function openCssHintDialog() {
@@ -6623,13 +9087,24 @@
             dlg = document.createElement('dialog');
             dlg.id = 'dbe-css-hint-dialog';
             dlg.className = 'dbe-css-hint-dialog';
-            dlg.innerHTML =
-                '<div class="dbe-css-hint-dialog__head">' +
-                    '<h2 class="dbe-css-hint-dialog__title">' + dbeT('cssHintTitle', 'Selector tokens & breakpoints') + '</h2>' +
-                    '<button type="button" class="dbe-css-hint-dialog__close" aria-label="' + dbeT('cssHintClose', 'Close') + '">×</button>' +
-                '</div>' +
-                '<div class="dbe-css-hint-dialog__body">' + cssHintBodyHtml() + '</div>';
-            dlg.querySelector('.dbe-css-hint-dialog__close').addEventListener('click', function () { dlg.close(); });
+            var head = document.createElement('div');
+            head.className = 'dbe-css-hint-dialog__head';
+            var title = document.createElement('h2');
+            title.className = 'dbe-css-hint-dialog__title';
+            title.textContent = dbeT('cssHintTitle', 'Selector tokens & breakpoints');
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'dbe-css-hint-dialog__close';
+            close.setAttribute('aria-label', dbeT('cssHintClose', 'Close'));
+            close.textContent = '×';
+            var body = document.createElement('div');
+            body.className = 'dbe-css-hint-dialog__body';
+            body.appendChild(cssHintBody());
+            head.appendChild(title);
+            head.appendChild(close);
+            dlg.appendChild(head);
+            dlg.appendChild(body);
+            close.addEventListener('click', function () { dlg.close(); });
             // Keep builder shortcuts from firing while the dialog has focus.
             dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
             // Backdrop click closes (native <dialog> also gives Esc for free).
@@ -6658,16 +9133,28 @@
         }
         var el = document.createElement('div');
         el.className = 'dbe-css-hint' + (dismissed ? ' is-collapsed' : '');
-        el.innerHTML =
-            '<button type="button" class="dbe-css-hint-btn">' +
-                '<span class="dbe-css-hint-i" aria-hidden="true">i</span>' +
-                '<span class="dbe-css-hint-label">' + dbeT('cssHintBanner', 'How %local%, %selector% & breakpoints work') + '</span>' +
-            '</button>' +
-            '<button type="button" class="dbe-css-hint-dismiss" aria-label="' + dbeT('cssHintDismiss', 'Dismiss hint') + '">×</button>';
-        var btn = el.querySelector('.dbe-css-hint-btn');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dbe-css-hint-btn';
+        var icon = document.createElement('span');
+        icon.className = 'dbe-css-hint-i';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = 'i';
+        var label = document.createElement('span');
+        label.className = 'dbe-css-hint-label';
+        label.textContent = dbeT('cssHintBanner', 'How %local%, %selector% & breakpoints work');
+        var dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'dbe-css-hint-dismiss';
+        dismiss.setAttribute('aria-label', dbeT('cssHintDismiss', 'Dismiss hint'));
+        dismiss.textContent = '×';
+        btn.appendChild(icon);
+        btn.appendChild(label);
+        el.appendChild(btn);
+        el.appendChild(dismiss);
         btn.setAttribute('aria-label', dbeT('cssHintOpen', 'Selector and breakpoint help'));
         btn.addEventListener('click', openCssHintDialog);
-        el.querySelector('.dbe-css-hint-dismiss').addEventListener('click', function () {
+        dismiss.addEventListener('click', function () {
             try { localStorage.setItem(DBE_HINT_KEY, '1'); } catch (e) {}
             el.classList.add('is-collapsed');
         });
@@ -8046,6 +10533,16 @@
             var rb = anchor.getBoundingClientRect();
             openSelectedChipMenu(sel, rb.left, rb.bottom + 2);
         }, true);
+        bindChipMenuDismiss();
+    }
+
+    /* Outside dismissal for every renderChipCard menu (chip menus, the
+       Navigator empty-area menu): any outside pointer press, scroll or
+       Escape closes it. Bound once, shared by whichever features need it. */
+    var dbeChipDismissBound = false;
+    function bindChipMenuDismiss() {
+        if (dbeChipDismissBound) { return; }
+        dbeChipDismissBound = true;
         ['pointerdown', 'wheel'].forEach(function (t) {
             document.addEventListener(t, function (e) {
                 if (dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) { closeChipMenu(); }
@@ -8063,7 +10560,7 @@
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts');
+    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -8331,10 +10828,30 @@
 
     function navOnKeydown(e) {
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
-        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave modified combos to the builder
         var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
         var root = navRootList();
         if (!btn || !root || !root.contains(btn)) { return; }
+        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && on('element_moves') && /^Arrow/.test(e.key)) {
+            var id = navRowId(btn);
+            if (!id) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var moved = false;
+            if (e.key === 'ArrowUp') { moved = moveSibling(id, -1); }
+            else if (e.key === 'ArrowDown') { moved = moveSibling(id, 1); }
+            else if (e.key === 'ArrowLeft') { moved = outdentElement(id); }
+            else if (e.key === 'ArrowRight') { moved = indentElement(id); }
+            if (!moved) {
+                undoToast(e.key === 'ArrowLeft'
+                    ? dbeT('cannotMoveOut', 'This element cannot move out another level')
+                    : (e.key === 'ArrowRight'
+                        ? dbeT('cannotMoveIn', 'This element cannot move into its previous sibling')
+                        : dbeT('cannotMoveFurther', 'This element cannot move any further')));
+            }
+            return;
+        }
+        if (!on('navigator_keyboard')) { return; }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave other modified combos to the builder
         var rows = navVisibleRows(root);
         var i = rows.indexOf(btn);
         if (i === -1) { return; }
@@ -8378,7 +10895,7 @@
     function ensureNavKeyboard() {
         var root = navRootList();
         if (!root) { return; }
-        navSyncAria();
+        if (on('navigator_keyboard')) { navSyncAria(); }
         var panel = document.querySelector('.uniRightPanel');
         if (!panel || panel.dbeNavKeyBound) { return; }
         // Bound on the stable panel (the tree lists are replaced on re-render), so
@@ -8831,7 +11348,13 @@
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('command_palette')) { try { ensurePaletteButton(); } catch (e) {} }
+            if (on('command_palette')) {
+                try { ensurePaletteButton(); } catch (e) {}
+            }
+            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard')) {
+                try { ensureKeyboardIframeBridge(); } catch (e) {}
+            }
+            if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
@@ -8845,13 +11368,13 @@
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
             }
-            if (on('navigator_keyboard')) { try { ensureNavKeyboard(); } catch (e) {} }
+            if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
-            if (on('panel_resize') || on('css_code_default')) { try { dbeSyncPanelsHidden(); } catch (e) {} }
+            try { dbeSyncPanelsHidden(); } catch (e) {}
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
             if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
@@ -8882,7 +11405,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('navigator_row_actions') || on('condition_helpers')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
@@ -8995,6 +11518,14 @@
             bindUndoKeys();
         }
 
+        // Paste targets the right-clicked row; the empty tree area gets its
+        // own menu with "Paste at top level".
+        if (on('navigator_paste')) {
+            bindPasteTarget();
+            bindTreeAreaMenu();
+            bindChipMenuDismiss();
+        }
+
         // Seed new Image elements with a placeholder src and an empty alt.
         if (on('image_defaults')) { hookImageDefaults(); }
 
@@ -9055,6 +11586,79 @@
             window.addEventListener('pagehide', function () {
                 try { localStorage.removeItem(key); } catch (e) {}
             });
+
+            /* Server-side presence: agent abilities commit server-side and
+               cannot see localStorage, but they must not commit under a tab
+               that would autosave a stale snapshot over them. Post the
+               template slug + dirty state as a short-lived transient: on
+               every dirty-state TRANSITION, plus a slow keep-alive while the
+               state holds (the server record expires at ~3× this cadence).
+               Dirty mirrors the save cue's heuristic — the store history has
+               grown past the last save — with its own baseline so it works
+               with the save_state_cue toggle off. */
+            var pr = CFG.presence || {};
+            if (pr.url && pr.nonce) {
+                var prTabId = '';
+                try {
+                    prTabId = sessionStorage.getItem('dbeBuilderiusTabId') || '';
+                    if (!prTabId) {
+                        var random = new Uint32Array(4);
+                        crypto.getRandomValues(random);
+                        prTabId = 'tab-' + [].map.call(random, function (n) { return n.toString(16).padStart(8, '0'); }).join('');
+                        sessionStorage.setItem('dbeBuilderiusTabId', prTabId);
+                    }
+                } catch (e) {
+                    prTabId = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
+                }
+                var prBaseline = null;
+                var prLastDirty = null;
+                var prLastSent = 0;
+                document.addEventListener('click', function (e) {
+                    if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
+                    if (e.target.closest('.saveBtn .actions')) { return; }
+                    // Optimistic, like the save cue: treat the state as
+                    // clean shortly after Save is pressed.
+                    setTimeout(function () {
+                        prBaseline = historyLen();
+                        sendBeat(true);
+                    }, 600);
+                }, true);
+                function prSlug() {
+                    try {
+                        return new URLSearchParams(location.search).get('builderius_template') || '';
+                    } catch (e) { return ''; }
+                }
+                function prDirty() {
+                    var len = historyLen();
+                    if (len === null) { return false; }
+                    if (prBaseline === null) { prBaseline = len; }
+                    return len > prBaseline;
+                }
+                function sendBeat(force, clear) {
+                    var slug = prSlug();
+                    if (!slug) { return; }
+                    var dirty = clear ? false : prDirty();
+                    var now = Date.now();
+                    if (!force && dirty === prLastDirty && (now - prLastSent) < (pr.interval || 20000)) { return; }
+                    prLastDirty = dirty;
+                    prLastSent = now;
+                    try {
+                        fetch(pr.url, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            keepalive: true,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WP-Nonce': pr.nonce
+                            },
+                            body: JSON.stringify({ entity: slug, tab: prTabId, dirty: dirty })
+                        }).catch(function () {});
+                    } catch (e) {}
+                }
+                sendBeat(true);
+                setInterval(function () { sendBeat(false); }, hb.interval || 2500);
+                window.addEventListener('pagehide', function () { sendBeat(true, true); });
+            }
         })();
     }
 

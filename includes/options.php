@@ -28,6 +28,13 @@ function dbe_default_options() {
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		$defaults[ $id ] = $setting['default'];
 	}
+	// Agent abilities: the master switch is opt-in, individual abilities
+	// default on underneath it, and destructive (danger) abilities are
+	// individually opt-in as well.
+	$defaults['abilities_enabled'] = false;
+	foreach ( dbe_abilities() as $ability_id => $ability ) {
+		$defaults[ dbe_ability_option_key( $ability_id ) ] = empty( $ability['danger'] );
+	}
 	return $defaults;
 }
 
@@ -88,6 +95,79 @@ function dbe_enabled( $id ) {
 }
 
 /**
+ * Whether a feature's builder output may be emitted to the CURRENT user.
+ *
+ * Extends dbe_enabled() with an optional per-feature capability gate: a
+ * feature that declares a `cap` in the registry is emitted only to users who
+ * hold that capability, so its CSS and JS never reach a user who lacks it —
+ * even with the toggle on and Builderius Pro active. This is a builder-output
+ * gate only: the settings page still shows the toggle (an administrator, who
+ * holds every capability, configures it for everyone).
+ *
+ * The HTML converter features (Edit as HTML, Import HTML, Change tag) declare
+ * `unfiltered_html`. They turn pasted or typed markup into stored elements
+ * that Builderius renders raw — the same trust boundary WordPress's
+ * `unfiltered_html` capability governs. On single site that is administrators
+ * and editors; on multisite, only super admins (unless a site grants it), so
+ * a lower-privileged builder user cannot plant markup that runs for visitors.
+ *
+ * @param string $id Feature id from dbe_features().
+ * @return bool
+ */
+function dbe_feature_output_permitted( $id ) {
+	if ( ! dbe_enabled( $id ) ) {
+		return false;
+	}
+	$features = dbe_features();
+	$cap      = isset( $features[ $id ]['cap'] ) ? (string) $features[ $id ]['cap'] : '';
+
+	/**
+	 * Filter the capability a feature requires before its builder output is
+	 * emitted. Return an empty string to drop the gate for a feature.
+	 *
+	 * @param string $cap Capability from the registry ('' when none).
+	 * @param string $id  Feature id.
+	 */
+	$cap = (string) apply_filters( 'dbe_feature_cap', $cap, $id );
+
+	if ( '' !== $cap && ! current_user_can( $cap ) ) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Whether the agent abilities are enabled at all (the master switch).
+ *
+ * @return bool
+ */
+function dbe_abilities_enabled() {
+	$options = dbe_get_options();
+	return ! empty( $options['abilities_enabled'] );
+}
+
+/**
+ * Whether one agent ability is active: the master switch AND its own toggle.
+ *
+ * Registration in includes/abilities.php gates on this, so a disabled
+ * ability is never registered and never appears to a connected agent.
+ *
+ * @param string $ability_id Ability id from dbe_abilities(), e.g. "dbe/publish".
+ * @return bool
+ */
+function dbe_ability_enabled( $ability_id ) {
+	if ( ! dbe_abilities_enabled() ) {
+		return false;
+	}
+	$registry = dbe_abilities();
+	if ( ! isset( $registry[ $ability_id ] ) ) {
+		return false;
+	}
+	$options = dbe_get_options();
+	return ! empty( $options[ dbe_ability_option_key( $ability_id ) ] );
+}
+
+/**
  * An enum setting's current value.
  *
  * @param string $id Setting id from dbe_enum_settings().
@@ -144,6 +224,12 @@ function dbe_sanitise_options( $input ) {
 		}
 		$clean[ $id ] = ! empty( $input[ $id ] );
 	}
+	$clean['abilities_enabled'] = ! empty( $input['abilities_enabled'] );
+	foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
+		$key           = dbe_ability_option_key( $ability_id );
+		$clean[ $key ] = ! empty( $input[ $key ] );
+	}
+
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		// Same as above: a select under a Pro-locked parent renders disabled and
 		// drops out of the POST, so preserve the saved choice instead of resetting

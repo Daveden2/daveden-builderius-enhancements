@@ -28,15 +28,15 @@ function dbe_is_builder_mode() {
  * Whether this request should receive the builder enhancements at all.
  *
  * The prototype emitted for anonymous `?builderius` requests; the plugin
- * restricts output to logged-in users who can edit content. Filterable in
- * case a site gates Builderius access on a different capability.
+ * restricts output to logged-in users who can open Builderius development
+ * mode. Filterable in case a site gates Builderius access differently.
  *
  * @return bool
  */
 function dbe_builder_output_allowed() {
 	$allowed = dbe_is_builder_mode()
 		&& is_user_logged_in()
-		&& current_user_can( 'edit_posts' )
+		&& current_user_can( 'builderius-development' )
 		&& dbe_any_enabled();
 
 	/**
@@ -80,7 +80,7 @@ function dbe_builder_css_files() {
 	$files[] = '00-tokens.css';
 
 	foreach ( dbe_features() as $id => $feature ) {
-		if ( ! dbe_enabled( $id ) ) {
+		if ( ! dbe_feature_output_permitted( $id ) ) {
 			continue;
 		}
 		foreach ( array( 'css', 'shared_css' ) as $key ) {
@@ -117,19 +117,21 @@ function dbe_builder_css() {
 }
 
 /**
- * Theme/density bootstrap printed on wp_head (before the styles, so the first
- * paint is already in the right theme), followed by the concatenated chrome CSS.
+ * Theme, density and workspace bootstrap printed on wp_head (before the styles,
+ * so the first paint already has the user's preferences), followed by the
+ * concatenated chrome CSS.
  */
 function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) ) {
 		$bootstrap = array(
-			'theme'      => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
-			'density'    => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
-			'panelWidth' => dbe_enabled( 'panel_resize' ),
+			'theme'           => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
+			'density'         => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
+			'panelWidth'      => dbe_enabled( 'panel_resize' ),
+			'panelVisibility' => dbe_enabled( 'command_palette' ),
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
@@ -179,6 +181,13 @@ function dbe_print_builder_head() {
 					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
 				}
 			}
+			if (cfg.panelVisibility) {
+				try {
+					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
+					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
+					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
+				} catch (e) {}
+			}
 		})(document.documentElement);
 		</script>
 		<?php
@@ -218,7 +227,7 @@ function dbe_print_builder_footer() {
 	$flags = array();
 	foreach ( dbe_features() as $id => $feature ) {
 		if ( ! empty( $feature['js'] ) ) {
-			$flags[ $id ] = dbe_enabled( $id );
+			$flags[ $id ] = dbe_feature_output_permitted( $id );
 		}
 	}
 
@@ -232,6 +241,22 @@ function dbe_print_builder_footer() {
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
 	);
+
+	$config['adminUrls'] = array(
+		'dashboard' => admin_url(),
+		'releases'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-releases' ) : '',
+		'settings'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-settings' ) : '',
+	);
+
+	// Server-side presence beats ride the presence_heartbeat toggle; the
+	// nonce enables cookie-authenticated REST from the builder page.
+	if ( dbe_feature_output_permitted( 'presence_heartbeat' ) ) {
+		$config['presence'] = array(
+			'url'      => rest_url( 'dbe/v1/presence' ),
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+			'interval' => 20000,
+		);
+	}
 
 	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );
 

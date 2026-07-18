@@ -50,6 +50,20 @@
 		</properties>
 	</rule>
 
+	<!-- Builderius registers this custom capability for builder access. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="builderius-development"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- DOMDocument exposes these PHP-native properties in camelCase. -->
+	<rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
+		<exclude-pattern>*/includes/abilities.php</exclude-pattern>
+	</rule>
+
 	<!-- Minimum supported WordPress version (drives deprecation sniffs). -->
 	<config name="minimum_wp_version" value="6.4"/>
 

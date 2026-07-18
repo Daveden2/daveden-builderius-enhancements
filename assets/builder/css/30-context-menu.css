@@ -31,7 +31,22 @@
     color: var(--dbe-muted) !important;
     font-size: 12px !important;
     letter-spacing: .02em !important;
-    white-space: nowrap !important;
+	white-space: nowrap !important;
+}
+.dbe-ctx-label {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 8px !important;
+}
+.dbe-ctx-icon {
+	inline-size: 15px !important;
+	block-size: 15px !important;
+	flex: none !important;
+	color: var(--dbe-muted) !important;
+}
+.uniContextMenu__item:hover .dbe-ctx-icon,
+.uniContextMenu__item:focus-visible .dbe-ctx-icon {
+	color: var(--dbe-text-2) !important;
 }
 .dbe-ctx-submenu {
     /* Builderius sets Inter on #builderiusPanel; cards appended to <body>

@@ -3,7 +3,7 @@
  * Plugin Name:       Daveden Builder Enhancements
  * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           1.14.0
+ * Version:           2.0.0-dev-13
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
@@ -39,7 +39,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '1.14.0' );
+define( 'DBE_VERSION', '2.0.0-dev-13' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -132,6 +132,26 @@ function dbe_bootstrap() {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
 		require_once DBE_DIR . 'includes/admin-bar.php';
+		require_once DBE_DIR . 'includes/css-blocks.php';
+		// Named-block CSS guard: keeps ability-committed @block regions from
+		// being wiped by builder saves. Independent of the Abilities API, as
+		// blocks may exist from an earlier session.
+		require_once DBE_DIR . 'includes/css-guard.php';
+		// Server-side presence beats: lets abilities warn about dirty builder
+		// tabs before committing (the REST route must register on every
+		// request, not just builder pages).
+		require_once DBE_DIR . 'includes/presence.php';
+		// Agent-facing subtree HTML abilities (prototype) — needs both
+		// Builderius (its commit mutation is the save path) and the
+		// Abilities API runtime.
+		if ( function_exists( 'wp_register_ability' ) ) {
+			require_once DBE_DIR . 'includes/abilities.php';
+			require_once DBE_DIR . 'includes/abilities-workflow.php';
+			require_once DBE_DIR . 'includes/abilities-verify.php';
+		}
+		// Agent skills for Novamira's lookup registry. The filter only
+		// fires when Novamira applies it, so this is inert without it.
+		require_once DBE_DIR . 'includes/novamira-skills.php';
 	} else {
 		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
 	}
