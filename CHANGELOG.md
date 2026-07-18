@@ -3,6 +3,95 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.0.0
+The major release. Two headline additions, both opt-in: a set of HTML
+editing tools inside the builder, and an agent-abilities layer that exposes
+Builderius content authoring and verification to connected AI tools through
+the WordPress Abilities API, all working on the saved state without a builder
+tab open.
+
+### HTML editing tools (Pro, experimental, off by default)
+
+* Added: **Edit as HTML**. Right-click an element to open its subtree as
+  readable HTML in a code editor (Monaco where the builder provides it, a
+  textarea otherwise), edit tags, ids, classes, attributes and text, and
+  apply the markup back. Every serialised element carries a `data-dbe-id`
+  marker: elements whose marker survives keep their module, so labels,
+  rendering conditions, interactive-mode and other non-HTML settings ride
+  along while the HTML-expressible parts update in place; unmarked elements
+  are created and vanished markers remove their elements. A live outcome
+  preview reports how many elements will be updated, added and removed
+  before you apply, and warns about an unrecognised marker (which would
+  create a new element and remove the original). Collections serialise as
+  their real tag with the binding attribute, Templates as real `<template>`
+  elements, components as `<dbe-component>`, and modules the editor cannot
+  express (code blocks, composites) as `<dbe-keep>` placeholders that
+  round-trip verbatim.
+* Added: **Import HTML**. Paste markup and watch a live preview of the module
+  tree it will build, then insert it into (or after) the target. Structurally
+  identical sibling blocks are detected and offered for collapse into a
+  Collection plus a Template of the first copy, optionally wiring the sample
+  values into the Collection's data as literal JSON. `<template>` maps to a
+  Template, a data binding or `data-dbe-module="collection"` to a Collection,
+  and a pasted `<svg>` becomes an editable SvgCode element rather than being
+  stripped.
+* Added: **Change tag**. Change an element's HTML tag from a flyout on the
+  Navigator's right-click menu or through a typed command in the palette,
+  for Collections and SubCollections as well as plain elements, keeping the
+  label and any data binding. Void and script-like tags are refused.
+* Added: a **mini-Emmet syntax** in the command palette for building elements
+  quickly, including `[attr=value]` attributes and the reserved words
+  `collection`, `subcollection` and `template` that build the dynamic
+  modules. Documented in `docs/emmet-guide.md`.
+* Added: **Paste where you click** in the Navigator (on by default), so a
+  pasted element lands at the row you point at rather than at the tree root.
+* Security: every markup-entry path shares one sanitiser that strips script
+  elements, event handlers, `javascript:`/`vbscript:` and script-bearing
+  `data:` URLs, and unknown tags, and reports what it removed. Inline SVG is
+  sanitised in place. The tools are gated on the `unfiltered_html`
+  capability, so their builder output reaches only users who already hold it.
+
+### Agent abilities (a new "Agent abilities" settings tab; master switch off by default)
+
+* Added: a headless **WordPress Abilities API surface** for Builderius. With
+  the master switch on, a connected AI tool (for example through the Novamira
+  MCP adapter) can drive Builderius from the saved state, no builder tab
+  required. Each ability toggles individually beneath the master switch and
+  is grouped by access class, Read, Write or Execute; destructive abilities
+  default off. Every writing ability works through Builderius' own commit
+  mutation, so the same events, cache flushes and history apply as a builder
+  save, guarded by an `expected_commit` check and a dirty-builder-tab
+  preflight.
+* Added: **structure** abilities to read a template's tree outline, serialise
+  a subtree to HTML and apply edited HTML back (the same engine as Edit as
+  HTML, re-sanitised on the server).
+* Added: **CSS** abilities that read and patch the global stylesheet and a
+  template's entity CSS by named block, so a patch can never clobber the
+  framework, plus commit history and restore-from-commit. A named-block guard
+  keeps ability-committed CSS blocks intact across builder saves.
+* Added: **template and component** lifecycle abilities: create, update,
+  duplicate and delete, with page-template support.
+* Added: **dynamic-data** abilities to read and manage data variables, and a
+  verification suite that closes the gap between "the query saved" and "the
+  page renders": read the live GraphQL schema, resolve a variable against a
+  real page render, inspect a binding's resolved shape before a Collection
+  binds it, check a rendered page (or a matrix of query-parameter and cookie
+  scenarios) for the silent failures that leave empty loops or unresolved
+  bindings, resolve a Meta Box field to its exact read recipe and helper
+  name, and read the CSS rules matching a module.
+* Added: **JavaScript** abilities to read, manage and structurally validate
+  custom snippets; **visibility-condition** management; **global settings-set**
+  discovery and editing (breakpoints, responsive strategy, fonts); and
+  **status, publish and extract-release** abilities for the save, publish and
+  work-on-a-release lifecycle.
+* Added: agent **skills** served to Novamira's skill registry, covering
+  headless builds, dynamic data, CSS safety, components, the subtree HTML
+  workflow and save/publish.
+* Security: read-only abilities need the builder-development capability;
+  writing abilities additionally require `unfiltered_html`. Markup, GraphQL
+  and CSS are validated and sanitised server-side, and the whole surface is
+  inert until the master switch is turned on.
+
 ## 1.14.0
 Accessible settings groups and image defaults, an assignable command-palette
 shortcut with a top-bar button, accessibility for the footer tools' configure

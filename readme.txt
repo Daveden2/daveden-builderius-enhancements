@@ -60,6 +60,16 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
+= 2.0.0 =
+Two major additions, both opt-in: HTML editing tools inside the builder, and an agent-abilities layer that lets connected AI tools build and verify Builderius content without a builder tab open.
+* New: Edit as HTML (Pro, experimental, off by default). Right-click any element to open its subtree as readable HTML in a code editor, change tags, classes, attributes and text, and apply it back. Marked elements keep their identity, labels and settings, and a preview shows exactly what will change before you apply.
+* New: Import HTML (Pro, experimental, off by default). Paste markup, preview the elements it will create, and insert it. Structurally identical repeated blocks are offered for collapse into a Collection and Template, and a pasted SVG becomes an editable element.
+* New: Change tag (Pro, experimental, off by default). Change an element's HTML tag from a Navigator flyout or the command palette, Collections included, keeping its label and any data binding.
+* New: a mini-Emmet syntax in the command palette for building elements quickly, attributes and dynamic Collection or Template words included (see the Emmet guide in the repository).
+* New: Paste where you click in the Navigator (on by default), so a pasted element lands where you point rather than at the top of the tree.
+* New: Agent abilities (a new settings tab, master switch off by default). Turned on, it exposes a set of WordPress abilities that let a connected AI tool read and edit templates, components, CSS, data variables and JavaScript from the saved state, verify dynamic-data queries against a real render, and report save-versus-publish status. Each ability toggles individually and is grouped by Read, Write or Execute, and the destructive ones stay off until you enable them.
+* Security: markup entered through any editing path is sanitised on the way in, and every ability re-sanitises on the server, so the raw HTML stored for the builder to render cannot carry scripts or dangerous URLs.
+
 = 1.14.0 =
 Accessible settings groups and image defaults, an assignable command-palette shortcut, and a round of accessibility and light-theme fixes across the footer tools and top bar.
 * New: Settings groups (Editing tab, on by default) — the settings panel's collapsible group headings become real keyboard stops that announce whether they are open and toggle with Enter or Space. Collapsed groups render none of their fields, so this is the only keyboard route to those settings.
