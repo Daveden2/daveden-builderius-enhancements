@@ -236,6 +236,14 @@ its own array.
 - Meta Box group: a direct object and `metabox_group_value` both worked.
 - Meta Box settings: pass the runtime `option_name` owner, not necessarily the
   admin page slug. Discover helper names rather than guessing them.
+- Do not guess a Meta Box read path — call `dbe/resolve-metabox-field` with a
+  field id or label fragment. It returns the exact GraphQL accessor and
+  arguments (settings fields carry the `option_name`, and it warns when that
+  differs from the admin page id), the builder's auto-helper name (slugified
+  from the field LABEL, not the id — `rc_number` labelled "RC Number (CAC)"
+  becomes `wp.…__rc_number_cac_`), group children, and array/clone caveats.
+  Term fields warn: there is no Meta Box term helper and term `meta_value()`
+  returned false, so read term meta through a `php_function_output` wrapper.
 
 For a selected custom post type by slug, an explicit `posts_query` with
 `post_name__in` was more dependable than root `post(identifier: "slug", ...)`

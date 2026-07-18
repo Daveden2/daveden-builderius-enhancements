@@ -72,7 +72,7 @@ function dbe_register_verify_abilities() {
 		'dbe/check-rendered-output',
 		array(
 			'label'               => __( 'Check rendered output', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Fetches one front-end page as the invoking user (an authenticated loopback — logged-in users see saved dev-branch commits, so no publish is needed) and scans the HTML for the dynamic-data failures that save-time validation cannot catch: leaked <template> elements, unresolved [[...]] or {{...}} bindings, PHP warnings/fatals, missing expected text, unexpectedly present text, and labels with blank values. A saved data variable with a bad nested field, a scalar Collection source or a runtime resolver failure all pass dbe/manage-data-variable but fail here — run this after every dynamic-data save. Pass page (post ID or path) or a same-site url, plus optional query args.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Fetches one front-end page as the invoking user (an authenticated loopback — logged-in users see saved dev-branch commits, so no publish is needed) and scans the HTML for the dynamic-data failures that save-time validation cannot catch: leaked <template> elements, unresolved [[...]] or {{...}} bindings, PHP warnings/fatals, missing expected text, unexpectedly present text, and labels with blank values. Interactive (client-side URL-source) Collections are exempt from the template/binding scan — their markup legitimately ships to the browser. A saved data variable with a bad nested field, a scalar Collection source or a runtime resolver failure all pass dbe/manage-data-variable but fail here — run this after every dynamic-data save. Pass page (post ID or path) or a same-site url, plus optional query args.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -269,7 +269,7 @@ function dbe_register_verify_abilities() {
 				'type'                 => 'object',
 				'properties'           => array_merge(
 					array(
-						'name'         => array(
+						'name'          => array(
 							'type'        => 'string',
 							'description' => __( 'A saved data variable name. Global scope by default; pass template for entity scope.', 'daveden-builderius-enhancements' ),
 						),
@@ -277,21 +277,21 @@ function dbe_register_verify_abilities() {
 							'type'        => 'string',
 							'description' => __( 'An ad-hoc GraphQL query to resolve instead of a saved variable. Saved global variables are still available as [[dep]] interpolations. (The query parameter carries URL parameters for the context request instead.)', 'daveden-builderius-enhancements' ),
 						),
-						'template'     => array(
+						'template'      => array(
 							'type'        => 'string',
 							'description' => __( 'Template (or component) post ID or slug for ENTITY-scoped variables. Omit for the global settings set.', 'daveden-builderius-enhancements' ),
 						),
-						'entity_type'  => array(
+						'entity_type'   => array(
 							'type'        => 'string',
 							'enum'        => array( 'template', 'component' ),
 							'default'     => 'template',
 							'description' => __( 'Entity type when template is passed.', 'daveden-builderius-enhancements' ),
 						),
-						'settings_set' => array(
+						'settings_set'  => array(
 							'type'        => 'string',
 							'description' => __( 'Global settings set post ID or slug. Omit when the site has one.', 'daveden-builderius-enhancements' ),
 						),
-						'full'         => array(
+						'full'          => array(
 							'type'        => 'boolean',
 							'default'     => false,
 							'description' => __( 'Return the complete value without compaction. Use only when the compact preview is not enough.', 'daveden-builderius-enhancements' ),
@@ -391,6 +391,48 @@ function dbe_register_verify_abilities() {
 				),
 			),
 			'execute_callback'    => 'dbe_ability_inspect_binding_value',
+			'permission_callback' => 'dbe_ability_read_permission',
+			'meta'                => array( 'mcp' => array( 'public' => true ) ),
+		)
+	);
+
+	dbe_register_ability(
+		'dbe/resolve-metabox-field',
+		array(
+			'label'               => __( 'Resolve a Meta Box field', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Maps a Meta Box field to the exact ways Builderius dynamic data can read it, so agents stop guessing: the builder\'s auto-generated helper name (derived from the slugified field LABEL, not the id — field id rc_number labelled "RC Number (CAC)" becomes wp.…__rc_number_cac_), the GraphQL accessor and arguments for headless data variables (settings-page fields need option_name, the storage owner, which is NOT always the admin page id), group children, and the array/clone caveats. Searches every registered field by id or label fragment across posts, users, terms and settings pages. Term fields get a warning: Builderius ships no term Meta Box helper and term meta_value() has returned false in testing — use a php_function_output wrapper.', 'daveden-builderius-enhancements' ),
+			'category'            => 'builderius-content',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'field'       => array(
+						'type'        => 'string',
+						'description' => __( 'The field id, or a fragment of the id or label, to search for.', 'daveden-builderius-enhancements' ),
+					),
+					'object_type' => array(
+						'type'        => 'string',
+						'enum'        => array( 'post', 'user', 'term', 'setting', 'network_setting', 'comment' ),
+						'description' => __( 'Limit the search to one Meta Box object type.', 'daveden-builderius-enhancements' ),
+					),
+				),
+				'required'             => array( 'field' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'matches' => array(
+						'type'        => 'array',
+						'description' => __( 'Per field: id, label, type, object_type, context (post type or settings page), builder_helper, graphql read recipe, children, warnings.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'total'   => array(
+						'type'        => 'integer',
+						'description' => __( 'Total matches before the 20-row cap.', 'daveden-builderius-enhancements' ),
+					),
+				),
+			),
+			'execute_callback'    => 'dbe_ability_resolve_metabox_field',
 			'permission_callback' => 'dbe_ability_read_permission',
 			'meta'                => array( 'mcp' => array( 'public' => true ) ),
 		)
@@ -503,7 +545,10 @@ function dbe_ability_render_url( $input ) {
 			}
 			$url = $permalink;
 		} else {
-			$url = home_url( '/' . ltrim( $page, '/' ) );
+			// Canonical form up front: a non-canonical path 301s, and although the
+			// fetcher follows same-site redirects with fresh tokens, one hop saved
+			// is one loopback saved.
+			$url = home_url( user_trailingslashit( '/' . ltrim( $page, '/' ) ) );
 		}
 	}
 	if ( '' === $url ) {
@@ -534,49 +579,77 @@ function dbe_ability_render_url( $input ) {
 /**
  * Fetch one same-site URL as the current user via a single-use render token.
  *
+ * Redirects are followed manually (at most two hops, same-site only), each
+ * hop with a FRESH token: the token is single-use, so letting the HTTP layer
+ * follow a canonical-slash 301 would replay a consumed token and silently
+ * demote the second request to an anonymous render — the published release
+ * or theme fallback instead of the dev branch.
+ *
  * @param string $url     The (already validated same-site) URL.
  * @param array  $cookies Cookie name => value pairs for the request.
- * @return array|WP_Error { body, status_code }.
+ * @return array|WP_Error { body, status_code, url }.
  */
 function dbe_ability_fetch_rendered( $url, $cookies = array() ) {
-	$token = wp_generate_password( 64, false, false );
-	set_transient(
-		'dbe_render_token_' . hash( 'sha256', $token ),
-		array( 'user' => get_current_user_id() ),
-		60
-	);
+	$jar = array();
+	foreach ( $cookies as $name => $value ) {
+		$jar[] = new WP_Http_Cookie(
+			array(
+				'name'  => (string) $name,
+				'value' => (string) $value,
+			)
+		);
+	}
 
-	$args = array(
-		'timeout'     => 30,
-		'redirection' => 3,
-		'headers'     => array( 'X-DBE-Render-Token' => $token ),
-		// The loopback targets this very site; local certificates (Herd,
-		// Valet, self-signed staging) would otherwise fail the fetch.
-		'sslverify'   => false,
-	);
-	if ( array() !== $cookies ) {
-		$jar = array();
-		foreach ( $cookies as $name => $value ) {
-			$jar[] = new WP_Http_Cookie(
-				array(
-					'name'  => (string) $name,
-					'value' => (string) $value,
-				)
-			);
+	$home_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+	for ( $hop = 0; $hop < 3; $hop++ ) {
+		$token = wp_generate_password( 64, false, false );
+		set_transient(
+			'dbe_render_token_' . hash( 'sha256', $token ),
+			array( 'user' => get_current_user_id() ),
+			60
+		);
+
+		$args = array(
+			'timeout'     => 30,
+			'redirection' => 0,
+			'headers'     => array( 'X-DBE-Render-Token' => $token ),
+			// The loopback targets this very site; local certificates (Herd,
+			// Valet, self-signed staging) would otherwise fail the fetch.
+			'sslverify'   => false,
+		);
+		if ( array() !== $jar ) {
+			$args['cookies'] = $jar;
 		}
-		$args['cookies'] = $jar;
+
+		$response = wp_remote_get( $url, $args );
+		delete_transient( 'dbe_render_token_' . hash( 'sha256', $token ) );
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error( 'dbe_fetch_failed', 'The loopback fetch failed: ' . $response->get_error_message() );
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		if ( $status >= 300 && $status < 400 ) {
+			$location = (string) wp_remote_retrieve_header( $response, 'location' );
+			if ( '' === $location ) {
+				return new WP_Error( 'dbe_fetch_failed', sprintf( 'The page redirected (HTTP %d) without a Location header.', $status ) );
+			}
+			$location = 0 === strpos( $location, '/' ) ? home_url( $location ) : $location;
+			$host     = strtolower( (string) wp_parse_url( $location, PHP_URL_HOST ) );
+			if ( $host !== $home_host ) {
+				return new WP_Error( 'dbe_foreign_host', sprintf( 'The page redirected off-site to %s — the authenticated loopback must not follow it.', $location ) );
+			}
+			$url = $location;
+			continue;
+		}
+
+		return array(
+			'body'        => (string) wp_remote_retrieve_body( $response ),
+			'status_code' => $status,
+			'url'         => $url,
+		);
 	}
 
-	$response = wp_remote_get( $url, $args );
-	delete_transient( 'dbe_render_token_' . hash( 'sha256', $token ) );
-	if ( is_wp_error( $response ) ) {
-		return new WP_Error( 'dbe_fetch_failed', 'The loopback fetch failed: ' . $response->get_error_message() );
-	}
-
-	return array(
-		'body'        => (string) wp_remote_retrieve_body( $response ),
-		'status_code' => (int) wp_remote_retrieve_response_code( $response ),
-	);
+	return new WP_Error( 'dbe_fetch_failed', sprintf( 'Too many redirects — last target %s.', $url ) );
 }
 
 /*
@@ -626,6 +699,32 @@ function dbe_ability_scan_rendered_html( $html, $input ) {
 	$content = preg_replace( '/<style\b[^>]*>.*?<\/style>/is', '', (string) $content );
 	$content = preg_replace( '/<!--.*?-->/s', '', (string) $content );
 	$content = (string) $content;
+
+	/*
+	 * Interactive (client-side URL-source) Collections legitimately ship
+	 * their <template> and {{expr}} markup to the browser — the collection
+	 * script renders them after fetching. Exempt those subtrees so only
+	 * genuinely dead templates and bindings are reported.
+	 */
+	if ( false !== stripos( $content, 'data-b-interactive' ) && class_exists( 'DOMDocument' ) ) {
+		$dom      = new DOMDocument();
+		$previous = libxml_use_internal_errors( true );
+		if ( $dom->loadHTML( '<?xml encoding="utf-8"?>' . $content ) ) {
+			$xpath   = new DOMXPath( $dom );
+			$removed = false;
+			foreach ( $xpath->query( '//*[@data-b-interactive]' ) as $node ) {
+				if ( $node->parentNode ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
+					$node->parentNode->removeChild( $node ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
+					$removed = true;
+				}
+			}
+			if ( $removed ) {
+				$content = (string) $dom->saveHTML();
+			}
+		}
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+	}
 
 	$checks = array(
 		array( 'php_error', 'PHP warning or fatal error in the output.', '/Fatal error|Warning:/' ),
@@ -731,7 +830,7 @@ function dbe_ability_check_rendered_output( $input ) {
 
 	return array(
 		'passed'      => array() === $failures,
-		'url'         => $url,
+		'url'         => (string) ( $fetched['url'] ?? $url ),
 		'status_code' => $fetched['status_code'],
 		'failures'    => $failures,
 		'html_length' => strlen( $fetched['body'] ),
@@ -816,7 +915,7 @@ function dbe_ability_check_render_scenarios( $input ) {
 		}
 		$rows[] = array(
 			'label'       => $label,
-			'url'         => $url,
+			'url'         => (string) ( $fetched['url'] ?? $url ),
 			'status_code' => $fetched['status_code'],
 			'passed'      => $passed,
 			'failures'    => $failures,
@@ -1620,5 +1719,186 @@ function dbe_ability_get_rendered_styles( $input ) {
 			'label'   => (string) ( $module['label'] ?? '' ),
 		),
 		'rules'  => $matched,
+	);
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *  Meta Box field resolution (field id/label → dynamic-data read recipe)
+ * ----------------------------------------------------------------------
+ */
+
+/**
+ * Builderius' helper-name slugification: every run of non-word characters
+ * becomes one underscore, lowercased. "RC Number (CAC)" → "rc_number_cac_".
+ *
+ * @param string $text The label or option name.
+ * @return string
+ */
+function dbe_ability_mb_helper_slug( $text ) {
+	return strtolower( (string) preg_replace( '/\W+/', '_', (string) $text ) );
+}
+
+/**
+ * Build one resolve-metabox-field match row.
+ *
+ * @param array  $field       Normalised Meta Box field array.
+ * @param string $object_type Meta Box object type (post/user/term/setting/…).
+ * @param string $type_key    Registry type key: post type slug, or the
+ *                            settings page's option_name.
+ * @param array  $pages       Settings pages keyed by option_name.
+ * @return array The match row.
+ */
+function dbe_ability_mb_field_row( $field, $object_type, $type_key, $pages ) {
+	$field_id = (string) ( $field['id'] ?? '' );
+	$label    = (string) ( $field['name'] ?? '' );
+	$type     = (string) ( $field['type'] ?? 'text' );
+	$is_group = 'group' === $type;
+	$clone    = ! empty( $field['clone'] );
+	$multiple = ! empty( $field['multiple'] );
+	$slug     = dbe_ability_mb_helper_slug( $label );
+
+	$row = array(
+		'field_id'    => $field_id,
+		'label'       => $label,
+		'type'        => $type,
+		'object_type' => $object_type,
+		'context'     => $type_key,
+		'clone'       => $clone,
+		'multiple'    => $multiple,
+		'warnings'    => array(),
+	);
+
+	if ( $is_group ) {
+		$row['children'] = array();
+		foreach ( (array) ( $field['fields'] ?? array() ) as $child ) {
+			$row['children'][] = array(
+				'field_id' => (string) ( $child['id'] ?? '' ),
+				'label'    => (string) ( $child['name'] ?? '' ),
+				'type'     => (string) ( $child['type'] ?? 'text' ),
+			);
+		}
+	}
+
+	$accessor = $is_group ? 'metabox_group_value' : 'metabox_value';
+
+	switch ( $object_type ) {
+		case 'setting':
+			$option_name           = $type_key;
+			$page                  = $pages[ $option_name ] ?? null;
+			$row['builder_helper'] = 'wp.' . dbe_ability_mb_helper_slug( $option_name ) . '__' . $slug;
+			$row['graphql']        = sprintf( '%s(field_id: "%s", option_name: "%s")', $accessor, $field_id, $option_name );
+			$row['graphql_where']  = 'At the Root of the query.';
+			$row['storage']        = array(
+				'option_name' => $option_name,
+				'page_id'     => $page ? (string) ( $page['id'] ?? '' ) : null,
+				'page_title'  => $page ? (string) ( $page['menu_title'] ?? ( $page['page_title'] ?? '' ) ) : null,
+			);
+			if ( $page && (string) ( $page['id'] ?? '' ) !== $option_name ) {
+				$row['warnings'][] = sprintf( 'The admin page id ("%s") differs from the storage option_name ("%s") — GraphQL and rwmb_meta() both need the option_name.', (string) $page['id'], $option_name );
+			}
+			$row['php_read'] = sprintf( "rwmb_meta( '%s', array( 'object_type' => 'setting' ), '%s' )", $field_id, $option_name );
+			break;
+
+		case 'post':
+			$row['builder_helper'] = 'wp.post.mb_field__' . $slug;
+			$row['graphql']        = sprintf( '%s(field_id: "%s")', $accessor, $field_id );
+			$row['graphql_where']  = 'On a post row (posts_query { posts { … } }) or on post { … } for the current post.';
+			break;
+
+		case 'user':
+			$row['builder_helper'] = 'wp.user.mb_field__' . $slug;
+			$row['graphql']        = sprintf( '%s(field_id: "%s")', $accessor, $field_id );
+			$row['graphql_where']  = 'On a user row (users_query { users { … } }) or current_user { … }. If the typed accessor is absent on User in this schema, meta_value(key: "' . $field_id . '") is the verified fallback.';
+			break;
+
+		case 'term':
+			$row['builder_helper'] = null;
+			$row['graphql']        = null;
+			$row['warnings'][]     = 'Builderius ships no term Meta Box helper provider, and term meta_value() returned false in verified render tests. Read term meta through a render-pure php_function_output wrapper instead.';
+			break;
+
+		default:
+			$row['builder_helper'] = null;
+			$row['graphql']        = sprintf( '%s(field_id: "%s")', $accessor, $field_id );
+			$row['warnings'][]     = sprintf( 'No verified Builderius read path for object type "%s" — resolve with dbe/resolve-data-variable before binding.', $object_type );
+	}
+
+	if ( $is_group && ! empty( $row['children'] ) ) {
+		$row['graphql_children'] = 'Read subfields by NAME inside the group value ({{child_field_id}} on the group row); key lookups inside groups returned empty in verified tests.';
+	}
+	if ( $clone || $multiple ) {
+		$row['warnings'][] = 'This is a clone/multiple field — the value is an array (bind rows via a Collection; count()/join() render summaries). The builder auto-helper list covers only some clone/multiple types.';
+	}
+	if ( in_array( $type, array( 'checkbox_list', 'select_advanced', 'autocomplete' ), true ) ) {
+		$row['warnings'][] = 'Multi-value field type: expect an array (verified: count() and join() render as expected).';
+	}
+	if ( 'date' === $type || 'datetime' === $type ) {
+		$row['warnings'][] = 'Date fields store raw strings — DATE/numeric meta_query comparisons and expression_result date() conversion are the verified recipes.';
+	}
+
+	$row['warnings'] = array_values( $row['warnings'] );
+	return $row;
+}
+
+/**
+ * Handle dbe/resolve-metabox-field.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error Ability result.
+ */
+function dbe_ability_resolve_metabox_field( $input ) {
+	if ( ! function_exists( 'rwmb_get_registry' ) ) {
+		return new WP_Error( 'dbe_no_metabox', 'Meta Box is not active on this site.' );
+	}
+	$ref = trim( (string) ( $input['field'] ?? '' ) );
+	if ( '' === $ref ) {
+		return new WP_Error( 'dbe_field_required', 'Pass the field id or a label fragment.' );
+	}
+	$filter = trim( (string) ( $input['object_type'] ?? '' ) );
+
+	// Settings pages keyed by option_name, for storage context on setting rows.
+	$pages = array();
+	foreach ( (array) apply_filters( 'mb_settings_pages', array() ) as $page ) {
+		$page        = (array) $page;
+		$option_name = (string) ( $page['option_name'] ?? ( $page['id'] ?? '' ) );
+		if ( '' !== $option_name ) {
+			$pages[ $option_name ] = $page;
+		}
+	}
+
+	$registry     = rwmb_get_registry( 'field' );
+	$object_types = array( 'post', 'user', 'term', 'setting', 'network_setting', 'comment' );
+	$exact        = array();
+	$partial      = array();
+	foreach ( $object_types as $object_type ) {
+		if ( '' !== $filter && $filter !== $object_type ) {
+			continue;
+		}
+		foreach ( (array) $registry->get_by_object_type( $object_type ) as $type_key => $fields ) {
+			foreach ( (array) $fields as $field_id => $field ) {
+				$field    = (array) $field;
+				$field_id = (string) $field_id;
+				$label    = (string) ( $field['name'] ?? '' );
+				if ( $field_id === $ref ) {
+					$exact[] = dbe_ability_mb_field_row( $field, $object_type, (string) $type_key, $pages );
+				} elseif ( false !== stripos( $field_id, $ref ) || false !== stripos( $label, $ref ) ) {
+					$partial[] = dbe_ability_mb_field_row( $field, $object_type, (string) $type_key, $pages );
+				}
+			}
+		}
+	}
+
+	$matches = array_merge( $exact, $partial );
+	if ( array() === $matches ) {
+		return new WP_Error(
+			'dbe_no_field',
+			sprintf( 'No registered Meta Box field matches "%s"%s. Fields registered on demand (e.g. inside admin-only hooks) may be invisible here.', $ref, '' !== $filter ? " with object_type $filter" : '' )
+		);
+	}
+
+	return array(
+		'matches' => array_slice( $matches, 0, 20 ),
+		'total'   => count( $matches ),
 	);
 }

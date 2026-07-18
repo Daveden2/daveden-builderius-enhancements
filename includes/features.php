@@ -814,6 +814,11 @@ function dbe_abilities() {
 			'summary' => __( 'Report the resolved type and shape at a binding path before a Collection binds it.', 'daveden-builderius-enhancements' ),
 			'group'   => 'read',
 		),
+		'dbe/resolve-metabox-field'          => array(
+			'title'   => __( 'Resolve a Meta Box field', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Map a Meta Box field id or label to its builder helper name and GraphQL read recipe.', 'daveden-builderius-enhancements' ),
+			'group'   => 'read',
+		),
 		'dbe/check-rendered-output'          => array(
 			'title'   => __( 'Check rendered output', 'daveden-builderius-enhancements' ),
 			'summary' => __( 'Fetch one authenticated front-end render and scan it for silent dynamic-data failures.', 'daveden-builderius-enhancements' ),

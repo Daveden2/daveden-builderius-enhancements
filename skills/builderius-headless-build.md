@@ -59,6 +59,8 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
   Collection source?) → `dbe/check-rendered-output` /
   `dbe/check-render-scenarios` (prove the render, including query-parameter
   and cookie matrices).
+- `dbe/resolve-metabox-field` — map a Meta Box field id/label to its exact
+  GraphQL read recipe and the builder's auto-helper name; don't guess.
 
 **JavaScript**
 - `dbe/get-js-snippets` / `dbe/manage-js-snippet` — global (site-wide) or
