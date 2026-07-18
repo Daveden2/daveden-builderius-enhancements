@@ -2033,6 +2033,24 @@ function dbe_ability_escape_attr( $v ) {
 }
 
 /**
+ * The data-dbe-label attribute for a module whose Navigator label is CUSTOM
+ * (differs from what the parser would assign a fresh element), '' otherwise.
+ * Emitting it makes custom names visible in serialised HTML and lets a
+ * round-trip rename them inline; omitting defaults keeps the markup quiet.
+ *
+ * @param array  $module        Builderius module config.
+ * @param string $default_label The label the parser would derive.
+ * @return string '' or ' data-dbe-label="…"'.
+ */
+function dbe_ability_serialize_label( $module, $default_label ) {
+	$label = trim( (string) ( $module['label'] ?? '' ) );
+	if ( '' === $label || $label === $default_label ) {
+		return '';
+	}
+	return ' data-dbe-label="' . dbe_ability_escape_attr( $label ) . '"';
+}
+
+/**
  * Serialise one module subtree. Non-expressible modules become <dbe-keep>
  * placeholders and are recorded in $non_editable.
  *
@@ -2066,7 +2084,9 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 			}
 			$open .= ' ' . $p['name'] . '="' . dbe_ability_escape_attr( $p['value'] ?? '' ) . '"';
 		}
-		$open .= ' data-dbe-id="' . $id . '"></dbe-component>';
+		$registry = dbe_ability_component_registry();
+		$open    .= dbe_ability_serialize_label( $m, (string) ( $registry[ $slug ]['label'] ?? 'Component' ) );
+		$open    .= ' data-dbe-id="' . $id . '"></dbe-component>';
 		return $pad . $open;
 	}
 
@@ -2113,6 +2133,7 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	if ( ! $binding_attr && in_array( $m['name'], array( 'Collection', 'SubCollection' ), true ) ) {
 		$open .= ' data-dbe-module="' . strtolower( $m['name'] ) . '"';
 	}
+	$open .= dbe_ability_serialize_label( $m, 'HtmlElement' === $m['name'] ? ucfirst( $tag ) : (string) $m['name'] );
 	$open .= ' data-dbe-id="' . $id . '">';
 
 	$voids = dbe_ability_void_tags();

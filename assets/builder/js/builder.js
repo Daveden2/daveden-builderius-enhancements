@@ -1860,6 +1860,17 @@
         return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     }
 
+    /* The data-dbe-label attribute for a module whose Navigator label is
+       CUSTOM (differs from the default the parser would assign a fresh
+       element), '' otherwise. Emitting it surfaces custom names in the
+       serialised HTML so a round-trip can rename them inline; suppressing
+       the defaults keeps the markup clean. Mirror of the server helper. */
+    function dbeSerializeLabel(m, defaultLabel) {
+        var label = String((m && m.label) || '').replace(/\s+/g, ' ').trim();
+        if (label === '' || label === defaultLabel) { return ''; }
+        return ' data-dbe-label="' + dbeHtmlEscapeAttr(label) + '"';
+    }
+
     function dbeSerializeSubtree(rootId) {
         var mods = modules() || {};
         var idx = store().storeGet('indexes') || {};
@@ -1896,6 +1907,8 @@
                     if (!p || !p.name) { return; }
                     copen += ' ' + p.name + '="' + dbeHtmlEscapeAttr(p.value == null ? '' : p.value) + '"';
                 });
+                var creg = dbeComponentRegistry();
+                copen += dbeSerializeLabel(m, (creg[slug] && creg[slug].label) || 'Component');
                 copen += ' data-dbe-id="' + id + '"></dbe-component>';
                 return pad + copen;
             }
@@ -1925,6 +1938,7 @@
             if (!bindingAttr && (m.name === 'Collection' || m.name === 'SubCollection')) {
                 open += ' data-dbe-module="' + m.name.toLowerCase() + '"';
             }
+            open += dbeSerializeLabel(m, m.name === 'HtmlElement' ? (tag.charAt(0).toUpperCase() + tag.slice(1)) : m.name);
             open += ' data-dbe-id="' + id + '">';
             if (DBE_HTML_VOID[tag]) { return pad + open; }
             var content = dbeSettingVal(m, 'content');
