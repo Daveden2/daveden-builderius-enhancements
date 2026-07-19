@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.1.0-dev-1
+Stable tag: 2.1.0-dev-2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -62,7 +62,7 @@ A short summary of recent releases. The full, detailed notes for every release l
 
 = 2.1.0 =
 A direct route from an element to the CSS that affects it, with a compact DevTools-style overview inside Builderius.
-* New: Style inspector (Pro, experimental, off by default). Open it from an element's Styles context-menu flyout or the command palette to see the authored rules matching the rendered element and a searchable overview of its computed CSS properties.
+* New: Style inspector (Pro, experimental, off by default). Open it from an element's Styles context-menu flyout or the command palette to see matching authored rules, searchable computed CSS properties, and connected pseudo-state or pseudo-element selectors such as :hover and ::before.
 * New: matched rules identify Local, Global and Template or Component sources, show active media-query context, and provide Edit rule buttons that open Builderius's own editor at the correct selector and scope. Custom and compound selectors open in the native Selector CSS editor.
 * Improved: Collections with several rendered instances can be inspected one instance at a time. The persistent non-modal panel is keyboard-operable, preserves its scroll position during builder updates and leaves framework or page rules read-only when they do not belong to an editable Builderius scope.
 

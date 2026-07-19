@@ -5741,6 +5741,23 @@
         'transform', 'transition', 'visibility', 'cursor', 'pointer-events'
     ];
 
+    var DBE_STYLE_PSEUDO_PROPERTIES = [
+        'content', 'display', 'position', 'inset', 'z-index', 'box-sizing',
+        'inline-size', 'block-size', 'margin', 'padding', 'overflow',
+        'font-family', 'font-size', 'font-weight', 'line-height', 'color',
+        'background', 'border', 'border-radius', 'box-shadow', 'opacity',
+        'transform', 'transition', 'visibility', 'pointer-events'
+    ];
+
+    var DBE_STYLE_STATE_PSEUDOS = [
+        'active', 'checked', 'disabled', 'enabled', 'focus', 'focus-visible',
+        'focus-within', 'hover', 'invalid', 'open', 'placeholder-shown',
+        'target', 'user-invalid', 'valid', 'visited'
+    ];
+
+    var DBE_STYLE_STATE_RE = new RegExp(':(?:' + DBE_STYLE_STATE_PSEUDOS.join('|') + ')(?![A-Za-z0-9_-])', 'gi');
+    var DBE_STYLE_ELEMENT_RE = /::[A-Za-z-]+(?:\([^)]*\))?|:(?:before|after|first-letter|first-line)(?![A-Za-z0-9_-])/gi;
+
     function dbeStyleTargets(id) {
         try {
             var iframe = document.getElementById('builderInner');
@@ -5965,6 +5982,121 @@
         return found.reverse(); // later rules first, matching DevTools' scan order
     }
 
+    /* Split grouped selectors without treating commas inside functional
+       pseudo-classes or attribute selectors as selector separators. */
+    function dbeStyleSplitSelectorList(selector) {
+        var parts = [];
+        var start = 0;
+        var round = 0;
+        var square = 0;
+        var quote = '';
+        var escaped = false;
+        for (var i = 0; i < selector.length; i++) {
+            var char = selector.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (char === '\\') { escaped = true; continue; }
+            if (quote) {
+                if (char === quote) { quote = ''; }
+                continue;
+            }
+            if (char === '"' || char === "'") { quote = char; continue; }
+            if (char === '(') { round++; continue; }
+            if (char === ')') { round = Math.max(0, round - 1); continue; }
+            if (char === '[') { square++; continue; }
+            if (char === ']') { square = Math.max(0, square - 1); continue; }
+            if (char === ',' && !round && !square) {
+                parts.push(selector.slice(start, i).trim());
+                start = i + 1;
+            }
+        }
+        parts.push(selector.slice(start).trim());
+        return parts.filter(Boolean);
+    }
+
+    function dbeStylePseudoTokens(selector) {
+        var states = [];
+        var elements = [];
+        var seen = {};
+        selector.replace(DBE_STYLE_ELEMENT_RE, function (token) {
+            token = token.toLowerCase().replace(/^:(before|after|first-letter|first-line)$/, '::$1');
+            if (!seen[token]) { seen[token] = true; elements.push(token); }
+            return token;
+        });
+        selector.replace(DBE_STYLE_STATE_RE, function (token) {
+            token = token.toLowerCase();
+            if (!seen[token]) { seen[token] = true; states.push(token); }
+            return token;
+        });
+        return { states: states, elements: elements, all: states.concat(elements) };
+    }
+
+    /* Remove the state and generated-box portion to find whether the authored
+       selector is connected to the selected element even while a state such
+       as :hover is inactive. Empty functional pseudos are cleaned afterwards. */
+    function dbeStylePseudoBaseSelector(selector) {
+        var base = selector.replace(DBE_STYLE_ELEMENT_RE, '').replace(DBE_STYLE_STATE_RE, '');
+        var previous = '';
+        while (base !== previous) {
+            previous = base;
+            base = base
+                .replace(/:(?:not|is|where|has)\(\s*(?:,\s*)*\)/gi, '')
+                .replace(/\(\s*,/g, '(')
+                .replace(/,\s*\)/g, ')');
+        }
+        return base.trim() || '*';
+    }
+
+    function dbeStylePseudoRules(el, id) {
+        var found = [];
+        var idoc = el.ownerDocument;
+        var view = idoc.defaultView;
+        function walk(rules, contexts) {
+            for (var i = 0; i < rules.length; i++) {
+                var rule = rules[i];
+                if (rule.selectorText && rule.style) {
+                    var source = dbeStyleRuleSource(rule, id);
+                    var matchedClass = dbeStyleMatchedClass(rule.selectorText, id);
+                    var simpleClass = matchedClass && normSel(rule.selectorText) === matchedClass;
+                    dbeStyleSplitSelectorList(rule.selectorText).forEach(function (selector) {
+                        var tokens = dbeStylePseudoTokens(selector);
+                        if (!tokens.all.length) { return; }
+                        try {
+                            if (!el.matches(dbeStylePseudoBaseSelector(selector))) { return; }
+                            var activeSelector = selector.replace(DBE_STYLE_ELEMENT_RE, '').trim() || '*';
+                            var active = el.matches(activeSelector);
+                            found.push({
+                                selector: selector,
+                                authoredSelector: rule.selectorText,
+                                style: rule.style,
+                                source: source,
+                                contexts: contexts.slice(),
+                                tokens: tokens,
+                                active: active,
+                                editSelector: source === 'local' ? '%local%' : (source === 'page' ? '' : rule.selectorText),
+                                editMode: source === 'local' || simpleClass ? 'element' : 'stylesheet'
+                            });
+                        } catch (e) { /* selector unsupported by Element.matches */ }
+                    });
+                    continue;
+                }
+                if (!rule.cssRules) { continue; }
+                var nextContexts = contexts.slice();
+                if (rule.media && rule.media.mediaText) {
+                    try { if (!view.matchMedia(rule.media.mediaText).matches) { continue; } } catch (e) {}
+                    nextContexts.push('@media ' + rule.media.mediaText);
+                } else if (rule.conditionText) {
+                    nextContexts.push(rule.cssText.split('{')[0].trim());
+                }
+                try { walk(rule.cssRules, nextContexts); } catch (e) {}
+            }
+        }
+        var sheets = [].slice.call(idoc.styleSheets || []).concat([].slice.call(idoc.adoptedStyleSheets || []));
+        sheets.filter(function (sheet, index) { return sheets.indexOf(sheet) === index; }).forEach(function (sheet) {
+            try { walk(sheet.cssRules, []); } catch (e) { /* cross-origin stylesheet */ }
+        });
+        return found.reverse();
+    }
+
     function dbeStyleSourceLabel(source) {
         if (source === 'local') { return dbeT('styleSourceLocal', 'Local'); }
         if (source === 'global') { return dbeT('styleSourceGlobal', 'Global'); }
@@ -6081,6 +6213,137 @@
         content.appendChild(list);
     }
 
+    function dbeStyleRenderPseudos(content, el, id) {
+        var query = dbeStyleInspectorState.filter.toLowerCase();
+        var rules = dbeStylePseudoRules(el, id);
+        var hint = document.createElement('p');
+        hint.className = 'dbe-style-inspector__hint';
+        hint.textContent = dbeT('stylePseudoHint', 'Inactive states show authored declarations. Computed values are available for generated pseudo-elements and states currently active in the canvas.');
+        content.appendChild(hint);
+
+        var pseudoElements = [];
+        rules.forEach(function (rule) {
+            rule.tokens.elements.forEach(function (pseudo) {
+                if (pseudoElements.indexOf(pseudo) === -1) { pseudoElements.push(pseudo); }
+            });
+        });
+
+        var computedSection = document.createElement('section');
+        computedSection.className = 'dbe-style-inspector__section';
+        var computedShown = false;
+        pseudoElements.forEach(function (pseudo) {
+            var computed;
+            try { computed = el.ownerDocument.defaultView.getComputedStyle(el, pseudo); } catch (e) { return; }
+            var names = DBE_STYLE_PSEUDO_PROPERTIES.filter(function (name) {
+                var value = computed.getPropertyValue(name).trim();
+                return value && (!query || pseudo.toLowerCase().indexOf(query) !== -1 || name.toLowerCase().indexOf(query) !== -1 || value.toLowerCase().indexOf(query) !== -1);
+            });
+            if (!names.length) { return; }
+            if (!computedShown) {
+                var heading = document.createElement('h3');
+                heading.className = 'dbe-style-inspector__section-title';
+                heading.textContent = dbeT('stylePseudoComputed', 'Computed pseudo-elements');
+                computedSection.appendChild(heading);
+                computedShown = true;
+            }
+            var card = document.createElement('div');
+            card.className = 'dbe-style-inspector__pseudo-computed';
+            var label = document.createElement('h4');
+            label.className = 'dbe-style-inspector__pseudo-label';
+            label.textContent = pseudo;
+            card.appendChild(label);
+            var dl = document.createElement('dl');
+            dl.className = 'dbe-style-inspector__properties';
+            names.forEach(function (name) {
+                var row = document.createElement('div');
+                row.className = 'dbe-style-inspector__property';
+                var dt = document.createElement('dt');
+                var dd = document.createElement('dd');
+                dt.textContent = name;
+                dd.textContent = computed.getPropertyValue(name).trim();
+                row.appendChild(dt); row.appendChild(dd); dl.appendChild(row);
+            });
+            card.appendChild(dl); computedSection.appendChild(card);
+        });
+        rules = rules.filter(function (rule) {
+            if (!query) { return true; }
+            var text = rule.selector + ' ' + rule.tokens.all.join(' ') + ' ';
+            for (var i = 0; i < rule.style.length; i++) {
+                var prop = rule.style[i];
+                text += prop + ' ' + rule.style.getPropertyValue(prop) + ' ';
+            }
+            return text.toLowerCase().indexOf(query) !== -1;
+        });
+        if (!rules.length) {
+            if (computedShown) { content.appendChild(computedSection); }
+            else { content.appendChild(dbeStyleEmpty(dbeT('styleNoPseudos', 'No authored pseudo-state or pseudo-element rules are connected to this element.'))); }
+            return;
+        }
+
+        var rulesSection = document.createElement('section');
+        rulesSection.className = 'dbe-style-inspector__section';
+        var rulesHeading = document.createElement('h3');
+        rulesHeading.className = 'dbe-style-inspector__section-title';
+        rulesHeading.textContent = dbeT('stylePseudoRules', 'Related authored rules');
+        rulesSection.appendChild(rulesHeading);
+        var list = document.createElement('ol');
+        list.className = 'dbe-style-inspector__rules';
+        rules.forEach(function (rule) {
+            var item = document.createElement('li');
+            item.className = 'dbe-style-inspector__rule';
+            item.setAttribute('data-source', rule.source);
+            var head = document.createElement('div');
+            head.className = 'dbe-style-inspector__rule-head';
+            var copy = document.createElement('div');
+            var selector = document.createElement('div');
+            selector.className = 'dbe-style-inspector__selector';
+            selector.textContent = rule.selector;
+            copy.appendChild(selector);
+            var meta = document.createElement('div');
+            meta.className = 'dbe-style-inspector__rule-meta';
+            var labels = [dbeStyleSourceLabel(rule.source)].concat(rule.tokens.all).concat(rule.contexts);
+            labels.push(rule.active ? dbeT('stylePseudoActive', 'Active now') : dbeT('stylePseudoInactive', 'Inactive state'));
+            labels.forEach(function (label, index) {
+                var badge = document.createElement('span');
+                badge.className = 'dbe-style-inspector__badge';
+                if (index === labels.length - 1) { badge.setAttribute('data-state', rule.active ? 'active' : 'inactive'); }
+                badge.textContent = label;
+                meta.appendChild(badge);
+            });
+            copy.appendChild(meta); head.appendChild(copy);
+            if (rule.editSelector && rule.source !== 'page') {
+                var edit = document.createElement('button');
+                edit.type = 'button';
+                edit.className = 'dbe-style-inspector__edit';
+                edit.textContent = dbeT('styleEditRule', 'Edit rule');
+                edit.addEventListener('click', function () {
+                    var editScope = rule.source === 'global' ? 'global' : (rule.source === 'entity' ? 'template' : null);
+                    var inspector = document.querySelector('.dbe-style-inspector');
+                    if (inspector) { inspector.remove(); dbeStyleInspectorState.id = null; }
+                    if (rule.editMode === 'stylesheet') { dbeOpenStylesheetSelector(rule.editSelector, editScope); }
+                    else { dbeOpenStyleEditor(id, rule.editSelector, editScope); }
+                });
+                head.appendChild(edit);
+            }
+            item.appendChild(head);
+            var declarations = document.createElement('dl');
+            declarations.className = 'dbe-style-inspector__declarations';
+            for (var i = 0; i < rule.style.length; i++) {
+                var prop = rule.style[i];
+                var decl = document.createElement('div');
+                decl.className = 'dbe-style-inspector__declaration';
+                var dt = document.createElement('dt');
+                var dd = document.createElement('dd');
+                dt.textContent = prop + ':';
+                dd.textContent = rule.style.getPropertyValue(prop).trim() + (rule.style.getPropertyPriority(prop) ? ' !important' : '');
+                decl.appendChild(dt); decl.appendChild(dd); declarations.appendChild(decl);
+            }
+            item.appendChild(declarations); list.appendChild(item);
+        });
+        rulesSection.appendChild(list); content.appendChild(rulesSection);
+        if (computedShown) { content.appendChild(computedSection); }
+    }
+
     function dbeRenderStyleInspector() {
         var panel = document.querySelector('.dbe-style-inspector');
         if (!panel || !dbeStyleInspectorState.id) { return; }
@@ -6111,6 +6374,8 @@
             nextContent.appendChild(dbeStyleEmpty(dbeT('styleNoCanvasElement', 'This element is not currently rendered in the canvas.')));
         } else if (dbeStyleInspectorState.tab === 'computed') {
             dbeStyleRenderComputed(nextContent, targets[dbeStyleInspectorState.instance]);
+        } else if (dbeStyleInspectorState.tab === 'pseudos') {
+            dbeStyleRenderPseudos(nextContent, targets[dbeStyleInspectorState.instance], id);
         } else {
             dbeStyleRenderRules(nextContent, targets[dbeStyleInspectorState.instance], id);
         }
@@ -6175,7 +6440,7 @@
         head.appendChild(actions); panel.appendChild(head);
         var tabs = document.createElement('div');
         tabs.className = 'dbe-style-inspector__tabs'; tabs.setAttribute('role', 'tablist');
-        [['rules', dbeT('styleMatchedRules', 'Matched rules')], ['computed', dbeT('styleComputed', 'Computed')]].forEach(function (pair) {
+        [['rules', dbeT('styleMatchedRules', 'Matched rules')], ['computed', dbeT('styleComputed', 'Computed')], ['pseudos', dbeT('stylePseudos', 'Pseudos')]].forEach(function (pair) {
             var tab = document.createElement('button');
             tab.type = 'button'; tab.className = 'dbe-style-inspector__tab'; tab.id = 'dbe-style-tab-' + pair[0]; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'dbe-style-inspector-panel'); tab.setAttribute('data-tab', pair[0]); tab.textContent = pair[1];
             tab.addEventListener('click', function () { dbeStyleInspectorState.tab = pair[0]; dbeRenderStyleInspector(); });

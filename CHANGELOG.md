@@ -29,6 +29,11 @@ feature is opt-in, experimental and requires Builderius Pro.
   an optional complete property list and filtering across names and values.
   Collection modules with several rendered instances gain previous/next
   controls so each instance can be checked independently.
+* Added: a **Pseudos** view connects authored state selectors such as `:hover`,
+  `:focus-visible` and `:checked`, plus generated pseudo-elements such as
+  `::before`, `::after` and `::marker`, to the selected element. It distinguishes
+  currently active and inactive states, displays live computed values for
+  generated boxes, and routes editable rules to their native Builderius selector.
 * Accessibility: the inspector is fully keyboard-operable, uses an APG-style
   tab pattern, provides named controls and visible focus, closes with Escape,
   and restores focus to the selected Navigator row. It respects DBE's theme,
