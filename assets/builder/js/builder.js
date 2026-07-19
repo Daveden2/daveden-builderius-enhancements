@@ -3674,7 +3674,12 @@
     function positionFlyout(fly, parentLi) {
         var pr = parentLi.getBoundingClientRect();
         var fw = fly.offsetWidth || 176;
-        var fh = fly.offsetHeight || 120;
+        var maxHeight = window.innerHeight - 16;
+        if (fly.offsetHeight > maxHeight) {
+            fly.style.setProperty('max-height', maxHeight + 'px', 'important');
+            fly.style.setProperty('overflow-y', 'auto', 'important');
+        }
+        var fh = Math.min(fly.offsetHeight || 120, maxHeight);
         var left = pr.right + 2;
         if (left + fw > window.innerWidth - 8) { left = pr.left - fw - 2; } // flip to the left near the edge
         if (left < 8) { left = 8; }
@@ -4342,11 +4347,25 @@
                 })();
             }
 
+            // Style inspector: one flyout keeps the primary menu compact while
+            // exposing inspect, %local%, and both scopes for every applied class.
+            var stylesParent = null;
+            if (!multiIds && on('style_inspector') && lastCtxId) {
+                (function () {
+                    var siId = lastCtxId;
+                    var siMod = (modules() || {})[siId];
+                    if (!siMod || !bemClassable(siMod)) { return; }
+                    stylesParent = makeParent(dbeT('stylesMenu', 'Styles…'), false, function () {
+                        return dbeStyleActionItems(siId);
+                    });
+                })();
+            }
+
             /* --- Flat layout (context_menu off): append injected items after the
                native ones, so each feature still works with grouping turned off. */
             if (!grouped) {
                 var injected = nameItems.concat(advancedItems,
-                    [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
+                    [stylesParent, cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                 );
                 if (injected.length) {
                     injected[0].classList.add('dbe-ctx-item--first');
@@ -4442,6 +4461,7 @@
                 natDuplicate,                                                    // Clone
                 natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                 nameItems,                                                       // Name
+                stylesParent ? [stylesParent] : [],                              // Inspect / edit CSS
                 insertParent ? [insertParent] : [],                              // Insert
                 [changeTagParent, wrapParent, unwrapLi].filter(Boolean),          // Structure
                 moveNavigateParent ? [moveNavigateParent] : [],                  // Position / navigate
@@ -5687,6 +5707,473 @@
             mon.classList.remove('dbe-scope-covered');
             mon.removeAttribute('inert');
         }
+    }
+
+    /* (si) Style inspector (style_inspector).
+
+       The context menu and command palette both route into Builderius' native
+       Styles view. DBE selects the module, selector and scope, then gets out of
+       the way: there is one editing surface and one save path. The companion
+       inspector is deliberately read-only. It combines getComputedStyle() with
+       accessible CSSOM rules from the live preview, which makes it useful for
+       framework and page CSS as well as Builderius-authored rules. */
+    var dbeStyleInspectorState = {
+        id: null,
+        instance: 0,
+        tab: 'rules',
+        filter: '',
+        allComputed: false
+    };
+
+    var DBE_STYLE_COMMON_PROPERTIES = [
+        'display', 'position', 'inset', 'inset-block', 'inset-inline', 'z-index',
+        'box-sizing', 'inline-size', 'block-size', 'min-inline-size', 'max-inline-size',
+        'min-block-size', 'max-block-size', 'margin', 'padding', 'overflow',
+        'grid', 'grid-template-columns', 'grid-template-rows', 'grid-column', 'grid-row',
+        'flex', 'flex-direction', 'flex-wrap', 'align-items', 'align-content',
+        'justify-content', 'justify-items', 'gap', 'order',
+        'font-family', 'font-size', 'font-weight', 'font-style', 'line-height',
+        'letter-spacing', 'text-align', 'text-decoration', 'text-transform',
+        'color', 'background', 'border', 'border-radius', 'box-shadow', 'opacity',
+        'transform', 'transition', 'visibility', 'cursor', 'pointer-events'
+    ];
+
+    function dbeStyleTargets(id) {
+        try {
+            var iframe = document.getElementById('builderInner');
+            var idoc = iframe && iframe.contentDocument;
+            return idoc ? [].slice.call(idoc.querySelectorAll('.uni-node-' + id)) : [];
+        } catch (e) { return []; }
+    }
+
+    function dbeStyleTargetName(id) {
+        var mods = modules() || {};
+        var mod = mods[id];
+        if (!mod) { return id || ''; }
+        var tag = bemModuleTag(mod, '') || mod.name || 'element';
+        var classes = moduleClasses(mod);
+        return '<' + tag + '>' + (classes.length ? ' .' + classes.join(' .') : '');
+    }
+
+    function dbeStyleCurrentSelector() {
+        try { return store().storeGet('activeSelector') || ''; } catch (e) { return ''; }
+    }
+
+    function dbeStyleFocusEditor() {
+        setTimeout(function () {
+            var h = leftPanelMonaco();
+            if (h && h.ed && h.ed.focus) { h.ed.focus(); return; }
+            var lp = document.querySelector('.uniLeftPanel');
+            var focusable = lp && lp.querySelector('input:not([disabled]), button:not([disabled]), textarea:not([disabled])');
+            if (focusable) { try { focusable.focus(); } catch (e) {} }
+        }, 120);
+    }
+
+    /* Select an already-applied class through its native chip. The picker hides
+       the applied-class list while another selector is active, so close that
+       selector first and wait for the list to return. `%local%` is Builderius'
+       no-active-class state, reached through the same native Close action. */
+    function dbeStyleSelectSelector(selector, done) {
+        var want = selector === '%local%' ? '' : selector;
+        var current = dbeStyleCurrentSelector();
+        if ((want === '' && (!current || current.charAt(0) === '%')) || current === want) {
+            done(true); return;
+        }
+        if (current && current.charAt(0) !== '%') {
+            driveSelectedClose(function (ok) {
+                if (!ok) { done(false); return; }
+                setTimeout(function () { dbeStyleSelectSelector(selector, done); }, 80);
+            });
+            return;
+        }
+        waitFor(function () {
+            return [].slice.call(document.querySelectorAll('.uniModuleCssClassesSelect__list li')).filter(function (li) {
+                var text = ((li.querySelector('span') || li).textContent || '').trim();
+                return text === want || text === want.replace(/^\./, '');
+            })[0] || null;
+        }, function (li) {
+            if (!li) { done(false); return; }
+            clickSeq(li.querySelector('span') || li);
+            waitFor(function () { return dbeStyleCurrentSelector() === want || null; }, function (selected) {
+                done(!!selected);
+            }, 40);
+        }, 50);
+    }
+
+    function dbeOpenStyleEditor(id, selector, scopeName) {
+        var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        // Clicking the already-active Navigator row toggles its selection off,
+        // leaving the settings panel empty. Only drive the row when the command
+        // targets a different module (e.g. a context menu on an unselected row).
+        if (row && activeId() !== id) { clickSeq(row); }
+        waitFor(function () { return activeId() === id || null; }, function (selected) {
+            if (!selected) { return; }
+            var lp = document.querySelector('.uniLeftPanel');
+            var styles = lp && [].slice.call(lp.querySelectorAll('.uniPanelTabs__tab'))
+                .filter(function (tab) { return /Styles/i.test(tab.textContent || ''); })[0];
+            if (styles && !styles.classList.contains('active')) { clickSeq(styles); }
+            waitFor(function () {
+                var left = document.querySelector('.uniLeftPanel');
+                return left && (isCssCodeMode(left) || left.querySelector('.uniSystemSelectClasses'));
+            }, function (ready) {
+                if (!ready) { return; }
+                dbeStyleSelectSelector(selector, function (selectorReady) {
+                    if (!selectorReady) { return; }
+                    if (scopeName && selector !== '%local%') {
+                        setScope(scopeName).then(dbeStyleFocusEditor);
+                    } else {
+                        dbeStyleFocusEditor();
+                    }
+                });
+            }, 80);
+        }, 50);
+    }
+
+    function dbeStyleRuleSource(rule, id) {
+        var selector = rule.selectorText || '';
+        if (selector.indexOf('.uni-node-' + id) !== -1) { return 'local'; }
+        var ruleText = String(rule.cssText || '').replace(/\s+/g, ' ').trim();
+        var entity = scopeCss('entity').replace(/\s+/g, ' ');
+        var global = scopeCss('global').replace(/\s+/g, ' ');
+        if (ruleText && entity.indexOf(ruleText) !== -1) { return 'entity'; }
+        if (ruleText && global.indexOf(ruleText) !== -1) { return 'global'; }
+        // Formatting differs between authored CSS and CSSOM serialisation in
+        // some browsers. Selector presence is a useful fallback, but only when
+        // it exists in one scope; a selector present in both stays unlabelled.
+        var inEntity = selector && entity.indexOf(selector) !== -1;
+        var inGlobal = selector && global.indexOf(selector) !== -1;
+        if (inEntity && !inGlobal) { return 'entity'; }
+        if (inGlobal && !inEntity) { return 'global'; }
+        return 'page';
+    }
+
+    function dbeStyleMatchedClass(selector, id) {
+        var mod = (modules() || {})[id];
+        var classes = moduleClasses(mod);
+        for (var i = 0; i < classes.length; i++) {
+            var cls = '.' + classes[i];
+            var esc = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (new RegExp(esc + '(?![A-Za-z0-9_-])').test(selector)) { return cls; }
+        }
+        return '';
+    }
+
+    function dbeStyleMatchedRules(el, id) {
+        var found = [];
+        var idoc = el.ownerDocument;
+        var view = idoc.defaultView;
+        function walk(rules, contexts) {
+            for (var i = 0; i < rules.length; i++) {
+                var rule = rules[i];
+                if (rule.selectorText && rule.style) {
+                    try {
+                        if (el.matches(rule.selectorText)) {
+                            var source = dbeStyleRuleSource(rule, id);
+                            found.push({
+                                selector: rule.selectorText,
+                                style: rule.style,
+                                source: source,
+                                contexts: contexts.slice(),
+                                editSelector: source === 'local' ? '%local%' : dbeStyleMatchedClass(rule.selectorText, id)
+                            });
+                        }
+                    } catch (e) { /* selector unsupported by Element.matches */ }
+                    continue;
+                }
+                if (!rule.cssRules) { continue; }
+                var nextContexts = contexts.slice();
+                if (rule.media && rule.media.mediaText) {
+                    try { if (!view.matchMedia(rule.media.mediaText).matches) { continue; } } catch (e) {}
+                    nextContexts.push('@media ' + rule.media.mediaText);
+                } else if (rule.conditionText) {
+                    nextContexts.push(rule.cssText.split('{')[0].trim());
+                }
+                try { walk(rule.cssRules, nextContexts); } catch (e) {}
+            }
+        }
+        // Builderius places the saved global/entity styles in constructable
+        // adoptedStyleSheets; ordinary linked and inline CSS lives in
+        // document.styleSheets. Inspect both, de-duplicated for browsers that
+        // may expose an adopted sheet through both collections.
+        var sheets = [].slice.call(idoc.styleSheets || []).concat([].slice.call(idoc.adoptedStyleSheets || []));
+        sheets.filter(function (sheet, index) { return sheets.indexOf(sheet) === index; }).forEach(function (sheet) {
+            try { walk(sheet.cssRules, []); } catch (e) { /* cross-origin stylesheet */ }
+        });
+        return found.reverse(); // later rules first, matching DevTools' scan order
+    }
+
+    function dbeStyleSourceLabel(source) {
+        if (source === 'local') { return dbeT('styleSourceLocal', 'Local'); }
+        if (source === 'global') { return dbeT('styleSourceGlobal', 'Global'); }
+        if (source === 'entity') { return entityScopeLabel(); }
+        return dbeT('styleSourcePage', 'Page or framework');
+    }
+
+    function dbeStyleEmpty(message) {
+        var p = document.createElement('p');
+        p.className = 'dbe-style-inspector__empty';
+        p.textContent = message;
+        return p;
+    }
+
+    function dbeStyleRenderComputed(content, el) {
+        var computed = el.ownerDocument.defaultView.getComputedStyle(el);
+        var names = [];
+        if (dbeStyleInspectorState.allComputed) {
+            for (var i = 0; i < computed.length; i++) { names.push(computed[i]); }
+        } else {
+            names = DBE_STYLE_COMMON_PROPERTIES.filter(function (name) {
+                return computed.getPropertyValue(name).trim() !== '';
+            });
+        }
+        var query = dbeStyleInspectorState.filter.toLowerCase();
+        names = names.filter(function (name) {
+            var value = computed.getPropertyValue(name).trim();
+            return !query || name.toLowerCase().indexOf(query) !== -1 || value.toLowerCase().indexOf(query) !== -1;
+        });
+        if (!names.length) {
+            content.appendChild(dbeStyleEmpty(dbeT('styleNoProperties', 'No computed properties match this filter.')));
+            return;
+        }
+        var dl = document.createElement('dl');
+        dl.className = 'dbe-style-inspector__properties';
+        names.forEach(function (name) {
+            var row = document.createElement('div');
+            row.className = 'dbe-style-inspector__property';
+            var dt = document.createElement('dt');
+            var dd = document.createElement('dd');
+            dt.textContent = name;
+            dd.textContent = computed.getPropertyValue(name).trim();
+            row.appendChild(dt); row.appendChild(dd); dl.appendChild(row);
+        });
+        content.appendChild(dl);
+    }
+
+    function dbeStyleRenderRules(content, el, id) {
+        var query = dbeStyleInspectorState.filter.toLowerCase();
+        var rules = dbeStyleMatchedRules(el, id).filter(function (rule) {
+            if (!query) { return true; }
+            var text = rule.selector + ' ';
+            for (var i = 0; i < rule.style.length; i++) {
+                var prop = rule.style[i];
+                text += prop + ' ' + rule.style.getPropertyValue(prop) + ' ';
+            }
+            return text.toLowerCase().indexOf(query) !== -1;
+        });
+        if (!rules.length) {
+            content.appendChild(dbeStyleEmpty(dbeT('styleNoMatchedRules', 'No accessible authored rules match this rendered element.')));
+            return;
+        }
+        var list = document.createElement('ol');
+        list.className = 'dbe-style-inspector__rules';
+        rules.forEach(function (rule) {
+            var item = document.createElement('li');
+            item.className = 'dbe-style-inspector__rule';
+            item.setAttribute('data-source', rule.source);
+            var head = document.createElement('div');
+            head.className = 'dbe-style-inspector__rule-head';
+            var copy = document.createElement('div');
+            var selector = document.createElement('div');
+            selector.className = 'dbe-style-inspector__selector';
+            selector.textContent = rule.selector;
+            copy.appendChild(selector);
+            var meta = document.createElement('div');
+            meta.className = 'dbe-style-inspector__rule-meta';
+            [dbeStyleSourceLabel(rule.source)].concat(rule.contexts).forEach(function (label) {
+                var badge = document.createElement('span');
+                badge.className = 'dbe-style-inspector__badge';
+                badge.textContent = label;
+                meta.appendChild(badge);
+            });
+            copy.appendChild(meta); head.appendChild(copy);
+            if (rule.editSelector && rule.source !== 'page') {
+                var edit = document.createElement('button');
+                edit.type = 'button';
+                edit.className = 'dbe-style-inspector__edit';
+                edit.textContent = dbeT('styleEditRule', 'Edit rule');
+                edit.addEventListener('click', function () {
+                    dbeOpenStyleEditor(id, rule.editSelector, rule.source === 'global' ? 'global' : (rule.source === 'entity' ? 'template' : null));
+                });
+                head.appendChild(edit);
+            }
+            item.appendChild(head);
+            var declarations = document.createElement('dl');
+            declarations.className = 'dbe-style-inspector__declarations';
+            for (var i = 0; i < rule.style.length; i++) {
+                var prop = rule.style[i];
+                var decl = document.createElement('div');
+                decl.className = 'dbe-style-inspector__declaration';
+                var dt = document.createElement('dt');
+                var dd = document.createElement('dd');
+                dt.textContent = prop + ':';
+                dd.textContent = rule.style.getPropertyValue(prop).trim() + (rule.style.getPropertyPriority(prop) ? ' !important' : '');
+                decl.appendChild(dt); decl.appendChild(dd); declarations.appendChild(decl);
+            }
+            item.appendChild(declarations); list.appendChild(item);
+        });
+        content.appendChild(list);
+    }
+
+    function dbeRenderStyleInspector() {
+        var panel = document.querySelector('.dbe-style-inspector');
+        if (!panel || !dbeStyleInspectorState.id) { return; }
+        var id = dbeStyleInspectorState.id;
+        var targets = dbeStyleTargets(id);
+        if (dbeStyleInspectorState.instance >= targets.length) { dbeStyleInspectorState.instance = 0; }
+        panel.querySelector('.dbe-style-inspector__target').textContent = dbeStyleTargetName(id);
+        var count = panel.querySelector('.dbe-style-inspector__instance-count');
+        var prev = panel.querySelector('[data-instance="prev"]');
+        var next = panel.querySelector('[data-instance="next"]');
+        var multi = targets.length > 1;
+        prev.hidden = !multi; next.hidden = !multi; count.hidden = !multi;
+        count.textContent = multi ? dbeFmt(dbeT('styleInstanceCount', '%1$s of %2$s rendered instances'), dbeStyleInspectorState.instance + 1, targets.length) : '';
+        [].slice.call(panel.querySelectorAll('.dbe-style-inspector__tab')).forEach(function (tab) {
+            var active = tab.getAttribute('data-tab') === dbeStyleInspectorState.tab;
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            tab.tabIndex = active ? 0 : -1;
+            if (active) { panel.querySelector('.dbe-style-inspector__content').setAttribute('aria-labelledby', tab.id); }
+        });
+        var all = panel.querySelector('.dbe-style-inspector__all');
+        all.hidden = dbeStyleInspectorState.tab !== 'computed';
+        var check = all.querySelector('input');
+        check.checked = dbeStyleInspectorState.allComputed;
+        var content = panel.querySelector('.dbe-style-inspector__content');
+        content.innerHTML = '';
+        if (!targets.length) {
+            content.appendChild(dbeStyleEmpty(dbeT('styleNoCanvasElement', 'This element is not currently rendered in the canvas.')));
+            return;
+        }
+        if (dbeStyleInspectorState.tab === 'computed') { dbeStyleRenderComputed(content, targets[dbeStyleInspectorState.instance]); }
+        else { dbeStyleRenderRules(content, targets[dbeStyleInspectorState.instance], id); }
+    }
+
+    function dbeCloseStyleInspector(panel) {
+        var id = dbeStyleInspectorState.id;
+        panel.remove();
+        dbeStyleInspectorState.id = null;
+        var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        if (row) { try { row.focus(); } catch (e) {} }
+    }
+
+    function dbeBuildStyleInspector() {
+        var panel = document.createElement('aside');
+        panel.className = 'dbe-style-inspector';
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'false');
+        panel.setAttribute('aria-labelledby', 'dbe-style-inspector-title');
+        var head = document.createElement('div');
+        head.className = 'dbe-style-inspector__head';
+        var identity = document.createElement('div');
+        identity.className = 'dbe-style-inspector__identity';
+        var title = document.createElement('h2');
+        title.id = 'dbe-style-inspector-title';
+        title.className = 'dbe-style-inspector__title';
+        title.textContent = dbeT('styleInspector', 'Style inspector');
+        var target = document.createElement('div');
+        target.className = 'dbe-style-inspector__target';
+        identity.appendChild(title); identity.appendChild(target); head.appendChild(identity);
+        var actions = document.createElement('div');
+        actions.className = 'dbe-style-inspector__head-actions';
+        function iconButton(label, glyph) {
+            var button = document.createElement('button');
+            button.type = 'button'; button.className = 'dbe-style-inspector__icon-button';
+            button.setAttribute('aria-label', label); button.textContent = glyph;
+            return button;
+        }
+        var prev = iconButton(dbeT('stylePreviousInstance', 'Previous rendered instance'), '‹'); prev.setAttribute('data-instance', 'prev');
+        var count = document.createElement('span'); count.className = 'dbe-style-inspector__instance-count';
+        var next = iconButton(dbeT('styleNextInstance', 'Next rendered instance'), '›'); next.setAttribute('data-instance', 'next');
+        prev.addEventListener('click', function () {
+            var n = dbeStyleTargets(dbeStyleInspectorState.id).length;
+            if (n) { dbeStyleInspectorState.instance = (dbeStyleInspectorState.instance + n - 1) % n; dbeRenderStyleInspector(); }
+        });
+        next.addEventListener('click', function () {
+            var n = dbeStyleTargets(dbeStyleInspectorState.id).length;
+            if (n) { dbeStyleInspectorState.instance = (dbeStyleInspectorState.instance + 1) % n; dbeRenderStyleInspector(); }
+        });
+        var refresh = iconButton(dbeT('styleRefresh', 'Refresh styles'), '↻');
+        refresh.addEventListener('click', dbeRenderStyleInspector);
+        var close = iconButton(dbeT('close', 'Close'), '×');
+        close.addEventListener('click', function () { dbeCloseStyleInspector(panel); });
+        actions.appendChild(prev); actions.appendChild(count); actions.appendChild(next); actions.appendChild(refresh); actions.appendChild(close);
+        head.appendChild(actions); panel.appendChild(head);
+        var tabs = document.createElement('div');
+        tabs.className = 'dbe-style-inspector__tabs'; tabs.setAttribute('role', 'tablist');
+        [['rules', dbeT('styleMatchedRules', 'Matched rules')], ['computed', dbeT('styleComputed', 'Computed')]].forEach(function (pair) {
+            var tab = document.createElement('button');
+            tab.type = 'button'; tab.className = 'dbe-style-inspector__tab'; tab.id = 'dbe-style-tab-' + pair[0]; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'dbe-style-inspector-panel'); tab.setAttribute('data-tab', pair[0]); tab.textContent = pair[1];
+            tab.addEventListener('click', function () { dbeStyleInspectorState.tab = pair[0]; dbeRenderStyleInspector(); });
+            tabs.appendChild(tab);
+        });
+        tabs.addEventListener('keydown', function (e) {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+            e.preventDefault();
+            var buttons = [].slice.call(tabs.querySelectorAll('[role="tab"]'));
+            var at = buttons.indexOf(document.activeElement);
+            if (e.key === 'Home') { at = 0; }
+            else if (e.key === 'End') { at = buttons.length - 1; }
+            else { at = (at + (e.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length; }
+            buttons[at].click(); buttons[at].focus();
+        });
+        panel.appendChild(tabs);
+        var body = document.createElement('div'); body.className = 'dbe-style-inspector__body';
+        var toolbar = document.createElement('div'); toolbar.className = 'dbe-style-inspector__toolbar';
+        var search = document.createElement('input');
+        search.type = 'search'; search.className = 'dbe-style-inspector__search'; search.placeholder = dbeT('styleSearchProperties', 'Filter CSS properties'); search.setAttribute('aria-label', search.placeholder);
+        search.addEventListener('input', function () { dbeStyleInspectorState.filter = search.value.trim(); dbeRenderStyleInspector(); });
+        var all = document.createElement('label'); all.className = 'dbe-style-inspector__all';
+        var check = document.createElement('input'); check.type = 'checkbox';
+        check.addEventListener('change', function () { dbeStyleInspectorState.allComputed = check.checked; dbeRenderStyleInspector(); });
+        all.appendChild(check); all.appendChild(document.createTextNode(dbeT('styleShowAll', 'Show all computed properties')));
+        toolbar.appendChild(search); toolbar.appendChild(all); body.appendChild(toolbar);
+        var content = document.createElement('div'); content.id = 'dbe-style-inspector-panel'; content.className = 'dbe-style-inspector__content'; content.setAttribute('role', 'tabpanel');
+        body.appendChild(content); panel.appendChild(body);
+        panel.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { e.preventDefault(); dbeCloseStyleInspector(panel); }
+        });
+        document.body.appendChild(panel);
+        return panel;
+    }
+
+    function openStyleInspector(id) {
+        var existing = document.querySelector('.dbe-style-inspector');
+        var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        if (row && activeId() !== id) { clickSeq(row); }
+        dbeStyleInspectorState.id = id;
+        dbeStyleInspectorState.instance = 0;
+        var panel = existing || dbeBuildStyleInspector();
+        dbeRenderStyleInspector();
+        var search = panel.querySelector('.dbe-style-inspector__search');
+        if (search) { try { search.focus(); } catch (e) {} }
+    }
+
+    function refreshOpenStyleInspector() {
+        var panel = document.querySelector('.dbe-style-inspector');
+        if (!panel) { return; }
+        var id = activeId();
+        if (id && id !== dbeStyleInspectorState.id) {
+            dbeStyleInspectorState.id = id;
+            dbeStyleInspectorState.instance = 0;
+        }
+        dbeRenderStyleInspector();
+    }
+
+    function dbeStyleActionItems(id) {
+        var items = [
+            makeCtxItem(dbeT('inspectStyles', 'Inspect styles…'), function () { setTimeout(function () { openStyleInspector(id); }, 120); }),
+            makeCtxItem(dbeT('editElementStyles', 'Edit element styles (%local%)'), function () { dbeOpenStyleEditor(id, '%local%', null); })
+        ];
+        var mod = (modules() || {})[id];
+        moduleClasses(mod).forEach(function (className) {
+            var selector = '.' + className;
+            items.push(makeCtxItem(dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, dbeT('scopeGlobal', 'Global')), function () {
+                dbeOpenStyleEditor(id, selector, 'global');
+            }));
+            items.push(makeCtxItem(dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, entityScopeLabel()), function () {
+                dbeOpenStyleEditor(id, selector, 'template');
+            }));
+        });
+        return items;
     }
 
     /* (i) Theme switcher: cycles light -> dark -> auto, persisted per browser.
@@ -8193,6 +8680,7 @@
         // editor's context menu.
         var GROUP_LABELS = {
             add: dbeT('paletteGroupAdd', 'Add to element'),
+            styles: dbeT('paletteGroupStyles', 'Styles'),
             structure: dbeT('paletteGroupStructure', 'Structure'),
             element: dbeT('paletteGroupElement', 'Element'),
             workspace: dbeT('paletteGroupWorkspace', 'Workspace'),
@@ -8235,6 +8723,19 @@
                     });
                 } }
             );
+            if (on('style_inspector')) {
+                commands.push(
+                    { group: 'styles', label: dbeT('inspectStyles', 'Inspect styles…'), run: function () { runClose(function () { openStyleInspector(id); }); } },
+                    { group: 'styles', label: dbeT('editElementStyles', 'Edit element styles (%local%)'), run: function () { runClose(function () { dbeOpenStyleEditor(id, '%local%', null); }); } }
+                );
+                moduleClasses((modules() || {})[id]).forEach(function (className) {
+                    var selector = '.' + className;
+                    commands.push(
+                        { group: 'styles', label: dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, dbeT('scopeGlobal', 'Global')), run: function () { runClose(function () { dbeOpenStyleEditor(id, selector, 'global'); }); } },
+                        { group: 'styles', label: dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, entityScopeLabel()), run: function () { runClose(function () { dbeOpenStyleEditor(id, selector, 'template'); }); } }
+                    );
+                });
+            }
             commands.push(
                 { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, -1); }); } },
                 { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run: function () { runClose(function () { openElementPicker(id, 1); }); } }
@@ -8341,7 +8842,7 @@
             commands.push({ group: 'admin', icon: 'settings', label: dbeT('openBuilderiusSettings', 'Open Builderius settings'), href: adminUrls.settings });
         }
 
-        var paletteGroupOrder = ['add', 'structure', 'element', 'workspace', 'goto', 'admin'];
+        var paletteGroupOrder = ['add', 'styles', 'structure', 'element', 'workspace', 'goto', 'admin'];
         commands.sort(function (a, b) {
             return paletteGroupOrder.indexOf(a.group) - paletteGroupOrder.indexOf(b.group);
         });
@@ -10951,8 +11452,8 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
-    var NEED_CTX_MENU = on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('style_inspector') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
+    var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -11794,6 +12295,7 @@
                 try { ensureScopeBar(); } catch (e) {}
                 try { ensureScopeIsolation(); } catch (e) {}
             }
+            if (on('style_inspector')) { try { refreshOpenStyleInspector(); } catch (e) {} }
             if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
@@ -11854,7 +12356,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 

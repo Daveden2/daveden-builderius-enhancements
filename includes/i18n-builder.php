@@ -279,6 +279,29 @@ function dbe_builder_strings() {
 		'scopeLocalEditing'             => __( 'Editing element styles', 'daveden-builderius-enhancements' ),
 		/* translators: %s: scope name (Global, Template or Component). */
 		'switchTo'                      => __( 'Switch to %s', 'daveden-builderius-enhancements' ),
+		// Style inspector.
+		'stylesMenu'                    => __( 'Styles…', 'daveden-builderius-enhancements' ),
+		'inspectStyles'                 => __( 'Inspect styles…', 'daveden-builderius-enhancements' ),
+		'editElementStyles'             => __( 'Edit element styles (%local%)', 'daveden-builderius-enhancements' ),
+		/* translators: 1: CSS class selector, 2: scope name. */
+		'editClassStyles'               => __( 'Edit %1$s — %2$s', 'daveden-builderius-enhancements' ),
+		'styleInspector'                => __( 'Style inspector', 'daveden-builderius-enhancements' ),
+		'styleComputed'                 => __( 'Computed', 'daveden-builderius-enhancements' ),
+		'styleMatchedRules'             => __( 'Matched rules', 'daveden-builderius-enhancements' ),
+		'styleSearchProperties'         => __( 'Filter CSS properties', 'daveden-builderius-enhancements' ),
+		'styleShowAll'                  => __( 'Show all computed properties', 'daveden-builderius-enhancements' ),
+		'styleRefresh'                  => __( 'Refresh styles', 'daveden-builderius-enhancements' ),
+		'stylePreviousInstance'         => __( 'Previous rendered instance', 'daveden-builderius-enhancements' ),
+		'styleNextInstance'             => __( 'Next rendered instance', 'daveden-builderius-enhancements' ),
+		/* translators: 1: current rendered instance number, 2: total rendered instances. */
+		'styleInstanceCount'            => __( '%1$s of %2$s rendered instances', 'daveden-builderius-enhancements' ),
+		'styleNoCanvasElement'          => __( 'This element is not currently rendered in the canvas.', 'daveden-builderius-enhancements' ),
+		'styleNoMatchedRules'           => __( 'No accessible authored rules match this rendered element.', 'daveden-builderius-enhancements' ),
+		'styleNoProperties'             => __( 'No computed properties match this filter.', 'daveden-builderius-enhancements' ),
+		'styleEditRule'                 => __( 'Edit rule', 'daveden-builderius-enhancements' ),
+		'styleSourceLocal'              => __( 'Local', 'daveden-builderius-enhancements' ),
+		'styleSourceGlobal'             => __( 'Global', 'daveden-builderius-enhancements' ),
+		'styleSourcePage'               => __( 'Page or framework', 'daveden-builderius-enhancements' ),
 
 		// Theme & density buttons.
 		/* translators: 1: current theme, 2: next theme. */
@@ -494,6 +517,7 @@ function dbe_builder_strings() {
 		'paletteEnterName'              => __( 'Enter a new name', 'daveden-builderius-enhancements' ),
 		'paletteEnterTag'               => __( 'Enter a new HTML tag', 'daveden-builderius-enhancements' ),
 		'paletteEnterValue'             => __( 'Enter a value', 'daveden-builderius-enhancements' ),
+		'paletteGroupStyles'            => __( 'Styles', 'daveden-builderius-enhancements' ),
 		'openWpDashboard'               => __( 'Open WordPress dashboard', 'daveden-builderius-enhancements' ),
 		'openBuilderiusReleases'        => __( 'Open Builderius releases', 'daveden-builderius-enhancements' ),
 		'openBuilderiusSettings'        => __( 'Open Builderius settings', 'daveden-builderius-enhancements' ),

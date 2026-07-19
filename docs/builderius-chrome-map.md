@@ -61,7 +61,10 @@ Switches purpose by context:
 The preview iframe where the page renders (`.uniIframePanel__outerWrapper` /
 `__outer`; the iframe itself is `#builderInner`). Canvas nodes carry
 `.uni-node-<moduleId>` (one per rendered instance — a looped element inside a
-Collection has several).
+Collection has several). The rendered document exposes ordinary linked/inline
+CSS through `document.styleSheets`, while Builderius's saved Global and
+Template/Component styles are constructable sheets in
+`document.adoptedStyleSheets`; a live style inspector must read both collections.
 
 ### Right panel — the Navigator — `.uniRightPanel`
 
@@ -86,6 +89,7 @@ above the bar.
 | --- | --- | --- |
 | Modal dialog | `.uniModal` | e.g. the breakpoints table (`.uniBreakpointsTable`) |
 | Context menu | `.uniBuilderContextMenu` | Right-click menu |
+| DBE style inspector | `.dbe-style-inspector` | Persistent non-modal panel over the canvas/Navigator edge |
 | Sense AI terminal | `.uniAiChat` | AI chat |
 | Native tooltip | `.builderiusTooltip.react-tooltip` | react-tooltip; anchors are `.tooltipItem.tooltipId__<id>` carrying `data-tooltip-content` |
 

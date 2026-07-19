@@ -89,7 +89,7 @@ function dbe_feature_sections() {
 			array(
 				'title'       => __( 'CSS editor workflow', 'daveden-builderius-enhancements' ),
 				'description' => __( 'Pro-focused helpers for opening, reading and protecting the CSS code editor.', 'daveden-builderius-enhancements' ),
-				'features'    => array( 'css_code_default', 'scope_bar', 'css_hint_dialog', 'hide_minimap' ),
+				'features'    => array( 'css_code_default', 'scope_bar', 'style_inspector', 'css_hint_dialog', 'hide_minimap' ),
 			),
 			array(
 				'title'       => __( 'Class naming', 'daveden-builderius-enhancements' ),
@@ -145,7 +145,7 @@ function dbe_feature_presets() {
 		'power'         => array(
 			'title'       => __( 'Power editing', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Command-driven structure, HTML and class tools for experienced Builderius users. Includes experimental features.', 'daveden-builderius-enhancements' ),
-			'features'    => array( 'context_menu', 'wrap_in', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'keyboard_shortcuts', 'command_palette', 'edit_as_html', 'import_html', 'tag_change', 'css_code_default', 'scope_bar', 'auto_bem', 'hide_minimap' ),
+			'features'    => array( 'context_menu', 'wrap_in', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'keyboard_shortcuts', 'command_palette', 'edit_as_html', 'import_html', 'tag_change', 'css_code_default', 'scope_bar', 'style_inspector', 'auto_bem', 'hide_minimap' ),
 		),
 	);
 }
@@ -573,6 +573,17 @@ function dbe_features() {
 			'shared_css'   => array( '30-context-menu.css' ),
 			'js'           => true,
 			'requires_pro' => true,
+		),
+		'style_inspector'       => array(
+			'title'        => __( 'Style inspector', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'Inspect an element’s computed CSS and jump straight to its rules.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds a Styles flyout to element context menus and matching command-palette actions for opening local, global and template or component class styles directly. Inspect styles opens a persistent DevTools-like panel with searchable computed properties and the live authored rules matching the rendered element, including their scope and active media-query context. Rule edit buttons return to Builderius’s own Styles editor rather than introducing a second editing surface. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'styles',
+			'css'          => array( '45-style-inspector.css' ),
+			'shared_css'   => array( '30-context-menu.css' ),
+			'js'           => true,
+			'requires_pro' => true,
+			'experimental' => true,
 		),
 		'auto_bem'              => array(
 			'title'       => __( 'Auto-BEM', 'daveden-builderius-enhancements' ),
