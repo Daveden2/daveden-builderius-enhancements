@@ -6038,13 +6038,22 @@
         var check = all.querySelector('input');
         check.checked = dbeStyleInspectorState.allComputed;
         var content = panel.querySelector('.dbe-style-inspector__content');
-        content.innerHTML = '';
+        var scrollTop = content.scrollTop;
+        var nextContent = document.createElement('div');
         if (!targets.length) {
-            content.appendChild(dbeStyleEmpty(dbeT('styleNoCanvasElement', 'This element is not currently rendered in the canvas.')));
-            return;
+            nextContent.appendChild(dbeStyleEmpty(dbeT('styleNoCanvasElement', 'This element is not currently rendered in the canvas.')));
+        } else if (dbeStyleInspectorState.tab === 'computed') {
+            dbeStyleRenderComputed(nextContent, targets[dbeStyleInspectorState.instance]);
+        } else {
+            dbeStyleRenderRules(nextContent, targets[dbeStyleInspectorState.instance], id);
         }
-        if (dbeStyleInspectorState.tab === 'computed') { dbeStyleRenderComputed(content, targets[dbeStyleInspectorState.instance]); }
-        else { dbeStyleRenderRules(content, targets[dbeStyleInspectorState.instance], id); }
+        var renderKey = [id, dbeStyleInspectorState.instance, dbeStyleInspectorState.tab, dbeStyleInspectorState.filter, dbeStyleInspectorState.allComputed ? 'all' : 'common'].join('|');
+        // schedule() runs for unrelated Builderius mutations. Leave identical
+        // inspector DOM intact so those ticks cannot reset scrolling or focus.
+        if (content.getAttribute('data-dbe-render-key') === renderKey && content.innerHTML === nextContent.innerHTML) { return; }
+        content.replaceChildren.apply(content, [].slice.call(nextContent.childNodes));
+        content.setAttribute('data-dbe-render-key', renderKey);
+        content.scrollTop = Math.min(scrollTop, Math.max(0, content.scrollHeight - content.clientHeight));
     }
 
     function dbeCloseStyleInspector(panel) {
