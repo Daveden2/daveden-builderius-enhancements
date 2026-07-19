@@ -3,6 +3,41 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.1.0
+An element-level CSS inspection and editing workflow inside Builderius. The
+feature is opt-in, experimental and requires Builderius Pro.
+
+### Style inspector
+
+* Added: a **Styles** flyout to an element's context menu and a matching
+  command-palette group. Both provide direct routes to the element's
+  `%local%` rules and every applied class in the Global and current Template
+  or Component scopes.
+* Added: **Inspect styles**, a persistent non-modal DevTools-style panel that
+  follows the selected element. Its Matched rules view reads the rendered
+  canvas's linked, inline and adopted stylesheets, shows each matching rule's
+  declarations and active media-query context, and identifies rules authored
+  in the Local, Global or current entity scope. Rules outside an editable
+  Builderius scope remain clearly labelled as Page or framework and read-only.
+* Added: **Edit rule** routes editable matches back into Builderius rather than
+  creating a second CSS editor. Simple applied classes open in the element's
+  native Styles editor at the correct scope; custom, grouped and compound
+  selectors open as the exact selector in the Navigator's native Selector CSS
+  editor. Selector comparison tolerates CSSOM formatting differences and
+  rules nested inside at-rules.
+* Added: a **Computed** view with a concise layout-and-typography property set,
+  an optional complete property list and filtering across names and values.
+  Collection modules with several rendered instances gain previous/next
+  controls so each instance can be checked independently.
+* Accessibility: the inspector is fully keyboard-operable, uses an APG-style
+  tab pattern, provides named controls and visible focus, closes with Escape,
+  and restores focus to the selected Navigator row. It respects DBE's theme,
+  density and reduced-motion design tokens.
+* Fixed: unrelated Builderius refresh ticks no longer rebuild unchanged rule
+  and computed-property lists. Manual scrolling and focused controls remain
+  stable, while genuine style changes still refresh without losing the current
+  scroll offset.
+
 ## 2.0.0
 The major release. Two headline additions, both opt-in: a set of HTML
 editing tools inside the builder, and an agent-abilities layer that exposes
