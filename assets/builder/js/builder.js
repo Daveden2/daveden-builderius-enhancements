@@ -5379,13 +5379,16 @@
        done(allTab) on success, done(null) if it never mounts. */
     function clickSelectorUntilLoaded(name, attemptsLeft, done) {
         var allTab = cssViewTab('All CSS');
-        if (allTab) { done(allTab); return; }
+        // The editor may already be mounted for a previously selected item.
+        // Only finish once the requested selector is the store's active one;
+        // otherwise a compound-rule edit could open the wrong CSS model.
+        if (allTab && (!name || normSel(dbeStyleCurrentSelector()) === normSel(name))) { done(allTab); return; }
         if (attemptsLeft <= 0) { done(null); return; }
         var items = document.querySelectorAll('.uniSelectorsCss__item');
         if (items.length) {
             var target = null;
             for (var i = 0; i < items.length && name; i++) {
-                if ((items[i].textContent || '').trim() === name) { target = items[i]; break; }
+                if (normSel(items[i].textContent || '') === normSel(name)) { target = items[i]; break; }
             }
             clickSeq(target || items[0]);
         }
@@ -5829,19 +5832,76 @@
         }, 50);
     }
 
+    /* Compound/custom selectors are authored through Builderius' Navigator
+       Selectors view, not the applied-class chips in an element's Styles view.
+       Select the exact native selector after switching scope, then leave the
+       user in Builderius' own Selector CSS editor. */
+    function dbeOpenStylesheetSelector(selector, scopeName) {
+        function openSelector() {
+            var nav = navPanelTab('Selectors');
+            if (!nav) { return; }
+            if (!nav.classList.contains('active')) { clickSeq(nav); }
+            clickSelectorUntilLoaded(selector, 30, function () {
+                var selectorTab = cssViewTab('Selector CSS');
+                if (selectorTab && !selectorTab.classList.contains('active')) { clickSeq(selectorTab); }
+                dbeStyleFocusEditor();
+            });
+        }
+        if (scopeName) { setScope(scopeName).then(openSelector); }
+        else { openSelector(); }
+    }
+
+    var dbeStyleScopeSelectorMemo = {
+        global: { css: null, selectors: {} },
+        entity: { css: null, selectors: {} }
+    };
+
+    /* Build the selector set through the browser's CSS parser so formatting
+       differences and selectors nested in @layer/@media do not hide authored
+       Builderius rules from the edit route. Cache by stylesheet string because
+       the inspector is refreshed from the builder's busy mutation loop. */
+    function dbeStyleScopeSelectors(which) {
+        var css = scopeCss(which);
+        var memo = dbeStyleScopeSelectorMemo[which];
+        if (memo.css === css) { return memo.selectors; }
+        var selectors = {};
+        function walk(rules) {
+            for (var i = 0; i < rules.length; i++) {
+                var rule = rules[i];
+                if (rule.selectorText) { selectors[normSel(rule.selectorText)] = true; }
+                if (rule.cssRules) { try { walk(rule.cssRules); } catch (e) {} }
+            }
+        }
+        try {
+            var sheet = new CSSStyleSheet();
+            sheet.replaceSync(css);
+            walk(sheet.cssRules);
+        } catch (e) { /* malformed/unsupported rule: attribution stays conservative */ }
+        memo.css = css;
+        memo.selectors = selectors;
+        return selectors;
+    }
+
+    function dbeStyleSelectorInScope(which, selector) {
+        return !!dbeStyleScopeSelectors(which)[normSel(selector)];
+    }
+
     function dbeStyleRuleSource(rule, id) {
         var selector = rule.selectorText || '';
         if (selector.indexOf('.uni-node-' + id) !== -1) { return 'local'; }
         var ruleText = String(rule.cssText || '').replace(/\s+/g, ' ').trim();
-        var entity = scopeCss('entity').replace(/\s+/g, ' ');
-        var global = scopeCss('global').replace(/\s+/g, ' ');
+        var entityCss = scopeCss('entity');
+        var globalCss = scopeCss('global');
+        var entity = entityCss.replace(/\s+/g, ' ');
+        var global = globalCss.replace(/\s+/g, ' ');
         if (ruleText && entity.indexOf(ruleText) !== -1) { return 'entity'; }
         if (ruleText && global.indexOf(ruleText) !== -1) { return 'global'; }
         // Formatting differs between authored CSS and CSSOM serialisation in
-        // some browsers. Selector presence is a useful fallback, but only when
-        // it exists in one scope; a selector present in both stays unlabelled.
-        var inEntity = selector && entity.indexOf(selector) !== -1;
-        var inGlobal = selector && global.indexOf(selector) !== -1;
+        // some browsers (notably spaces inserted inside :is()/:where() lists).
+        // Compare parsed rule heads rather than raw substrings; only attribute
+        // a selector when it exists in one Builderius scope.
+        var inEntity = selector && dbeStyleSelectorInScope('entity', selector);
+        var inGlobal = selector && dbeStyleSelectorInScope('global', selector);
         if (inEntity && !inGlobal) { return 'entity'; }
         if (inGlobal && !inEntity) { return 'global'; }
         return 'page';
@@ -5869,12 +5929,15 @@
                     try {
                         if (el.matches(rule.selectorText)) {
                             var source = dbeStyleRuleSource(rule, id);
+                            var matchedClass = dbeStyleMatchedClass(rule.selectorText, id);
+                            var simpleClass = matchedClass && normSel(rule.selectorText) === matchedClass;
                             found.push({
                                 selector: rule.selectorText,
                                 style: rule.style,
                                 source: source,
                                 contexts: contexts.slice(),
-                                editSelector: source === 'local' ? '%local%' : dbeStyleMatchedClass(rule.selectorText, id)
+                                editSelector: source === 'local' ? '%local%' : (source === 'page' ? '' : rule.selectorText),
+                                editMode: source === 'local' || simpleClass ? 'element' : 'stylesheet'
                             });
                         }
                     } catch (e) { /* selector unsupported by Element.matches */ }
@@ -5992,7 +6055,11 @@
                 edit.className = 'dbe-style-inspector__edit';
                 edit.textContent = dbeT('styleEditRule', 'Edit rule');
                 edit.addEventListener('click', function () {
-                    dbeOpenStyleEditor(id, rule.editSelector, rule.source === 'global' ? 'global' : (rule.source === 'entity' ? 'template' : null));
+                    var editScope = rule.source === 'global' ? 'global' : (rule.source === 'entity' ? 'template' : null);
+                    var inspector = document.querySelector('.dbe-style-inspector');
+                    if (inspector) { inspector.remove(); dbeStyleInspectorState.id = null; }
+                    if (rule.editMode === 'stylesheet') { dbeOpenStylesheetSelector(rule.editSelector, editScope); }
+                    else { dbeOpenStyleEditor(id, rule.editSelector, editScope); }
                 });
                 head.appendChild(edit);
             }
