@@ -9115,6 +9115,22 @@
                     runClose(function () { commitRename(id, v.trim()); });
                 } }
             );
+            if (on('edit_as_html')) {
+                commands.push(
+                    { group: 'element', label: dbeT('editAsHtml', 'Edit as HTML'), disabled: !dbeHtmlEditable(id),
+                        reason: dbeT('editAsHtmlOnlyElements', 'Only subtrees of plain elements can be edited as HTML'),
+                        run: function () { runClose(function () { openEditHtmlDialog(id); }); } }
+                );
+            }
+            if (on('import_html')) {
+                var paletteHtmlModule = (modules() || {})[id];
+                var canImportHtml = !!(paletteHtmlModule && DBE_HTML_MODULES[paletteHtmlModule.name] && paletteHtmlModule.name !== 'SvgCode');
+                commands.push(
+                    { group: 'element', label: dbeT('importHtml', 'Import HTML'), disabled: !canImportHtml,
+                        reason: dbeT('importHtmlOnlyElements', 'HTML can only be imported into a plain element'),
+                        run: function () { runClose(function () { openImportHtmlDialog(id); }); } }
+                );
+            }
             if (on('auto_bem')) {
                 commands.push(
                     { group: 'element', label: dbeT('autoBem', 'Auto-BEM'), run: function () { runClose(function () { openAutoBemDialog(id); }); } }
