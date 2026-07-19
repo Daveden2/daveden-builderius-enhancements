@@ -39,7 +39,8 @@ tab open.
   and a pasted `<svg>` becomes an editable SvgCode element rather than being
   stripped. The dialog warns before insertion that a complete import cannot
   be undone as one action and explains that the new elements can be deleted
-  afterwards.
+  afterwards. Both Import HTML and Edit as HTML are available from the command
+  palette as well as the selected element's context menu.
 * Added: **Change tag**. Change an element's HTML tag from a flyout on the
   Navigator's right-click menu or through a typed command in the palette,
   for Collections and SubCollections as well as plain elements, keeping the
