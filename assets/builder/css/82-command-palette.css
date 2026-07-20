@@ -57,7 +57,10 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	background: var(--dbe-l1);
 	border: 0;
 }
-.dbe-palette__input:focus-visible { outline: none; }
+.dbe-palette__input:focus-visible {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: -3px;
+}
 .dbe-palette__input::placeholder { color: var(--dbe-muted); }
 
 .dbe-palette__close {

@@ -292,7 +292,7 @@ function dbe_features() {
 		'chrome_landmarks'      => array(
 			'title'       => __( 'Screen-reader landmarks', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Named landmark regions for each part of the builder.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Marks each part of the builder as a named landmark region for screen readers: the top toolbar, the element library / element settings panel, the canvas, the Navigator and the footer bar. You can then jump straight to a section from the screen reader\'s landmark list or with its region-jump keys, the way the WordPress block editor\'s regions work.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Marks each part of the builder as a named landmark region for screen readers: the top toolbar, the element library / element settings panel, the canvas, the Navigator and the footer bar. It also names the canvas preview frame. You can then jump straight to a section from the screen reader\'s landmark list or with its region-jump keys, the way the WordPress block editor\'s regions work.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'js'          => true,
@@ -633,7 +633,7 @@ function dbe_features() {
 		),
 		'save_state_cue'        => array(
 			'title'       => __( 'Save status', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Unsaved, Saving and Saved status beside the Save button.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Clean, unsaved, saving, saved and failed status beside Save.', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Shows when module or settings changes are unsaved, when a save is running and when it has succeeded. A failed save keeps the changes marked as unsaved and prompts you to try again.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array( '72-save-cue.css' ),

@@ -351,10 +351,12 @@ function dbe_builder_strings() {
 		// Navigator search.
 		'filterElements'                => __( 'Filter elements…', 'daveden-builderius-enhancements' ),
 		'filterElementsAria'            => __( 'Filter elements by label or tag', 'daveden-builderius-enhancements' ),
+		/* translators: %s: Navigator view name, such as Elements or CSS vars. */
+		'navigatorViewTab'              => __( 'Show %s in Navigator', 'daveden-builderius-enhancements' ),
 
 		// Navigator keyboard tree.
 		'elementsTree'                  => __( 'Elements', 'daveden-builderius-enhancements' ),
-		'scTreeMove'                    => __( 'Move between elements (selection follows)', 'daveden-builderius-enhancements' ),
+		'scTreeMove'                    => __( 'Move to the previous or next element and select it', 'daveden-builderius-enhancements' ),
 		'scTreeExpand'                  => __( 'Open a branch, then step into its first child', 'daveden-builderius-enhancements' ),
 		'scTreeCollapse'                => __( 'Close a branch, then step out to the parent', 'daveden-builderius-enhancements' ),
 		'scTreeFirstLast'               => __( 'First / last element', 'daveden-builderius-enhancements' ),
@@ -367,14 +369,16 @@ function dbe_builder_strings() {
 		'regionInserter'                => __( 'Element library', 'daveden-builderius-enhancements' ),
 		'regionSettings'                => __( 'Element settings', 'daveden-builderius-enhancements' ),
 		'regionCanvas'                  => __( 'Canvas', 'daveden-builderius-enhancements' ),
+		'canvasPreview'                 => __( 'Canvas preview', 'daveden-builderius-enhancements' ),
 		'regionNavigator'               => __( 'Navigator', 'daveden-builderius-enhancements' ),
 		'regionFooter'                  => __( 'Footer bar', 'daveden-builderius-enhancements' ),
 
 		// Save cue.
-		'unsaved'                       => __( 'Unsaved', 'daveden-builderius-enhancements' ),
+		'saveClean'                     => __( 'All changes saved', 'daveden-builderius-enhancements' ),
+		'unsaved'                       => __( 'Unsaved changes', 'daveden-builderius-enhancements' ),
 		'saving'                        => __( 'Saving…', 'daveden-builderius-enhancements' ),
-		'saved'                         => __( 'Saved', 'daveden-builderius-enhancements' ),
-		'saveFailed'                    => __( 'Save failed. Changes remain unsaved; try again.', 'daveden-builderius-enhancements' ),
+		'saved'                         => __( 'Changes saved', 'daveden-builderius-enhancements' ),
+		'saveFailed'                    => __( 'Save failed. Your changes are still unsaved. Try again.', 'daveden-builderius-enhancements' ),
 
 		// Save shortcut.
 		'scSave'                        => __( 'Save the template', 'daveden-builderius-enhancements' ),
@@ -390,7 +394,7 @@ function dbe_builder_strings() {
 		'scGroupCanvas'                 => __( 'Canvas', 'daveden-builderius-enhancements' ),
 		'scGroupSenseAi'                => __( 'Sense AI', 'daveden-builderius-enhancements' ),
 		'scGroupContextMenu'            => __( 'Context menu', 'daveden-builderius-enhancements' ),
-		'scOpenOverlay'                 => __( 'Open this shortcuts overlay', 'daveden-builderius-enhancements' ),
+		'scOpenOverlay'                 => __( 'Open keyboard shortcuts', 'daveden-builderius-enhancements' ),
 		'scEscape'                      => __( 'Close menus and dialogs; clear the multi-selection', 'daveden-builderius-enhancements' ),
 		'scEscapeClose'                 => __( 'Close menus and dialogs', 'daveden-builderius-enhancements' ),
 		'scDelete'                      => __( 'Remove the selected element (Builderius)', 'daveden-builderius-enhancements' ),
@@ -414,8 +418,12 @@ function dbe_builder_strings() {
 		'scSubmenu'                     => __( 'Open / close a submenu', 'daveden-builderius-enhancements' ),
 
 		// Preview resize.
-		'resizePreview'                 => __( 'Resize preview canvas', 'daveden-builderius-enhancements' ),
-		'resizePanels'                  => __( 'Resize panels', 'daveden-builderius-enhancements' ),
+		'resizePreviewLeft'             => __( 'Resize canvas from left edge', 'daveden-builderius-enhancements' ),
+		'resizePreviewRight'            => __( 'Resize canvas from right edge', 'daveden-builderius-enhancements' ),
+		'resizePanelLeft'               => __( 'Resize left panel', 'daveden-builderius-enhancements' ),
+		'resizePanelRight'              => __( 'Resize right panel', 'daveden-builderius-enhancements' ),
+		/* translators: %s: width in pixels. */
+		'pixelsWide'                    => __( '%s pixels wide', 'daveden-builderius-enhancements' ),
 
 		// Favourites & component properties.
 		'rearrangeFavourites'           => __( 'Rearrange favourites', 'daveden-builderius-enhancements' ),
@@ -491,10 +499,10 @@ function dbe_builder_strings() {
 		'scRename'                      => __( 'Rename', 'daveden-builderius-enhancements' ),
 		'scCopyPasteDelete'             => __( 'Copy / paste / delete the element (Builderius)', 'daveden-builderius-enhancements' ),
 		// Shortcuts overlay — Move to area group.
-		'scGroupAreas'                  => __( 'Move to area', 'daveden-builderius-enhancements' ),
+		'scGroupAreas'                  => __( 'Move focus to', 'daveden-builderius-enhancements' ),
 		'scGotoNavigator'               => __( 'Navigator', 'daveden-builderius-enhancements' ),
 		'scGotoSettings'                => __( 'Settings panel', 'daveden-builderius-enhancements' ),
-		'scGotoCanvas'                  => __( 'Canvas / preview', 'daveden-builderius-enhancements' ),
+		'scGotoCanvas'                  => __( 'Canvas', 'daveden-builderius-enhancements' ),
 		'scGotoInserter'                => __( 'Insert elements', 'daveden-builderius-enhancements' ),
 
 		// Command palette.

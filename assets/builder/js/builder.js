@@ -7159,6 +7159,11 @@
             if (strip.getAttribute('aria-label') !== label) { strip.setAttribute('aria-label', label); }
             dbeRovingItems(strip, sel).forEach(function (t) {
                 if (t.getAttribute('role') !== 'tab') { t.setAttribute('role', 'tab'); }
+                if (panelSel === '.uniRightPanel') {
+                    var tabName = (t.textContent || '').trim();
+                    var tabLabel = dbeFmt(dbeT('navigatorViewTab', 'Show %s in Navigator'), tabName);
+                    if (tabName && t.getAttribute('aria-label') !== tabLabel) { t.setAttribute('aria-label', tabLabel); }
+                }
                 var on = t.classList.contains('active') ? 'true' : 'false';
                 if (t.getAttribute('aria-selected') !== on) { t.setAttribute('aria-selected', on); }
             });
@@ -8427,9 +8432,11 @@
        operation and exposes shouldSaveData for settings-only edits. A successful
        save replaces history with one freshly timestamped snapshot; the public
        afterSaveAllSettings hook runs after success AND failure. Together those
-       signals let the cue report Unsaved -> Saving… -> Saved without declaring
-       success merely because Save was clicked. */
+       signals let the cue report clean -> unsaved -> saving -> saved without
+       declaring success merely because Save was clicked. */
     var saveBaseline = null;
+    var saveSettingsBaseline = null;
+    var dbeSaveInitialisingUntil = 0;
     var dbeSaveState = '';
     var dbeSavePending = null;
     var dbeSaveTimer = null;
@@ -8453,22 +8460,41 @@
         if (!cue) { return; }
         var len = historyLen();
         if (len === null) { return; }
-        if (saveBaseline === null) { saveBaseline = len; }
-        var dirty = len > saveBaseline || (Date.now() > dbeSaveIgnoreDirtyUntil && dbeShouldSave());
+        var shouldSave = dbeShouldSave();
+        if (saveBaseline === null) {
+            saveBaseline = len;
+            saveSettingsBaseline = shouldSave;
+            dbeSaveInitialisingUntil = Date.now() + 2000;
+        }
+        // Builderius hydrates history and shouldSaveData after the chrome has
+        // already mounted. Treat that short bootstrap window as the clean
+        // baseline instead of announcing a page-load mutation as user work.
+        if (Date.now() < dbeSaveInitialisingUntil && !dbeSavePending) {
+            saveBaseline = Math.max(saveBaseline, len);
+            saveSettingsBaseline = shouldSave;
+        }
+        // A true flag present during hydration is not useful as a baseline.
+        // Once Builderius clears it, normal false -> true settings edits are
+        // detectable for the rest of the session.
+        if (saveSettingsBaseline === true && !shouldSave) { saveSettingsBaseline = false; }
+        var settingsDirty = saveSettingsBaseline === false && shouldSave;
+        var dirty = len > saveBaseline || (Date.now() > dbeSaveIgnoreDirtyUntil && settingsDirty);
         if (dbeSaveState === 'saved' && len > saveBaseline) { dbeSaveState = ''; }
-        var state = dbeSaveState || (dirty ? 'dirty' : '');
+        var state = dbeSaveState || (dirty ? 'dirty' : 'clean');
         var text = state === 'saving' ? dbeT('saving', 'Saving…')
-            : state === 'saved' ? dbeT('saved', 'Saved')
-                : state === 'error' ? dbeT('saveFailed', 'Save failed. Changes remain unsaved; try again.')
-                    : dbeT('unsaved', 'Unsaved');
+            : state === 'saved' ? dbeT('saved', 'Changes saved')
+                : state === 'error' ? dbeT('saveFailed', 'Save failed. Your changes are still unsaved. Try again.')
+                    : state === 'dirty' ? dbeT('unsaved', 'Unsaved changes')
+                        : dbeT('saveClean', 'All changes saved');
         cue.textContent = text;
-        ['dirty', 'saving', 'saved', 'error'].forEach(function (name) {
+        ['clean', 'dirty', 'saving', 'saved', 'error'].forEach(function (name) {
             cue.classList.toggle('is-' + name, state === name);
         });
     }
     function dbeShowSavedState(stamp) {
         dbeSaveLastStamp = stamp;
         saveBaseline = historyLen();
+        saveSettingsBaseline = false;
         dbeSaveIgnoreDirtyUntil = Date.now() + 500;
         dbeSaveState = 'saved';
         clearTimeout(dbeSaveTimer);
@@ -8535,6 +8561,9 @@
                 if (e.target.closest('.saveBtn .actions')) { return; }
                 dbeBeginSave();
             }, true);
+        }
+        if (on('save_shortcut') && save.getAttribute('aria-keyshortcuts') !== (dbeIsMac ? 'Meta+S' : 'Control+S')) {
+            save.setAttribute('aria-keyshortcuts', dbeIsMac ? 'Meta+S' : 'Control+S');
         }
         var cue = document.querySelector('.dbe-save-cue');
         if (!cue) {
@@ -8760,7 +8789,7 @@
     function sc(key, o) { return dbeAccel(key, o); }
     var SHORTCUT_GROUPS = [
         [dbeT('scGroupGeneral', 'General'), [
-            ['?', dbeT('scOpenOverlay', 'Open this shortcuts overlay')],
+            ['?', dbeT('scOpenOverlay', 'Open keyboard shortcuts')],
             // multi_select is withdrawn from the registry (see features.php);
             // its rows and the Esc clause return with it via these gates.
             ['Esc', on('multi_select') ?
@@ -8773,7 +8802,7 @@
         ] : [])],
         [dbeT('scGroupNavigator', 'Navigator'), [].concat(
             on('navigator_keyboard') ? [
-                ['↑ ↓', dbeT('scTreeMove', 'Move between elements (selection follows)')],
+                ['↑ ↓', dbeT('scTreeMove', 'Move to the previous or next element and select it')],
                 ['→', dbeT('scTreeExpand', 'Open a branch, then step into its first child')],
                 ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
                 ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
@@ -8825,10 +8854,10 @@
             ['Esc', dbeT('scFinishCanvasText', 'Finish editing text in the canvas')],
             [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
         ]],
-        [dbeT('scGroupAreas', 'Move to area'), [
+        [dbeT('scGroupAreas', 'Move focus to'), [
             [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
             [sc('S', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Settings panel')],
-            [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas / preview')],
+            [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas')],
             [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
         ]]
     ] : []).concat(on('ai_terminal_tabs') ? [
@@ -9139,6 +9168,15 @@
             cmd: true,
             shift: choice === 'mod-shift-k'
         });
+    }
+
+    function dbePaletteAriaShortcut() {
+        var choice = (CFG.palette || {}).shortcut || 'mod-k';
+        var key = choice === 'mod-slash' ? '/' : 'K';
+        var parts = [dbeIsMac ? 'Meta' : 'Control'];
+        if (choice === 'mod-shift-k') { parts.push('Shift'); }
+        parts.push(key);
+        return parts.join('+');
     }
 
     /* Add (or update) one or more HTML attributes on an existing element through
@@ -9855,6 +9893,13 @@
             doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
             doc.dbeCanvasNavigationKeyBound = true;
         }
+        if (on('reveal_selected') && !doc.dbeRevealSelectionBound) {
+            // Builderius changes activeModule after its own canvas click
+            // handler. Schedule on the next task so the store and selected
+            // Navigator row have caught up before revealActiveInTree() reads.
+            doc.addEventListener('click', function () { setTimeout(schedule, 0); });
+            doc.dbeRevealSelectionBound = true;
+        }
     }
 
     function ensureKeyboardIframeBridge() {
@@ -9906,6 +9951,7 @@
         var tip = dbeFmt(dbeT('paletteTip', 'Command palette (%s)'), dbePaletteAccel());
         setTip(btn, tip);
         btn.setAttribute('aria-label', tip);
+        btn.setAttribute('aria-keyshortcuts', dbePaletteAriaShortcut());
         btn.addEventListener('click', function () {
             if (document.querySelector('dialog[open]')) { return; } // a non-modal dialog is up — same guard as the shortcut
             openCommandPalette();
@@ -10138,7 +10184,9 @@
         };
         set('aria-valuemin', String(DBE_PREVIEW_MIN));
         set('aria-valuemax', String(dbeCanvasMax()));
-        set('aria-valuenow', String(Math.round(inner.getBoundingClientRect().width)));
+        var width = Math.round(inner.getBoundingClientRect().width);
+        set('aria-valuenow', String(width));
+        set('aria-valuetext', dbeFmt(dbeT('pixelsWide', '%s pixels wide'), width));
     }
 
     function makePreviewHandle(edge) {
@@ -10148,7 +10196,9 @@
         h.setAttribute('data-edge', edge);
         h.setAttribute('role', 'separator');
         h.setAttribute('aria-orientation', 'vertical');
-        h.setAttribute('aria-label', dbeT('resizePreview', 'Resize preview canvas'));
+        h.setAttribute('aria-label', edge === 'left'
+            ? dbeT('resizePreviewLeft', 'Resize canvas from left edge')
+            : dbeT('resizePreviewRight', 'Resize canvas from right edge'));
 
         var drag = null;
         h.addEventListener('pointerdown', function (ev) {
@@ -10267,6 +10317,7 @@
             h.setAttribute('aria-valuemin', String(DBE_PANEL_MIN));
             h.setAttribute('aria-valuemax', String(DBE_PANEL_MAX));
             h.setAttribute('aria-valuenow', String(w));
+            h.setAttribute('aria-valuetext', dbeFmt(dbeT('pixelsWide', '%s pixels wide'), w));
         });
     }
 
@@ -10277,7 +10328,9 @@
         h.setAttribute('data-side', side);
         h.setAttribute('role', 'separator');
         h.setAttribute('aria-orientation', 'vertical');
-        h.setAttribute('aria-label', dbeT('resizePanels', 'Resize panels'));
+        h.setAttribute('aria-label', side === 'left'
+            ? dbeT('resizePanelLeft', 'Resize left panel')
+            : dbeT('resizePanelRight', 'Resize right panel'));
 
         var drag = null;
         h.addEventListener('pointerdown', function (ev) {
@@ -12043,11 +12096,10 @@
     /* (h) Follow the preview selection in the tree: when the active module changes
        (e.g. the user clicks an element on the canvas), expand every collapsed
        ancestor branch down to it and scroll its row into view, so the selection is
-       never hidden inside a collapsed subtree. Polled — Builderius sets
-       activeModule in a reducer with no hook to subscribe to; the check is a cheap
-       storeGet compare that only acts when the id actually changes. */
+       never hidden inside a collapsed subtree. Builderius exposes no selection
+       hook, so the existing coalesced chrome observer and a canvas click bridge
+       schedule the cheap storeGet comparison only when relevant UI work occurs. */
     var dbeLastRevealedId = null;
-    var dbeRevealTimer = null;
     var dbeSelectionContextState = '';
 
     function dbeSelectionPath(id) {
@@ -12156,14 +12208,9 @@
         });
     }
     function bindRevealActive() {
-        if (dbeRevealTimer) { return; }
         // Seed with the current selection so the very first tick does not yank the
         // view to whatever happened to be selected at load.
         dbeLastRevealedId = activeId();
-        dbeRevealTimer = setInterval(function () {
-            try { revealActiveInTree(); } catch (e) {}
-            try { dbeSyncSelectionContext(); } catch (e) {}
-        }, 200);
         try { dbeSyncSelectionContext(); } catch (e) {}
     }
 
@@ -12835,6 +12882,9 @@
                 : dbeT('regionSettings', 'Element settings'));
         }
         stamp(document.querySelector('.uniIframePanel'), dbeT('regionCanvas', 'Canvas'));
+        var iframe = document.getElementById('builderInner');
+        var iframeTitle = dbeT('canvasPreview', 'Canvas preview');
+        if (iframe && iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
         stamp(document.querySelector('.uniRightPanel'), dbeT('regionNavigator', 'Navigator'));
         stamp(document.querySelector('.uniFooterPanel'), dbeT('regionFooter', 'Footer bar'));
     }
@@ -12868,7 +12918,7 @@
             if (on('command_palette')) {
                 try { ensurePaletteButton(); } catch (e) {}
             }
-            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard')) {
+            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
                 try { ensureKeyboardIframeBridge(); } catch (e) {}
             }
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
@@ -12884,6 +12934,10 @@
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
+            }
+            if (on('reveal_selected')) {
+                try { revealActiveInTree(); } catch (e) {}
+                try { dbeSyncSelectionContext(); } catch (e) {}
             }
             if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
@@ -12922,7 +12976,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 

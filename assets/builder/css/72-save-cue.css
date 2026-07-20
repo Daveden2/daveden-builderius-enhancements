@@ -9,6 +9,7 @@
     color: var(--dbe-muted);
     white-space: nowrap;
 }
+.dbe-save-cue.is-clean,
 .dbe-save-cue.is-dirty,
 .dbe-save-cue.is-saving,
 .dbe-save-cue.is-saved,
@@ -20,6 +21,7 @@
     border-radius: 50%;
     background: var(--dbe-lvl-global); /* amber — attention, not error */
 }
+.dbe-save-cue.is-clean::before,
 .dbe-save-cue.is-saving::before,
 .dbe-save-cue.is-saved::before { background: var(--dbe-accent); }
 .dbe-save-cue.is-error {

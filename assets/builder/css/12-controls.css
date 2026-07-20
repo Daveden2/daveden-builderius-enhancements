@@ -73,6 +73,21 @@
     border-radius: var(--dbe-r-sm) !important;
     transition: background var(--dbe-t), box-shadow var(--dbe-t), filter var(--dbe-t) !important;
 }
+
+/* The canvas width/zoom fields and the native Save disclosure are smaller than
+   the WCAG 2.2 AA 24px target minimum in Builderius' stock chrome. Preserve the
+   compact visual treatment while enlarging their actual hit areas. The Save
+   disclosure remains a native nested target unless the opt-in split-button
+   retrofit is enabled; this rule fixes pointer target size, not its semantics. */
+.uniGlobalBreakpoints__canvasControl input[name="width"],
+.uniGlobalBreakpoints__canvasControl input[name="zoom"] {
+    min-block-size: 24px !important;
+    box-sizing: border-box !important;
+}
+.uniTopPanel .saveBtn.comboBtn .actions {
+    min-inline-size: 24px !important;
+    min-block-size: 24px !important;
+}
 .uniPanelButton:hover, .uniPanelIconButton:hover { background: var(--dbe-hover-wash) !important; }
 /* Primary/publish (green) keeps its hue — hover reads via a soft glow, not a
    lightness shift (which would drop contrast on its dark label). */
