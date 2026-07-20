@@ -53,17 +53,29 @@ function dbe_register_verify_abilities() {
 	$expect_args = array(
 		'expect'          => array(
 			'type'        => 'array',
-			'items'       => array( 'type' => 'string' ),
+			'maxItems'    => 50,
+			'items'       => array(
+				'type'      => 'string',
+				'maxLength' => 500,
+			),
 			'description' => __( 'Plain-text strings that MUST appear in the rendered HTML.', 'daveden-builderius-enhancements' ),
 		),
 		'absent'          => array(
 			'type'        => 'array',
-			'items'       => array( 'type' => 'string' ),
+			'maxItems'    => 50,
+			'items'       => array(
+				'type'      => 'string',
+				'maxLength' => 500,
+			),
 			'description' => __( 'Plain-text strings that must NOT appear (e.g. a row that a filter should exclude).', 'daveden-builderius-enhancements' ),
 		),
 		'nonblank_labels' => array(
 			'type'        => 'array',
-			'items'       => array( 'type' => 'string' ),
+			'maxItems'    => 50,
+			'items'       => array(
+				'type'      => 'string',
+				'maxLength' => 500,
+			),
 			'description' => __( 'Label texts that must be followed by visible non-blank text — catches bindings that resolve to empty (numeric 0, "0", null and "" all render blank).', 'daveden-builderius-enhancements' ),
 		),
 	);
@@ -80,10 +92,12 @@ function dbe_register_verify_abilities() {
 					array(
 						'page'  => array(
 							'type'        => 'string',
+							'maxLength'   => 2048,
 							'description' => __( 'WordPress post ID or path (e.g. "dbe-dynamic-stress" or "/events/") to fetch. Use this OR url.', 'daveden-builderius-enhancements' ),
 						),
 						'url'   => array(
 							'type'        => 'string',
+							'maxLength'   => 4096,
 							'description' => __( 'Full same-site URL to fetch. Other hosts are refused.', 'daveden-builderius-enhancements' ),
 						),
 						'query' => array(
@@ -128,19 +142,25 @@ function dbe_register_verify_abilities() {
 					array(
 						'page'      => array(
 							'type'        => 'string',
+							'maxLength'   => 2048,
 							'description' => __( 'WordPress post ID or path to fetch. Use this OR url.', 'daveden-builderius-enhancements' ),
 						),
 						'url'       => array(
 							'type'        => 'string',
+							'maxLength'   => 4096,
 							'description' => __( 'Full same-site URL to fetch. Other hosts are refused.', 'daveden-builderius-enhancements' ),
 						),
 						'scenarios' => array(
 							'type'        => 'array',
+							'maxItems'    => 10,
 							'description' => __( 'Up to ten scenarios. Each: { label, query?: {name: value}, cookies?: {name: value}, expect?: [], absent?: [], nonblank_labels?: [] }.', 'daveden-builderius-enhancements' ),
 							'items'       => array(
 								'type'                 => 'object',
 								'properties'           => array(
-									'label'           => array( 'type' => 'string' ),
+									'label'           => array(
+										'type'      => 'string',
+										'maxLength' => 200,
+									),
 									'query'           => array(
 										'type' => 'object',
 										'additionalProperties' => array( 'type' => 'string' ),
@@ -150,16 +170,28 @@ function dbe_register_verify_abilities() {
 										'additionalProperties' => array( 'type' => 'string' ),
 									),
 									'expect'          => array(
-										'type'  => 'array',
-										'items' => array( 'type' => 'string' ),
+										'type'     => 'array',
+										'maxItems' => 50,
+										'items'    => array(
+											'type'      => 'string',
+											'maxLength' => 500,
+										),
 									),
 									'absent'          => array(
-										'type'  => 'array',
-										'items' => array( 'type' => 'string' ),
+										'type'     => 'array',
+										'maxItems' => 50,
+										'items'    => array(
+											'type'      => 'string',
+											'maxLength' => 500,
+										),
 									),
 									'nonblank_labels' => array(
-										'type'  => 'array',
-										'items' => array( 'type' => 'string' ),
+										'type'     => 'array',
+										'maxItems' => 50,
+										'items'    => array(
+											'type'      => 'string',
+											'maxLength' => 500,
+										),
 									),
 								),
 								'required'             => array( 'label' ),
@@ -192,10 +224,12 @@ function dbe_register_verify_abilities() {
 	$context_args = array(
 		'page'  => array(
 			'type'        => 'string',
+			'maxLength'   => 2048,
 			'description' => __( 'WordPress post ID or path establishing the resolution context (current post, archive, URL parameters). Defaults to the site front page.', 'daveden-builderius-enhancements' ),
 		),
 		'url'   => array(
 			'type'        => 'string',
+			'maxLength'   => 4096,
 			'description' => __( 'Full same-site URL establishing the context instead of page.', 'daveden-builderius-enhancements' ),
 		),
 		'query' => array(
@@ -275,6 +309,7 @@ function dbe_register_verify_abilities() {
 						),
 						'graphql_query' => array(
 							'type'        => 'string',
+							'maxLength'   => 65536,
 							'description' => __( 'An ad-hoc GraphQL query to resolve instead of a saved variable. Saved global variables are still available as [[dep]] interpolations. (The query parameter carries URL parameters for the context request instead.)', 'daveden-builderius-enhancements' ),
 						),
 						'template'      => array(
@@ -342,6 +377,7 @@ function dbe_register_verify_abilities() {
 					array(
 						'binding'      => array(
 							'type'        => 'string',
+							'maxLength'   => 262144,
 							'description' => __( 'The binding to inspect: "var.path.to.items", "[[var.path]]", "[[[var.path]]]", or a literal JSON array/object.', 'daveden-builderius-enhancements' ),
 						),
 						'template'     => array(
@@ -554,26 +590,95 @@ function dbe_ability_render_url( $input ) {
 	if ( '' === $url ) {
 		return new WP_Error( 'dbe_url_required', 'Pass page (post ID or path) or a same-site url.' );
 	}
-
-	$home = wp_parse_url( home_url() );
-	$req  = wp_parse_url( $url );
-	if ( ! is_array( $req ) || empty( $req['host'] ) ) {
-		return new WP_Error( 'dbe_bad_url', 'The url could not be parsed.' );
+	if ( strlen( $url ) > 4096 ) {
+		return new WP_Error( 'dbe_url_too_long', 'The render URL exceeds the 4096-byte limit.' );
 	}
-	if ( strtolower( $req['host'] ) !== strtolower( (string) ( $home['host'] ?? '' ) ) ) {
-		return new WP_Error( 'dbe_foreign_host', sprintf( 'Only this site (%s) can be fetched — the authenticated loopback must not leak to other hosts.', (string) ( $home['host'] ?? '' ) ) );
+
+	$valid = dbe_ability_validate_render_url( $url );
+	if ( is_wp_error( $valid ) ) {
+		return $valid;
 	}
 
 	$query = $input['query'] ?? array();
 	if ( is_array( $query ) && array() !== $query ) {
+		if ( count( $query ) > 50 ) {
+			return new WP_Error( 'dbe_too_many_query_args', 'At most 50 query parameters may be appended.' );
+		}
 		$pairs = array();
 		foreach ( $query as $name => $value ) {
+			if ( ! is_scalar( $value ) || strlen( (string) $name ) > 100 || strlen( (string) $value ) > 2048 ) {
+				return new WP_Error( 'dbe_bad_query_arg', 'Query parameter names are limited to 100 bytes and scalar values to 2048 bytes.' );
+			}
 			$pairs[ (string) $name ] = (string) $value;
 		}
 		$url = add_query_arg( array_map( 'rawurlencode', $pairs ), $url );
 	}
 
 	return $url;
+}
+
+/**
+ * Validate a loopback target against the site's exact HTTP(S) origin.
+ *
+ * A hostname-only comparison is insufficient: another service can listen on
+ * a different port of the same host, and the render request carries a short-
+ * lived authentication token. Userinfo and non-HTTP protocols are rejected as
+ * well so every accepted target has one unambiguous origin.
+ *
+ * @param string $url URL to validate.
+ * @return true|WP_Error True when safe, otherwise a validation error.
+ */
+function dbe_ability_validate_render_url( $url ) {
+	$home = wp_parse_url( home_url() );
+	$req  = wp_parse_url( $url );
+	if ( ! is_array( $home ) || ! is_array( $req ) || empty( $req['host'] ) || empty( $req['scheme'] ) ) {
+		return new WP_Error( 'dbe_bad_url', 'The url could not be parsed.' );
+	}
+
+	$scheme = strtolower( (string) $req['scheme'] );
+	if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+		return new WP_Error( 'dbe_bad_scheme', 'Only HTTP and HTTPS render URLs are allowed.' );
+	}
+	if ( isset( $req['user'] ) || isset( $req['pass'] ) ) {
+		return new WP_Error( 'dbe_bad_url', 'Render URLs must not contain user information.' );
+	}
+
+	$home_host = strtolower( (string) ( $home['host'] ?? '' ) );
+	$req_host  = strtolower( (string) $req['host'] );
+	if ( $req_host !== $home_host ) {
+		return new WP_Error( 'dbe_foreign_host', sprintf( 'Only this site (%s) can be fetched — the authenticated loopback must not leak to other hosts.', $home_host ) );
+	}
+
+	$home_scheme = strtolower( (string) ( $home['scheme'] ?? '' ) );
+	$home_port   = isset( $home['port'] ) ? (int) $home['port'] : ( 'https' === $home_scheme ? 443 : 80 );
+	$req_port    = isset( $req['port'] ) ? (int) $req['port'] : ( 'https' === $scheme ? 443 : 80 );
+	if ( $scheme !== $home_scheme || $req_port !== $home_port ) {
+		return new WP_Error( 'dbe_foreign_origin', 'The render URL must use this site\'s exact scheme, host and port.' );
+	}
+
+	return true;
+}
+
+/**
+ * Whether authenticated loopbacks should verify TLS certificates.
+ *
+ * Verification remains on by default. Local/development environments may use
+ * a self-signed certificate; the filter permits an explicit site override.
+ *
+ * @return bool Whether TLS certificates must be verified.
+ */
+function dbe_ability_loopback_sslverify() {
+	$verify = ! in_array( wp_get_environment_type(), array( 'local', 'development' ), true );
+	return (bool) apply_filters( 'dbe_ability_loopback_sslverify', $verify );
+}
+
+/**
+ * Maximum bytes accepted from an authenticated loopback response.
+ *
+ * @return int Response-size ceiling.
+ */
+function dbe_ability_loopback_response_limit() {
+	return 2 * 1024 * 1024;
 }
 
 /**
@@ -590,17 +695,28 @@ function dbe_ability_render_url( $input ) {
  * @return array|WP_Error { body, status_code, url }.
  */
 function dbe_ability_fetch_rendered( $url, $cookies = array() ) {
+	$valid = dbe_ability_validate_render_url( $url );
+	if ( is_wp_error( $valid ) ) {
+		return $valid;
+	}
+	if ( count( $cookies ) > 20 ) {
+		return new WP_Error( 'dbe_too_many_cookies', 'At most 20 cookies may be supplied per render.' );
+	}
 	$jar = array();
 	foreach ( $cookies as $name => $value ) {
+		$name  = (string) $name;
+		$value = (string) $value;
+		if ( ! preg_match( '/^[!#$%&\'*+\-.^_`|~0-9A-Za-z]{1,100}$/', $name ) || strlen( $value ) > 4096 ) {
+			return new WP_Error( 'dbe_bad_cookie', 'Cookie names must use HTTP token characters and values are limited to 4096 bytes.' );
+		}
 		$jar[] = new WP_Http_Cookie(
 			array(
-				'name'  => (string) $name,
-				'value' => (string) $value,
+				'name'  => $name,
+				'value' => $value,
 			)
 		);
 	}
 
-	$home_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 	for ( $hop = 0; $hop < 3; $hop++ ) {
 		$token = wp_generate_password( 64, false, false );
 		set_transient(
@@ -610,18 +726,17 @@ function dbe_ability_fetch_rendered( $url, $cookies = array() ) {
 		);
 
 		$args = array(
-			'timeout'     => 30,
-			'redirection' => 0,
-			'headers'     => array( 'X-DBE-Render-Token' => $token ),
-			// The loopback targets this very site; local certificates (Herd,
-			// Valet, self-signed staging) would otherwise fail the fetch.
-			'sslverify'   => false,
+			'timeout'             => 15,
+			'redirection'         => 0,
+			'headers'             => array( 'X-DBE-Render-Token' => $token ),
+			'sslverify'           => dbe_ability_loopback_sslverify(),
+			'limit_response_size' => dbe_ability_loopback_response_limit(),
 		);
 		if ( array() !== $jar ) {
 			$args['cookies'] = $jar;
 		}
 
-		$response = wp_remote_get( $url, $args );
+		$response = wp_safe_remote_get( $url, $args );
 		delete_transient( 'dbe_render_token_' . hash( 'sha256', $token ) );
 		if ( is_wp_error( $response ) ) {
 			return new WP_Error( 'dbe_fetch_failed', 'The loopback fetch failed: ' . $response->get_error_message() );
@@ -633,17 +748,25 @@ function dbe_ability_fetch_rendered( $url, $cookies = array() ) {
 			if ( '' === $location ) {
 				return new WP_Error( 'dbe_fetch_failed', sprintf( 'The page redirected (HTTP %d) without a Location header.', $status ) );
 			}
-			$location = 0 === strpos( $location, '/' ) ? home_url( $location ) : $location;
-			$host     = strtolower( (string) wp_parse_url( $location, PHP_URL_HOST ) );
-			if ( $host !== $home_host ) {
-				return new WP_Error( 'dbe_foreign_host', sprintf( 'The page redirected off-site to %s — the authenticated loopback must not follow it.', $location ) );
+			if ( 0 === strpos( $location, '//' ) ) {
+				$location = (string) wp_parse_url( home_url(), PHP_URL_SCHEME ) . ':' . $location;
+			} elseif ( 0 === strpos( $location, '/' ) ) {
+				$location = home_url( $location );
+			}
+			$valid = dbe_ability_validate_render_url( $location );
+			if ( is_wp_error( $valid ) ) {
+				return new WP_Error( $valid->get_error_code(), sprintf( 'The page redirected to an unsafe origin (%s).', $location ) );
 			}
 			$url = $location;
 			continue;
 		}
 
+		$body = (string) wp_remote_retrieve_body( $response );
+		if ( strlen( $body ) >= dbe_ability_loopback_response_limit() ) {
+			return new WP_Error( 'dbe_response_too_large', 'The rendered response reached the 2 MiB safety limit.' );
+		}
 		return array(
-			'body'        => (string) wp_remote_retrieve_body( $response ),
+			'body'        => $body,
 			'status_code' => $status,
 			'url'         => $url,
 		);
@@ -947,6 +1070,14 @@ function dbe_ability_check_render_scenarios( $input ) {
  * @return array|WP_Error name => value map.
  */
 function dbe_ability_data_request( $url, $entries ) {
+	$valid = dbe_ability_validate_render_url( $url );
+	if ( is_wp_error( $valid ) ) {
+		return $valid;
+	}
+	$body = wp_json_encode( array( 'dataVars' => array_values( $entries ) ) );
+	if ( false === $body || strlen( $body ) > 512 * 1024 ) {
+		return new WP_Error( 'dbe_data_request_too_large', 'The dynamic-data request exceeds the 512 KiB safety limit.' );
+	}
 	$token = wp_generate_password( 64, false, false );
 	set_transient(
 		'dbe_render_token_' . hash( 'sha256', $token ),
@@ -955,17 +1086,18 @@ function dbe_ability_data_request( $url, $entries ) {
 	);
 
 	$url      = add_query_arg( 'builderius_data_request', '1', $url );
-	$response = wp_remote_post(
+	$response = wp_safe_remote_post(
 		$url,
 		array(
-			'timeout'     => 60,
-			'redirection' => 0,
-			'headers'     => array(
+			'timeout'             => 30,
+			'redirection'         => 0,
+			'headers'             => array(
 				'Content-Type'       => 'application/json',
 				'X-DBE-Render-Token' => $token,
 			),
-			'body'        => wp_json_encode( array( 'dataVars' => array_values( $entries ) ) ),
-			'sslverify'   => false,
+			'body'                => $body,
+			'sslverify'           => dbe_ability_loopback_sslverify(),
+			'limit_response_size' => dbe_ability_loopback_response_limit(),
 		)
 	);
 	delete_transient( 'dbe_render_token_' . hash( 'sha256', $token ) );
@@ -974,6 +1106,9 @@ function dbe_ability_data_request( $url, $entries ) {
 	}
 
 	$body = (string) wp_remote_retrieve_body( $response );
+	if ( strlen( $body ) >= dbe_ability_loopback_response_limit() ) {
+		return new WP_Error( 'dbe_response_too_large', 'The dynamic-data response reached the 2 MiB safety limit.' );
+	}
 	$data = json_decode( $body, true );
 	if ( ! is_array( $data ) ) {
 		// A PHP notice ahead of the JSON is a real-world failure mode; salvage
@@ -1375,6 +1510,9 @@ function dbe_ability_resolve_entry( $target, $name, $input ) {
 function dbe_ability_resolve_data_variable( $input ) {
 	$name  = trim( (string) ( $input['name'] ?? '' ) );
 	$query = trim( (string) ( $input['graphql_query'] ?? '' ) );
+	if ( strlen( $query ) > 65536 ) {
+		return new WP_Error( 'dbe_query_too_large', 'Ad-hoc GraphQL queries are limited to 64 KiB.' );
+	}
 	if ( ( '' === $name ) === ( '' === $query ) ) {
 		return new WP_Error( 'dbe_target_required', 'Pass exactly one of name (a saved variable) or graphql_query (an ad-hoc probe).' );
 	}

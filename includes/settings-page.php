@@ -268,16 +268,18 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
  * @param array  $ability    Registry entry from dbe_abilities().
  */
 function dbe_render_ability_toggle( $ability_id, $ability ) {
-	$options  = dbe_get_options();
-	$key      = dbe_ability_option_key( $ability_id );
-	$field_id = 'dbe-a-' . $key;
-	$desc_id  = $field_id . '-desc';
-	$note_id  = $field_id . '-warning';
-	$danger   = ! empty( $ability['danger'] );
-	$caution  = ! empty( $ability['caution'] );
-	$access   = isset( $ability['group'] ) ? $ability['group'] : 'read';
-	$groups   = dbe_ability_groups();
-	$label    = isset( $groups[ $access ]['label'] ) ? $groups[ $access ]['label'] : __( 'Read', 'daveden-builderius-enhancements' );
+	$options    = dbe_get_options();
+	$key        = dbe_ability_option_key( $ability_id );
+	$field_id   = 'dbe-a-' . $key;
+	$desc_id    = $field_id . '-desc';
+	$note_id    = $field_id . '-warning';
+	$danger     = ! empty( $ability['danger'] );
+	$caution    = ! empty( $ability['caution'] );
+	$risk_label = isset( $ability['risk_label'] ) ? (string) $ability['risk_label'] : __( 'Destructive', 'daveden-builderius-enhancements' );
+	$risk_note  = isset( $ability['risk_note'] ) ? (string) $ability['risk_note'] : __( 'Off by default. Turn it on only while you need it, approve each run when the agent asks for confirmation, and switch it off again afterwards.', 'daveden-builderius-enhancements' );
+	$access     = isset( $ability['group'] ) ? $ability['group'] : 'read';
+	$groups     = dbe_ability_groups();
+	$label      = isset( $groups[ $access ]['label'] ) ? $groups[ $access ]['label'] : __( 'Read', 'daveden-builderius-enhancements' );
 	?>
 	<div
 		class="dbe-field dbe-field--ability dbe-field--ability-<?php echo esc_attr( $access ); ?><?php echo $danger ? ' dbe-field--danger' : ''; ?>"
@@ -295,7 +297,7 @@ function dbe_render_ability_toggle( $ability_id, $ability ) {
 				<span class="dbe-ability-access dbe-ability-access--<?php echo esc_attr( $access ); ?>"><?php echo esc_html( $label ); ?></span>
 				<code class="dbe-ability-id"><?php echo esc_html( $ability_id ); ?></code>
 				<?php if ( $danger ) : ?>
-					<span class="dbe-badge dbe-badge--danger"><?php esc_html_e( 'Destructive', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', destructive ability, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
+					<span class="dbe-badge dbe-badge--danger"><?php echo esc_html( $risk_label ); ?><span class="screen-reader-text"><?php esc_html_e( ', high-risk ability, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
 				<?php elseif ( $caution ) : ?>
 					<span class="dbe-badge dbe-badge--caution"><?php esc_html_e( 'Caution', 'daveden-builderius-enhancements' ); ?></span>
 				<?php endif; ?>
@@ -303,7 +305,7 @@ function dbe_render_ability_toggle( $ability_id, $ability ) {
 			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( $ability['summary'] ); ?></p>
 			<?php if ( $danger ) : ?>
 				<p class="dbe-field__danger-note" id="<?php echo esc_attr( $note_id ); ?>">
-					<?php esc_html_e( 'Off by default. Turn it on only while you need it, approve each run when the agent asks for confirmation, and switch it off again afterwards.', 'daveden-builderius-enhancements' ); ?>
+					<?php echo esc_html( $risk_note ); ?>
 				</p>
 			<?php endif; ?>
 		</div>

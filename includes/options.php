@@ -29,8 +29,8 @@ function dbe_default_options() {
 		$defaults[ $id ] = $setting['default'];
 	}
 	// Agent abilities: the master switch is opt-in, individual abilities
-	// default on underneath it, and destructive (danger) abilities are
-	// individually opt-in as well.
+	// default on underneath it, and destructive/code-executing (danger)
+	// abilities are individually opt-in as well.
 	$defaults['abilities_enabled'] = false;
 	foreach ( dbe_abilities() as $ability_id => $ability ) {
 		$defaults[ dbe_ability_option_key( $ability_id ) ] = empty( $ability['danger'] );

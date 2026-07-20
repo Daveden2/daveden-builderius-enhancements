@@ -319,18 +319,47 @@
        shared set so every markup-entry channel gates the same names. */
     var DBE_URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, poster: 1, 'xlink:href': 1 };
 
+    /* Decode character references without placing caller-controlled markup in
+       the live document. Attribute character references do not terminate the
+       synthetic quoted value, so even input containing &quot; stays inert. */
+    function dbeDecodeEntities(value) {
+        var raw = String(value == null ? '' : value);
+        if (raw.indexOf('&') === -1) { return raw; }
+        try {
+            var escaped = raw.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            var parsed = new DOMParser().parseFromString('<i data-dbe-value="' + escaped + '"></i>', 'text/html');
+            var holder = parsed.body && parsed.body.firstElementChild;
+            return holder ? holder.getAttribute('data-dbe-value') || '' : raw;
+        } catch (e) {
+            return raw;
+        }
+    }
+
+    /* Builderius renders the content setting raw. Text entering that setting
+       must therefore be encoded at the storage boundary, after DOM parsing has
+       decoded any character references in the source. */
+    function dbeEscapeRawText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     /* Whether a URL value uses a scheme that can execute or smuggle script.
        Builderius renders htmlAttribute / contentSvg raw, so a stored
        javascript:/vbscript: URL — or a data: URL carrying a markup document
        (text/html, xhtml, or an SVG, all of which can hold script) — would run
        for anyone viewing the page. Raster image data URLs are legitimate (the
        plugin seeds one as an image placeholder) and stay allowed. The value is
-       already DOM-parsed, so entities are resolved; in-scheme whitespace and
-       control characters are stripped first, the way a browser does before it
+       is entity-decoded here because not every caller is DOM-parsed (notably
+       the command palette's Emmet and attribute inputs). In-scheme whitespace
+       and control characters are stripped the way a browser does before it
        acts on the URL, so "java\tscript:" cannot slip past. */
     function dbeDangerousUrl(value) {
         // eslint-disable-next-line no-control-regex -- deliberate: browsers ignore control chars mid-scheme, so "java\tscript:" must not slip past.
-        var v = String(value == null ? '' : value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+        var v = dbeDecodeEntities(value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
         if (/^(?:javascript|vbscript):/.test(v)) { return true; }
         if (v.indexOf('data:') === 0) {
             // Allow only raster image data URLs; block markup/script-bearing
@@ -347,7 +376,8 @@
        null when it is fine. The dbe markers are blocked as stored attributes
        everywhere — the dialogs consume them as identity before this gate. */
     function dbeAttrBlocked(name, value) {
-        var n = String(name || '').toLowerCase();
+        var n = String(name || '').trim().toLowerCase();
+        if (!/^[a-z_:][-a-z0-9_:.]*$/.test(n)) { return n || 'attribute'; }
         if (!n || n === 'data-dbe-id' || n === 'data-dbe-module' || n === 'data-dbe-label') { return n || 'attribute'; }
         if (n.indexOf('on') === 0) { return n; }
         if (DBE_URL_ATTRS[n] && dbeDangerousUrl(value)) { return n + '="' + String(value).slice(0, 12) + '…"'; }
@@ -364,13 +394,16 @@
         // from `tagClass`, and the id/attributes from an `htmlAttribute` list — so a
         // fully-formed element (Emmet included) inserts in one call, no native
         // class/attr driving.
-        if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: opts.text }); }
+        if (opts.text != null && opts.text !== '') { settings.push({ name: 'content', value: dbeEscapeRawText(opts.text) }); }
         if (opts.classes && opts.classes.length) { settings.push({ name: 'tagClass', value: opts.classes.slice() }); }
         var attrList = [];
         if (opts.id) { attrList.push({ name: 'id', value: opts.id }); }
         (opts.attrs || []).forEach(function (a) {
-            if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as the HTML dialogs
-            attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+            if (!a || !a.name) { return; }
+            var name = String(a.name).trim().toLowerCase();
+            var value = dbeDecodeEntities(a.value);
+            if (dbeAttrBlocked(name, value)) { return; } // same gate as the HTML dialogs
+            attrList.push({ name: name, value: value });
         });
         if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
         var label = tag.charAt(0).toUpperCase() + tag.slice(1);
@@ -462,8 +495,11 @@
             if (node.classes.length) { settings.push({ name: 'tagClass', value: node.classes.slice() }); }
             var attrList = [];
             (node.attrs || []).forEach(function (a) {
-                if (!a || !a.name || dbeAttrBlocked(a.name, a.value)) { return; } // same gate as elements
-                attrList.push({ name: String(a.name).toLowerCase(), value: a.value == null ? '' : String(a.value) });
+                if (!a || !a.name) { return; }
+                var name = String(a.name).trim().toLowerCase();
+                var value = dbeDecodeEntities(a.value);
+                if (dbeAttrBlocked(name, value)) { return; } // same gate as elements
+                attrList.push({ name: name, value: value });
             });
             if (attrList.length) { settings.push({ name: 'htmlAttribute', value: attrList }); }
             return { id: dbeMakeId(), name: word, label: word, settings: settings };
@@ -2283,7 +2319,7 @@
             var kidsHost = (tag === 'template' && el.content) ? el.content : el;
             [].slice.call(kidsHost.childNodes).forEach(function (ch) {
                 if (ch.nodeType === 3) {
-                    var t = ch.textContent.replace(/\s+/g, ' ').trim();
+                    var t = dbeEscapeRawText(ch.textContent.replace(/\s+/g, ' ').trim());
                     if (!t) { return; }
                     if (!seenElement) { node.content += (node.content ? ' ' : '') + t; }
                     else {
@@ -8113,12 +8149,17 @@
        the settings upsert (a single upsert for the whole batch — no native-control
        driving). `pairs` = [{name, value}, …]. Returns false if the element is gone. */
     function dbeAddAttributes(id, pairs) {
-        if (!pairs.length) { return false; }
+        var safePairs = (pairs || []).map(function (p) {
+            var name = String((p && p.name) || '').trim().toLowerCase();
+            var value = dbeDecodeEntities(p && p.value);
+            return dbeAttrBlocked(name, value) ? null : { name: name, value: value };
+        }).filter(Boolean);
+        if (!safePairs.length) { return false; }
         return dbeUpdateModuleSettings(id, function (settings) {
             var ha = settings.filter(function (s) { return s.name === 'htmlAttribute'; })[0];
             if (!ha) { ha = { name: 'htmlAttribute', value: [] }; settings.push(ha); }
             if (!Array.isArray(ha.value)) { ha.value = []; }
-            pairs.forEach(function (p) {
+            safePairs.forEach(function (p) {
                 var existing = ha.value.filter(function (a) { return a.name === p.name; })[0];
                 if (existing) { existing.value = p.value; } else { ha.value.push({ name: p.name, value: p.value }); }
             });
