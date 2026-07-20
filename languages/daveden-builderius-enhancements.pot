@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-20T00:38:37+00:00\n"
+"POT-Creation-Date: 2026-07-20T01:10:04+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -54,425 +54,425 @@ msgstr ""
 msgid "Builderius required"
 msgstr ""
 
-#: includes/abilities-verify.php:61
+#: includes/abilities-verify.php:66
 msgid "Plain-text strings that MUST appear in the rendered HTML."
 msgstr ""
 
-#: includes/abilities-verify.php:70
+#: includes/abilities-verify.php:75
 msgid "Plain-text strings that must NOT appear (e.g. a row that a filter should exclude)."
 msgstr ""
 
-#: includes/abilities-verify.php:79
+#: includes/abilities-verify.php:84
 msgid "Label texts that must be followed by visible non-blank text — catches bindings that resolve to empty (numeric 0, \"0\", null and \"\" all render blank)."
 msgstr ""
 
-#: includes/abilities-verify.php:86
+#: includes/abilities-verify.php:91
 #: includes/features.php:873
 msgid "Check rendered output"
 msgstr ""
 
-#: includes/abilities-verify.php:87
+#: includes/abilities-verify.php:92
 msgid "Fetches one front-end page as the invoking user (an authenticated loopback — logged-in users see saved dev-branch commits, so no publish is needed) and scans the HTML for the dynamic-data failures that save-time validation cannot catch: leaked <template> elements, unresolved [[...]] or {{...}} bindings, PHP warnings/fatals, missing expected text, unexpectedly present text, and labels with blank values. Interactive (client-side URL-source) Collections are exempt from the template/binding scan — their markup legitimately ships to the browser. A saved data variable with a bad nested field, a scalar Collection source or a runtime resolver failure all pass dbe/manage-data-variable but fail here — run this after every dynamic-data save. Pass page (post ID or path) or a same-site url, plus optional query args."
 msgstr ""
 
-#: includes/abilities-verify.php:96
+#: includes/abilities-verify.php:101
 msgid "WordPress post ID or path (e.g. \"dbe-dynamic-stress\" or \"/events/\") to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:101
-#: includes/abilities-verify.php:151
+#: includes/abilities-verify.php:106
+#: includes/abilities-verify.php:156
 msgid "Full same-site URL to fetch. Other hosts are refused."
 msgstr ""
 
-#: includes/abilities-verify.php:106
+#: includes/abilities-verify.php:111
 msgid "Query parameters to append, e.g. {\"topic\": \"dbe-stress-build\", \"listing_page\": \"2\"}."
 msgstr ""
 
-#: includes/abilities-verify.php:121
+#: includes/abilities-verify.php:126
 msgid "Each failure: check, message, and up to five matches with line numbers."
 msgstr ""
 
-#: includes/abilities-verify.php:136
+#: includes/abilities-verify.php:141
 #: includes/features.php:878
 msgid "Check render scenarios"
 msgstr ""
 
-#: includes/abilities-verify.php:137
+#: includes/abilities-verify.php:142
 msgid "Runs dbe/check-rendered-output across a matrix of request scenarios against one page — each scenario sets its own query parameters and/or cookies and its own expectations. This is how URL-driven listings are proven: default filters, a valid override, an invalid value falling back, pagination pages, cookie-segmented content and recursive roots, in one call. Shared expect/absent/nonblank_labels apply to every scenario on top of the per-scenario ones. At most ten scenarios per call; every scenario fetch runs the full failure scan (leaked templates, unresolved bindings, PHP errors)."
 msgstr ""
 
-#: includes/abilities-verify.php:146
+#: includes/abilities-verify.php:151
 msgid "WordPress post ID or path to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:156
+#: includes/abilities-verify.php:161
 msgid "Up to ten scenarios. Each: { label, query?: {name: value}, cookies?: {name: value}, expect?: [], absent?: [], nonblank_labels?: [] }."
 msgstr ""
 
-#: includes/abilities-verify.php:213
+#: includes/abilities-verify.php:218
 msgid "Per scenario: label, url, status_code, passed and failures."
 msgstr ""
 
-#: includes/abilities-verify.php:228
+#: includes/abilities-verify.php:233
 msgid "WordPress post ID or path establishing the resolution context (current post, archive, URL parameters). Defaults to the site front page."
 msgstr ""
 
-#: includes/abilities-verify.php:233
+#: includes/abilities-verify.php:238
 msgid "Full same-site URL establishing the context instead of page."
 msgstr ""
 
-#: includes/abilities-verify.php:238
+#: includes/abilities-verify.php:243
 msgid "Query parameters for the context request — url_parameter() resolvers read these."
 msgstr ""
 
-#: includes/abilities-verify.php:245
+#: includes/abilities-verify.php:250
 msgid "Get the dynamic-data GraphQL schema"
 msgstr ""
 
-#: includes/abilities-verify.php:246
+#: includes/abilities-verify.php:251
 msgid "Returns the LIVE Builderius dynamic-data GraphQL schema — the Root query type every data variable runs against, including fields added by Builderius Pro, ACF, Meta Box and other integrations on this site. No open builder tab is needed. By default returns the Root fields (name, arguments, return type) and an index of type names; pass type to expand one type's fields, or search to find fields/types by name fragment. Use this instead of guessing field names: a wrong nested field saves fine but silently blanks the whole variable at render."
 msgstr ""
 
-#: includes/abilities-verify.php:253
+#: includes/abilities-verify.php:258
 msgid "A type name to expand (e.g. Post, User, Term, Pagination). Case-sensitive."
 msgstr ""
 
-#: includes/abilities-verify.php:257
+#: includes/abilities-verify.php:262
 msgid "Case-insensitive fragment matched against type and field names (e.g. \"acf\", \"meta\", \"pagination\")."
 msgstr ""
 
-#: includes/abilities-verify.php:262
+#: includes/abilities-verify.php:267
 msgid "Bypass the cached schema (use after activating a plugin that extends it)."
 msgstr ""
 
-#: includes/abilities-verify.php:272
+#: includes/abilities-verify.php:277
 msgid "The Root query fields: name, args, type."
 msgstr ""
 
-#: includes/abilities-verify.php:277
+#: includes/abilities-verify.php:282
 msgid "The expanded type (name, kind, fields) when type was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:281
+#: includes/abilities-verify.php:286
 msgid "Search hits as \"Type.field: ReturnType\" rows when search was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:299
+#: includes/abilities-verify.php:304
 #: includes/features.php:858
 msgid "Resolve a data variable"
 msgstr ""
 
-#: includes/abilities-verify.php:300
+#: includes/abilities-verify.php:305
 msgid "Validates AND actually resolves one dynamic-data variable, returning its runtime value in a chosen page context — the missing proof step between \"the query saved\" and \"the page renders\". The query is first validated against the live GraphQL schema (unknown fields and bad arguments are reported with messages, which dbe/manage-data-variable's syntax check cannot see), then executed through Builderius' own dynamic-data channel with the context page's real WordPress query state, so wp/current-post/url_parameter resolvers behave exactly as on the front end. Pass name for a saved variable (its [[dep]] dependencies resolve too) or graphql_query for an ad-hoc probe. Large values are compacted (lists truncated, long strings clipped) unless full: true."
 msgstr ""
 
-#: includes/abilities-verify.php:308
+#: includes/abilities-verify.php:313
 msgid "A saved data variable name. Global scope by default; pass template for entity scope."
 msgstr ""
 
-#: includes/abilities-verify.php:313
+#: includes/abilities-verify.php:318
 msgid "An ad-hoc GraphQL query to resolve instead of a saved variable. Saved global variables are still available as [[dep]] interpolations. (The query parameter carries URL parameters for the context request instead.)"
 msgstr ""
 
-#: includes/abilities-verify.php:317
-#: includes/abilities-verify.php:385
+#: includes/abilities-verify.php:322
+#: includes/abilities-verify.php:390
 msgid "Template (or component) post ID or slug for ENTITY-scoped variables. Omit for the global settings set."
 msgstr ""
 
-#: includes/abilities-verify.php:323
-#: includes/abilities-verify.php:391
+#: includes/abilities-verify.php:328
+#: includes/abilities-verify.php:396
 msgid "Entity type when template is passed."
 msgstr ""
 
-#: includes/abilities-verify.php:327
-#: includes/abilities-verify.php:395
+#: includes/abilities-verify.php:332
+#: includes/abilities-verify.php:400
 msgid "Global settings set post ID or slug. Omit when the site has one."
 msgstr ""
 
-#: includes/abilities-verify.php:332
+#: includes/abilities-verify.php:337
 msgid "Return the complete value without compaction. Use only when the compact preview is not enough."
 msgstr ""
 
-#: includes/abilities-verify.php:344
+#: includes/abilities-verify.php:349
 msgid "Schema validation: valid plus error messages (an invalid query is still executed so you can see the runtime effect)."
 msgstr ""
 
-#: includes/abilities-verify.php:347
+#: includes/abilities-verify.php:352
 msgid "The resolved value (compacted unless full: true; compaction is flagged in truncated)."
 msgstr ""
 
-#: includes/abilities-verify.php:352
+#: includes/abilities-verify.php:357
 msgid "Byte length of the full JSON-encoded value."
 msgstr ""
 
-#: includes/abilities-verify.php:357
+#: includes/abilities-verify.php:362
 msgid "Every variable name resolved in the request (the target plus its dependencies)."
 msgstr ""
 
-#: includes/abilities-verify.php:371
+#: includes/abilities-verify.php:376
 #: includes/features.php:863
 msgid "Inspect a binding value"
 msgstr ""
 
-#: includes/abilities-verify.php:372
+#: includes/abilities-verify.php:377
 msgid "Reports the resolved type and compact shape at a binding path — run this on a Collection's data-b-context source BEFORE binding it, because a source that is not an array renders a silent empty loop (scalars/null leave the <template> markup in the page; an object renders exactly once). Accepts a saved-variable path (\"var.path.to.items\", with or without [[ ]]/[[[ ]]] wrapping) or a literal JSON source. Returns the value's type, list/object classification, row count, first-row keys, a small preview, and whether it is safe as a Collection source in the chosen page context."
 msgstr ""
 
-#: includes/abilities-verify.php:381
+#: includes/abilities-verify.php:386
 msgid "The binding to inspect: \"var.path.to.items\", \"[[var.path]]\", \"[[[var.path]]]\", or a literal JSON array/object."
 msgstr ""
 
-#: includes/abilities-verify.php:408
+#: includes/abilities-verify.php:413
 msgid "list | object | string | number | boolean | null | missing."
 msgstr ""
 
-#: includes/abilities-verify.php:412
+#: includes/abilities-verify.php:417
 msgid "Whether this value is safe as a Collection source (a non-empty list of rows)."
 msgstr ""
 
-#: includes/abilities-verify.php:420
+#: includes/abilities-verify.php:425
 msgid "Compacted value preview."
 msgstr ""
 
-#: includes/abilities-verify.php:438
+#: includes/abilities-verify.php:443
 #: includes/features.php:868
 msgid "Resolve a Meta Box field"
 msgstr ""
 
-#: includes/abilities-verify.php:439
+#: includes/abilities-verify.php:444
 msgid "Maps a Meta Box field to the exact ways Builderius dynamic data can read it, so agents stop guessing: the builder's auto-generated helper name (derived from the slugified field LABEL, not the id — field id rc_number labelled \"RC Number (CAC)\" becomes wp.…__rc_number_cac_), the GraphQL accessor and arguments for headless data variables (settings-page fields need option_name, the storage owner, which is NOT always the admin page id), group children, and the array/clone caveats. Searches every registered field by id or label fragment across posts, users, terms and settings pages. Term fields get a warning: Builderius ships no term Meta Box helper and term meta_value() has returned false in testing — use a php_function_output wrapper."
 msgstr ""
 
-#: includes/abilities-verify.php:446
+#: includes/abilities-verify.php:451
 msgid "The field id, or a fragment of the id or label, to search for."
 msgstr ""
 
-#: includes/abilities-verify.php:451
+#: includes/abilities-verify.php:456
 msgid "Limit the search to one Meta Box object type."
 msgstr ""
 
-#: includes/abilities-verify.php:462
+#: includes/abilities-verify.php:467
 msgid "Per field: id, label, type, object_type, context (post type or settings page), builder_helper, graphql read recipe, children, warnings."
 msgstr ""
 
-#: includes/abilities-verify.php:467
+#: includes/abilities-verify.php:472
 msgid "Total matches before the 20-row cap."
 msgstr ""
 
-#: includes/abilities-verify.php:480
+#: includes/abilities-verify.php:485
 msgid "Get a module's matched styles"
 msgstr ""
 
-#: includes/abilities-verify.php:481
+#: includes/abilities-verify.php:486
 msgid "Returns the authored CSS rules that target one module, gathered from the saved entity CSS and the global stylesheet — the headless stand-in for the builder's computed-styles tool when no live builder tab is connected. Rules are matched against the module's tag, id, classes and its uni-node id (per-module %local% styles compile to .uni-node-<id> selectors), with their media-query context preserved. This reports what the stylesheets SAY, not what a browser computed — cascade order and specificity are returned so you can reason about conflicts, but inherited values and runtime layout are out of scope."
 msgstr ""
 
-#: includes/abilities-verify.php:488
-#: includes/abilities-workflow.php:221
+#: includes/abilities-verify.php:493
+#: includes/abilities-workflow.php:226
 msgid "Template or component post ID or slug."
 msgstr ""
 
-#: includes/abilities-verify.php:494
-#: includes/abilities-workflow.php:227
+#: includes/abilities-verify.php:499
+#: includes/abilities-workflow.php:232
 msgid "Entity type of the template reference."
 msgstr ""
 
-#: includes/abilities-verify.php:498
+#: includes/abilities-verify.php:503
 msgid "The module whose matched rules to report (find ids with dbe/get-tree-outline)."
 msgstr ""
 
-#: includes/abilities-verify.php:503
+#: includes/abilities-verify.php:508
 msgid "Also match rules from the global stylesheet (framework classes)."
 msgstr ""
 
-#: includes/abilities-verify.php:514
+#: includes/abilities-verify.php:519
 msgid "The module's identity: id, tag, html id, classes, label."
 msgstr ""
 
-#: includes/abilities-verify.php:518
+#: includes/abilities-verify.php:523
 msgid "Matched rules in source order: selector, declarations, media, source (entity|global), matched_by."
 msgstr ""
 
-#: includes/abilities-workflow.php:44
+#: includes/abilities-workflow.php:49
 msgid "Duplicate a template"
 msgstr ""
 
-#: includes/abilities-workflow.php:45
+#: includes/abilities-workflow.php:50
 msgid "Creates an isolated working copy of a Builderius template from its saved state: the module tree, entity CSS, entity-scoped data variables and JS snippets all ride along in the copied config. The copy is created DISABLED and without apply rules by default so it can never shadow the original on the front end — pass enabled: true and copy_apply_rules: true only when a live twin is genuinely wanted. Page-bound templates are duplicated as regular templates (a WordPress page can only bind one page template); hook templates keep their hook wiring. The copy starts a fresh commit history."
 msgstr ""
 
-#: includes/abilities-workflow.php:52
+#: includes/abilities-workflow.php:57
 msgid "Source template post ID or slug."
 msgstr ""
 
-#: includes/abilities-workflow.php:56
-#: includes/abilities-workflow.php:115
+#: includes/abilities-workflow.php:61
+#: includes/abilities-workflow.php:120
 msgid "Title for the copy. Defaults to \"<source title> copy\"."
 msgstr ""
 
-#: includes/abilities-workflow.php:60
-#: includes/abilities-workflow.php:119
+#: includes/abilities-workflow.php:65
+#: includes/abilities-workflow.php:124
 msgid "Slug for the copy. Defaults to WordPress' unique slug for the title."
 msgstr ""
 
-#: includes/abilities-workflow.php:65
+#: includes/abilities-workflow.php:70
 msgid "Enable the copy immediately. Default false: a duplicate that is live from birth can conflict with the original."
 msgstr ""
 
-#: includes/abilities-workflow.php:70
+#: includes/abilities-workflow.php:75
 msgid "Copy the source's apply rules onto the duplicate. Default false so the copy applies nowhere until deliberately targeted."
 msgstr ""
 
-#: includes/abilities-workflow.php:81
+#: includes/abilities-workflow.php:86
 msgid "The duplicate's summary (id, slug, title, enabled, type, apply_rules, branch, commit)."
 msgstr ""
 
-#: includes/abilities-workflow.php:85
+#: includes/abilities-workflow.php:90
 msgid "The source template (id, slug) and the commit the content was copied from."
 msgstr ""
 
-#: includes/abilities-workflow.php:103
+#: includes/abilities-workflow.php:108
 msgid "Duplicate a component"
 msgstr ""
 
-#: includes/abilities-workflow.php:104
+#: includes/abilities-workflow.php:109
 msgid "Creates a copy of a Builderius component definition from its saved state: the internal module tree, declared properties (and their derived props variable), entity CSS and entity-scoped data variables all ride along. The copy gets a fresh slug and commit history; existing instances keep pointing at the source component. Use this to fork a shared component before an experiment instead of editing the shared original in place."
 msgstr ""
 
-#: includes/abilities-workflow.php:111
+#: includes/abilities-workflow.php:116
 msgid "Source component post ID or slug."
 msgstr ""
 
-#: includes/abilities-workflow.php:130
+#: includes/abilities-workflow.php:135
 msgid "The duplicate's summary (id, slug, title, props, branch, commit)."
 msgstr ""
 
-#: includes/abilities-workflow.php:134
+#: includes/abilities-workflow.php:139
 msgid "The source component (id, slug) and the commit the content was copied from."
 msgstr ""
 
-#: includes/abilities-workflow.php:148
+#: includes/abilities-workflow.php:153
 msgid "List global settings sets"
 msgstr ""
 
-#: includes/abilities-workflow.php:149
+#: includes/abilities-workflow.php:154
 msgid "Enumerates the site's Builderius global settings sets — the entities that carry the framework CSS, global data variables and global JS snippets. Most sites have exactly one; when several exist, the global CSS and data-variable abilities need a settings_set reference, and this ability is how an agent discovers the right one. Each row reports the set's identity, saved commit (for the expected_commit save flow), stylesheet size, named CSS blocks, and how many global data variables and JS snippets it holds."
 msgstr ""
 
-#: includes/abilities-workflow.php:161
+#: includes/abilities-workflow.php:166
 msgid "Per set: id, slug, title, technology, branch_id, commit_name, css_length, css_blocks, data_variables, js_snippets."
 msgstr ""
 
-#: includes/abilities-workflow.php:175
+#: includes/abilities-workflow.php:180
 #: includes/features.php:893
 msgid "Validate a JS snippet"
 msgstr ""
 
-#: includes/abilities-workflow.php:176
+#: includes/abilities-workflow.php:181
 msgid "Structurally validates JavaScript before it is saved with dbe/manage-js-snippet: unbalanced brackets/braces/parentheses, unterminated strings, template literals, comments and regular expressions, and stray HTML are reported with line numbers. This is a structural scan, not a full ECMAScript parse — code that passes can still contain runtime or semantic errors, so treat a pass as \"safe to save\", not \"proven correct\". Nothing is saved or executed."
 msgstr ""
 
-#: includes/abilities-workflow.php:183
+#: includes/abilities-workflow.php:188
 msgid "The JavaScript source to check."
 msgstr ""
 
-#: includes/abilities-workflow.php:195
+#: includes/abilities-workflow.php:200
 msgid "Structural problems found, each with a message and line number."
 msgstr ""
 
-#: includes/abilities-workflow.php:200
+#: includes/abilities-workflow.php:205
 msgid "The level of validation performed (structural)."
 msgstr ""
 
-#: includes/abilities-workflow.php:213
+#: includes/abilities-workflow.php:218
 msgid "Manage an element's rendering conditions"
 msgstr ""
 
-#: includes/abilities-workflow.php:214
+#: includes/abilities-workflow.php:219
 msgid "Reads, sets or clears one element's rendering (visibility) conditions in the saved state — the setting dbe/apply-subtree-html preserves through data-dbe-id markers but cannot express in HTML. Conditions are OR-of-AND groups: pass groups as an array of arrays, each inner array a set of AND-ed rules { name, operator, value } and the outer array OR-ed — e.g. [[{\"name\":\"user_logged_in\",\"operator\":\"is\",\"value\":\"true\"}]] shows the element to logged-in users only. Rule names and operators are validated against Builderius' installed rendering-condition registry (post_type, user_role, url_parameter, is_front_page, dynamic_data, expression, …). Conditions that read the wp system variable (post_type, post_meta, user_role, …) need matching fields in the wp query — the result warns when they look absent, because the builder maintains those automatically and this channel cannot; always prove the element with dbe/check-rendered-output afterwards. Alternatively pass expression for a raw Twig-style condition string. Use action: get first to read the current shape; set replaces the whole condition; clear removes it (the element always renders)."
 msgstr ""
 
-#: includes/abilities-workflow.php:231
+#: includes/abilities-workflow.php:236
 msgid "The element's module ID (find it with dbe/get-tree-outline)."
 msgstr ""
 
-#: includes/abilities-workflow.php:236
+#: includes/abilities-workflow.php:241
 msgid "get reads, set replaces, clear removes the condition."
 msgstr ""
 
-#: includes/abilities-workflow.php:240
+#: includes/abilities-workflow.php:245
 msgid "For set: OR-ed groups, each an array of AND-ed rules { name, operator, value }. Omit value only for is_empty/is_not_empty operators."
 msgstr ""
 
-#: includes/abilities-workflow.php:249
+#: includes/abilities-workflow.php:254
 msgid "The comparison value. key_value widgets (post_meta, user_meta, url_parameter, cookie) take \"key:value\" strings."
 msgstr ""
 
-#: includes/abilities-workflow.php:259
+#: includes/abilities-workflow.php:264
 msgid "For set: a raw condition expression string instead of groups (stored verbatim, evaluated by Builderius' expression engine)."
 msgstr ""
 
-#: includes/abilities-workflow.php:264
+#: includes/abilities-workflow.php:269
 msgid "Preview the condition value that WOULD be saved without committing."
 msgstr ""
 
-#: includes/abilities-workflow.php:268
+#: includes/abilities-workflow.php:273
 msgid "The active commit name from the preceding read. Required when saving."
 msgstr ""
 
-#: includes/abilities-workflow.php:273
-#: includes/abilities-workflow.php:358
+#: includes/abilities-workflow.php:278
+#: includes/abilities-workflow.php:363
 msgid "Explicitly override a dirty Builderius-tab conflict."
 msgstr ""
 
-#: includes/abilities-workflow.php:284
+#: includes/abilities-workflow.php:289
 msgid "The condition value (current for get, resulting for set/clear)."
 msgstr ""
 
-#: includes/abilities-workflow.php:304
+#: includes/abilities-workflow.php:309
 msgid "Manage a global settings set"
 msgstr ""
 
-#: includes/abilities-workflow.php:305
+#: includes/abilities-workflow.php:310
 msgid "Reads or updates the global settings set's non-CSS settings: the responsive strategy (desktop-first/mobile-first), the named breakpoints behind @media (--tablet)-style queries, and the font declarations. Builderius creates exactly one set per technology automatically, so there is no create or delete — use dbe/list-settings-sets to discover the sets and dbe/get-global-css / dbe/patch-global-css for the stylesheet itself. Changing breakpoints affects EVERY template's responsive CSS; changing the responsive strategy flips which direction the breakpoint media queries cascade — treat both as site-wide design decisions, read first with action: get, and save with the expected_commit flow."
 msgstr ""
 
-#: includes/abilities-workflow.php:312
-#: includes/abilities.php:457
+#: includes/abilities-workflow.php:317
+#: includes/abilities.php:462
 msgid "Global settings set post ID or slug. Omit when the site has one (the usual case)."
 msgstr ""
 
-#: includes/abilities-workflow.php:317
+#: includes/abilities-workflow.php:322
 msgid "get reads the settings; update writes the passed fields as a new commit."
 msgstr ""
 
-#: includes/abilities-workflow.php:322
+#: includes/abilities-workflow.php:327
 msgid "For update: the responsive strategy."
 msgstr ""
 
-#: includes/abilities-workflow.php:326
+#: includes/abilities-workflow.php:331
 msgid "For update: the COMPLETE breakpoints list, replacing the current one. Each: { name: \"--tablet\", label, width, width_builder?, icon?, deletable? }."
 msgstr ""
 
-#: includes/abilities-workflow.php:343
+#: includes/abilities-workflow.php:348
 msgid "For update: the COMPLETE font declarations list, replacing the current one. Each: { type, content }."
 msgstr ""
 
-#: includes/abilities-workflow.php:349
+#: includes/abilities-workflow.php:354
 msgid "Preview the resulting settings without committing."
 msgstr ""
 
-#: includes/abilities-workflow.php:353
+#: includes/abilities-workflow.php:358
 msgid "The active commit name from the preceding get. Required when saving."
 msgstr ""
 
-#: includes/abilities-workflow.php:369
+#: includes/abilities-workflow.php:374
 msgid "Identity: id, slug, title, technology."
 msgstr ""
 
 #. translators: %s: source item title.
-#: includes/abilities-workflow.php:555
-#: includes/abilities-workflow.php:637
+#: includes/abilities-workflow.php:560
+#: includes/abilities-workflow.php:642
 #, php-format
 msgid "%s copy"
 msgstr ""
@@ -485,599 +485,599 @@ msgstr ""
 msgid "Read and edit Builderius template content as HTML."
 msgstr ""
 
-#: includes/abilities.php:94
+#: includes/abilities.php:99
 msgid "Template post ID or slug by default. When entity_type is \"component\", pass a Builderius component post ID or slug instead."
 msgstr ""
 
-#: includes/abilities.php:100
+#: includes/abilities.php:105
 msgid "Builderius entity type to target. Defaults to template for backwards compatibility; use component for shared component definitions."
 msgstr ""
 
-#: includes/abilities.php:104
+#: includes/abilities.php:109
 msgid "The active commit name returned by the preceding read or dry run. Required when saving; the mutation fails if saved state has changed."
 msgstr ""
 
-#: includes/abilities.php:109
+#: includes/abilities.php:114
 msgid "Explicitly override a dirty Builderius-tab conflict. Use only after confirming that overwriting the tab state is intended."
 msgstr ""
 
-#: includes/abilities.php:115
+#: includes/abilities.php:120
 #: includes/features.php:803
 msgid "Get subtree as HTML"
 msgstr ""
 
-#: includes/abilities.php:116
+#: includes/abilities.php:121
 msgid "Serialises a Builderius template module subtree (from its saved state, the branch's active commit) to readable HTML. Every element carries a data-dbe-id marker; keep the marker when editing and that element's label, conditions and other settings survive an apply. Modules HTML cannot express (Components, SvgCode, code blocks) appear as <dbe-keep data-dbe-id=\"…\"> placeholders — leave them in place (or move them) to preserve those elements. Omit module_id to serialise the whole template."
 msgstr ""
 
-#: includes/abilities.php:125
+#: includes/abilities.php:130
 msgid "Module ID to serialise from. Omit for the whole template."
 msgstr ""
 
-#: includes/abilities.php:144
+#: includes/abilities.php:149
 msgid "Modules serialised as <dbe-keep> placeholders."
 msgstr ""
 
-#: includes/abilities.php:158
+#: includes/abilities.php:163
 msgid "Apply edited subtree HTML"
 msgstr ""
 
-#: includes/abilities.php:159
+#: includes/abilities.php:164
 msgid "Sanitises edited HTML and reconciles it back onto a template module subtree, then saves by creating a new commit through Builderius' own mutation. Elements whose data-dbe-id matches the original subtree keep their module (labels, conditions and non-HTML settings survive; tag/id/class/attributes/leading text update); unmarked elements are created; original modules whose marker is gone are removed. <dbe-keep data-dbe-id=\"…\"> preserves a non-editable module and its subtree; <dbe-component name=\"slug\" prop=\"value\"> inserts a component instance. The HTML must have exactly one root element: the subtree root (its identity is forced to module_id). Script tags, event handlers, dangerous URLs, unknown elements and inline <svg> are stripped and reported. data-dbe-label=\"…\" names an element in the Navigator. Pass dry_run to preview the result (with the ids new elements would get) without saving. An open builder session will not see a saved change until reloaded."
 msgstr ""
 
-#: includes/abilities.php:168
+#: includes/abilities.php:173
 msgid "The subtree root module ID being replaced."
 msgstr ""
 
-#: includes/abilities.php:172
+#: includes/abilities.php:177
 msgid "The edited markup, one root element."
 msgstr ""
 
-#: includes/abilities.php:177
+#: includes/abilities.php:182
 msgid "Preview only: return the resulting markup (including the ids new elements would receive) and the kept/added/removed counts WITHOUT saving. Use this to check an edit before committing."
 msgstr ""
 
-#: includes/abilities.php:182
+#: includes/abilities.php:187
 msgid "Also autopublish the commit (the builder Save button does not). Leave false on a site that has never published a release — Builderius' publish cascade expects deliverable assets that only exist after a first real publish."
 msgstr ""
 
-#: includes/abilities.php:195
+#: includes/abilities.php:200
 msgid "The new commit name (absent on a dry run)."
 msgstr ""
 
-#: includes/abilities.php:199
+#: includes/abilities.php:204
 msgid "The active commit used for this result. Pass it as expected_commit when saving."
 msgstr ""
 
-#: includes/abilities.php:204
+#: includes/abilities.php:209
 msgid "The resulting subtree markup (dry run only)."
 msgstr ""
 
-#: includes/abilities.php:218
+#: includes/abilities.php:223
 msgid "data-dbe-id markers that matched nothing in the subtree — probably typos. Each was treated as a new element, so the element it was meant to keep is removed and recreated with a fresh id. Check these before relying on the edit."
 msgstr ""
 
-#: includes/abilities.php:223
+#: includes/abilities.php:228
 msgid "Data-binding problems that would render a silent empty loop: a Collection source that does not resolve to an array, {{ }} instead of a square-bracket global binding in data-b-context, a non-global variable, a [[ ]] data-source, or a missing <template> child. Fix these before trusting the result."
 msgstr ""
 
-#: includes/abilities.php:237
+#: includes/abilities.php:242
 msgid "Get template tree outline"
 msgstr ""
 
-#: includes/abilities.php:238
+#: includes/abilities.php:243
 msgid "Returns a compact outline of a template's module tree — one line per element with its id, tag and classes, Navigator label, module type and depth — so you can find the id of the element you want to edit by its label or tag instead of reading the whole HTML. Also returns the same data as a structured nodes array. Omit module_id for the whole template, or pass one to outline a single subtree."
 msgstr ""
 
-#: includes/abilities.php:247
+#: includes/abilities.php:252
 msgid "Module ID to outline from. Omit for the whole template."
 msgstr ""
 
-#: includes/abilities.php:258
+#: includes/abilities.php:263
 msgid "Indented text outline, one line per element."
 msgstr ""
 
-#: includes/abilities.php:262
+#: includes/abilities.php:267
 msgid "Structured rows: id, type, tag, classes, label, component, depth."
 msgstr ""
 
-#: includes/abilities.php:283
+#: includes/abilities.php:288
 msgid "Get save/publish status"
 msgstr ""
 
-#: includes/abilities.php:284
+#: includes/abilities.php:289
 msgid "Reports the save vs publish state of Builderius templates or components. Saving (the builder Save button, createCommit, dbe/apply-subtree-html) writes to the development branch, which a LOGGED-IN user already sees on the front end — so save-only is enough to preview. Logged-out visitors render from a published release only; with no release ever published they get the theme fallback, which looks like a blank page. For each entity this returns its active saved commit, whether that work is in the selected published release, and whether saved/published deliverable HTML is empty. Omit template to report on every entity of the selected type; pass release to inspect a specific Builderius release version or ID."
 msgstr ""
 
-#: includes/abilities.php:291
+#: includes/abilities.php:296
 msgid "Entity post ID or slug. Omit for all entities of the selected type."
 msgstr ""
 
-#: includes/abilities.php:296
+#: includes/abilities.php:301
 msgid "Builderius release post ID, version/title, or slug to inspect. Omit for the latest published release."
 msgstr ""
 
-#: includes/abilities.php:306
+#: includes/abilities.php:311
 msgid "The currently published release (id, version, date), or null if the site has never published — in which case logged-out visitors get no Builderius output (logged-in users still see dev-branch saves)."
 msgstr ""
 
-#: includes/abilities.php:310
+#: includes/abilities.php:315
 msgid "Per template: id, slug, title, branch_id, saved commit name/date, release inclusion, unpublished_changes, and saved/published deliverable lengths so empty published output is visible."
 msgstr ""
 
-#: includes/abilities.php:315
+#: includes/abilities.php:320
 msgid "Per component when entity_type is component: id, slug, title, branch_id, saved commit, release inclusion, unpublished_changes, and saved/published deliverable lengths."
 msgstr ""
 
-#: includes/abilities.php:320
+#: includes/abilities.php:325
 msgid "The selected entity-type rows, matching either templates or components."
 msgstr ""
 
-#: includes/abilities.php:334
+#: includes/abilities.php:339
 #: includes/features.php:986
 msgid "Publish a release"
 msgstr ""
 
-#: includes/abilities.php:335
+#: includes/abilities.php:340
 msgid "Creates and publishes a Builderius release from the templates' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder's Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live for logged-out visitors, replacing the previously published release. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits."
 msgstr ""
 
-#: includes/abilities.php:343
+#: includes/abilities.php:348
 msgid "Template post IDs or slugs to include. Omit to include every template that has saved work."
 msgstr ""
 
-#: includes/abilities.php:347
+#: includes/abilities.php:352
 msgid "Release version label. Omit to auto-increment the latest release's patch number (1.0.0 when the site has never published)."
 msgstr ""
 
-#: includes/abilities.php:351
+#: includes/abilities.php:356
 msgid "Release description shown in the builder's release list."
 msgstr ""
 
-#: includes/abilities.php:356
+#: includes/abilities.php:361
 msgid "Preview only: return the version and entities that WOULD be released without publishing."
 msgstr ""
 
-#: includes/abilities.php:360
+#: includes/abilities.php:365
 msgid "Required when publishing. One template/commit pair for every entity returned by the preceding dry run."
 msgstr ""
 
-#: includes/abilities.php:380
+#: includes/abilities.php:385
 msgid "The published release (id, version, status); null on a dry run."
 msgstr ""
 
-#: includes/abilities.php:385
+#: includes/abilities.php:390
 msgid "The templates included (id, slug, saved commit)."
 msgstr ""
 
-#: includes/abilities.php:400
+#: includes/abilities.php:405
 #: includes/features.php:992
 msgid "Extract a release (work on a release)"
 msgstr ""
 
-#: includes/abilities.php:401
+#: includes/abilities.php:406
 msgid "Rebuilds the DEVELOPMENT state from a Builderius release — the builder's \"work on a release\" action, via the same extractRelease mutation. Builderius first DELETES every existing template, component and global settings set (framework CSS and all commit history included), then recreates each entity from the release's bundled configs with a fresh single-commit history. The release itself is untouched and stays published, so logged-out visitors see no change. Use when development state is missing or meaningless while a release exists — the classic case is a migrated site whose builder shows empty templates although the live pages render fine — or to roll development back to what is published. This destroys ALL unpublished work; requires confirm: true after explicit user approval. Always run with dry_run first: it reports the release contents and everything that would be deleted. Close open builder tabs before extracting and reload them afterwards — a stale tab's save would resurrect deleted state."
 msgstr ""
 
-#: includes/abilities.php:408
+#: includes/abilities.php:413
 msgid "Builderius release post ID, version/title, or slug to extract. Omit for the latest published release."
 msgstr ""
 
-#: includes/abilities.php:413
+#: includes/abilities.php:418
 msgid "Preview only: report the release contents and the current entities that WOULD be deleted, without extracting."
 msgstr ""
 
-#: includes/abilities.php:418
+#: includes/abilities.php:423
 msgid "Must be true to extract. Extraction permanently replaces all development state; confirm with the user first."
 msgstr ""
 
-#: includes/abilities.php:429
+#: includes/abilities.php:434
 msgid "The release being extracted (id, version, date)."
 msgstr ""
 
-#: includes/abilities.php:433
+#: includes/abilities.php:438
 msgid "The release's bundled entities (slug, name, entity_type, type) that extraction recreates."
 msgstr ""
 
-#: includes/abilities.php:438
+#: includes/abilities.php:443
 msgid "Slugs of the current templates, components and settings_sets that extraction deletes first."
 msgstr ""
 
-#: includes/abilities.php:442
+#: includes/abilities.php:447
 msgid "Slugs of the templates, components and settings_sets present after extraction; null on a dry run."
 msgstr ""
 
-#: includes/abilities.php:463
+#: includes/abilities.php:468
 #: includes/features.php:813
 msgid "Get global CSS"
 msgstr ""
 
-#: includes/abilities.php:464
+#: includes/abilities.php:469
 msgid "Reads the site's saved global CSS — the ENTIRE framework stylesheet (reset, design tokens, utility classes), which the builder's update_global_css tool REPLACES wholesale rather than appending to. Returns the raw CSS plus the names of its named blocks (regions fenced by /* @block: name */ … /* @endblock */ comments). Pass block to fetch just one block's body instead of the whole stylesheet. To add or change CSS safely, prefer dbe/patch-global-css, which edits only a named block and can never clobber the framework."
 msgstr ""
 
-#: includes/abilities.php:472
-#: includes/abilities.php:569
+#: includes/abilities.php:477
+#: includes/abilities.php:574
 msgid "Return only this named block's body (token-cheap)."
 msgstr ""
 
-#: includes/abilities.php:500
+#: includes/abilities.php:505
 msgid "Patch global CSS (named block)"
 msgstr ""
 
-#: includes/abilities.php:501
+#: includes/abilities.php:506
 msgid "Adds, replaces or deletes ONE named block in the global stylesheet — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit. Every byte outside the named block is preserved verbatim, so unlike update_global_css this can never wipe the framework. A block that does not exist yet is appended at the end of the stylesheet. Typical use: a \"fonts\" block holding @font-face rules plus a :root override of --heading-font-family / --body-font-family. Saving does not publish; run dbe/publish for the change to reach logged-out visitors (a logged-in user already sees saved commits)."
-msgstr ""
-
-#: includes/abilities.php:509
-#: includes/abilities.php:612
-msgid "The block name."
 msgstr ""
 
 #: includes/abilities.php:514
 #: includes/abilities.php:617
-msgid "The block's new body (omit when deleting)."
+msgid "The block name."
 msgstr ""
 
 #: includes/abilities.php:519
 #: includes/abilities.php:622
-msgid "Remove the block entirely."
+msgid "The block's new body (omit when deleting)."
 msgstr ""
 
 #: includes/abilities.php:524
 #: includes/abilities.php:627
+msgid "Remove the block entirely."
+msgstr ""
+
+#: includes/abilities.php:529
+#: includes/abilities.php:632
 msgid "Preview: return the action and resulting stylesheet length without saving."
 msgstr ""
 
-#: includes/abilities.php:543
-#: includes/abilities.php:645
+#: includes/abilities.php:548
+#: includes/abilities.php:650
 msgid "The new commit (absent on a dry run)."
 msgstr ""
 
-#: includes/abilities.php:559
+#: includes/abilities.php:564
 #: includes/features.php:818
 msgid "Get entity CSS"
 msgstr ""
 
-#: includes/abilities.php:560
+#: includes/abilities.php:565
 msgid "Reads a template's saved entity CSS (the per-template stylesheet the builder's update_entity_css tool replaces wholesale). Returns the raw CSS plus the names of its named blocks (regions fenced by /* @block: name */ … /* @endblock */ comments). Pass block to fetch just one block's body. A template with no entity CSS returns an empty string, not an error. To add or change CSS safely, prefer dbe/patch-entity-css, which edits only a named block."
 msgstr ""
 
-#: includes/abilities.php:601
+#: includes/abilities.php:606
 msgid "Patch entity CSS (named block)"
 msgstr ""
 
-#: includes/abilities.php:602
+#: includes/abilities.php:607
 msgid "Adds, replaces or deletes ONE named block in a template's entity CSS — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit through Builderius' own save channel, without touching the open builder store. CSS outside the named block is preserved verbatim. A block that does not exist yet is appended at the end; a template with no entity CSS at all gets one created. CAUTION: if a builder tab has that template open with unsaved changes, saving or closing that tab afterwards can overwrite this commit with the tab's stale copy — save or discard the tab first. Saving does not publish; run dbe/publish for the change to reach logged-out visitors."
 msgstr ""
 
-#: includes/abilities.php:664
+#: includes/abilities.php:669
 msgid "List saved commits"
 msgstr ""
 
-#: includes/abilities.php:665
+#: includes/abilities.php:670
 msgid "Lists the saved commits of a template or of the global settings set (target \"global\"), newest first: name, date, description and — for the global set — each commit's stylesheet length, so a framework-clobbering save stands out as a sudden size drop. Use with dbe/restore-global-css-from-commit to roll the global CSS back to a pre-damage snapshot."
 msgstr ""
 
-#: includes/abilities.php:672
+#: includes/abilities.php:677
 msgid "\"global\" (default) for the global settings set, or a template post ID/slug."
 msgstr ""
 
-#: includes/abilities.php:677
+#: includes/abilities.php:682
 msgid "Maximum commits to return."
 msgstr ""
 
-#: includes/abilities.php:692
+#: includes/abilities.php:697
 msgid "The active commit's name."
 msgstr ""
 
-#: includes/abilities.php:705
+#: includes/abilities.php:710
 #: includes/features.php:969
 msgid "Restore global CSS from a commit"
 msgstr ""
 
-#: includes/abilities.php:706
+#: includes/abilities.php:711
 msgid "Recovery for a clobbered global stylesheet: reads the `css` setting from an earlier commit of the global settings set (find one with dbe/list-commits — a healthy framework is tens of KB) and saves it as a NEW commit, so the rollback is itself in history. Nothing else from the old commit is restored. Saving does not publish; run dbe/publish for the recovered CSS to reach logged-out visitors."
 msgstr ""
 
-#: includes/abilities.php:713
+#: includes/abilities.php:718
 msgid "The source commit name (from dbe/list-commits)."
 msgstr ""
 
-#: includes/abilities.php:718
+#: includes/abilities.php:723
 msgid "Preview: return the source stylesheet's length and first lines without saving."
 msgstr ""
 
-#: includes/abilities.php:732
+#: includes/abilities.php:737
 msgid "The new commit holding the restored CSS (absent on a dry run)."
 msgstr ""
 
-#: includes/abilities.php:738
+#: includes/abilities.php:743
 msgid "First lines of the restored stylesheet (dry run only)."
 msgstr ""
 
-#: includes/abilities.php:752
+#: includes/abilities.php:757
 msgid "Where the template applies: { \"location\": name, \"conditions\": rules }. Core locations: front_page, home, singulars, blog_posts, pages, archives, 404, entire_site; Pro adds custom_posts, post_type_archives, taxonomy_archives, tag_archives, author_archives, date/year/month/day_archives, search_results, attachment_posts. Conditions follow Builderius' rule tree, e.g. {\"condition\":\"or\",\"rules\":[{\"condition\":\"and\",\"rules\":[{\"name\":\"post_id\",\"operator\":\"equals\",\"value\":3}]}]}. Pass null to clear the rules (the template then applies nowhere)."
 msgstr ""
 
-#: includes/abilities.php:774
+#: includes/abilities.php:779
 #: includes/features.php:828
 msgid "Get template settings"
 msgstr ""
 
-#: includes/abilities.php:775
+#: includes/abilities.php:780
 msgid "Reads a Builderius template's registration-level settings — title, slug, enabled state, type, technology, sort order and apply rules (location + conditions) — plus its branch and saved commit. These are the settings the builder's template dialog edits, not the module tree (dbe/get-subtree-html) or CSS (dbe/get-entity-css). Omit template to list every template."
 msgstr ""
 
-#: includes/abilities.php:782
+#: includes/abilities.php:787
 msgid "Template post ID or slug. Omit for all templates."
 msgstr ""
 
-#: includes/abilities.php:805
+#: includes/abilities.php:810
 msgid "Create a template"
 msgstr ""
 
-#: includes/abilities.php:806
+#: includes/abilities.php:811
 msgid "Creates a Builderius template through the builder's own mutations, headlessly — no builder tab needed. Builderius initialises the master branch and an initial commit (site header/footer components, a <main> element and a default `wp` data variable), so dbe/get-subtree-html and dbe/apply-subtree-html work on it immediately. Type page uses the builder's createPageTemplate: pass page_id instead of a title — the title, slug and apply rule (that one page) all derive from the WP page or enabled custom-post; other inputs then act as post-create overrides. Types beyond regular/page/hook (e.g. doc) are created as regular and re-termed, matching the builder's behaviour. A non-page template is created enabled but applies nowhere until apply_rules is set (here or later via dbe/update-template). Creating never publishes; the new template reaches logged-out visitors only after dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:813
+#: includes/abilities.php:818
 msgid "Template title, shown in the builder's template list. Must be unique. Required unless page_id is passed."
 msgstr ""
 
-#: includes/abilities.php:817
+#: includes/abilities.php:822
 msgid "Slug. Defaults to a sanitised form of the title. Must be unique."
 msgstr ""
 
-#: includes/abilities.php:822
+#: includes/abilities.php:827
 msgid "Template type: regular, page (needs page_id), doc or hook (needs the hook fields below)."
 msgstr ""
 
-#: includes/abilities.php:826
+#: includes/abilities.php:831
 msgid "Page templates: the WordPress page/post (or enabled custom-post) ID the template is for. Implies type page; one template per page."
 msgstr ""
 
-#: includes/abilities.php:831
+#: includes/abilities.php:836
 msgid "Template technology. Sites normally have one: html."
 msgstr ""
 
-#: includes/abilities.php:836
+#: includes/abilities.php:841
 msgid "Whether the template is active. Disabled templates never render."
 msgstr ""
 
-#: includes/abilities.php:840
+#: includes/abilities.php:845
 msgid "Priority among templates whose rules match the same request; lower wins. Defaults to 10."
 msgstr ""
 
-#: includes/abilities.php:845
+#: includes/abilities.php:850
 msgid "Hook templates only: the WordPress hook name."
 msgstr ""
 
-#: includes/abilities.php:850
+#: includes/abilities.php:855
 msgid "Hook templates only: action or filter."
 msgstr ""
 
-#: includes/abilities.php:854
+#: includes/abilities.php:859
 msgid "Hook templates only: accepted args count. Defaults to 1."
 msgstr ""
 
-#: includes/abilities.php:872
+#: includes/abilities.php:877
 #: includes/features.php:919
 msgid "Update template settings"
 msgstr ""
 
-#: includes/abilities.php:873
+#: includes/abilities.php:878
 msgid "Updates a Builderius template's registration-level settings through the builder's own updateTemplate mutation: title, slug, enabled state, type, sort order and apply rules (location + conditions). Only the fields passed change. This edits the same settings as the builder's template dialog — an open builder tab that later saves that dialog can overwrite these values, so prefer editing with the tab closed. Module content and CSS are separate (dbe/apply-subtree-html, dbe/patch-entity-css). Changes reach logged-out visitors immediately for apply rules and enabled state (they live on the post, not in a release)."
 msgstr ""
 
-#: includes/abilities.php:880
-#: includes/abilities.php:919
+#: includes/abilities.php:885
+#: includes/abilities.php:924
 msgid "Template post ID or slug."
 msgstr ""
 
-#: includes/abilities.php:885
+#: includes/abilities.php:890
 msgid "New slug."
 msgstr ""
 
-#: includes/abilities.php:890
+#: includes/abilities.php:895
 msgid "Template type: regular, page, doc or hook."
 msgstr ""
 
-#: includes/abilities.php:911
+#: includes/abilities.php:916
 msgid "Delete a template"
 msgstr ""
 
-#: includes/abilities.php:912
+#: includes/abilities.php:917
 msgid "Permanently deletes a Builderius template through the builder's own deleteTemplate mutation, including its branches and commit history. This cannot be undone — there is no trash for Builderius templates. Requires confirm: true; confirm with the user before calling. A published release that included the template keeps rendering its already-built output until the next dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:924
-#: includes/abilities.php:1367
+#: includes/abilities.php:929
+#: includes/abilities.php:1372
 msgid "Must be true. Deletion is permanent; confirm with the user first."
 msgstr ""
 
-#: includes/abilities.php:947
+#: includes/abilities.php:952
 msgid "Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — data-variable-backed Collections usually bind global variables; literal JSON and URL sources do not need a data variable."
 msgstr ""
 
-#: includes/abilities.php:953
+#: includes/abilities.php:958
 #: includes/features.php:838
 msgid "Get data variables"
 msgstr ""
 
-#: includes/abilities.php:954
+#: includes/abilities.php:959
 msgid "Reads Builderius dynamic-data variables from the saved state: the GLOBAL settings set by default (data-variable-backed Collections can bind these with data-b-context=\"[[name.path]]\" or data-b-context=\"[[[name.path]]]\"), or one template's entity-scoped variables when template is passed. Collections can also use literal JSON or URL sources when those resolve to arrays. Each entry has name, type (graphQLQuery, json, …) and value (the GraphQL query text or JSON). The `wp` entry is the system variable (flagged system: true) — the current post/user/menu context. Returns the branch and commit for the expected_commit save flow."
 msgstr ""
 
-#: includes/abilities.php:1000
+#: includes/abilities.php:1005
 msgid "Create, update or delete a data variable"
 msgstr ""
 
-#: includes/abilities.php:1001
+#: includes/abilities.php:1006
 msgid "Creates, updates or deletes a Builderius dynamic-data variable in the saved state, committed through Builderius' own mutation. Works on the GLOBAL settings set by default (usual for data-variable-backed Collection loops) or one template when template is passed. Names are snake_case (the builder UI cannot edit camelCase names). graphQLQuery values are syntax-checked before saving; verify the query actually returns data on the rendered page afterwards (logged-in users see saved commits — no publish needed). Collections may also use literal JSON or URL sources when no data variable is needed. The system `wp` variable cannot be created, renamed or deleted; updating its query needs allow_system: true — that is the headless equivalent of the builder's dynamic-data helpers (e.g. adding nav_menu or metabox_value fields for settings pages). Read dbe/get-data-variables first for the current state and expected_commit. An open builder tab will not see the change until reloaded — and its own save can overwrite this; the dirty-tab preflight protects against that."
 msgstr ""
 
-#: includes/abilities.php:1012
+#: includes/abilities.php:1017
 msgid "The variable name. snake_case for create (e.g. team_data, never teamData)."
 msgstr ""
 
-#: includes/abilities.php:1016
+#: includes/abilities.php:1021
 msgid "Update only: rename the variable (snake_case). Bindings using the old name are NOT rewritten."
 msgstr ""
 
-#: includes/abilities.php:1022
+#: includes/abilities.php:1027
 msgid "Create only: the variable type."
 msgstr ""
 
-#: includes/abilities.php:1027
+#: includes/abilities.php:1032
 msgid "The GraphQL query text (graphQLQuery) or JSON text (json). Required for create; optional on update (omit to keep the current value when only renaming)."
 msgstr ""
 
-#: includes/abilities.php:1031
+#: includes/abilities.php:1036
 msgid "graphQLQuery only: GraphQL variables as a JSON object. Rarely needed."
 msgstr ""
 
-#: includes/abilities.php:1036
+#: includes/abilities.php:1041
 msgid "Required to update the system `wp` variable's query. Never allows renaming or deleting it."
 msgstr ""
 
-#: includes/abilities.php:1044
+#: includes/abilities.php:1049
 msgid "Preview: validate and return the resulting variable without saving."
 msgstr ""
 
-#: includes/abilities.php:1059
+#: includes/abilities.php:1064
 msgid "The resulting variable (null after delete)."
 msgstr ""
 
-#: includes/abilities.php:1074
+#: includes/abilities.php:1079
 msgid "Template (or component) post ID or slug for that entity's snippets — the right scope for page-specific behaviour. Omit for the GLOBAL settings set: site-wide snippets loaded on every Builderius page."
 msgstr ""
 
-#: includes/abilities.php:1080
+#: includes/abilities.php:1085
 #: includes/features.php:843
 msgid "Get JS snippets"
 msgstr ""
 
-#: includes/abilities.php:1081
+#: includes/abilities.php:1086
 msgid "Reads the Custom JS snippets from the saved state: the GLOBAL settings set by default (site-wide), or one template's snippets when template is passed. Each snippet has a label, generated id, code, and delivery options (external file vs inline, footer vs header, loading strategy, priority, enabled). Returns the branch and commit for the expected_commit save flow."
 msgstr ""
 
-#: includes/abilities.php:1118
+#: includes/abilities.php:1123
 msgid "Create, update or delete a JS snippet"
 msgstr ""
 
-#: includes/abilities.php:1119
+#: includes/abilities.php:1124
 msgid "Creates, updates or deletes a Custom JS snippet in the saved state, committed through Builderius' own mutation — the headless equivalent of the builder's JavaScript footer tool. Global scope by default (site-wide); pass template for page-specific snippets. Labels are snake_case (the builder UI cannot edit camelCase names). Defaults: served as a generated external file, in the footer, enabled. Write vanilla JS wrapped in DOMContentLoaded, use event delegation with data-* attribute hooks, and toggle CSS state classes rather than inline styles. Read dbe/get-js-snippets first for the current state and expected_commit. Saved snippets render for logged-in users immediately; logged-out visitors need dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:1130
+#: includes/abilities.php:1135
 msgid "The snippet's label or id. For create, the new snippet's label (snake_case, e.g. faq_accordion)."
 msgstr ""
 
-#: includes/abilities.php:1134
+#: includes/abilities.php:1139
 msgid "Update only: rename the snippet (snake_case). The generated id is stable across renames."
 msgstr ""
 
-#: includes/abilities.php:1139
+#: includes/abilities.php:1144
 msgid "The JavaScript source. Required for create."
 msgstr ""
 
-#: includes/abilities.php:1143
+#: includes/abilities.php:1148
 msgid "Insert in the footer (default true) or the header (false)."
 msgstr ""
 
-#: includes/abilities.php:1147
+#: includes/abilities.php:1152
 msgid "Serve as a generated external .js file (default true) or as an inline script (false)."
 msgstr ""
 
-#: includes/abilities.php:1152
+#: includes/abilities.php:1157
 msgid "Loading strategy for external snippets."
 msgstr ""
 
-#: includes/abilities.php:1158
+#: includes/abilities.php:1163
 msgid "Shown in the builder's snippet configure panel."
 msgstr ""
 
-#: includes/abilities.php:1162
+#: includes/abilities.php:1167
 msgid "Load order among snippets; lower loads first. Default 10."
 msgstr ""
 
-#: includes/abilities.php:1170
+#: includes/abilities.php:1175
 msgid "Preview: validate and return the resulting snippet without saving."
 msgstr ""
 
-#: includes/abilities.php:1185
+#: includes/abilities.php:1190
 msgid "The resulting snippet (null after delete)."
 msgstr ""
 
-#: includes/abilities.php:1200
+#: includes/abilities.php:1205
 msgid "Component post ID or slug."
 msgstr ""
 
-#: includes/abilities.php:1212
-#: includes/abilities.php:1317
+#: includes/abilities.php:1217
+#: includes/abilities.php:1322
 msgid "The default value: a string for text (may be a [[binding]]), a boolean for boolean."
 msgstr ""
 
-#: includes/abilities.php:1216
+#: includes/abilities.php:1221
 msgid "select only: [{ value, label?, default? }]."
 msgstr ""
 
-#: includes/abilities.php:1225
+#: includes/abilities.php:1230
 #: includes/features.php:833
 msgid "List components"
 msgstr ""
 
-#: includes/abilities.php:1226
+#: includes/abilities.php:1231
 msgid "Lists every Builderius component with its declared properties (from the saved state) and branch/commit. Components are reusable module trees; instances are placed in templates with <dbe-component name=\"slug\" prop=\"value\"> in dbe/apply-subtree-html, and a component's internals are edited with the same subtree/CSS/data abilities using entity_type: \"component\". Inside a component, a declared property is referenced as [[props.name]] (escaped) or [[[props.name]]] (raw), e.g. in a Collection's data-b-context."
 msgstr ""
 
-#: includes/abilities.php:1233
+#: includes/abilities.php:1238
 msgid "Component post ID or slug. Omit for all components."
 msgstr ""
 
-#: includes/abilities.php:1256
+#: includes/abilities.php:1261
 msgid "Create a component"
 msgstr ""
 
-#: includes/abilities.php:1257
+#: includes/abilities.php:1262
 msgid "Creates a Builderius component through the builder's own createComponent mutation, headlessly, then scaffolds its saved config (a single root <div>, the standard wp data variable, and any declared properties) so the content abilities work on it immediately: author its internals with dbe/apply-subtree-html and its styles with dbe/patch-entity-css, both with entity_type: \"component\". Titles map to snake_case slugs (hyphens become underscores). Declared properties become instance attributes (<dbe-component name=\"slug\" my_prop=\"…\">) and are read inside the component as [[props.my_prop]] / [[[props.my_prop]]]. Components may nest other components (place <dbe-component> in their internals)."
 msgstr ""
 
-#: includes/abilities.php:1264
+#: includes/abilities.php:1269
 msgid "Component title. Must be unique; the slug is derived from it (or from name)."
 msgstr ""
 
-#: includes/abilities.php:1268
+#: includes/abilities.php:1273
 msgid "Slug (snake_case). Defaults to the sanitised title."
 msgstr ""
 
-#: includes/abilities.php:1276
+#: includes/abilities.php:1281
 msgid "Declared properties. Names are lowercase snake_case (attribute names lowercase in HTML). Types: text (placeholder = default, may be a [[binding]]), select (options with one default: true), boolean (placeholder true/false)."
 msgstr ""
 
-#: includes/abilities.php:1296
+#: includes/abilities.php:1301
 msgid "Create, update or delete a component property"
 msgstr ""
 
-#: includes/abilities.php:1297
+#: includes/abilities.php:1302
 msgid "Manages a component's declared properties (the componentTmplProperties of its saved config), committed through Builderius' own mutation. Property names are lowercase snake_case and cannot be renamed — instance overrides across templates reference the name, so delete and redeclare instead, then re-apply overrides. Deleting is refused while the component's own internals still reference [[props.name]]; remove those references first with dbe/apply-subtree-html (entity_type: \"component\"). Read dbe/list-components first for the current properties and expected_commit."
 msgstr ""
 
-#: includes/abilities.php:1309
+#: includes/abilities.php:1314
 msgid "The property name (lowercase snake_case, e.g. heading_text)."
 msgstr ""
 
-#: includes/abilities.php:1321
+#: includes/abilities.php:1326
 msgid "select only: [{ value, label?, default? }] with exactly one default: true."
 msgstr ""
 
-#: includes/abilities.php:1357
+#: includes/abilities.php:1362
 msgid "Delete a component"
 msgstr ""
 
-#: includes/abilities.php:1358
+#: includes/abilities.php:1363
 msgid "Permanently deletes a Builderius component through the builder's own deleteComponent mutation, including its branches and commit history. Refused while any template or component still uses it (the usage list is returned — remove those instances first with dbe/apply-subtree-html). Requires confirm: true; confirm with the user before calling."
 msgstr ""
 
