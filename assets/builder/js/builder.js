@@ -5777,6 +5777,25 @@
         'transform', 'transition', 'visibility', 'cursor', 'pointer-events'
     ];
 
+    /* Properties whose computed values normally inherit from an ancestor.
+       Custom properties are handled separately in dbeStyleCanInherit(). The
+       list deliberately includes inherited SVG presentation properties and
+       common shorthands such as font/list-style so authored rules remain
+       recognisable instead of being exploded into browser longhands. */
+    var DBE_STYLE_INHERITED_PROPERTIES = {};
+    (
+        'accent-color border-collapse border-spacing caption-side color cursor direction empty-cells ' +
+        'fill fill-opacity fill-rule font font-family font-feature-settings font-kerning font-language-override ' +
+        'font-optical-sizing font-palette font-size font-size-adjust font-stretch font-style font-synthesis ' +
+        'font-variant font-variation-settings font-weight hyphens image-rendering letter-spacing line-break ' +
+        'line-height list-style list-style-image list-style-position list-style-type marker marker-end marker-mid ' +
+        'marker-start orphans overflow-wrap paint-order pointer-events quotes ruby-align ruby-position shape-rendering ' +
+        'speak stroke stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit ' +
+        'stroke-opacity stroke-width tab-size text-align text-align-last text-combine-upright text-indent text-justify ' +
+        'text-orientation text-rendering text-shadow text-transform text-underline-position visibility white-space ' +
+        'widows word-break word-spacing word-wrap writing-mode'
+    ).split(' ').forEach(function (name) { DBE_STYLE_INHERITED_PROPERTIES[name] = true; });
+
     var DBE_STYLE_PSEUDO_PROPERTIES = [
         'content', 'display', 'position', 'inset', 'z-index', 'box-sizing',
         'inline-size', 'block-size', 'margin', 'padding', 'overflow',
@@ -5971,30 +5990,119 @@
         return '';
     }
 
-    function dbeStyleMatchedRules(el, id) {
+    function dbeStyleCanInherit(name, includeCustomProperties) {
+        return (includeCustomProperties && name.indexOf('--') === 0) || !!DBE_STYLE_INHERITED_PROPERTIES[name];
+    }
+
+    function dbeStyleElementModuleId(el) {
+        if (!el || !el.classList) { return ''; }
+        var mods = modules() || {};
+        for (var i = 0; i < el.classList.length; i++) {
+            var match = /^uni-node-(.+)$/.exec(el.classList[i]);
+            if (match && mods[match[1]]) { return match[1]; }
+        }
+        return '';
+    }
+
+    function dbeStyleSelectorModuleId(selector) {
+        var mods = modules() || {};
+        var re = /\.uni-node-([A-Za-z0-9_-]+)/g;
+        var match;
+        while ((match = re.exec(selector))) {
+            if (mods[match[1]]) { return match[1]; }
+        }
+        return '';
+    }
+
+    function dbeStyleClosestMatch(el, selector) {
+        try { return el.closest(selector); } catch (e) { return null; }
+    }
+
+    function dbeStyleElementName(el) {
+        if (!el || !el.tagName) { return ''; }
+        var name = '<' + el.tagName.toLowerCase();
+        if (el.id) { name += '#' + el.id; }
+        var classes = [].slice.call(el.classList || []).filter(function (className) {
+            return className.indexOf('uni-node-') !== 0;
+        }).slice(0, 3);
+        if (classes.length) { name += '.' + classes.join('.'); }
+        return name + '>';
+    }
+
+    /* Native CSS nesting keeps child CSSStyleRules inside the parent rule and
+       serialises their relative selectors with `&`. Resolve that selector for
+       Element.matches() while retaining the outer selector as the edit route.
+       :is() preserves selector lists without a fragile string cross-product. */
+    function dbeStyleResolveNestedSelector(parentSelector, selector) {
+        if (!parentSelector) { return selector; }
+        var parent = ':is(' + parentSelector + ')';
+        return dbeStyleSplitSelectorList(selector).map(function (part) {
+            if (part.indexOf('&') !== -1) { return part.replace(/&/g, parent); }
+            return parent + ' ' + part;
+        }).join(', ');
+    }
+
+    /* Flatten every accessible rule from ordinary and adopted stylesheets.
+       Unlike the old walker, a CSSStyleRule is not a leaf: CSS Nesting makes
+       it a grouping rule, so its child rules must be visited with the resolved
+       parent selector. Nested conditional rules keep the same parent context. */
+    function dbeStyleAccessibleRules(el, id) {
         var found = [];
         var idoc = el.ownerDocument;
         var view = idoc.defaultView;
-        function walk(rules, contexts) {
+        function walk(rules, contexts, parentSelector, root) {
             for (var i = 0; i < rules.length; i++) {
                 var rule = rules[i];
                 if (rule.selectorText && rule.style) {
-                    try {
-                        if (el.matches(rule.selectorText)) {
-                            var source = dbeStyleRuleSource(rule, id);
-                            var matchedClass = dbeStyleMatchedClass(rule.selectorText, id);
-                            var simpleClass = matchedClass && normSel(rule.selectorText) === matchedClass;
-                            found.push({
-                                selector: rule.selectorText,
-                                style: rule.style,
-                                source: source,
-                                contexts: contexts.slice(),
-                                editSelector: source === 'local' ? '%local%' : (source === 'page' ? '' : rule.selectorText),
-                                editMode: source === 'local' || simpleClass ? 'element' : 'stylesheet'
-                            });
-                        }
-                    } catch (e) { /* selector unsupported by Element.matches */ }
+                    var resolvedSelector = dbeStyleResolveNestedSelector(parentSelector, rule.selectorText);
+                    var rootInfo = root;
+                    if (!rootInfo) {
+                        var selectorId = dbeStyleSelectorModuleId(rule.selectorText);
+                        var owner = dbeStyleClosestMatch(el, resolvedSelector);
+                        var targetId = selectorId || dbeStyleElementModuleId(owner) || id;
+                        var source = dbeStyleRuleSource(rule, targetId);
+                        var matchedClass = dbeStyleMatchedClass(rule.selectorText, targetId);
+                        var simpleClass = matchedClass && normSel(rule.selectorText) === matchedClass;
+                        rootInfo = {
+                            source: source,
+                            targetId: targetId,
+                            editSelector: source === 'local' ? '%local%' : (source === 'page' ? '' : rule.selectorText),
+                            editMode: source === 'local' || simpleClass ? 'element' : 'stylesheet'
+                        };
+                    }
+                    if (rule.style.length) {
+                        found.push({
+                            selector: resolvedSelector,
+                            authoredSelector: rule.selectorText,
+                            style: rule.style,
+                            source: rootInfo.source,
+                            targetId: rootInfo.targetId,
+                            contexts: contexts.slice(),
+                            nested: !!parentSelector,
+                            editSelector: rootInfo.editSelector,
+                            editMode: rootInfo.editMode
+                        });
+                    }
+                    if (rule.cssRules) {
+                        try { walk(rule.cssRules, contexts, resolvedSelector, rootInfo); } catch (e) {}
+                    }
                     continue;
+                }
+                // Declarations written after a nested rule are represented by
+                // CSSNestedDeclarations: a style block with no selector of its
+                // own. They still belong to the current parent selector.
+                if (rule.style && parentSelector && rule.style.length && root) {
+                    found.push({
+                        selector: parentSelector,
+                        authoredSelector: parentSelector,
+                        style: rule.style,
+                        source: root.source,
+                        targetId: root.targetId,
+                        contexts: contexts.slice(),
+                        nested: true,
+                        editSelector: root.editSelector,
+                        editMode: root.editMode
+                    });
                 }
                 if (!rule.cssRules) { continue; }
                 var nextContexts = contexts.slice();
@@ -6004,7 +6112,7 @@
                 } else if (rule.conditionText) {
                     nextContexts.push(rule.cssText.split('{')[0].trim());
                 }
-                try { walk(rule.cssRules, nextContexts); } catch (e) {}
+                try { walk(rule.cssRules, nextContexts, parentSelector, root); } catch (e) {}
             }
         }
         // Builderius places the saved global/entity styles in constructable
@@ -6013,9 +6121,51 @@
         // may expose an adopted sheet through both collections.
         var sheets = [].slice.call(idoc.styleSheets || []).concat([].slice.call(idoc.adoptedStyleSheets || []));
         sheets.filter(function (sheet, index) { return sheets.indexOf(sheet) === index; }).forEach(function (sheet) {
-            try { walk(sheet.cssRules, []); } catch (e) { /* cross-origin stylesheet */ }
+            try { walk(sheet.cssRules, [], '', null); } catch (e) { /* cross-origin stylesheet */ }
+        });
+        return found;
+    }
+
+    function dbeStyleMatchedRules(el, id, accessibleRules) {
+        var found = (accessibleRules || dbeStyleAccessibleRules(el, id)).filter(function (rule) {
+            try { return el.matches(rule.selector); } catch (e) { return false; }
         });
         return found.reverse(); // later rules first, matching DevTools' scan order
+    }
+
+    function dbeStyleInheritedRuleGroups(el, accessibleRules, query) {
+        var ancestors = [];
+        var parent = el.parentElement;
+        while (parent) {
+            ancestors.push({ element: parent, label: dbeStyleElementName(parent), rules: [] });
+            parent = parent.parentElement;
+        }
+        if (!ancestors.length) { return []; }
+        var childComputed = el.ownerDocument.defaultView.getComputedStyle(el);
+        accessibleRules.forEach(function (rule) {
+            try { if (el.matches(rule.selector)) { return; } } catch (e) { return; }
+            var inherited = [];
+            for (var i = 0; i < rule.style.length; i++) {
+                var property = rule.style[i];
+                if (dbeStyleCanInherit(property, !!query)) { inherited.push(property); }
+            }
+            if (!inherited.length) { return; }
+            ancestors.forEach(function (group) {
+                try { if (!group.element.matches(rule.selector)) { return; } } catch (e) { return; }
+                var ancestorComputed = group.element.ownerDocument.defaultView.getComputedStyle(group.element);
+                var activeProperties = inherited.filter(function (property) {
+                    var childValue = childComputed.getPropertyValue(property).trim();
+                    return childValue && childValue === ancestorComputed.getPropertyValue(property).trim();
+                });
+                if (!activeProperties.length) { return; }
+                var inheritedRule = {};
+                Object.keys(rule).forEach(function (key) { inheritedRule[key] = rule[key]; });
+                inheritedRule.properties = activeProperties;
+                group.rules.push(inheritedRule);
+            });
+        });
+        ancestors.forEach(function (group) { group.rules.reverse(); });
+        return ancestors.filter(function (group) { return group.rules.length; });
     }
 
     /* Split grouped selectors without treating commas inside functional
@@ -6084,51 +6234,21 @@
 
     function dbeStylePseudoRules(el, id) {
         var found = [];
-        var idoc = el.ownerDocument;
-        var view = idoc.defaultView;
-        function walk(rules, contexts) {
-            for (var i = 0; i < rules.length; i++) {
-                var rule = rules[i];
-                if (rule.selectorText && rule.style) {
-                    var source = dbeStyleRuleSource(rule, id);
-                    var matchedClass = dbeStyleMatchedClass(rule.selectorText, id);
-                    var simpleClass = matchedClass && normSel(rule.selectorText) === matchedClass;
-                    dbeStyleSplitSelectorList(rule.selectorText).forEach(function (selector) {
-                        var tokens = dbeStylePseudoTokens(selector);
-                        if (!tokens.all.length) { return; }
-                        try {
-                            if (!el.matches(dbeStylePseudoBaseSelector(selector))) { return; }
-                            var activeSelector = selector.replace(DBE_STYLE_ELEMENT_RE, '').trim() || '*';
-                            var active = el.matches(activeSelector);
-                            found.push({
-                                selector: selector,
-                                authoredSelector: rule.selectorText,
-                                style: rule.style,
-                                source: source,
-                                contexts: contexts.slice(),
-                                tokens: tokens,
-                                active: active,
-                                editSelector: source === 'local' ? '%local%' : (source === 'page' ? '' : rule.selectorText),
-                                editMode: source === 'local' || simpleClass ? 'element' : 'stylesheet'
-                            });
-                        } catch (e) { /* selector unsupported by Element.matches */ }
-                    });
-                    continue;
-                }
-                if (!rule.cssRules) { continue; }
-                var nextContexts = contexts.slice();
-                if (rule.media && rule.media.mediaText) {
-                    try { if (!view.matchMedia(rule.media.mediaText).matches) { continue; } } catch (e) {}
-                    nextContexts.push('@media ' + rule.media.mediaText);
-                } else if (rule.conditionText) {
-                    nextContexts.push(rule.cssText.split('{')[0].trim());
-                }
-                try { walk(rule.cssRules, nextContexts); } catch (e) {}
-            }
-        }
-        var sheets = [].slice.call(idoc.styleSheets || []).concat([].slice.call(idoc.adoptedStyleSheets || []));
-        sheets.filter(function (sheet, index) { return sheets.indexOf(sheet) === index; }).forEach(function (sheet) {
-            try { walk(sheet.cssRules, []); } catch (e) { /* cross-origin stylesheet */ }
+        dbeStyleAccessibleRules(el, id).forEach(function (rule) {
+            dbeStyleSplitSelectorList(rule.selector).forEach(function (selector) {
+                var tokens = dbeStylePseudoTokens(selector);
+                if (!tokens.all.length) { return; }
+                try {
+                    if (!el.matches(dbeStylePseudoBaseSelector(selector))) { return; }
+                    var activeSelector = selector.replace(DBE_STYLE_ELEMENT_RE, '').trim() || '*';
+                    var pseudoRule = {};
+                    Object.keys(rule).forEach(function (key) { pseudoRule[key] = rule[key]; });
+                    pseudoRule.selector = selector;
+                    pseudoRule.tokens = tokens;
+                    pseudoRule.active = el.matches(activeSelector);
+                    found.push(pseudoRule);
+                } catch (e) { /* selector unsupported by Element.matches */ }
+            });
         });
         return found.reverse();
     }
@@ -6180,21 +6300,23 @@
         content.appendChild(dl);
     }
 
-    function dbeStyleRenderRules(content, el, id) {
-        var query = dbeStyleInspectorState.filter.toLowerCase();
-        var rules = dbeStyleMatchedRules(el, id).filter(function (rule) {
-            if (!query) { return true; }
-            var text = rule.selector + ' ';
-            for (var i = 0; i < rule.style.length; i++) {
-                var prop = rule.style[i];
-                text += prop + ' ' + rule.style.getPropertyValue(prop) + ' ';
-            }
-            return text.toLowerCase().indexOf(query) !== -1;
+    function dbeStyleRuleProperties(rule) {
+        if (rule.properties) { return rule.properties; }
+        var properties = [];
+        for (var i = 0; i < rule.style.length; i++) { properties.push(rule.style[i]); }
+        return properties;
+    }
+
+    function dbeStyleRuleMatchesFilter(rule, query, extra) {
+        if (!query) { return true; }
+        var text = rule.selector + ' ' + (extra || '') + ' ';
+        dbeStyleRuleProperties(rule).forEach(function (property) {
+            text += property + ' ' + rule.style.getPropertyValue(property) + ' ';
         });
-        if (!rules.length) {
-            content.appendChild(dbeStyleEmpty(dbeT('styleNoMatchedRules', 'No accessible authored rules match this rendered element.')));
-            return;
-        }
+        return text.toLowerCase().indexOf(query) !== -1;
+    }
+
+    function dbeStyleRenderRuleList(rules, fallbackId) {
         var list = document.createElement('ol');
         list.className = 'dbe-style-inspector__rules';
         rules.forEach(function (rule) {
@@ -6210,7 +6332,9 @@
             copy.appendChild(selector);
             var meta = document.createElement('div');
             meta.className = 'dbe-style-inspector__rule-meta';
-            [dbeStyleSourceLabel(rule.source)].concat(rule.contexts).forEach(function (label) {
+            var metaLabels = [dbeStyleSourceLabel(rule.source)];
+            if (rule.nested) { metaLabels.push(dbeT('styleNestedRule', 'Nested')); }
+            metaLabels.concat(rule.contexts).forEach(function (label) {
                 var badge = document.createElement('span');
                 badge.className = 'dbe-style-inspector__badge';
                 badge.textContent = label;
@@ -6227,15 +6351,14 @@
                     var inspector = document.querySelector('.dbe-style-inspector');
                     if (inspector) { inspector.remove(); dbeStyleInspectorState.id = null; }
                     if (rule.editMode === 'stylesheet') { dbeOpenStylesheetSelector(rule.editSelector, editScope); }
-                    else { dbeOpenStyleEditor(id, rule.editSelector, editScope); }
+                    else { dbeOpenStyleEditor(rule.targetId || fallbackId, rule.editSelector, editScope); }
                 });
                 head.appendChild(edit);
             }
             item.appendChild(head);
             var declarations = document.createElement('dl');
             declarations.className = 'dbe-style-inspector__declarations';
-            for (var i = 0; i < rule.style.length; i++) {
-                var prop = rule.style[i];
+            dbeStyleRuleProperties(rule).forEach(function (prop) {
                 var decl = document.createElement('div');
                 decl.className = 'dbe-style-inspector__declaration';
                 var dt = document.createElement('dt');
@@ -6243,10 +6366,53 @@
                 dt.textContent = prop + ':';
                 dd.textContent = rule.style.getPropertyValue(prop).trim() + (rule.style.getPropertyPriority(prop) ? ' !important' : '');
                 decl.appendChild(dt); decl.appendChild(dd); declarations.appendChild(decl);
-            }
+            });
             item.appendChild(declarations); list.appendChild(item);
         });
-        content.appendChild(list);
+        return list;
+    }
+
+    function dbeStyleRenderRules(content, el, id) {
+        var query = dbeStyleInspectorState.filter.toLowerCase();
+        var accessibleRules = dbeStyleAccessibleRules(el, id);
+        var rules = dbeStyleMatchedRules(el, id, accessibleRules).filter(function (rule) {
+            return dbeStyleRuleMatchesFilter(rule, query);
+        });
+        var inheritedGroups = dbeStyleInheritedRuleGroups(el, accessibleRules, query).map(function (group) {
+            return {
+                label: group.label,
+                rules: group.rules.filter(function (rule) {
+                    return dbeStyleRuleMatchesFilter(rule, query, group.label);
+                })
+            };
+        }).filter(function (group) { return group.rules.length; });
+        if (!rules.length && !inheritedGroups.length) {
+            content.appendChild(dbeStyleEmpty(dbeT('styleNoMatchedRules', 'No accessible authored rules match this rendered element.')));
+            return;
+        }
+        if (rules.length) { content.appendChild(dbeStyleRenderRuleList(rules, id)); }
+        if (!inheritedGroups.length) { return; }
+        var inheritedSection = document.createElement('section');
+        inheritedSection.className = 'dbe-style-inspector__section dbe-style-inspector__inherited';
+        var heading = document.createElement('h3');
+        heading.className = 'dbe-style-inspector__section-title';
+        heading.textContent = dbeT('styleInheritedStyles', 'Inherited styles');
+        inheritedSection.appendChild(heading);
+        var hint = document.createElement('p');
+        hint.className = 'dbe-style-inspector__hint';
+        hint.textContent = dbeT('styleInheritedHint', 'Rules on ancestors whose inheritable declarations resolve to the same value here. Computed shows the final cascade.');
+        inheritedSection.appendChild(hint);
+        inheritedGroups.forEach(function (group) {
+            var ancestor = document.createElement('section');
+            ancestor.className = 'dbe-style-inspector__inherited-group';
+            var ancestorHeading = document.createElement('h4');
+            ancestorHeading.className = 'dbe-style-inspector__inherited-from';
+            ancestorHeading.textContent = dbeFmt(dbeT('styleInheritedFrom', 'Inherited from %s'), group.label);
+            ancestor.appendChild(ancestorHeading);
+            ancestor.appendChild(dbeStyleRenderRuleList(group.rules, id));
+            inheritedSection.appendChild(ancestor);
+        });
+        content.appendChild(inheritedSection);
     }
 
     function dbeStyleRenderPseudos(content, el, id) {
@@ -6337,7 +6503,9 @@
             copy.appendChild(selector);
             var meta = document.createElement('div');
             meta.className = 'dbe-style-inspector__rule-meta';
-            var labels = [dbeStyleSourceLabel(rule.source)].concat(rule.tokens.all).concat(rule.contexts);
+            var labels = [dbeStyleSourceLabel(rule.source)];
+            if (rule.nested) { labels.push(dbeT('styleNestedRule', 'Nested')); }
+            labels = labels.concat(rule.tokens.all).concat(rule.contexts);
             labels.push(rule.active ? dbeT('stylePseudoActive', 'Active now') : dbeT('stylePseudoInactive', 'Inactive state'));
             labels.forEach(function (label, index) {
                 var badge = document.createElement('span');
@@ -6357,7 +6525,7 @@
                     var inspector = document.querySelector('.dbe-style-inspector');
                     if (inspector) { inspector.remove(); dbeStyleInspectorState.id = null; }
                     if (rule.editMode === 'stylesheet') { dbeOpenStylesheetSelector(rule.editSelector, editScope); }
-                    else { dbeOpenStyleEditor(id, rule.editSelector, editScope); }
+                    else { dbeOpenStyleEditor(rule.targetId || id, rule.editSelector, editScope); }
                 });
                 head.appendChild(edit);
             }

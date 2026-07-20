@@ -298,6 +298,11 @@ function dbe_builder_strings() {
 		'styleInstanceCount'            => __( '%1$s of %2$s rendered instances', 'daveden-builderius-enhancements' ),
 		'styleNoCanvasElement'          => __( 'This element is not currently rendered in the canvas.', 'daveden-builderius-enhancements' ),
 		'styleNoMatchedRules'           => __( 'No accessible authored rules match this rendered element.', 'daveden-builderius-enhancements' ),
+		'styleInheritedStyles'          => __( 'Inherited styles', 'daveden-builderius-enhancements' ),
+		'styleInheritedHint'            => __( 'Rules on ancestors whose inheritable declarations resolve to the same value here. Computed shows the final cascade.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: ancestor element descriptor, for example <section.hero>. */
+		'styleInheritedFrom'            => __( 'Inherited from %s', 'daveden-builderius-enhancements' ),
+		'styleNestedRule'               => __( 'Nested', 'daveden-builderius-enhancements' ),
 		'styleNoProperties'             => __( 'No computed properties match this filter.', 'daveden-builderius-enhancements' ),
 		'styleNoPseudos'                => __( 'No authored pseudo-state or pseudo-element rules are connected to this element.', 'daveden-builderius-enhancements' ),
 		'stylePseudoHint'               => __( 'Inactive states show authored declarations. Computed values are available for generated pseudo-elements and states currently active in the canvas.', 'daveden-builderius-enhancements' ),

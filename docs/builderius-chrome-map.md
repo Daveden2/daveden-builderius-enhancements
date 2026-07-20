@@ -65,6 +65,12 @@ Collection has several). The rendered document exposes ordinary linked/inline
 CSS through `document.styleSheets`, while Builderius's saved Global and
 Template/Component styles are constructable sheets in
 `document.adoptedStyleSheets`; a live style inspector must read both collections.
+Native nested style rules remain children of their parent `CSSStyleRule`, so a
+rule walker must recurse through style rules as well as conditional at-rules and
+resolve each child selector against its parent context. Inherited-rule
+provenance requires matching ancestor elements separately from the selected
+element; `getComputedStyle()` supplies the final value but not its authored
+source.
 
 ### Right panel — the Navigator — `.uniRightPanel`
 

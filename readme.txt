@@ -63,7 +63,7 @@ A short summary of recent releases. The full, detailed notes for every release l
 = 2.1.0 =
 A direct route from an element to the CSS that affects it, with a compact DevTools-style overview inside Builderius.
 * New: Style inspector (Pro, experimental, off by default). Open it from an element's Styles context-menu flyout or the command palette to see matching authored rules, searchable computed CSS properties, and connected pseudo-state or pseudo-element selectors such as :hover and ::before.
-* New: matched rules identify Local, Global and Template or Component sources, show active media-query context, and provide Edit rule buttons that open Builderius's own editor at the correct selector and scope. Custom and compound selectors open in the native Selector CSS editor.
+* New: matched rules identify Local, Global and Template or Component sources, follow native nested CSS, group inherited declarations by ancestor, show active media-query context, and provide Edit rule buttons that open Builderius's own editor at the correct selector and scope. Custom and compound selectors open in the native Selector CSS editor.
 * Improved: Collections with several rendered instances can be inspected one instance at a time. The persistent non-modal panel is keyboard-operable, preserves its scroll position during builder updates and leaves framework or page rules read-only when they do not belong to an editable Builderius scope.
 
 = 2.0.0 =

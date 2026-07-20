@@ -577,7 +577,7 @@ function dbe_features() {
 		'style_inspector'       => array(
 			'title'        => __( 'Style inspector', 'daveden-builderius-enhancements' ),
 			'summary'      => __( 'Inspect an element’s computed CSS and jump straight to its rules.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds a Styles flyout to element context menus and matching command-palette actions for opening local, global and template or component class styles directly. Inspect styles opens a persistent DevTools-like panel with searchable computed properties and the live authored rules matching the rendered element, including their scope and active media-query context. Rule edit buttons return to Builderius’s own Styles editor rather than introducing a second editing surface. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds a Styles flyout to element context menus and matching command-palette actions for opening local, global and template or component class styles directly. Inspect styles opens a persistent DevTools-like panel with searchable computed properties and the live authored rules affecting the rendered element, including nested selectors, inherited declarations grouped by ancestor, their scope and active media-query context. Rule edit buttons return to Builderius’s own Styles editor rather than introducing a second editing surface. Experimental, and requires Builderius Pro.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'styles',
 			'css'          => array( '45-style-inspector.css' ),
 			'shared_css'   => array( '30-context-menu.css' ),

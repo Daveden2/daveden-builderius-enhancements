@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-19T10:01:19+00:00\n"
+"POT-Creation-Date: 2026-07-20T00:38:37+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: daveden-builderius-enhancements.php
 #: includes/settings-page.php:44
 #: includes/settings-page.php:52
-#: includes/settings-page.php:522
+#: includes/settings-page.php:524
 msgid "Daveden Builder Enhancements"
 msgstr ""
 
@@ -54,242 +54,242 @@ msgstr ""
 msgid "Builderius required"
 msgstr ""
 
-#: includes/abilities-verify.php:57
+#: includes/abilities-verify.php:61
 msgid "Plain-text strings that MUST appear in the rendered HTML."
 msgstr ""
 
-#: includes/abilities-verify.php:62
+#: includes/abilities-verify.php:70
 msgid "Plain-text strings that must NOT appear (e.g. a row that a filter should exclude)."
 msgstr ""
 
-#: includes/abilities-verify.php:67
+#: includes/abilities-verify.php:79
 msgid "Label texts that must be followed by visible non-blank text — catches bindings that resolve to empty (numeric 0, \"0\", null and \"\" all render blank)."
 msgstr ""
 
-#: includes/abilities-verify.php:74
-#: includes/features.php:872
+#: includes/abilities-verify.php:86
+#: includes/features.php:873
 msgid "Check rendered output"
 msgstr ""
 
-#: includes/abilities-verify.php:75
+#: includes/abilities-verify.php:87
 msgid "Fetches one front-end page as the invoking user (an authenticated loopback — logged-in users see saved dev-branch commits, so no publish is needed) and scans the HTML for the dynamic-data failures that save-time validation cannot catch: leaked <template> elements, unresolved [[...]] or {{...}} bindings, PHP warnings/fatals, missing expected text, unexpectedly present text, and labels with blank values. Interactive (client-side URL-source) Collections are exempt from the template/binding scan — their markup legitimately ships to the browser. A saved data variable with a bad nested field, a scalar Collection source or a runtime resolver failure all pass dbe/manage-data-variable but fail here — run this after every dynamic-data save. Pass page (post ID or path) or a same-site url, plus optional query args."
 msgstr ""
 
-#: includes/abilities-verify.php:83
+#: includes/abilities-verify.php:96
 msgid "WordPress post ID or path (e.g. \"dbe-dynamic-stress\" or \"/events/\") to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:87
-#: includes/abilities-verify.php:135
+#: includes/abilities-verify.php:101
+#: includes/abilities-verify.php:151
 msgid "Full same-site URL to fetch. Other hosts are refused."
 msgstr ""
 
-#: includes/abilities-verify.php:92
+#: includes/abilities-verify.php:106
 msgid "Query parameters to append, e.g. {\"topic\": \"dbe-stress-build\", \"listing_page\": \"2\"}."
 msgstr ""
 
-#: includes/abilities-verify.php:107
+#: includes/abilities-verify.php:121
 msgid "Each failure: check, message, and up to five matches with line numbers."
 msgstr ""
 
-#: includes/abilities-verify.php:122
-#: includes/features.php:877
+#: includes/abilities-verify.php:136
+#: includes/features.php:878
 msgid "Check render scenarios"
 msgstr ""
 
-#: includes/abilities-verify.php:123
+#: includes/abilities-verify.php:137
 msgid "Runs dbe/check-rendered-output across a matrix of request scenarios against one page — each scenario sets its own query parameters and/or cookies and its own expectations. This is how URL-driven listings are proven: default filters, a valid override, an invalid value falling back, pagination pages, cookie-segmented content and recursive roots, in one call. Shared expect/absent/nonblank_labels apply to every scenario on top of the per-scenario ones. At most ten scenarios per call; every scenario fetch runs the full failure scan (leaked templates, unresolved bindings, PHP errors)."
 msgstr ""
 
-#: includes/abilities-verify.php:131
+#: includes/abilities-verify.php:146
 msgid "WordPress post ID or path to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:139
+#: includes/abilities-verify.php:156
 msgid "Up to ten scenarios. Each: { label, query?: {name: value}, cookies?: {name: value}, expect?: [], absent?: [], nonblank_labels?: [] }."
 msgstr ""
 
-#: includes/abilities-verify.php:181
+#: includes/abilities-verify.php:213
 msgid "Per scenario: label, url, status_code, passed and failures."
 msgstr ""
 
-#: includes/abilities-verify.php:195
+#: includes/abilities-verify.php:228
 msgid "WordPress post ID or path establishing the resolution context (current post, archive, URL parameters). Defaults to the site front page."
 msgstr ""
 
-#: includes/abilities-verify.php:199
+#: includes/abilities-verify.php:233
 msgid "Full same-site URL establishing the context instead of page."
 msgstr ""
 
-#: includes/abilities-verify.php:204
+#: includes/abilities-verify.php:238
 msgid "Query parameters for the context request — url_parameter() resolvers read these."
 msgstr ""
 
-#: includes/abilities-verify.php:211
+#: includes/abilities-verify.php:245
 msgid "Get the dynamic-data GraphQL schema"
 msgstr ""
 
-#: includes/abilities-verify.php:212
+#: includes/abilities-verify.php:246
 msgid "Returns the LIVE Builderius dynamic-data GraphQL schema — the Root query type every data variable runs against, including fields added by Builderius Pro, ACF, Meta Box and other integrations on this site. No open builder tab is needed. By default returns the Root fields (name, arguments, return type) and an index of type names; pass type to expand one type's fields, or search to find fields/types by name fragment. Use this instead of guessing field names: a wrong nested field saves fine but silently blanks the whole variable at render."
 msgstr ""
 
-#: includes/abilities-verify.php:219
+#: includes/abilities-verify.php:253
 msgid "A type name to expand (e.g. Post, User, Term, Pagination). Case-sensitive."
 msgstr ""
 
-#: includes/abilities-verify.php:223
+#: includes/abilities-verify.php:257
 msgid "Case-insensitive fragment matched against type and field names (e.g. \"acf\", \"meta\", \"pagination\")."
 msgstr ""
 
-#: includes/abilities-verify.php:228
+#: includes/abilities-verify.php:262
 msgid "Bypass the cached schema (use after activating a plugin that extends it)."
 msgstr ""
 
-#: includes/abilities-verify.php:238
+#: includes/abilities-verify.php:272
 msgid "The Root query fields: name, args, type."
 msgstr ""
 
-#: includes/abilities-verify.php:243
+#: includes/abilities-verify.php:277
 msgid "The expanded type (name, kind, fields) when type was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:247
+#: includes/abilities-verify.php:281
 msgid "Search hits as \"Type.field: ReturnType\" rows when search was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:265
-#: includes/features.php:857
+#: includes/abilities-verify.php:299
+#: includes/features.php:858
 msgid "Resolve a data variable"
 msgstr ""
 
-#: includes/abilities-verify.php:266
+#: includes/abilities-verify.php:300
 msgid "Validates AND actually resolves one dynamic-data variable, returning its runtime value in a chosen page context — the missing proof step between \"the query saved\" and \"the page renders\". The query is first validated against the live GraphQL schema (unknown fields and bad arguments are reported with messages, which dbe/manage-data-variable's syntax check cannot see), then executed through Builderius' own dynamic-data channel with the context page's real WordPress query state, so wp/current-post/url_parameter resolvers behave exactly as on the front end. Pass name for a saved variable (its [[dep]] dependencies resolve too) or graphql_query for an ad-hoc probe. Large values are compacted (lists truncated, long strings clipped) unless full: true."
 msgstr ""
 
-#: includes/abilities-verify.php:274
+#: includes/abilities-verify.php:308
 msgid "A saved data variable name. Global scope by default; pass template for entity scope."
 msgstr ""
 
-#: includes/abilities-verify.php:278
+#: includes/abilities-verify.php:313
 msgid "An ad-hoc GraphQL query to resolve instead of a saved variable. Saved global variables are still available as [[dep]] interpolations. (The query parameter carries URL parameters for the context request instead.)"
 msgstr ""
 
-#: includes/abilities-verify.php:282
-#: includes/abilities-verify.php:349
+#: includes/abilities-verify.php:317
+#: includes/abilities-verify.php:385
 msgid "Template (or component) post ID or slug for ENTITY-scoped variables. Omit for the global settings set."
 msgstr ""
 
-#: includes/abilities-verify.php:288
-#: includes/abilities-verify.php:355
+#: includes/abilities-verify.php:323
+#: includes/abilities-verify.php:391
 msgid "Entity type when template is passed."
 msgstr ""
 
-#: includes/abilities-verify.php:292
-#: includes/abilities-verify.php:359
+#: includes/abilities-verify.php:327
+#: includes/abilities-verify.php:395
 msgid "Global settings set post ID or slug. Omit when the site has one."
 msgstr ""
 
-#: includes/abilities-verify.php:297
+#: includes/abilities-verify.php:332
 msgid "Return the complete value without compaction. Use only when the compact preview is not enough."
 msgstr ""
 
-#: includes/abilities-verify.php:309
+#: includes/abilities-verify.php:344
 msgid "Schema validation: valid plus error messages (an invalid query is still executed so you can see the runtime effect)."
 msgstr ""
 
-#: includes/abilities-verify.php:312
+#: includes/abilities-verify.php:347
 msgid "The resolved value (compacted unless full: true; compaction is flagged in truncated)."
 msgstr ""
 
-#: includes/abilities-verify.php:317
+#: includes/abilities-verify.php:352
 msgid "Byte length of the full JSON-encoded value."
 msgstr ""
 
-#: includes/abilities-verify.php:322
+#: includes/abilities-verify.php:357
 msgid "Every variable name resolved in the request (the target plus its dependencies)."
 msgstr ""
 
-#: includes/abilities-verify.php:336
-#: includes/features.php:862
+#: includes/abilities-verify.php:371
+#: includes/features.php:863
 msgid "Inspect a binding value"
 msgstr ""
 
-#: includes/abilities-verify.php:337
+#: includes/abilities-verify.php:372
 msgid "Reports the resolved type and compact shape at a binding path — run this on a Collection's data-b-context source BEFORE binding it, because a source that is not an array renders a silent empty loop (scalars/null leave the <template> markup in the page; an object renders exactly once). Accepts a saved-variable path (\"var.path.to.items\", with or without [[ ]]/[[[ ]]] wrapping) or a literal JSON source. Returns the value's type, list/object classification, row count, first-row keys, a small preview, and whether it is safe as a Collection source in the chosen page context."
 msgstr ""
 
-#: includes/abilities-verify.php:345
+#: includes/abilities-verify.php:381
 msgid "The binding to inspect: \"var.path.to.items\", \"[[var.path]]\", \"[[[var.path]]]\", or a literal JSON array/object."
 msgstr ""
 
-#: includes/abilities-verify.php:372
+#: includes/abilities-verify.php:408
 msgid "list | object | string | number | boolean | null | missing."
 msgstr ""
 
-#: includes/abilities-verify.php:376
+#: includes/abilities-verify.php:412
 msgid "Whether this value is safe as a Collection source (a non-empty list of rows)."
 msgstr ""
 
-#: includes/abilities-verify.php:384
+#: includes/abilities-verify.php:420
 msgid "Compacted value preview."
 msgstr ""
 
-#: includes/abilities-verify.php:402
-#: includes/features.php:867
+#: includes/abilities-verify.php:438
+#: includes/features.php:868
 msgid "Resolve a Meta Box field"
 msgstr ""
 
-#: includes/abilities-verify.php:403
+#: includes/abilities-verify.php:439
 msgid "Maps a Meta Box field to the exact ways Builderius dynamic data can read it, so agents stop guessing: the builder's auto-generated helper name (derived from the slugified field LABEL, not the id — field id rc_number labelled \"RC Number (CAC)\" becomes wp.…__rc_number_cac_), the GraphQL accessor and arguments for headless data variables (settings-page fields need option_name, the storage owner, which is NOT always the admin page id), group children, and the array/clone caveats. Searches every registered field by id or label fragment across posts, users, terms and settings pages. Term fields get a warning: Builderius ships no term Meta Box helper and term meta_value() has returned false in testing — use a php_function_output wrapper."
 msgstr ""
 
-#: includes/abilities-verify.php:410
+#: includes/abilities-verify.php:446
 msgid "The field id, or a fragment of the id or label, to search for."
 msgstr ""
 
-#: includes/abilities-verify.php:415
+#: includes/abilities-verify.php:451
 msgid "Limit the search to one Meta Box object type."
 msgstr ""
 
-#: includes/abilities-verify.php:426
+#: includes/abilities-verify.php:462
 msgid "Per field: id, label, type, object_type, context (post type or settings page), builder_helper, graphql read recipe, children, warnings."
 msgstr ""
 
-#: includes/abilities-verify.php:431
+#: includes/abilities-verify.php:467
 msgid "Total matches before the 20-row cap."
 msgstr ""
 
-#: includes/abilities-verify.php:444
+#: includes/abilities-verify.php:480
 msgid "Get a module's matched styles"
 msgstr ""
 
-#: includes/abilities-verify.php:445
+#: includes/abilities-verify.php:481
 msgid "Returns the authored CSS rules that target one module, gathered from the saved entity CSS and the global stylesheet — the headless stand-in for the builder's computed-styles tool when no live builder tab is connected. Rules are matched against the module's tag, id, classes and its uni-node id (per-module %local% styles compile to .uni-node-<id> selectors), with their media-query context preserved. This reports what the stylesheets SAY, not what a browser computed — cascade order and specificity are returned so you can reason about conflicts, but inherited values and runtime layout are out of scope."
 msgstr ""
 
-#: includes/abilities-verify.php:452
+#: includes/abilities-verify.php:488
 #: includes/abilities-workflow.php:221
 msgid "Template or component post ID or slug."
 msgstr ""
 
-#: includes/abilities-verify.php:458
+#: includes/abilities-verify.php:494
 #: includes/abilities-workflow.php:227
 msgid "Entity type of the template reference."
 msgstr ""
 
-#: includes/abilities-verify.php:462
+#: includes/abilities-verify.php:498
 msgid "The module whose matched rules to report (find ids with dbe/get-tree-outline)."
 msgstr ""
 
-#: includes/abilities-verify.php:467
+#: includes/abilities-verify.php:503
 msgid "Also match rules from the global stylesheet (framework classes)."
 msgstr ""
 
-#: includes/abilities-verify.php:478
+#: includes/abilities-verify.php:514
 msgid "The module's identity: id, tag, html id, classes, label."
 msgstr ""
 
-#: includes/abilities-verify.php:482
+#: includes/abilities-verify.php:518
 msgid "Matched rules in source order: selector, declarations, media, source (entity|global), matched_by."
 msgstr ""
 
@@ -364,7 +364,7 @@ msgid "Per set: id, slug, title, technology, branch_id, commit_name, css_length,
 msgstr ""
 
 #: includes/abilities-workflow.php:175
-#: includes/features.php:892
+#: includes/features.php:893
 msgid "Validate a JS snippet"
 msgstr ""
 
@@ -502,7 +502,7 @@ msgid "Explicitly override a dirty Builderius-tab conflict. Use only after confi
 msgstr ""
 
 #: includes/abilities.php:115
-#: includes/features.php:802
+#: includes/features.php:803
 msgid "Get subtree as HTML"
 msgstr ""
 
@@ -615,7 +615,7 @@ msgid "The selected entity-type rows, matching either templates or components."
 msgstr ""
 
 #: includes/abilities.php:334
-#: includes/features.php:982
+#: includes/features.php:986
 msgid "Publish a release"
 msgstr ""
 
@@ -652,7 +652,7 @@ msgid "The templates included (id, slug, saved commit)."
 msgstr ""
 
 #: includes/abilities.php:400
-#: includes/features.php:988
+#: includes/features.php:992
 msgid "Extract a release (work on a release)"
 msgstr ""
 
@@ -689,7 +689,7 @@ msgid "Slugs of the templates, components and settings_sets present after extrac
 msgstr ""
 
 #: includes/abilities.php:463
-#: includes/features.php:812
+#: includes/features.php:813
 msgid "Get global CSS"
 msgstr ""
 
@@ -698,7 +698,7 @@ msgid "Reads the site's saved global CSS — the ENTIRE framework stylesheet (re
 msgstr ""
 
 #: includes/abilities.php:472
-#: includes/abilities.php:568
+#: includes/abilities.php:569
 msgid "Return only this named block's body (token-cheap)."
 msgstr ""
 
@@ -711,373 +711,373 @@ msgid "Adds, replaces or deletes ONE named block in the global stylesheet — a 
 msgstr ""
 
 #: includes/abilities.php:509
-#: includes/abilities.php:611
+#: includes/abilities.php:612
 msgid "The block name."
 msgstr ""
 
-#: includes/abilities.php:513
-#: includes/abilities.php:615
+#: includes/abilities.php:514
+#: includes/abilities.php:617
 msgid "The block's new body (omit when deleting)."
 msgstr ""
 
-#: includes/abilities.php:518
-#: includes/abilities.php:620
+#: includes/abilities.php:519
+#: includes/abilities.php:622
 msgid "Remove the block entirely."
 msgstr ""
 
-#: includes/abilities.php:523
-#: includes/abilities.php:625
+#: includes/abilities.php:524
+#: includes/abilities.php:627
 msgid "Preview: return the action and resulting stylesheet length without saving."
 msgstr ""
 
-#: includes/abilities.php:542
-#: includes/abilities.php:643
+#: includes/abilities.php:543
+#: includes/abilities.php:645
 msgid "The new commit (absent on a dry run)."
 msgstr ""
 
-#: includes/abilities.php:558
-#: includes/features.php:817
+#: includes/abilities.php:559
+#: includes/features.php:818
 msgid "Get entity CSS"
 msgstr ""
 
-#: includes/abilities.php:559
+#: includes/abilities.php:560
 msgid "Reads a template's saved entity CSS (the per-template stylesheet the builder's update_entity_css tool replaces wholesale). Returns the raw CSS plus the names of its named blocks (regions fenced by /* @block: name */ … /* @endblock */ comments). Pass block to fetch just one block's body. A template with no entity CSS returns an empty string, not an error. To add or change CSS safely, prefer dbe/patch-entity-css, which edits only a named block."
 msgstr ""
 
-#: includes/abilities.php:600
+#: includes/abilities.php:601
 msgid "Patch entity CSS (named block)"
 msgstr ""
 
-#: includes/abilities.php:601
+#: includes/abilities.php:602
 msgid "Adds, replaces or deletes ONE named block in a template's entity CSS — a region fenced by /* @block: name */ … /* @endblock */ — and saves the result as a new commit through Builderius' own save channel, without touching the open builder store. CSS outside the named block is preserved verbatim. A block that does not exist yet is appended at the end; a template with no entity CSS at all gets one created. CAUTION: if a builder tab has that template open with unsaved changes, saving or closing that tab afterwards can overwrite this commit with the tab's stale copy — save or discard the tab first. Saving does not publish; run dbe/publish for the change to reach logged-out visitors."
 msgstr ""
 
-#: includes/abilities.php:662
+#: includes/abilities.php:664
 msgid "List saved commits"
 msgstr ""
 
-#: includes/abilities.php:663
+#: includes/abilities.php:665
 msgid "Lists the saved commits of a template or of the global settings set (target \"global\"), newest first: name, date, description and — for the global set — each commit's stylesheet length, so a framework-clobbering save stands out as a sudden size drop. Use with dbe/restore-global-css-from-commit to roll the global CSS back to a pre-damage snapshot."
 msgstr ""
 
-#: includes/abilities.php:670
+#: includes/abilities.php:672
 msgid "\"global\" (default) for the global settings set, or a template post ID/slug."
 msgstr ""
 
-#: includes/abilities.php:675
+#: includes/abilities.php:677
 msgid "Maximum commits to return."
 msgstr ""
 
-#: includes/abilities.php:690
+#: includes/abilities.php:692
 msgid "The active commit's name."
 msgstr ""
 
-#: includes/abilities.php:703
-#: includes/features.php:965
+#: includes/abilities.php:705
+#: includes/features.php:969
 msgid "Restore global CSS from a commit"
 msgstr ""
 
-#: includes/abilities.php:704
+#: includes/abilities.php:706
 msgid "Recovery for a clobbered global stylesheet: reads the `css` setting from an earlier commit of the global settings set (find one with dbe/list-commits — a healthy framework is tens of KB) and saves it as a NEW commit, so the rollback is itself in history. Nothing else from the old commit is restored. Saving does not publish; run dbe/publish for the recovered CSS to reach logged-out visitors."
 msgstr ""
 
-#: includes/abilities.php:711
+#: includes/abilities.php:713
 msgid "The source commit name (from dbe/list-commits)."
 msgstr ""
 
-#: includes/abilities.php:716
+#: includes/abilities.php:718
 msgid "Preview: return the source stylesheet's length and first lines without saving."
 msgstr ""
 
-#: includes/abilities.php:730
+#: includes/abilities.php:732
 msgid "The new commit holding the restored CSS (absent on a dry run)."
 msgstr ""
 
-#: includes/abilities.php:736
+#: includes/abilities.php:738
 msgid "First lines of the restored stylesheet (dry run only)."
 msgstr ""
 
-#: includes/abilities.php:750
+#: includes/abilities.php:752
 msgid "Where the template applies: { \"location\": name, \"conditions\": rules }. Core locations: front_page, home, singulars, blog_posts, pages, archives, 404, entire_site; Pro adds custom_posts, post_type_archives, taxonomy_archives, tag_archives, author_archives, date/year/month/day_archives, search_results, attachment_posts. Conditions follow Builderius' rule tree, e.g. {\"condition\":\"or\",\"rules\":[{\"condition\":\"and\",\"rules\":[{\"name\":\"post_id\",\"operator\":\"equals\",\"value\":3}]}]}. Pass null to clear the rules (the template then applies nowhere)."
 msgstr ""
 
-#: includes/abilities.php:772
-#: includes/features.php:827
+#: includes/abilities.php:774
+#: includes/features.php:828
 msgid "Get template settings"
 msgstr ""
 
-#: includes/abilities.php:773
+#: includes/abilities.php:775
 msgid "Reads a Builderius template's registration-level settings — title, slug, enabled state, type, technology, sort order and apply rules (location + conditions) — plus its branch and saved commit. These are the settings the builder's template dialog edits, not the module tree (dbe/get-subtree-html) or CSS (dbe/get-entity-css). Omit template to list every template."
 msgstr ""
 
-#: includes/abilities.php:780
+#: includes/abilities.php:782
 msgid "Template post ID or slug. Omit for all templates."
 msgstr ""
 
-#: includes/abilities.php:803
+#: includes/abilities.php:805
 msgid "Create a template"
 msgstr ""
 
-#: includes/abilities.php:804
+#: includes/abilities.php:806
 msgid "Creates a Builderius template through the builder's own mutations, headlessly — no builder tab needed. Builderius initialises the master branch and an initial commit (site header/footer components, a <main> element and a default `wp` data variable), so dbe/get-subtree-html and dbe/apply-subtree-html work on it immediately. Type page uses the builder's createPageTemplate: pass page_id instead of a title — the title, slug and apply rule (that one page) all derive from the WP page or enabled custom-post; other inputs then act as post-create overrides. Types beyond regular/page/hook (e.g. doc) are created as regular and re-termed, matching the builder's behaviour. A non-page template is created enabled but applies nowhere until apply_rules is set (here or later via dbe/update-template). Creating never publishes; the new template reaches logged-out visitors only after dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:811
+#: includes/abilities.php:813
 msgid "Template title, shown in the builder's template list. Must be unique. Required unless page_id is passed."
 msgstr ""
 
-#: includes/abilities.php:815
+#: includes/abilities.php:817
 msgid "Slug. Defaults to a sanitised form of the title. Must be unique."
 msgstr ""
 
-#: includes/abilities.php:820
+#: includes/abilities.php:822
 msgid "Template type: regular, page (needs page_id), doc or hook (needs the hook fields below)."
 msgstr ""
 
-#: includes/abilities.php:824
+#: includes/abilities.php:826
 msgid "Page templates: the WordPress page/post (or enabled custom-post) ID the template is for. Implies type page; one template per page."
 msgstr ""
 
-#: includes/abilities.php:829
+#: includes/abilities.php:831
 msgid "Template technology. Sites normally have one: html."
 msgstr ""
 
-#: includes/abilities.php:834
+#: includes/abilities.php:836
 msgid "Whether the template is active. Disabled templates never render."
 msgstr ""
 
-#: includes/abilities.php:838
+#: includes/abilities.php:840
 msgid "Priority among templates whose rules match the same request; lower wins. Defaults to 10."
 msgstr ""
 
-#: includes/abilities.php:843
+#: includes/abilities.php:845
 msgid "Hook templates only: the WordPress hook name."
 msgstr ""
 
-#: includes/abilities.php:848
+#: includes/abilities.php:850
 msgid "Hook templates only: action or filter."
 msgstr ""
 
-#: includes/abilities.php:852
+#: includes/abilities.php:854
 msgid "Hook templates only: accepted args count. Defaults to 1."
 msgstr ""
 
-#: includes/abilities.php:870
-#: includes/features.php:918
+#: includes/abilities.php:872
+#: includes/features.php:919
 msgid "Update template settings"
 msgstr ""
 
-#: includes/abilities.php:871
+#: includes/abilities.php:873
 msgid "Updates a Builderius template's registration-level settings through the builder's own updateTemplate mutation: title, slug, enabled state, type, sort order and apply rules (location + conditions). Only the fields passed change. This edits the same settings as the builder's template dialog — an open builder tab that later saves that dialog can overwrite these values, so prefer editing with the tab closed. Module content and CSS are separate (dbe/apply-subtree-html, dbe/patch-entity-css). Changes reach logged-out visitors immediately for apply rules and enabled state (they live on the post, not in a release)."
 msgstr ""
 
-#: includes/abilities.php:878
-#: includes/abilities.php:917
+#: includes/abilities.php:880
+#: includes/abilities.php:919
 msgid "Template post ID or slug."
 msgstr ""
 
-#: includes/abilities.php:883
+#: includes/abilities.php:885
 msgid "New slug."
 msgstr ""
 
-#: includes/abilities.php:888
+#: includes/abilities.php:890
 msgid "Template type: regular, page, doc or hook."
 msgstr ""
 
-#: includes/abilities.php:909
+#: includes/abilities.php:911
 msgid "Delete a template"
 msgstr ""
 
-#: includes/abilities.php:910
+#: includes/abilities.php:912
 msgid "Permanently deletes a Builderius template through the builder's own deleteTemplate mutation, including its branches and commit history. This cannot be undone — there is no trash for Builderius templates. Requires confirm: true; confirm with the user before calling. A published release that included the template keeps rendering its already-built output until the next dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:922
-#: includes/abilities.php:1362
+#: includes/abilities.php:924
+#: includes/abilities.php:1367
 msgid "Must be true. Deletion is permanent; confirm with the user first."
 msgstr ""
 
-#: includes/abilities.php:945
+#: includes/abilities.php:947
 msgid "Template (or component) post ID or slug for ENTITY-scoped variables. Omit to work on the GLOBAL settings set — data-variable-backed Collections usually bind global variables; literal JSON and URL sources do not need a data variable."
 msgstr ""
 
-#: includes/abilities.php:951
-#: includes/features.php:837
+#: includes/abilities.php:953
+#: includes/features.php:838
 msgid "Get data variables"
 msgstr ""
 
-#: includes/abilities.php:952
+#: includes/abilities.php:954
 msgid "Reads Builderius dynamic-data variables from the saved state: the GLOBAL settings set by default (data-variable-backed Collections can bind these with data-b-context=\"[[name.path]]\" or data-b-context=\"[[[name.path]]]\"), or one template's entity-scoped variables when template is passed. Collections can also use literal JSON or URL sources when those resolve to arrays. Each entry has name, type (graphQLQuery, json, …) and value (the GraphQL query text or JSON). The `wp` entry is the system variable (flagged system: true) — the current post/user/menu context. Returns the branch and commit for the expected_commit save flow."
 msgstr ""
 
-#: includes/abilities.php:998
+#: includes/abilities.php:1000
 msgid "Create, update or delete a data variable"
 msgstr ""
 
-#: includes/abilities.php:999
+#: includes/abilities.php:1001
 msgid "Creates, updates or deletes a Builderius dynamic-data variable in the saved state, committed through Builderius' own mutation. Works on the GLOBAL settings set by default (usual for data-variable-backed Collection loops) or one template when template is passed. Names are snake_case (the builder UI cannot edit camelCase names). graphQLQuery values are syntax-checked before saving; verify the query actually returns data on the rendered page afterwards (logged-in users see saved commits — no publish needed). Collections may also use literal JSON or URL sources when no data variable is needed. The system `wp` variable cannot be created, renamed or deleted; updating its query needs allow_system: true — that is the headless equivalent of the builder's dynamic-data helpers (e.g. adding nav_menu or metabox_value fields for settings pages). Read dbe/get-data-variables first for the current state and expected_commit. An open builder tab will not see the change until reloaded — and its own save can overwrite this; the dirty-tab preflight protects against that."
 msgstr ""
 
-#: includes/abilities.php:1010
+#: includes/abilities.php:1012
 msgid "The variable name. snake_case for create (e.g. team_data, never teamData)."
 msgstr ""
 
-#: includes/abilities.php:1014
+#: includes/abilities.php:1016
 msgid "Update only: rename the variable (snake_case). Bindings using the old name are NOT rewritten."
 msgstr ""
 
-#: includes/abilities.php:1020
+#: includes/abilities.php:1022
 msgid "Create only: the variable type."
 msgstr ""
 
-#: includes/abilities.php:1024
+#: includes/abilities.php:1027
 msgid "The GraphQL query text (graphQLQuery) or JSON text (json). Required for create; optional on update (omit to keep the current value when only renaming)."
 msgstr ""
 
-#: includes/abilities.php:1028
+#: includes/abilities.php:1031
 msgid "graphQLQuery only: GraphQL variables as a JSON object. Rarely needed."
 msgstr ""
 
-#: includes/abilities.php:1033
+#: includes/abilities.php:1036
 msgid "Required to update the system `wp` variable's query. Never allows renaming or deleting it."
 msgstr ""
 
-#: includes/abilities.php:1041
+#: includes/abilities.php:1044
 msgid "Preview: validate and return the resulting variable without saving."
 msgstr ""
 
-#: includes/abilities.php:1056
+#: includes/abilities.php:1059
 msgid "The resulting variable (null after delete)."
 msgstr ""
 
-#: includes/abilities.php:1071
+#: includes/abilities.php:1074
 msgid "Template (or component) post ID or slug for that entity's snippets — the right scope for page-specific behaviour. Omit for the GLOBAL settings set: site-wide snippets loaded on every Builderius page."
 msgstr ""
 
-#: includes/abilities.php:1077
-#: includes/features.php:842
+#: includes/abilities.php:1080
+#: includes/features.php:843
 msgid "Get JS snippets"
 msgstr ""
 
-#: includes/abilities.php:1078
+#: includes/abilities.php:1081
 msgid "Reads the Custom JS snippets from the saved state: the GLOBAL settings set by default (site-wide), or one template's snippets when template is passed. Each snippet has a label, generated id, code, and delivery options (external file vs inline, footer vs header, loading strategy, priority, enabled). Returns the branch and commit for the expected_commit save flow."
 msgstr ""
 
-#: includes/abilities.php:1115
+#: includes/abilities.php:1118
 msgid "Create, update or delete a JS snippet"
 msgstr ""
 
-#: includes/abilities.php:1116
+#: includes/abilities.php:1119
 msgid "Creates, updates or deletes a Custom JS snippet in the saved state, committed through Builderius' own mutation — the headless equivalent of the builder's JavaScript footer tool. Global scope by default (site-wide); pass template for page-specific snippets. Labels are snake_case (the builder UI cannot edit camelCase names). Defaults: served as a generated external file, in the footer, enabled. Write vanilla JS wrapped in DOMContentLoaded, use event delegation with data-* attribute hooks, and toggle CSS state classes rather than inline styles. Read dbe/get-js-snippets first for the current state and expected_commit. Saved snippets render for logged-in users immediately; logged-out visitors need dbe/publish."
 msgstr ""
 
-#: includes/abilities.php:1127
+#: includes/abilities.php:1130
 msgid "The snippet's label or id. For create, the new snippet's label (snake_case, e.g. faq_accordion)."
 msgstr ""
 
-#: includes/abilities.php:1131
+#: includes/abilities.php:1134
 msgid "Update only: rename the snippet (snake_case). The generated id is stable across renames."
 msgstr ""
 
-#: includes/abilities.php:1135
+#: includes/abilities.php:1139
 msgid "The JavaScript source. Required for create."
 msgstr ""
 
-#: includes/abilities.php:1139
+#: includes/abilities.php:1143
 msgid "Insert in the footer (default true) or the header (false)."
 msgstr ""
 
-#: includes/abilities.php:1143
+#: includes/abilities.php:1147
 msgid "Serve as a generated external .js file (default true) or as an inline script (false)."
 msgstr ""
 
-#: includes/abilities.php:1148
+#: includes/abilities.php:1152
 msgid "Loading strategy for external snippets."
 msgstr ""
 
-#: includes/abilities.php:1153
+#: includes/abilities.php:1158
 msgid "Shown in the builder's snippet configure panel."
 msgstr ""
 
-#: includes/abilities.php:1157
+#: includes/abilities.php:1162
 msgid "Load order among snippets; lower loads first. Default 10."
 msgstr ""
 
-#: includes/abilities.php:1165
+#: includes/abilities.php:1170
 msgid "Preview: validate and return the resulting snippet without saving."
 msgstr ""
 
-#: includes/abilities.php:1180
+#: includes/abilities.php:1185
 msgid "The resulting snippet (null after delete)."
 msgstr ""
 
-#: includes/abilities.php:1195
+#: includes/abilities.php:1200
 msgid "Component post ID or slug."
 msgstr ""
 
-#: includes/abilities.php:1207
-#: includes/abilities.php:1312
+#: includes/abilities.php:1212
+#: includes/abilities.php:1317
 msgid "The default value: a string for text (may be a [[binding]]), a boolean for boolean."
 msgstr ""
 
-#: includes/abilities.php:1211
+#: includes/abilities.php:1216
 msgid "select only: [{ value, label?, default? }]."
 msgstr ""
 
-#: includes/abilities.php:1220
-#: includes/features.php:832
+#: includes/abilities.php:1225
+#: includes/features.php:833
 msgid "List components"
 msgstr ""
 
-#: includes/abilities.php:1221
+#: includes/abilities.php:1226
 msgid "Lists every Builderius component with its declared properties (from the saved state) and branch/commit. Components are reusable module trees; instances are placed in templates with <dbe-component name=\"slug\" prop=\"value\"> in dbe/apply-subtree-html, and a component's internals are edited with the same subtree/CSS/data abilities using entity_type: \"component\". Inside a component, a declared property is referenced as [[props.name]] (escaped) or [[[props.name]]] (raw), e.g. in a Collection's data-b-context."
 msgstr ""
 
-#: includes/abilities.php:1228
+#: includes/abilities.php:1233
 msgid "Component post ID or slug. Omit for all components."
 msgstr ""
 
-#: includes/abilities.php:1251
+#: includes/abilities.php:1256
 msgid "Create a component"
 msgstr ""
 
-#: includes/abilities.php:1252
+#: includes/abilities.php:1257
 msgid "Creates a Builderius component through the builder's own createComponent mutation, headlessly, then scaffolds its saved config (a single root <div>, the standard wp data variable, and any declared properties) so the content abilities work on it immediately: author its internals with dbe/apply-subtree-html and its styles with dbe/patch-entity-css, both with entity_type: \"component\". Titles map to snake_case slugs (hyphens become underscores). Declared properties become instance attributes (<dbe-component name=\"slug\" my_prop=\"…\">) and are read inside the component as [[props.my_prop]] / [[[props.my_prop]]]. Components may nest other components (place <dbe-component> in their internals)."
 msgstr ""
 
-#: includes/abilities.php:1259
+#: includes/abilities.php:1264
 msgid "Component title. Must be unique; the slug is derived from it (or from name)."
 msgstr ""
 
-#: includes/abilities.php:1263
+#: includes/abilities.php:1268
 msgid "Slug (snake_case). Defaults to the sanitised title."
 msgstr ""
 
-#: includes/abilities.php:1271
+#: includes/abilities.php:1276
 msgid "Declared properties. Names are lowercase snake_case (attribute names lowercase in HTML). Types: text (placeholder = default, may be a [[binding]]), select (options with one default: true), boolean (placeholder true/false)."
 msgstr ""
 
-#: includes/abilities.php:1291
+#: includes/abilities.php:1296
 msgid "Create, update or delete a component property"
 msgstr ""
 
-#: includes/abilities.php:1292
+#: includes/abilities.php:1297
 msgid "Manages a component's declared properties (the componentTmplProperties of its saved config), committed through Builderius' own mutation. Property names are lowercase snake_case and cannot be renamed — instance overrides across templates reference the name, so delete and redeclare instead, then re-apply overrides. Deleting is refused while the component's own internals still reference [[props.name]]; remove those references first with dbe/apply-subtree-html (entity_type: \"component\"). Read dbe/list-components first for the current properties and expected_commit."
 msgstr ""
 
-#: includes/abilities.php:1304
+#: includes/abilities.php:1309
 msgid "The property name (lowercase snake_case, e.g. heading_text)."
 msgstr ""
 
-#: includes/abilities.php:1316
+#: includes/abilities.php:1321
 msgid "select only: [{ value, label?, default? }] with exactly one default: true."
 msgstr ""
 
-#: includes/abilities.php:1352
+#: includes/abilities.php:1357
 msgid "Delete a component"
 msgstr ""
 
-#: includes/abilities.php:1353
+#: includes/abilities.php:1358
 msgid "Permanently deletes a Builderius component through the builder's own deleteComponent mutation, including its branches and commit history. Refused while any template or component still uses it (the usage list is returned — remove those instances first with dbe/apply-subtree-html). Requires confirm: true; confirm with the user before calling."
 msgstr ""
 
@@ -1108,9 +1108,9 @@ msgid "Appearance"
 msgstr ""
 
 #: includes/features.php:24
-#: includes/i18n-builder.php:365
-#: includes/i18n-builder.php:384
-#: includes/i18n-builder.php:490
+#: includes/i18n-builder.php:370
+#: includes/i18n-builder.php:389
+#: includes/i18n-builder.php:495
 msgid "Navigator"
 msgstr ""
 
@@ -1495,7 +1495,7 @@ msgid "Adds a filter box above the tree that hides non-matching branches while k
 msgstr ""
 
 #: includes/features.php:337
-#: includes/i18n-builder.php:416
+#: includes/i18n-builder.php:421
 msgid "Rearrange favourites"
 msgstr ""
 
@@ -1724,7 +1724,7 @@ msgid "Adds keyboard shortcuts, in the style of the WordPress block editor, for 
 msgstr ""
 
 #: includes/features.php:511
-#: includes/i18n-builder.php:576
+#: includes/i18n-builder.php:581
 msgid "Edit as HTML"
 msgstr ""
 
@@ -1737,7 +1737,7 @@ msgid "Adds Edit as HTML to the right-click menu. Existing data-dbe-id markers p
 msgstr ""
 
 #: includes/features.php:523
-#: includes/i18n-builder.php:617
+#: includes/i18n-builder.php:622
 msgid "Import HTML"
 msgstr ""
 
@@ -1762,8 +1762,8 @@ msgid "Adds a Change tag flyout to an element's right-click menu in the Navigato
 msgstr ""
 
 #: includes/features.php:547
-#: includes/i18n-builder.php:496
-#: includes/i18n-builder.php:573
+#: includes/i18n-builder.php:501
+#: includes/i18n-builder.php:578
 msgid "Command palette"
 msgstr ""
 
@@ -1809,7 +1809,7 @@ msgid "Inspect an element’s computed CSS and jump straight to its rules."
 msgstr ""
 
 #: includes/features.php:580
-msgid "Adds a Styles flyout to element context menus and matching command-palette actions for opening local, global and template or component class styles directly. Inspect styles opens a persistent DevTools-like panel with searchable computed properties and the live authored rules matching the rendered element, including their scope and active media-query context. Rule edit buttons return to Builderius’s own Styles editor rather than introducing a second editing surface. Experimental, and requires Builderius Pro."
+msgid "Adds a Styles flyout to element context menus and matching command-palette actions for opening local, global and template or component class styles directly. Inspect styles opens a persistent DevTools-like panel with searchable computed properties and the live authored rules affecting the rendered element, including nested selectors, inherited declarations grouped by ancestor, their scope and active media-query context. Rule edit buttons return to Builderius’s own Styles editor rather than introducing a second editing surface. Experimental, and requires Builderius Pro."
 msgstr ""
 
 #: includes/features.php:589
@@ -2028,7 +2028,7 @@ msgid "Cmd/Ctrl+Shift+K (the old default; Firefox on Windows and Linux reserves 
 msgstr ""
 
 #: includes/features.php:768
-#: includes/settings-page.php:280
+#: includes/settings-page.php:282
 msgid "Read"
 msgstr ""
 
@@ -2052,231 +2052,239 @@ msgstr ""
 msgid "Restore, delete, publish or rebuild Builderius state."
 msgstr ""
 
-#: includes/features.php:803
+#: includes/features.php:804
 msgid "Read a template or component subtree from the saved state as HTML."
 msgstr ""
 
-#: includes/features.php:807
+#: includes/features.php:808
 msgid "Get tree outline"
 msgstr ""
 
-#: includes/features.php:808
+#: includes/features.php:809
 msgid "Read a compact element outline so an agent can target elements by label."
 msgstr ""
 
-#: includes/features.php:813
+#: includes/features.php:814
 msgid "Read the saved global stylesheet and its named blocks."
 msgstr ""
 
-#: includes/features.php:818
+#: includes/features.php:819
 msgid "Read a template's saved entity CSS and its named blocks."
 msgstr ""
 
-#: includes/features.php:822
+#: includes/features.php:823
 msgid "List commits"
 msgstr ""
 
-#: includes/features.php:823
+#: includes/features.php:824
 msgid "Read a template's or the global stylesheet's commit history."
 msgstr ""
 
-#: includes/features.php:828
+#: includes/features.php:829
 msgid "Read a template's registration-level settings."
 msgstr ""
 
-#: includes/features.php:833
+#: includes/features.php:834
 msgid "Read the available components and their declared properties."
 msgstr ""
 
-#: includes/features.php:838
+#: includes/features.php:839
 msgid "Read the saved dynamic-data variables and their GraphQL queries."
 msgstr ""
 
-#: includes/features.php:843
+#: includes/features.php:844
 msgid "Read the saved custom JavaScript snippets."
 msgstr ""
 
-#: includes/features.php:847
+#: includes/features.php:848
 msgid "Save/publish status"
 msgstr ""
 
-#: includes/features.php:848
+#: includes/features.php:849
 msgid "Report each template's saved commit against the published release."
 msgstr ""
 
-#: includes/features.php:852
+#: includes/features.php:853
 msgid "Get dynamic-data schema"
 msgstr ""
 
-#: includes/features.php:853
+#: includes/features.php:854
 msgid "Read the live GraphQL schema data variables run against, without an open builder tab."
 msgstr ""
 
-#: includes/features.php:858
+#: includes/features.php:859
 msgid "Schema-validate and actually resolve one data variable in a chosen page context."
 msgstr ""
 
-#: includes/features.php:863
+#: includes/features.php:864
 msgid "Report the resolved type and shape at a binding path before a Collection binds it."
 msgstr ""
 
-#: includes/features.php:868
+#: includes/features.php:869
 msgid "Map a Meta Box field id or label to its builder helper name and GraphQL read recipe."
 msgstr ""
 
-#: includes/features.php:873
+#: includes/features.php:874
 msgid "Fetch one authenticated front-end render and scan it for silent dynamic-data failures."
 msgstr ""
 
-#: includes/features.php:878
+#: includes/features.php:879
 msgid "Run the rendered-output scan across a matrix of query parameters and cookies."
 msgstr ""
 
-#: includes/features.php:882
+#: includes/features.php:883
 msgid "Get matched styles"
 msgstr ""
 
-#: includes/features.php:883
+#: includes/features.php:884
 msgid "Read the entity and global CSS rules that target one module, with media context."
 msgstr ""
 
-#: includes/features.php:887
+#: includes/features.php:888
 msgid "List settings sets"
 msgstr ""
 
-#: includes/features.php:888
+#: includes/features.php:889
 msgid "Enumerate the global settings sets that carry framework CSS and global variables."
 msgstr ""
 
-#: includes/features.php:893
+#: includes/features.php:894
 msgid "Structurally check snippet JavaScript for unbalanced or unterminated syntax without saving."
 msgstr ""
 
-#: includes/features.php:898
+#: includes/features.php:899
 msgid "Apply subtree HTML"
 msgstr ""
 
-#: includes/features.php:899
+#: includes/features.php:900
 msgid "Save edited HTML back onto a subtree as a new commit."
 msgstr ""
 
-#: includes/features.php:903
+#: includes/features.php:904
 msgid "Patch global CSS"
 msgstr ""
 
-#: includes/features.php:904
+#: includes/features.php:905
 msgid "Edit one named block of the global stylesheet; everything outside it is preserved."
 msgstr ""
 
-#: includes/features.php:908
+#: includes/features.php:909
 msgid "Patch entity CSS"
 msgstr ""
 
-#: includes/features.php:909
+#: includes/features.php:910
 msgid "Edit one named block of a template's entity CSS as a new commit."
 msgstr ""
 
-#: includes/features.php:913
+#: includes/features.php:914
 msgid "Create template"
 msgstr ""
 
-#: includes/features.php:914
+#: includes/features.php:915
 msgid "Create a Builderius template headlessly, ready for content abilities."
 msgstr ""
 
-#: includes/features.php:919
+#: includes/features.php:920
 msgid "Change a template's title, slug, enabled state or apply rules."
 msgstr ""
 
-#: includes/features.php:923
+#: includes/features.php:924
 msgid "Create component"
 msgstr ""
 
-#: includes/features.php:924
+#: includes/features.php:925
 msgid "Create a reusable Builderius component headlessly."
 msgstr ""
 
-#: includes/features.php:928
+#: includes/features.php:929
 msgid "Manage component properties"
 msgstr ""
 
-#: includes/features.php:929
+#: includes/features.php:930
 msgid "Add, update or remove a component's declared properties."
 msgstr ""
 
-#: includes/features.php:933
+#: includes/features.php:934
 msgid "Manage data variables"
 msgstr ""
 
-#: includes/features.php:934
+#: includes/features.php:935
 msgid "Create, update or delete a dynamic-data variable in the saved state."
 msgstr ""
 
-#: includes/features.php:938
+#: includes/features.php:939
 msgid "Manage JS snippets"
 msgstr ""
 
-#: includes/features.php:939
+#: includes/features.php:940
 msgid "Create, update or delete a custom JavaScript snippet in the saved state."
 msgstr ""
 
 #: includes/features.php:943
-msgid "Duplicate template"
+msgid "Code execution"
 msgstr ""
 
 #: includes/features.php:944
-msgid "Copy a template as a disabled working twin — content, entity CSS, variables and snippets included."
+msgid "Off by default because saved JavaScript executes for site visitors. Turn it on only for a specific trusted task, review the complete code before saving, and switch it off again afterwards."
+msgstr ""
+
+#: includes/features.php:947
+msgid "Duplicate template"
 msgstr ""
 
 #: includes/features.php:948
+msgid "Copy a template as a disabled working twin — content, entity CSS, variables and snippets included."
+msgstr ""
+
+#: includes/features.php:952
 msgid "Duplicate component"
 msgstr ""
 
-#: includes/features.php:949
+#: includes/features.php:953
 msgid "Copy a component definition with its declared properties, for safe forks of shared blocks."
 msgstr ""
 
-#: includes/features.php:953
+#: includes/features.php:957
 msgid "Manage rendering conditions"
 msgstr ""
 
-#: includes/features.php:954
+#: includes/features.php:958
 msgid "Read, set or clear an element's visibility conditions in the saved state."
 msgstr ""
 
-#: includes/features.php:958
+#: includes/features.php:962
 msgid "Manage global settings set"
 msgstr ""
 
-#: includes/features.php:959
+#: includes/features.php:963
 msgid "Read or update the global breakpoints, responsive strategy and fonts. Site-wide impact."
 msgstr ""
 
-#: includes/features.php:966
+#: includes/features.php:970
 msgid "Recover a clobbered stylesheet by re-saving an earlier commit's CSS."
 msgstr ""
 
-#: includes/features.php:970
+#: includes/features.php:974
 msgid "Delete template"
 msgstr ""
 
-#: includes/features.php:971
+#: includes/features.php:975
 msgid "Permanently delete a template, its branches and its history. Asks for confirmation."
 msgstr ""
 
-#: includes/features.php:976
+#: includes/features.php:980
 msgid "Delete component"
 msgstr ""
 
-#: includes/features.php:977
+#: includes/features.php:981
 msgid "Permanently delete an unused component and its history. Asks for confirmation."
 msgstr ""
 
-#: includes/features.php:983
+#: includes/features.php:987
 msgid "Create and publish a release from saved commits. This is go-live for visitors."
 msgstr ""
 
-#: includes/features.php:989
+#: includes/features.php:993
 msgid "Rebuild ALL development state from a published release. Deletes every template, component and settings set first, including commit history and the framework CSS, then recreates them from the release."
 msgstr ""
 
@@ -2390,7 +2398,7 @@ msgid "Unwrapped %s elements"
 msgstr ""
 
 #: includes/i18n-builder.php:70
-#: includes/i18n-builder.php:486
+#: includes/i18n-builder.php:491
 msgid "Rename"
 msgstr ""
 
@@ -2623,7 +2631,7 @@ msgstr ""
 #. translators: %s: target label.
 #: includes/i18n-builder.php:148
 #: includes/i18n-builder.php:213
-#: includes/i18n-builder.php:379
+#: includes/i18n-builder.php:384
 #, php-format
 msgid "Actions for %s"
 msgstr ""
@@ -2788,7 +2796,7 @@ msgid "Toggle CSS code editor"
 msgstr ""
 
 #: includes/i18n-builder.php:197
-#: includes/i18n-builder.php:336
+#: includes/i18n-builder.php:341
 msgid "Builderius menu"
 msgstr ""
 
@@ -2939,7 +2947,7 @@ msgid "Content"
 msgstr ""
 
 #: includes/i18n-builder.php:240
-#: includes/i18n-builder.php:527
+#: includes/i18n-builder.php:532
 msgid "Styles"
 msgstr ""
 
@@ -2974,7 +2982,7 @@ msgid "Targets every element that uses the current class."
 msgstr ""
 
 #: includes/i18n-builder.php:251
-#: includes/i18n-builder.php:327
+#: includes/i18n-builder.php:332
 msgid "Breakpoints"
 msgstr ""
 
@@ -3011,7 +3019,7 @@ msgid "Show the full CSS for the active scope and jump to this selector"
 msgstr ""
 
 #: includes/i18n-builder.php:260
-#: includes/i18n-builder.php:310
+#: includes/i18n-builder.php:315
 msgid "Global"
 msgstr ""
 
@@ -3020,7 +3028,7 @@ msgid "Component"
 msgstr ""
 
 #: includes/i18n-builder.php:263
-#: includes/i18n-builder.php:309
+#: includes/i18n-builder.php:314
 msgid "Local"
 msgstr ""
 
@@ -3141,1103 +3149,1121 @@ msgid "No accessible authored rules match this rendered element."
 msgstr ""
 
 #: includes/i18n-builder.php:301
-msgid "No computed properties match this filter."
+msgid "Inherited styles"
 msgstr ""
 
 #: includes/i18n-builder.php:302
-msgid "No authored pseudo-state or pseudo-element rules are connected to this element."
+msgid "Rules on ancestors whose inheritable declarations resolve to the same value here. Computed shows the final cascade."
 msgstr ""
 
-#: includes/i18n-builder.php:303
-msgid "Inactive states show authored declarations. Computed values are available for generated pseudo-elements and states currently active in the canvas."
-msgstr ""
-
+#. translators: %s: ancestor element descriptor, for example <section.hero>.
 #: includes/i18n-builder.php:304
-msgid "Computed pseudo-elements"
+#, php-format
+msgid "Inherited from %s"
 msgstr ""
 
 #: includes/i18n-builder.php:305
-msgid "Related authored rules"
+msgid "Nested"
 msgstr ""
 
 #: includes/i18n-builder.php:306
-msgid "Active now"
+msgid "No computed properties match this filter."
 msgstr ""
 
 #: includes/i18n-builder.php:307
-msgid "Inactive state"
+msgid "No authored pseudo-state or pseudo-element rules are connected to this element."
 msgstr ""
 
 #: includes/i18n-builder.php:308
-msgid "Edit rule"
+msgid "Inactive states show authored declarations. Computed values are available for generated pseudo-elements and states currently active in the canvas."
+msgstr ""
+
+#: includes/i18n-builder.php:309
+msgid "Computed pseudo-elements"
+msgstr ""
+
+#: includes/i18n-builder.php:310
+msgid "Related authored rules"
 msgstr ""
 
 #: includes/i18n-builder.php:311
+msgid "Active now"
+msgstr ""
+
+#: includes/i18n-builder.php:312
+msgid "Inactive state"
+msgstr ""
+
+#: includes/i18n-builder.php:313
+msgid "Edit rule"
+msgstr ""
+
+#: includes/i18n-builder.php:316
 msgid "Page or framework"
 msgstr ""
 
 #. translators: 1: current theme, 2: next theme.
-#: includes/i18n-builder.php:315
+#: includes/i18n-builder.php:320
 #, php-format
 msgid "Theme: %1$s (switch to %2$s)"
 msgstr ""
 
-#: includes/i18n-builder.php:316
+#: includes/i18n-builder.php:321
 msgid "light"
 msgstr ""
 
-#: includes/i18n-builder.php:317
+#: includes/i18n-builder.php:322
 msgid "dark"
 msgstr ""
 
-#: includes/i18n-builder.php:318
+#: includes/i18n-builder.php:323
 msgid "auto"
 msgstr ""
 
 #. translators: %s: the theme just switched to (light / dark / auto). Announced to screen readers.
-#: includes/i18n-builder.php:320
+#: includes/i18n-builder.php:325
 #, php-format
 msgid "Theme set to %s"
 msgstr ""
 
 #. translators: 1: current density, 2: next density.
-#: includes/i18n-builder.php:322
+#: includes/i18n-builder.php:327
 #, php-format
 msgid "Density: %1$s (switch to %2$s)"
 msgstr ""
 
-#: includes/i18n-builder.php:323
+#: includes/i18n-builder.php:328
 msgid "comfortable"
 msgstr ""
 
-#: includes/i18n-builder.php:324
+#: includes/i18n-builder.php:329
 msgid "compact"
 msgstr ""
 
 #. translators: %s: the density just switched to (comfortable / compact). Announced to screen readers.
-#: includes/i18n-builder.php:326
+#: includes/i18n-builder.php:331
 #, php-format
 msgid "Density set to %s"
 msgstr ""
 
-#: includes/i18n-builder.php:328
+#: includes/i18n-builder.php:333
 msgid "Canvas size"
 msgstr ""
 
-#: includes/i18n-builder.php:329
+#: includes/i18n-builder.php:334
 msgid "Editor tools"
 msgstr ""
 
 #. translators: %s: the tool name (e.g. Custom CSS). Marks a locked/Pro tool for screen readers.
-#: includes/i18n-builder.php:331
+#: includes/i18n-builder.php:336
 #, php-format
 msgid "%s (locked)"
 msgstr ""
 
 #. translators: %s: the name of the open tool (e.g. Dynamic Data). Names the editor panel region.
-#: includes/i18n-builder.php:333
+#: includes/i18n-builder.php:338
 #, php-format
 msgid "%s panel"
 msgstr ""
 
-#: includes/i18n-builder.php:334
+#: includes/i18n-builder.php:339
 msgid "Editor tools panel"
 msgstr ""
 
-#: includes/i18n-builder.php:335
+#: includes/i18n-builder.php:340
 msgid "Scope"
 msgstr ""
 
-#: includes/i18n-builder.php:337
+#: includes/i18n-builder.php:342
 msgid "Filter options"
 msgstr ""
 
-#: includes/i18n-builder.php:338
+#: includes/i18n-builder.php:343
 msgid "Options"
 msgstr ""
 
 #. translators: %s: the currently selected value. Names the select trigger for screen readers.
-#: includes/i18n-builder.php:340
+#: includes/i18n-builder.php:345
 #, php-format
 msgid "Selection: %s"
 msgstr ""
 
-#: includes/i18n-builder.php:341
+#: includes/i18n-builder.php:346
 msgid "AI chat sessions"
 msgstr ""
 
-#: includes/i18n-builder.php:342
+#: includes/i18n-builder.php:347
 msgid "New chat session"
 msgstr ""
 
-#: includes/i18n-builder.php:343
+#: includes/i18n-builder.php:348
 msgid "Choose an agent"
 msgstr ""
 
-#: includes/i18n-builder.php:344
+#: includes/i18n-builder.php:349
 msgid "Press Control and the grave accent key to move focus out of the terminal"
 msgstr ""
 
-#: includes/i18n-builder.php:347
-#: includes/i18n-builder.php:456
+#: includes/i18n-builder.php:352
+#: includes/i18n-builder.php:461
 msgid "Filter elements…"
 msgstr ""
 
-#: includes/i18n-builder.php:348
+#: includes/i18n-builder.php:353
 msgid "Filter elements by label or tag"
 msgstr ""
 
-#: includes/i18n-builder.php:351
+#: includes/i18n-builder.php:356
 msgid "Elements"
 msgstr ""
 
-#: includes/i18n-builder.php:352
+#: includes/i18n-builder.php:357
 msgid "Move between elements (selection follows)"
 msgstr ""
 
-#: includes/i18n-builder.php:353
+#: includes/i18n-builder.php:358
 msgid "Open a branch, then step into its first child"
 msgstr ""
 
-#: includes/i18n-builder.php:354
+#: includes/i18n-builder.php:359
 msgid "Close a branch, then step out to the parent"
 msgstr ""
 
-#: includes/i18n-builder.php:355
+#: includes/i18n-builder.php:360
 msgid "First / last element"
 msgstr ""
 
-#: includes/i18n-builder.php:356
+#: includes/i18n-builder.php:361
 msgid "Move the element among its siblings"
 msgstr ""
 
-#: includes/i18n-builder.php:357
+#: includes/i18n-builder.php:362
 msgid "Move the element into its previous sibling"
 msgstr ""
 
-#: includes/i18n-builder.php:358
+#: includes/i18n-builder.php:363
 msgid "Move the element out one level"
 msgstr ""
 
-#: includes/i18n-builder.php:361
+#: includes/i18n-builder.php:366
 msgid "Top toolbar"
 msgstr ""
 
-#: includes/i18n-builder.php:362
+#: includes/i18n-builder.php:367
 msgid "Element library"
 msgstr ""
 
-#: includes/i18n-builder.php:363
+#: includes/i18n-builder.php:368
 msgid "Element settings"
 msgstr ""
 
-#: includes/i18n-builder.php:364
-#: includes/i18n-builder.php:385
+#: includes/i18n-builder.php:369
+#: includes/i18n-builder.php:390
 msgid "Canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:366
+#: includes/i18n-builder.php:371
 msgid "Footer bar"
 msgstr ""
 
-#: includes/i18n-builder.php:369
+#: includes/i18n-builder.php:374
 msgid "Unsaved"
 msgstr ""
 
-#: includes/i18n-builder.php:370
+#: includes/i18n-builder.php:375
 msgid "Saving…"
 msgstr ""
 
-#: includes/i18n-builder.php:371
+#: includes/i18n-builder.php:376
 msgid "Saved"
 msgstr ""
 
-#: includes/i18n-builder.php:372
+#: includes/i18n-builder.php:377
 msgid "Save failed. Changes remain unsaved; try again."
 msgstr ""
 
-#: includes/i18n-builder.php:375
+#: includes/i18n-builder.php:380
 msgid "Save the template"
 msgstr ""
 
-#: includes/i18n-builder.php:382
+#: includes/i18n-builder.php:387
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: includes/i18n-builder.php:383
+#: includes/i18n-builder.php:388
 msgid "General"
 msgstr ""
 
-#: includes/i18n-builder.php:386
+#: includes/i18n-builder.php:391
 msgid "Sense AI"
 msgstr ""
 
-#: includes/i18n-builder.php:387
+#: includes/i18n-builder.php:392
 msgid "Context menu"
 msgstr ""
 
-#: includes/i18n-builder.php:388
+#: includes/i18n-builder.php:393
 msgid "Open this shortcuts overlay"
 msgstr ""
 
-#: includes/i18n-builder.php:389
+#: includes/i18n-builder.php:394
 msgid "Close menus and dialogs; clear the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:390
+#: includes/i18n-builder.php:395
 msgid "Close menus and dialogs"
 msgstr ""
 
-#: includes/i18n-builder.php:391
+#: includes/i18n-builder.php:396
 msgid "Remove the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:392
+#: includes/i18n-builder.php:397
 msgid "Copy / paste the selected element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:393
+#: includes/i18n-builder.php:398
 msgid "Undo the last element change"
 msgstr ""
 
-#: includes/i18n-builder.php:394
+#: includes/i18n-builder.php:399
 msgid "Redo the element change"
 msgstr ""
 
-#: includes/i18n-builder.php:395
+#: includes/i18n-builder.php:400
 msgid "Add or remove a row from the multi-selection"
 msgstr ""
 
-#: includes/i18n-builder.php:396
+#: includes/i18n-builder.php:401
 msgid "Select a range of rows"
 msgstr ""
 
-#: includes/i18n-builder.php:397
+#: includes/i18n-builder.php:402
 msgid "Open the context menu on the focused row"
 msgstr ""
 
-#: includes/i18n-builder.php:398
+#: includes/i18n-builder.php:403
 msgid "Finish editing text in the canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:399
+#: includes/i18n-builder.php:404
 msgid "Move between visible elements"
 msgstr ""
 
-#: includes/i18n-builder.php:400
+#: includes/i18n-builder.php:405
 msgid "Open a branch, then select its first child"
 msgstr ""
 
-#: includes/i18n-builder.php:401
+#: includes/i18n-builder.php:406
 msgid "Close a branch, then select its parent"
 msgstr ""
 
-#: includes/i18n-builder.php:402
+#: includes/i18n-builder.php:407
 msgid "First / last visible element"
 msgstr ""
 
-#: includes/i18n-builder.php:403
+#: includes/i18n-builder.php:408
 msgid "Edit selected text; otherwise interact with the page"
 msgstr ""
 
-#: includes/i18n-builder.php:404
+#: includes/i18n-builder.php:409
 msgid "Return to selecting elements"
 msgstr ""
 
-#: includes/i18n-builder.php:405
+#: includes/i18n-builder.php:410
 msgid "Move focus out of the terminal"
 msgstr ""
 
-#: includes/i18n-builder.php:406
+#: includes/i18n-builder.php:411
 msgid "Move between items (wraps)"
 msgstr ""
 
-#: includes/i18n-builder.php:407
+#: includes/i18n-builder.php:412
 msgid "First / last item"
 msgstr ""
 
-#: includes/i18n-builder.php:408
+#: includes/i18n-builder.php:413
 msgid "Activate an item or open its submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:409
+#: includes/i18n-builder.php:414
 msgid "Open / close a submenu"
 msgstr ""
 
-#: includes/i18n-builder.php:412
+#: includes/i18n-builder.php:417
 msgid "Resize preview canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:413
+#: includes/i18n-builder.php:418
 msgid "Resize panels"
 msgstr ""
 
-#: includes/i18n-builder.php:417
+#: includes/i18n-builder.php:422
 msgid "Rearrange properties"
 msgstr ""
 
-#: includes/i18n-builder.php:418
+#: includes/i18n-builder.php:423
 msgid "Rearrange"
 msgstr ""
 
 #. translators: %s: favourite element name.
-#: includes/i18n-builder.php:420
+#: includes/i18n-builder.php:425
 #, php-format
 msgid "%s (press up or down arrow to move, Escape to finish)"
 msgstr ""
 
-#: includes/i18n-builder.php:421
+#: includes/i18n-builder.php:426
 msgid "Rearrange mode on: drag the icons, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:422
+#: includes/i18n-builder.php:427
 msgid "Rearrange mode on: drag a property, or focus one and use the arrow keys"
 msgstr ""
 
-#: includes/i18n-builder.php:423
+#: includes/i18n-builder.php:428
 msgid "Rearrange mode off: order saved"
 msgstr ""
 
 #. translators: 1: item name, 2: new position, 3: total items.
-#: includes/i18n-builder.php:425
+#: includes/i18n-builder.php:430
 #, php-format
 msgid "Moved %1$s to position %2$s of %3$s"
 msgstr ""
 
-#: includes/i18n-builder.php:426
+#: includes/i18n-builder.php:431
 msgid "Order changed on screen, but it could not be saved to the component"
 msgstr ""
 
-#: includes/i18n-builder.php:427
+#: includes/i18n-builder.php:432
 msgid "Property"
 msgstr ""
 
 #. translators: %s: number of elements moved.
-#: includes/i18n-builder.php:429
+#: includes/i18n-builder.php:434
 #, php-format
 msgid "Moved %s elements together"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:431
+#: includes/i18n-builder.php:436
 #, php-format
 msgid "Moved %1$s element (%2$s could not follow)"
 msgstr ""
 
 #. translators: 1: number of elements moved, 2: number that failed.
-#: includes/i18n-builder.php:433
+#: includes/i18n-builder.php:438
 #, php-format
 msgid "Moved %1$s elements (%2$s could not follow)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:437
+#: includes/i18n-builder.php:442
 #, php-format
 msgid "Copy %s"
 msgstr ""
 
 #. translators: %s: class name without the leading dot.
-#: includes/i18n-builder.php:439
+#: includes/i18n-builder.php:444
 #, php-format
 msgid "Copy %s (no dot)"
 msgstr ""
 
 #. translators: %s: number of classes.
-#: includes/i18n-builder.php:441
+#: includes/i18n-builder.php:446
 #, php-format
 msgid "Copy all classes (%s)"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:443
+#: includes/i18n-builder.php:448
 #, php-format
 msgid "Remove %s from element"
 msgstr ""
 
 #. translators: %s: the copied text.
-#: includes/i18n-builder.php:445
+#: includes/i18n-builder.php:450
 #, php-format
 msgid "Copied %s"
 msgstr ""
 
-#: includes/i18n-builder.php:446
+#: includes/i18n-builder.php:451
 msgid "Copy failed: clipboard unavailable"
 msgstr ""
 
 #. translators: %s: class name.
-#: includes/i18n-builder.php:448
+#: includes/i18n-builder.php:453
 #, php-format
 msgid "Removed %s"
 msgstr ""
 
-#: includes/i18n-builder.php:451
-#: includes/i18n-builder.php:483
-#: includes/i18n-builder.php:506
+#: includes/i18n-builder.php:456
+#: includes/i18n-builder.php:488
+#: includes/i18n-builder.php:511
 msgid "Cut"
 msgstr ""
 
-#: includes/i18n-builder.php:452
-#: includes/i18n-builder.php:454
+#: includes/i18n-builder.php:457
+#: includes/i18n-builder.php:459
 msgid "Add element before"
 msgstr ""
 
-#: includes/i18n-builder.php:453
-#: includes/i18n-builder.php:455
+#: includes/i18n-builder.php:458
+#: includes/i18n-builder.php:460
 msgid "Add element after"
 msgstr ""
 
-#: includes/i18n-builder.php:457
+#: includes/i18n-builder.php:462
 msgid "No matching element"
 msgstr ""
 
-#: includes/i18n-builder.php:458
+#: includes/i18n-builder.php:463
 msgid "Duplicated element"
 msgstr ""
 
-#: includes/i18n-builder.php:459
+#: includes/i18n-builder.php:464
 msgid "Cut element"
 msgstr ""
 
 #. translators: %s: element/tag name just inserted.
-#: includes/i18n-builder.php:461
+#: includes/i18n-builder.php:466
 #, php-format
 msgid "Added %s"
 msgstr ""
 
-#: includes/i18n-builder.php:462
+#: includes/i18n-builder.php:467
 msgid "Select an element first"
 msgstr ""
 
-#: includes/i18n-builder.php:464
+#: includes/i18n-builder.php:469
 msgid "Remove condition"
 msgstr ""
 
-#: includes/i18n-builder.php:465
+#: includes/i18n-builder.php:470
 msgid "Comparison"
 msgstr ""
 
-#: includes/i18n-builder.php:466
+#: includes/i18n-builder.php:471
 msgid "Value"
 msgstr ""
 
-#: includes/i18n-builder.php:467
+#: includes/i18n-builder.php:472
 msgid "Type a custom value"
 msgstr ""
 
-#: includes/i18n-builder.php:468
+#: includes/i18n-builder.php:473
 msgid "Values"
 msgstr ""
 
 #. translators: %s: number of display conditions.
-#: includes/i18n-builder.php:470
+#: includes/i18n-builder.php:475
 #, php-format
 msgid "Dynamic data conditions (%s set)"
 msgstr ""
 
-#: includes/i18n-builder.php:471
+#: includes/i18n-builder.php:476
 msgid ", has display conditions"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:474
+#: includes/i18n-builder.php:479
 #, php-format
 msgid "Duplicate “%s”"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:476
+#: includes/i18n-builder.php:481
 #, php-format
 msgid "Delete “%s”"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:478
+#: includes/i18n-builder.php:483
 #, php-format
 msgid "Confirm delete “%s”"
 msgstr ""
 
-#: includes/i18n-builder.php:479
+#: includes/i18n-builder.php:484
 msgid "Press again to confirm"
 msgstr ""
 
-#: includes/i18n-builder.php:481
+#: includes/i18n-builder.php:486
 msgid "Selected element"
 msgstr ""
 
-#: includes/i18n-builder.php:482
-#: includes/i18n-builder.php:504
+#: includes/i18n-builder.php:487
+#: includes/i18n-builder.php:509
 msgid "Duplicate"
 msgstr ""
 
-#: includes/i18n-builder.php:484
+#: includes/i18n-builder.php:489
 msgid "Add an element before"
 msgstr ""
 
-#: includes/i18n-builder.php:485
+#: includes/i18n-builder.php:490
 msgid "Add an element after"
 msgstr ""
 
-#: includes/i18n-builder.php:487
+#: includes/i18n-builder.php:492
 msgid "Copy / paste / delete the element (Builderius)"
 msgstr ""
 
-#: includes/i18n-builder.php:489
+#: includes/i18n-builder.php:494
 msgid "Move to area"
 msgstr ""
 
-#: includes/i18n-builder.php:491
+#: includes/i18n-builder.php:496
 msgid "Settings panel"
 msgstr ""
 
-#: includes/i18n-builder.php:492
+#: includes/i18n-builder.php:497
 msgid "Canvas / preview"
 msgstr ""
 
-#: includes/i18n-builder.php:493
+#: includes/i18n-builder.php:498
 msgid "Insert elements"
 msgstr ""
 
 #. translators: %s: the palette's keyboard shortcut, e.g. Ctrl+K.
-#: includes/i18n-builder.php:498
+#: includes/i18n-builder.php:503
 #, php-format
 msgid "Command palette (%s)"
 msgstr ""
 
-#: includes/i18n-builder.php:499
+#: includes/i18n-builder.php:504
 msgid "Search commands…"
 msgstr ""
 
-#: includes/i18n-builder.php:500
+#: includes/i18n-builder.php:505
 msgid "No element selected — element commands are hidden"
 msgstr ""
 
-#: includes/i18n-builder.php:501
+#: includes/i18n-builder.php:506
 msgid "Add classes"
 msgstr ""
 
-#: includes/i18n-builder.php:502
+#: includes/i18n-builder.php:507
 msgid "Add attributes"
 msgstr ""
 
-#: includes/i18n-builder.php:503
+#: includes/i18n-builder.php:508
 msgid "Add elements (Emmet)"
 msgstr ""
 
-#: includes/i18n-builder.php:505
+#: includes/i18n-builder.php:510
 msgid "Copy"
 msgstr ""
 
-#: includes/i18n-builder.php:507
+#: includes/i18n-builder.php:512
 msgid "Delete"
 msgstr ""
 
-#: includes/i18n-builder.php:508
+#: includes/i18n-builder.php:513
 msgid "Wrap in div"
 msgstr ""
 
-#: includes/i18n-builder.php:509
+#: includes/i18n-builder.php:514
 msgid "Wrap in figure"
 msgstr ""
 
-#: includes/i18n-builder.php:510
+#: includes/i18n-builder.php:515
 msgid "Wrap in template"
 msgstr ""
 
-#: includes/i18n-builder.php:511
+#: includes/i18n-builder.php:516
 msgid "Wrap in collection"
 msgstr ""
 
-#: includes/i18n-builder.php:513
+#: includes/i18n-builder.php:518
 msgid "Add to element"
 msgstr ""
 
-#: includes/i18n-builder.php:514
+#: includes/i18n-builder.php:519
 msgid "Structure"
 msgstr ""
 
-#: includes/i18n-builder.php:515
+#: includes/i18n-builder.php:520
 msgid "Element"
 msgstr ""
 
-#: includes/i18n-builder.php:516
+#: includes/i18n-builder.php:521
 msgid "Workspace"
 msgstr ""
 
-#: includes/i18n-builder.php:517
+#: includes/i18n-builder.php:522
 msgid "WordPress and Builderius"
 msgstr ""
 
-#: includes/i18n-builder.php:518
+#: includes/i18n-builder.php:523
 msgid "Go to"
 msgstr ""
 
-#: includes/i18n-builder.php:519
+#: includes/i18n-builder.php:524
 msgid "That command is not available here"
 msgstr ""
 
-#: includes/i18n-builder.php:520
+#: includes/i18n-builder.php:525
 msgid "No matching commands"
 msgstr ""
 
-#: includes/i18n-builder.php:521
+#: includes/i18n-builder.php:526
 msgid "Enter at least one class"
 msgstr ""
 
-#: includes/i18n-builder.php:522
+#: includes/i18n-builder.php:527
 msgid "Enter an attribute name"
 msgstr ""
 
-#: includes/i18n-builder.php:523
+#: includes/i18n-builder.php:528
 msgid "Enter an element abbreviation"
 msgstr ""
 
-#: includes/i18n-builder.php:524
+#: includes/i18n-builder.php:529
 msgid "Enter a new name"
 msgstr ""
 
-#: includes/i18n-builder.php:525
+#: includes/i18n-builder.php:530
 msgid "Enter a new HTML tag"
 msgstr ""
 
-#: includes/i18n-builder.php:526
+#: includes/i18n-builder.php:531
 msgid "Enter a value"
 msgstr ""
 
-#: includes/i18n-builder.php:528
+#: includes/i18n-builder.php:533
 msgid "Open WordPress dashboard"
 msgstr ""
 
-#: includes/i18n-builder.php:529
+#: includes/i18n-builder.php:534
 msgid "Open Builderius releases"
 msgstr ""
 
-#: includes/i18n-builder.php:530
+#: includes/i18n-builder.php:535
 msgid "Open Builderius settings"
 msgstr ""
 
-#: includes/i18n-builder.php:532
+#: includes/i18n-builder.php:537
 msgid "Del"
 msgstr ""
 
-#: includes/i18n-builder.php:533
+#: includes/i18n-builder.php:538
 msgid "Go to Navigator"
 msgstr ""
 
-#: includes/i18n-builder.php:534
+#: includes/i18n-builder.php:539
 msgid "Go to settings"
 msgstr ""
 
-#: includes/i18n-builder.php:535
+#: includes/i18n-builder.php:540
 msgid "Go to canvas"
 msgstr ""
 
-#: includes/i18n-builder.php:536
+#: includes/i18n-builder.php:541
 msgid "Interact with page"
 msgstr ""
 
-#: includes/i18n-builder.php:537
+#: includes/i18n-builder.php:542
 msgid "Select elements"
 msgstr ""
 
-#: includes/i18n-builder.php:538
+#: includes/i18n-builder.php:543
 msgid "Interacting with page. Press Escape to select elements."
 msgstr ""
 
-#: includes/i18n-builder.php:539
+#: includes/i18n-builder.php:544
 msgid "Selecting elements."
 msgstr ""
 
-#: includes/i18n-builder.php:540
+#: includes/i18n-builder.php:545
 msgid "Editing text"
 msgstr ""
 
-#: includes/i18n-builder.php:541
+#: includes/i18n-builder.php:546
 msgid "Editing text. Press Escape to finish."
 msgstr ""
 
-#: includes/i18n-builder.php:542
+#: includes/i18n-builder.php:547
 msgid "Esc to finish"
 msgstr ""
 
-#: includes/i18n-builder.php:543
+#: includes/i18n-builder.php:548
 msgid "Finished editing text"
 msgstr ""
 
-#: includes/i18n-builder.php:544
+#: includes/i18n-builder.php:549
 msgid "Edit text"
 msgstr ""
 
-#: includes/i18n-builder.php:545
+#: includes/i18n-builder.php:550
 msgid "Select an element with editable text"
 msgstr ""
 
 #. translators: %s: selected element label.
-#: includes/i18n-builder.php:547
+#: includes/i18n-builder.php:552
 #, php-format
 msgid "Selected %s"
 msgstr ""
 
-#: includes/i18n-builder.php:548
+#: includes/i18n-builder.php:553
 msgid "Selected"
 msgstr ""
 
 #. translators: %s: selected element hierarchy, for example Hero > Content > Heading.
-#: includes/i18n-builder.php:550
+#: includes/i18n-builder.php:555
 #, php-format
 msgid "Selected element: %s"
 msgstr ""
 
-#: includes/i18n-builder.php:551
+#: includes/i18n-builder.php:556
 msgid "No matching elements"
 msgstr ""
 
 #. translators: 1: number of matching elements, 2: total number of elements.
-#: includes/i18n-builder.php:553
+#: includes/i18n-builder.php:558
 #, php-format
 msgid "%1$s of %2$s element matches"
 msgstr ""
 
 #. translators: 1: number of matching elements, 2: total number of elements.
-#: includes/i18n-builder.php:555
+#: includes/i18n-builder.php:560
 #, php-format
 msgid "%1$s of %2$s elements match"
 msgstr ""
 
-#: includes/i18n-builder.php:556
+#: includes/i18n-builder.php:561
 msgid "Open Inserter"
 msgstr ""
 
-#: includes/i18n-builder.php:557
+#: includes/i18n-builder.php:562
 msgid "Copied element"
 msgstr ""
 
-#: includes/i18n-builder.php:558
+#: includes/i18n-builder.php:563
 msgid "Deleted element"
 msgstr ""
 
-#: includes/i18n-builder.php:559
+#: includes/i18n-builder.php:564
 msgid "class1 class2  (or .a.b)"
 msgstr ""
 
-#: includes/i18n-builder.php:560
+#: includes/i18n-builder.php:565
 msgid "name=value; name2=value2"
 msgstr ""
 
 #. translators: %s: attribute name.
-#: includes/i18n-builder.php:562
+#: includes/i18n-builder.php:567
 #, php-format
 msgid "Added attribute %s"
 msgstr ""
 
 #. translators: %s: number of attributes added.
-#: includes/i18n-builder.php:564
+#: includes/i18n-builder.php:569
 #, php-format
 msgid "Added %s attributes"
 msgstr ""
 
-#: includes/i18n-builder.php:565
+#: includes/i18n-builder.php:570
 msgid "Open the element settings to add an attribute"
 msgstr ""
 
 #. translators: %s: the text that could not be parsed.
-#: includes/i18n-builder.php:567
+#: includes/i18n-builder.php:572
 #, php-format
 msgid "Could not parse: %s"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:569
+#: includes/i18n-builder.php:574
 #, php-format
 msgid "Added %s element"
 msgstr ""
 
 #. translators: %s: number of elements added.
-#: includes/i18n-builder.php:571
+#: includes/i18n-builder.php:576
 #, php-format
 msgid "Added %s elements"
 msgstr ""
 
-#: includes/i18n-builder.php:574
+#: includes/i18n-builder.php:579
 msgid "Open the command palette (add classes / attributes / elements)"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:578
+#: includes/i18n-builder.php:583
 #, php-format
 msgid "Edit as HTML — %s"
 msgstr ""
 
-#: includes/i18n-builder.php:579
+#: includes/i18n-builder.php:584
 msgid "Existing IDs preserve matching module settings. Components use <dbe-component> and unsupported modules use <dbe-keep>. Review kept, added, removed and sanitised items before applying."
 msgstr ""
 
-#: includes/i18n-builder.php:580
+#: includes/i18n-builder.php:585
 msgid "HTML markup"
 msgstr ""
 
-#: includes/i18n-builder.php:581
+#: includes/i18n-builder.php:586
 msgid "This element can’t be edited as HTML — try one inside or around it"
 msgstr ""
 
-#: includes/i18n-builder.php:582
+#: includes/i18n-builder.php:587
 msgid "Apply HTML"
 msgstr ""
 
-#: includes/i18n-builder.php:583
+#: includes/i18n-builder.php:588
 msgid "Review changes"
 msgstr ""
 
-#: includes/i18n-builder.php:584
+#: includes/i18n-builder.php:589
 msgid "Apply changes"
 msgstr ""
 
-#: includes/i18n-builder.php:585
+#: includes/i18n-builder.php:590
 msgid "Review complete."
 msgstr ""
 
-#: includes/i18n-builder.php:586
+#: includes/i18n-builder.php:591
 msgid "The HTML must have exactly one root element"
 msgstr ""
 
-#: includes/i18n-builder.php:587
+#: includes/i18n-builder.php:592
 msgid "The root element can’t be a preserved (<dbe-keep>) placeholder"
 msgstr ""
 
-#: includes/i18n-builder.php:588
+#: includes/i18n-builder.php:593
 msgid "Could not parse the HTML"
 msgstr ""
 
 #. translators: 1: submitted bytes, 2: maximum bytes.
-#: includes/i18n-builder.php:590
+#: includes/i18n-builder.php:595
 #, php-format
 msgid "The HTML is too large (%1$s bytes; maximum %2$s)."
 msgstr ""
 
 #. translators: 1: submitted elements, 2: maximum elements.
-#: includes/i18n-builder.php:592
+#: includes/i18n-builder.php:597
 #, php-format
 msgid "The HTML contains too many elements (%1$s; maximum %2$s)."
 msgstr ""
 
 #. translators: %s: maximum nesting depth.
-#: includes/i18n-builder.php:594
+#: includes/i18n-builder.php:599
 #, php-format
 msgid "The HTML nesting exceeds the maximum depth of %s."
 msgstr ""
 
 #. translators: 1: module ID, 2: saved module type, 3: submitted module type.
-#: includes/i18n-builder.php:596
+#: includes/i18n-builder.php:601
 #, php-format
 msgid "Marked element %1$s is a %2$s but was submitted as %3$s."
 msgstr ""
 
 #. translators: 1: module ID, 2: submitted component slug.
-#: includes/i18n-builder.php:598
+#: includes/i18n-builder.php:603
 #, php-format
 msgid "Marked element %1$s uses the unknown component “%2$s”. Choose an available component or restore the original name."
 msgstr ""
 
-#: includes/i18n-builder.php:599
+#: includes/i18n-builder.php:604
 msgid "blank"
 msgstr ""
 
 #. translators: 1: saved root module type, 2: submitted root module type.
-#: includes/i18n-builder.php:601
+#: includes/i18n-builder.php:606
 #, php-format
 msgid "The subtree root is a %1$s and cannot be submitted as %2$s."
 msgstr ""
 
 #. translators: %s: number of root elements found.
-#: includes/i18n-builder.php:603
+#: includes/i18n-builder.php:608
 #, php-format
 msgid "The HTML must have exactly one root element (found %s)."
 msgstr ""
 
 #. translators: 1: elements updated, 2: elements added, 3: elements removed.
-#: includes/i18n-builder.php:605
+#: includes/i18n-builder.php:610
 #, php-format
 msgid "Will apply: %1$s updated, %2$s added, %3$s removed"
 msgstr ""
 
 #. translators: %s: comma-separated list of unrecognised data-dbe-id markers.
-#: includes/i18n-builder.php:607
+#: includes/i18n-builder.php:612
 #, php-format
 msgid "Unrecognised marker(s): %s. A new element will be created and the original removed."
 msgstr ""
 
 #. translators: 1: elements updated, 2: elements added, 3: elements removed.
-#: includes/i18n-builder.php:609
+#: includes/i18n-builder.php:614
 #, php-format
 msgid "HTML applied: %1$s updated, %2$s added, %3$s removed"
 msgstr ""
 
-#: includes/i18n-builder.php:610
+#: includes/i18n-builder.php:615
 msgid "Applying these changes can’t be undone. Cancel keeps the current element unchanged."
 msgstr ""
 
-#: includes/i18n-builder.php:611
+#: includes/i18n-builder.php:616
 msgid "Edit as HTML can’t be undone. Edit the element again to correct it."
 msgstr ""
 
-#: includes/i18n-builder.php:612
+#: includes/i18n-builder.php:617
 msgid "This import can’t be undone as one action. Delete the new elements to remove them."
 msgstr ""
 
-#: includes/i18n-builder.php:613
+#: includes/i18n-builder.php:618
 msgid "Import HTML can’t be undone as one action. Delete the imported elements to remove them."
 msgstr ""
 
 #. translators: %s: comma-separated list of stripped tags/attributes.
-#: includes/i18n-builder.php:615
+#: includes/i18n-builder.php:620
 #, php-format
 msgid "(stripped: %s)"
 msgstr ""
 
-#: includes/i18n-builder.php:618
+#: includes/i18n-builder.php:623
 msgid "Import HTML…"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:620
+#: includes/i18n-builder.php:625
 #, php-format
 msgid "Import HTML into %s"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:622
+#: includes/i18n-builder.php:627
 #, php-format
 msgid "Import HTML after %s"
 msgstr ""
 
-#: includes/i18n-builder.php:623
+#: includes/i18n-builder.php:628
 msgid "Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label=\"…\" to any element to name it in the Navigator, or insert a component with <dbe-component name=\"slug\">."
 msgstr ""
 
-#: includes/i18n-builder.php:624
+#: includes/i18n-builder.php:629
 msgid "HTML to import"
 msgstr ""
 
-#: includes/i18n-builder.php:625
+#: includes/i18n-builder.php:630
 msgid "Preview"
 msgstr ""
 
-#: includes/i18n-builder.php:626
+#: includes/i18n-builder.php:631
 msgid "Nothing to preview yet."
 msgstr ""
 
-#: includes/i18n-builder.php:627
+#: includes/i18n-builder.php:632
 msgid "HTML can only be imported into a plain element"
 msgstr ""
 
-#: includes/i18n-builder.php:628
+#: includes/i18n-builder.php:633
 msgid "The target element no longer exists"
 msgstr ""
 
-#: includes/i18n-builder.php:629
+#: includes/i18n-builder.php:634
 msgid "Insert"
 msgstr ""
 
-#: includes/i18n-builder.php:630
+#: includes/i18n-builder.php:635
 msgid "No usable elements found in that HTML"
 msgstr ""
 
 #. translators: %s: number of elements to be created.
-#: includes/i18n-builder.php:632
+#: includes/i18n-builder.php:637
 #, php-format
 msgid "%s element will be created."
 msgstr ""
 
 #. translators: %s: number of elements to be created.
-#: includes/i18n-builder.php:634
+#: includes/i18n-builder.php:639
 #, php-format
 msgid "%s elements will be created."
 msgstr ""
 
 #. translators: %s: number of repeated groups detected.
-#: includes/i18n-builder.php:636
+#: includes/i18n-builder.php:641
 #, php-format
 msgid "Collapse %s repeated group into a collection"
 msgstr ""
 
 #. translators: %s: number of repeated groups detected.
-#: includes/i18n-builder.php:638
+#: includes/i18n-builder.php:643
 #, php-format
 msgid "Collapse %s repeated groups into collections"
 msgstr ""
 
-#: includes/i18n-builder.php:639
+#: includes/i18n-builder.php:644
 msgid "New collections still need their data binding."
 msgstr ""
 
-#: includes/i18n-builder.php:640
+#: includes/i18n-builder.php:645
 msgid "Extract the repeated content into each collection’s data source (JSON)"
 msgstr ""
 
-#: includes/i18n-builder.php:641
+#: includes/i18n-builder.php:646
 msgid "Each collection stores its items as JSON in its data-b-context attribute."
 msgstr ""
 
-#: includes/i18n-builder.php:642
+#: includes/i18n-builder.php:647
 msgid "SVGs or components that differ between copies keep the first copy’s version."
 msgstr ""
 
 #. translators: %s: number of data items on a collection.
-#: includes/i18n-builder.php:644
+#: includes/i18n-builder.php:649
 #, php-format
 msgid "(%s item)"
 msgstr ""
 
 #. translators: %s: number of data items on a collection.
-#: includes/i18n-builder.php:646
+#: includes/i18n-builder.php:651
 #, php-format
 msgid "(%s items)"
 msgstr ""
 
 #. translators: %s: number of elements imported.
-#: includes/i18n-builder.php:648
+#: includes/i18n-builder.php:653
 #, php-format
 msgid "Imported %s element"
 msgstr ""
 
 #. translators: %s: number of elements imported.
-#: includes/i18n-builder.php:650
+#: includes/i18n-builder.php:655
 #, php-format
 msgid "Imported %s elements"
 msgstr ""
 
-#: includes/i18n-builder.php:652
+#: includes/i18n-builder.php:657
 msgid "Change tag…"
 msgstr ""
 
 #. translators: %s: the new HTML tag.
-#: includes/i18n-builder.php:654
+#: includes/i18n-builder.php:659
 #, php-format
 msgid "Tag changed to <%s>"
 msgstr ""
 
-#: includes/i18n-builder.php:655
+#: includes/i18n-builder.php:660
 msgid "Change tag"
 msgstr ""
 
 #. translators: %s: the element's current HTML tag.
-#: includes/i18n-builder.php:657
+#: includes/i18n-builder.php:662
 #, php-format
 msgid "section, h2, figure…  (now <%s>)"
 msgstr ""
 
 #. translators: %s: what the user typed.
-#: includes/i18n-builder.php:659
+#: includes/i18n-builder.php:664
 #, php-format
 msgid "Not a usable HTML tag: %s"
 msgstr ""
 
 #. translators: %s: the element's current HTML tag.
-#: includes/i18n-builder.php:661
+#: includes/i18n-builder.php:666
 #, php-format
 msgid "Already <%s>"
 msgstr ""
 
-#: includes/presence.php:152
+#: includes/presence.php:183
 msgid "This template has unsaved changes in another Builderius tab. Saving this agent edit now could overwrite that work. Save or discard the tab’s changes, reload it, then try again."
 msgstr ""
 
@@ -4255,7 +4281,7 @@ msgid ", requires Builderius Pro"
 msgstr ""
 
 #: includes/settings-page.php:128
-#: includes/settings-page.php:556
+#: includes/settings-page.php:558
 msgid "Experimental"
 msgstr ""
 
@@ -4277,181 +4303,181 @@ msgstr ""
 msgid "Other enhancements"
 msgstr ""
 
-#: includes/settings-page.php:298
+#: includes/settings-page.php:278
 msgid "Destructive"
 msgstr ""
 
-#: includes/settings-page.php:298
-msgid ", destructive ability, off by default"
-msgstr ""
-
-#: includes/settings-page.php:300
-msgid "Caution"
-msgstr ""
-
-#: includes/settings-page.php:306
+#: includes/settings-page.php:279
 msgid "Off by default. Turn it on only while you need it, approve each run when the agent asks for confirmation, and switch it off again afterwards."
 msgstr ""
 
-#: includes/settings-page.php:335
+#: includes/settings-page.php:300
+msgid ", high-risk ability, off by default"
+msgstr ""
+
+#: includes/settings-page.php:302
+msgid "Caution"
+msgstr ""
+
+#: includes/settings-page.php:337
 msgid "These switches control the dbe/* WordPress abilities available to connected AI agents. Read abilities inspect saved state, Write abilities change development state, and Execute abilities restore, delete, publish or rebuild it. A disabled ability is not registered, so agents cannot see or run it. Changes apply from the next request."
 msgstr ""
 
-#: includes/settings-page.php:339
+#: includes/settings-page.php:341
 msgid "The WordPress Abilities API is not currently available on this site, so no ability is active regardless of these switches. Your choices are saved and take effect when a plugin that provides the API (such as Novamira) is active."
 msgstr ""
 
-#: includes/settings-page.php:345
+#: includes/settings-page.php:347
 msgid "Enable agent abilities"
 msgstr ""
 
-#: includes/settings-page.php:348
+#: includes/settings-page.php:350
 msgid "Master switch for every ability below. Editing abilities additionally require the Builderius development capability, and abilities that accept raw markup require the unfiltered_html capability."
 msgstr ""
 
 #. translators: %s: number of settings enabled by a preset.
-#: includes/settings-page.php:387
+#: includes/settings-page.php:389
 #, php-format
 msgid "Preset ready: %s settings enabled. Review the changes, then save."
 msgstr ""
 
-#: includes/settings-page.php:390
+#: includes/settings-page.php:392
 msgid "Daveden Builder Enhancements adds independent appearance, accessibility, editing and workflow tools to Builderius."
 msgstr ""
 
-#: includes/settings-page.php:392
+#: includes/settings-page.php:394
 msgid "Appearance and accessibility features affect only the editing interface. Editing tools and agent features can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved."
 msgstr ""
 
 #. translators: %s: plugin version number.
-#: includes/settings-page.php:398
+#: includes/settings-page.php:400
 #, php-format
 msgid "Version %s"
 msgstr ""
 
-#: includes/settings-page.php:404
+#: includes/settings-page.php:406
 msgid "GitHub repository"
 msgstr ""
 
-#: includes/settings-page.php:408
+#: includes/settings-page.php:410
 msgid "Daveden on YouTube"
 msgstr ""
 
-#: includes/settings-page.php:412
+#: includes/settings-page.php:414
 msgid "Quick-start presets"
 msgstr ""
 
-#: includes/settings-page.php:413
+#: includes/settings-page.php:415
 msgid "Enable a coherent set of features in one step. Presets add to your current choices; review the changes, then save when you are ready."
 msgstr ""
 
-#: includes/settings-page.php:421
+#: includes/settings-page.php:423
 msgid "Includes experimental"
 msgstr ""
 
 #. translators: %s: feature preset name.
-#: includes/settings-page.php:434
+#: includes/settings-page.php:436
 #, php-format
 msgid "Enable %s"
 msgstr ""
 
-#: includes/settings-page.php:446
+#: includes/settings-page.php:448
 msgid "Every available setting in this preset is already enabled."
 msgstr ""
 
-#: includes/settings-page.php:447
+#: includes/settings-page.php:449
 msgid "Preset ready: 1 setting enabled. Review the changes, then save."
 msgstr ""
 
-#: includes/settings-page.php:454
+#: includes/settings-page.php:456
 msgid "Introduction to Daveden Builder Enhancements (YouTube video)"
 msgstr ""
 
-#: includes/settings-page.php:460
+#: includes/settings-page.php:462
 msgid "Introduction to the plugin on the Daveden YouTube channel."
 msgstr ""
 
-#: includes/settings-page.php:462
+#: includes/settings-page.php:464
 msgid "Enabled features"
 msgstr ""
 
 #. translators: 1: enabled feature count, 2: total feature count.
-#: includes/settings-page.php:495
+#: includes/settings-page.php:497
 #, php-format
 msgid "%1$d of %2$d enabled"
 msgstr ""
 
 #. translators: %s: number of matching features.
-#: includes/settings-page.php:519
+#: includes/settings-page.php:521
 #, php-format
 msgid "%s features shown"
 msgstr ""
 
-#: includes/settings-page.php:523
+#: includes/settings-page.php:525
 msgid "Choose which enhancements are available in Builderius. Interface settings apply the next time the builder loads; editing tools change saved content only when you use them."
 msgstr ""
 
-#: includes/settings-page.php:542
+#: includes/settings-page.php:544
 msgid "1 feature shown"
 msgstr ""
 
-#: includes/settings-page.php:547
+#: includes/settings-page.php:549
 msgid "Find a feature"
 msgstr ""
 
-#: includes/settings-page.php:548
+#: includes/settings-page.php:550
 msgid "Search all features"
 msgstr ""
 
-#: includes/settings-page.php:551
+#: includes/settings-page.php:553
 msgid "Show"
 msgstr ""
 
-#: includes/settings-page.php:553
+#: includes/settings-page.php:555
 msgid "All features"
 msgstr ""
 
-#: includes/settings-page.php:554
+#: includes/settings-page.php:556
 msgid "Enabled"
 msgstr ""
 
-#: includes/settings-page.php:555
+#: includes/settings-page.php:557
 msgid "Disabled"
 msgstr ""
 
-#: includes/settings-page.php:557
+#: includes/settings-page.php:559
 msgid "Unavailable"
 msgstr ""
 
-#: includes/settings-page.php:560
-#: includes/settings-page.php:582
+#: includes/settings-page.php:562
+#: includes/settings-page.php:584
 msgid "Clear filters"
 msgstr ""
 
-#: includes/settings-page.php:561
+#: includes/settings-page.php:563
 msgid "Reset to defaults"
 msgstr ""
 
-#: includes/settings-page.php:581
+#: includes/settings-page.php:583
 msgid "No features match those filters."
 msgstr ""
 
-#: includes/settings-page.php:587
+#: includes/settings-page.php:589
 msgid "No unsaved changes"
 msgstr ""
 
-#: includes/settings-page.php:588
+#: includes/settings-page.php:590
 msgid "You have unsaved changes"
 msgstr ""
 
-#: includes/settings-page.php:589
+#: includes/settings-page.php:591
 msgid "Defaults restored. Save to keep them."
 msgstr ""
 
-#: includes/settings-page.php:590
+#: includes/settings-page.php:592
 msgid "Preset ready. Review the changes, then save."
 msgstr ""
 
-#: includes/settings-page.php:593
+#: includes/settings-page.php:595
 msgid "Save changes"
 msgstr ""

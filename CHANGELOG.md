@@ -19,6 +19,13 @@ feature is opt-in, experimental and requires Builderius Pro.
   declarations and active media-query context, and identifies rules authored
   in the Local, Global or current entity scope. Rules outside an editable
   Builderius scope remain clearly labelled as Page or framework and read-only.
+* Added: Matched rules now follows native CSS nesting, resolving nested
+  selectors against their parent while keeping the outer Builderius selector
+  as the edit destination. An **Inherited styles** section groups rules by the
+  matching ancestor and shows inheritable declarations whose computed value
+  reaches the selected child; the Computed view remains the final-cascade
+  authority. Custom properties stay out of the default inherited list to keep
+  framework token sets manageable, but appear when a matching filter is used.
 * Added: **Edit rule** routes editable matches back into Builderius rather than
   creating a second CSS editor. Simple applied classes open in the element's
   native Styles editor at the correct scope; custom, grouped and compound
