@@ -40,6 +40,26 @@ function dbe_presence_key( $slug ) {
 	return 'dbe_presence_' . md5( $slug );
 }
 
+/**
+ * Whether a presence slug identifies a real Builderius entity.
+ *
+ * @param string $slug Template or component slug.
+ * @return bool Whether the entity exists.
+ */
+function dbe_presence_entity_exists( $slug ) {
+	$post = get_page_by_path( $slug, OBJECT, array( 'builderius_template', 'builderius_component' ) );
+	return $post instanceof WP_Post;
+}
+
+/**
+ * Maximum simultaneously dirty tabs retained for one entity.
+ *
+ * @return int Record ceiling.
+ */
+function dbe_presence_record_limit() {
+	return 20;
+}
+
 add_action( 'rest_api_init', 'dbe_presence_register_route' );
 
 /**
@@ -86,17 +106,28 @@ function dbe_presence_register_route() {
  * @return array
  */
 function dbe_presence_beat( $request ) {
-	$user    = wp_get_current_user();
-	$key     = dbe_presence_key( (string) $request['entity'] );
+	$user   = wp_get_current_user();
+	$entity = (string) $request['entity'];
+	if ( ! dbe_presence_entity_exists( $entity ) ) {
+		return new WP_Error( 'dbe_unknown_entity', 'Presence can only be recorded for an existing Builderius template or component.', array( 'status' => 404 ) );
+	}
+	$key     = dbe_presence_key( $entity );
 	$tab     = (string) $request['tab'];
-	$records = dbe_presence_records( (string) $request['entity'] );
+	$records = dbe_presence_records( $entity );
 	if ( (bool) $request['dirty'] ) {
+		if ( ! isset( $records[ $tab ] ) && count( $records ) >= dbe_presence_record_limit() ) {
+			return new WP_Error( 'dbe_presence_limit', 'Too many dirty builder tabs are already recorded for this entity.', array( 'status' => 429 ) );
+		}
+		if ( isset( $records[ $tab ] ) && (int) ( $records[ $tab ]['user_id'] ?? 0 ) !== (int) $user->ID ) {
+			return new WP_Error( 'dbe_presence_tab_conflict', 'That builder-tab identifier belongs to another user.', array( 'status' => 409 ) );
+		}
 		$records[ $tab ] = array(
-			'user' => $user ? $user->user_login : '',
-			'tab'  => $tab,
-			'time' => time(),
+			'user_id' => (int) $user->ID,
+			'user'    => $user->user_login,
+			'tab'     => $tab,
+			'time'    => time(),
 		);
-	} else {
+	} elseif ( isset( $records[ $tab ] ) && (int) ( $records[ $tab ]['user_id'] ?? 0 ) === (int) $user->ID ) {
 		unset( $records[ $tab ] );
 	}
 	if ( $records ) {
@@ -111,7 +142,7 @@ function dbe_presence_beat( $request ) {
  * Fresh dirty-tab records for a template, keyed by tab ID.
  *
  * @param string $slug The template slug.
- * @return array<string,array{user:string,tab:string,time:int}>
+ * @return array<string,array{user_id:int,user:string,tab:string,time:int}>
  */
 function dbe_presence_records( $slug ) {
 	$records = get_transient( dbe_presence_key( $slug ) );
@@ -131,7 +162,7 @@ function dbe_presence_records( $slug ) {
  * Fresh dirty-tab records for a template.
  *
  * @param string $slug The template slug.
- * @return array<string,array{user:string,tab:string,time:int}>
+ * @return array<string,array{user_id:int,user:string,tab:string,time:int}>
  */
 function dbe_presence_dirty( $slug ) {
 	return dbe_presence_records( $slug );

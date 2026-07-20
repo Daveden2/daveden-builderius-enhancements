@@ -510,6 +510,7 @@ function dbe_register_abilities() {
 					),
 					'css'             => array(
 						'type'        => 'string',
+						'maxLength'   => 1048576,
 						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
 					),
 					'delete'          => array(
@@ -612,6 +613,7 @@ function dbe_register_abilities() {
 					),
 					'css'             => array(
 						'type'        => 'string',
+						'maxLength'   => 1048576,
 						'description' => __( 'The block\'s new body (omit when deleting).', 'daveden-builderius-enhancements' ),
 					),
 					'delete'          => array(
@@ -1021,6 +1023,7 @@ function dbe_register_abilities() {
 					),
 					'value'           => array(
 						'type'        => 'string',
+						'maxLength'   => 262144,
 						'description' => __( 'The GraphQL query text (graphQLQuery) or JSON text (json). Required for create; optional on update (omit to keep the current value when only renaming).', 'daveden-builderius-enhancements' ),
 					),
 					'variables'       => array(
@@ -1132,6 +1135,7 @@ function dbe_register_abilities() {
 					),
 					'code'            => array(
 						'type'        => 'string',
+						'maxLength'   => 262144,
 						'description' => __( 'The JavaScript source. Required for create.', 'daveden-builderius-enhancements' ),
 					),
 					'footer'          => array(
@@ -1150,6 +1154,7 @@ function dbe_register_abilities() {
 					'enabled'         => array( 'type' => 'boolean' ),
 					'description'     => array(
 						'type'        => 'string',
+						'maxLength'   => 4096,
 						'description' => __( 'Shown in the builder\'s snippet configure panel.', 'daveden-builderius-enhancements' ),
 					),
 					'priority'        => array(
@@ -1985,6 +1990,20 @@ function dbe_ability_attr_blocked( $name, $value ) {
 }
 
 /**
+ * Encode plain text for Builderius' raw-rendered content setting.
+ *
+ * DOMDocument has already decoded character references by the time textContent
+ * is read. Encoding here keeps encoded markup as visible text instead of
+ * turning it into active markup when Builderius renders the setting raw.
+ *
+ * @param mixed $text Plain text from a parsed DOM text node.
+ * @return string Text safe to store in a raw HTML setting.
+ */
+function dbe_ability_escape_raw_text( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8' );
+}
+
+/**
  * Random module id in Builderius' shape ('u' + 9 hex), like dbeMakeId().
  *
  * @param array $existing Existing modules keyed by ID.
@@ -2495,6 +2514,7 @@ function dbe_ability_parse_fragment( $html, $orig_ids ) {
 				if ( '' === $t ) {
 					continue;
 				}
+				$t = dbe_ability_escape_raw_text( $t );
 				if ( ! $seen_element ) {
 					$node['content'] .= ( '' !== $node['content'] ? ' ' : '' ) . $t;
 				} else {
@@ -3935,6 +3955,9 @@ function dbe_ability_patch_global_css( $input ) {
 		return new WP_Error( 'dbe_bad_block_name', 'Block names are letters, digits, hyphens and underscores.' );
 	}
 	$delete = ! empty( $input['delete'] );
+	if ( isset( $input['css'] ) && strlen( (string) $input['css'] ) > 1048576 ) {
+		return new WP_Error( 'dbe_css_too_large', 'A CSS block is limited to 1 MiB.' );
+	}
 	if ( ! $delete && ( ! isset( $input['css'] ) || '' === trim( (string) $input['css'] ) ) ) {
 		return new WP_Error( 'dbe_no_css', 'Pass the block\'s css, or delete: true to remove it.' );
 	}
@@ -3957,6 +3980,9 @@ function dbe_ability_patch_global_css( $input ) {
 	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
 	if ( is_wp_error( $patched ) ) {
 		return $patched;
+	}
+	if ( strlen( $patched['css'] ) > 2 * 1024 * 1024 ) {
+		return new WP_Error( 'dbe_css_too_large', 'The resulting stylesheet exceeds the 2 MiB safety limit.' );
 	}
 
 	if ( ! empty( $input['dry_run'] ) ) {
@@ -4049,6 +4075,9 @@ function dbe_ability_patch_entity_css( $input ) {
 		return new WP_Error( 'dbe_bad_block_name', 'Block names are letters, digits, hyphens and underscores.' );
 	}
 	$delete = ! empty( $input['delete'] );
+	if ( isset( $input['css'] ) && strlen( (string) $input['css'] ) > 1048576 ) {
+		return new WP_Error( 'dbe_css_too_large', 'A CSS block is limited to 1 MiB.' );
+	}
 	if ( ! $delete && ( ! isset( $input['css'] ) || '' === trim( (string) $input['css'] ) ) ) {
 		return new WP_Error( 'dbe_no_css', 'Pass the block\'s css, or delete: true to remove it.' );
 	}
@@ -4065,6 +4094,9 @@ function dbe_ability_patch_entity_css( $input ) {
 	$patched = dbe_ability_css_patch( $loaded['css'], $block, (string) ( $input['css'] ?? '' ), $delete );
 	if ( is_wp_error( $patched ) ) {
 		return $patched;
+	}
+	if ( strlen( $patched['css'] ) > 2 * 1024 * 1024 ) {
+		return new WP_Error( 'dbe_css_too_large', 'The resulting stylesheet exceeds the 2 MiB safety limit.' );
 	}
 
 	if ( ! empty( $input['dry_run'] ) ) {
@@ -4754,6 +4786,15 @@ function dbe_ability_manage_data_variable( $input ) {
 	if ( '' === $name ) {
 		return new WP_Error( 'dbe_name_required', 'Pass the variable name.' );
 	}
+	if ( isset( $input['value'] ) && strlen( (string) $input['value'] ) > 262144 ) {
+		return new WP_Error( 'dbe_value_too_large', 'A data-variable value is limited to 256 KiB.' );
+	}
+	if ( array_key_exists( 'variables', $input ) && null !== $input['variables'] ) {
+		$variables_json = is_string( $input['variables'] ) ? $input['variables'] : wp_json_encode( $input['variables'] );
+		if ( false === $variables_json || strlen( $variables_json ) > 65536 ) {
+			return new WP_Error( 'dbe_variables_too_large', 'GraphQL variables are limited to 64 KiB of JSON.' );
+		}
+	}
 
 	$state = dbe_ability_load_data_vars( $input );
 	if ( is_wp_error( $state ) ) {
@@ -4995,6 +5036,12 @@ function dbe_ability_manage_js_snippet( $input ) {
 	$ref    = trim( (string) ( $input['snippet'] ?? '' ) );
 	if ( '' === $ref ) {
 		return new WP_Error( 'dbe_snippet_required', 'Pass the snippet\'s label or id (the new label for create).' );
+	}
+	if ( isset( $input['code'] ) && strlen( (string) $input['code'] ) > 262144 ) {
+		return new WP_Error( 'dbe_code_too_large', 'JavaScript snippets are limited to 256 KiB.' );
+	}
+	if ( isset( $input['description'] ) && strlen( (string) $input['description'] ) > 4096 ) {
+		return new WP_Error( 'dbe_description_too_large', 'Snippet descriptions are limited to 4096 bytes.' );
 	}
 	if ( ! in_array( $action, array( 'create', 'update', 'delete' ), true ) ) {
 		return new WP_Error( 'dbe_bad_action', 'action must be create, update or delete.' );

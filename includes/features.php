@@ -790,7 +790,8 @@ function dbe_ability_groups() {
  * Each entry:
  * - title/summary: settings-page copy (registration descriptions are agent-facing).
  * - group:   access class from dbe_ability_groups().
- * - danger:  destructive ability; defaults OFF, rendered with a warning.
+ * - danger:  destructive or code-executing ability; defaults OFF, rendered with a warning.
+ * - risk_label/risk_note: optional warning copy for a non-destructive high-risk ability.
  * - caution: ability that deletes content or goes live; defaults on, badged.
  *
  * @return array<string,array<string,mixed>>
@@ -935,9 +936,12 @@ function dbe_abilities() {
 			'group'   => 'write',
 		),
 		'dbe/manage-js-snippet'              => array(
-			'title'   => __( 'Manage JS snippets', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Create, update or delete a custom JavaScript snippet in the saved state.', 'daveden-builderius-enhancements' ),
-			'group'   => 'write',
+			'title'      => __( 'Manage JS snippets', 'daveden-builderius-enhancements' ),
+			'summary'    => __( 'Create, update or delete a custom JavaScript snippet in the saved state.', 'daveden-builderius-enhancements' ),
+			'group'      => 'write',
+			'danger'     => true,
+			'risk_label' => __( 'Code execution', 'daveden-builderius-enhancements' ),
+			'risk_note'  => __( 'Off by default because saved JavaScript executes for site visitors. Turn it on only for a specific trusted task, review the complete code before saving, and switch it off again afterwards.', 'daveden-builderius-enhancements' ),
 		),
 		'dbe/duplicate-template'             => array(
 			'title'   => __( 'Duplicate template', 'daveden-builderius-enhancements' ),

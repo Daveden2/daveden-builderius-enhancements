@@ -119,6 +119,37 @@ if ( function_exists( 'dbe_ability_parse_fragment' ) ) {
 	dbe_ability_parse_fragment( '<div>ok</div>', array() );
 	dbe_test_assert( false === libxml_use_internal_errors(), 'The HTML parser did not restore libxml error handling.' );
 	libxml_use_internal_errors( $original_libxml_state );
+
+	$encoded_markup = dbe_ability_parse_fragment(
+		'<div>&lt;img src=x onerror=alert(1)&gt;</div>',
+		array()
+	);
+	$encoded_text   = ! is_wp_error( $encoded_markup ) ? (string) ( $encoded_markup['roots'][0]['content'] ?? '' ) : '';
+	dbe_test_assert(
+		'&lt;img src=x onerror=alert(1)&gt;' === $encoded_text,
+		'Encoded text became active raw markup in the ability parser.'
+	);
+	dbe_test_assert(
+		false === strpos( $encoded_text, '<img' ),
+		'The ability parser stored an executable element from an encoded text node.'
+	);
+}
+
+// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local bundled source fixture, never a URL.
+$builder_js = file_get_contents( dirname( __DIR__ ) . '/assets/builder/js/builder.js' );
+if ( false !== $builder_js ) {
+	dbe_test_assert(
+		1 === preg_match( '/function dbeAddAttributes\([^}]+dbeAttrBlocked\(/s', $builder_js ),
+		'The command-palette attribute storage sink no longer applies dbeAttrBlocked().'
+	);
+	dbe_test_assert(
+		false !== strpos( $builder_js, 'value: dbeEscapeRawText(opts.text)' ),
+		'The Emmet text storage sink no longer encodes raw content.'
+	);
+	dbe_test_assert(
+		false !== strpos( $builder_js, 'var t = dbeEscapeRawText(ch.textContent' ),
+		'The browser HTML parser no longer encodes DOM text nodes.'
+	);
 }
 
 if ( function_exists( 'dbe_ability_binding_warnings' ) ) {
@@ -238,12 +269,28 @@ if ( function_exists( 'dbe_ability_preflight' ) ) {
 }
 
 if ( function_exists( 'dbe_presence_beat' ) ) {
-	$slug          = 'dbe-security-regression-' . wp_generate_password( 12, false, false );
+	$slug          = 'dbe-security-regression-' . strtolower( wp_generate_password( 12, false, false ) );
+	$presence_post = wp_insert_post(
+		array(
+			'post_type'   => 'builderius_template',
+			'post_status' => 'draft',
+			'post_title'  => 'DBE security regression',
+			'post_name'   => $slug,
+		),
+		true
+	);
 	$presence_tabs = array(
 		'11111111111111111111111111111111',
 		'22222222222222222222222222222222',
 	);
 	try {
+		dbe_test_assert( ! is_wp_error( $presence_post ), 'Could not create the temporary presence-test entity.' );
+		$unknown = new WP_REST_Request( 'POST' );
+		$unknown->set_param( 'entity', 'dbe-presence-does-not-exist' );
+		$unknown->set_param( 'tab', $presence_tabs[0] );
+		$unknown->set_param( 'dirty', true );
+		dbe_test_assert( is_wp_error( dbe_presence_beat( $unknown ) ), 'Presence accepted a non-existent entity slug.' );
+
 		foreach ( $presence_tabs as $presence_tab ) {
 			$request = new WP_REST_Request( 'POST' );
 			$request->set_param( 'entity', $slug );
@@ -263,6 +310,9 @@ if ( function_exists( 'dbe_presence_beat' ) ) {
 		dbe_test_assert( true === dbe_presence_precondition( $slug, true ), 'An explicit presence override was rejected.' );
 	} finally {
 		delete_transient( dbe_presence_key( $slug ) );
+		if ( ! is_wp_error( $presence_post ) ) {
+			wp_delete_post( (int) $presence_post, true );
+		}
 	}
 }
 
@@ -299,8 +349,8 @@ if ( function_exists( 'dbe_ability_render_token_user' ) ) {
 }
 
 if ( function_exists( 'dbe_ability_render_url' ) ) {
-	// The loopback fetcher must refuse foreign hosts — it carries an
-	// authentication token, so it must never become an SSRF proxy.
+	// The loopback fetcher must refuse foreign hosts, schemes and ports — it
+	// carries an authentication token, so it must never become an SSRF proxy.
 	dbe_test_assert(
 		'dbe_foreign_host' === dbe_ability_render_url( array( 'url' => 'https://example.com/' ) )->get_error_code(),
 		'The render fetcher accepted a foreign host.'
@@ -309,7 +359,59 @@ if ( function_exists( 'dbe_ability_render_url' ) ) {
 		! is_wp_error( dbe_ability_render_url( array( 'url' => home_url( '/' ) ) ) ),
 		'The render fetcher rejected its own site.'
 	);
+	$home_parts   = wp_parse_url( home_url() );
+	$home_host    = (string) ( $home_parts['host'] ?? '' );
+	$home_scheme  = (string) ( $home_parts['scheme'] ?? 'https' );
+	$other_scheme = 'https' === $home_scheme ? 'http' : 'https';
+	$home_port    = isset( $home_parts['port'] ) ? (int) $home_parts['port'] : ( 'https' === $home_scheme ? 443 : 80 );
+	$other_port   = 65535 === $home_port ? 65534 : $home_port + 1;
+	dbe_test_assert(
+		'dbe_foreign_origin' === dbe_ability_render_url( array( 'url' => $other_scheme . '://' . $home_host . '/' ) )->get_error_code(),
+		'The render fetcher accepted a different scheme on the site hostname.'
+	);
+	dbe_test_assert(
+		'dbe_foreign_origin' === dbe_ability_render_url( array( 'url' => $home_scheme . '://' . $home_host . ':' . $other_port . '/' ) )->get_error_code(),
+		'The render fetcher accepted a different port on the site hostname.'
+	);
+	dbe_test_assert(
+		'dbe_bad_scheme' === dbe_ability_render_url( array( 'url' => 'ftp://' . $home_host . '/' ) )->get_error_code(),
+		'The render fetcher accepted a non-HTTP protocol.'
+	);
 }
+
+$ability_defaults = dbe_default_options();
+$js_ability_key   = dbe_ability_option_key( 'dbe/manage-js-snippet' );
+dbe_test_assert( empty( $ability_defaults[ $js_ability_key ] ), 'The raw-JavaScript ability is not off by default.' );
+
+dbe_test_assert(
+	'dbe_css_too_large' === dbe_ability_patch_global_css(
+		array(
+			'block' => 'test',
+			'css'   => str_repeat( 'x', 1048577 ),
+		)
+	)->get_error_code(),
+	'Oversized CSS reached the global-settings loader.'
+);
+dbe_test_assert(
+	'dbe_value_too_large' === dbe_ability_manage_data_variable(
+		array(
+			'action' => 'create',
+			'name'   => 'test',
+			'value'  => str_repeat( 'x', 262145 ),
+		)
+	)->get_error_code(),
+	'Oversized dynamic data reached the saved-state loader.'
+);
+dbe_test_assert(
+	'dbe_code_too_large' === dbe_ability_manage_js_snippet(
+		array(
+			'action'  => 'create',
+			'snippet' => 'test',
+			'code'    => str_repeat( 'x', 262145 ),
+		)
+	)->get_error_code(),
+	'Oversized JavaScript reached the saved-state loader.'
+);
 
 if ( $dbe_test_failures ) {
 	WP_CLI::error( sprintf( '%d security regression check(s) failed.', count( $dbe_test_failures ) ) );
