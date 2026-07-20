@@ -50,6 +50,11 @@ add_action( 'wp_abilities_api_init', 'dbe_register_verify_abilities' );
  * Register the verification abilities.
  */
 function dbe_register_verify_abilities() {
+	// Nothing registers while the master switch is off (dbe_register_ability()
+	// gates every ability on it), so skip building the schemas altogether.
+	if ( ! dbe_abilities_enabled() ) {
+		return;
+	}
 	$expect_args = array(
 		'expect'          => array(
 			'type'        => 'array',

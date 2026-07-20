@@ -89,6 +89,11 @@ function dbe_register_ability( $id, $args ) {
  * Register the get/apply subtree HTML abilities.
  */
 function dbe_register_abilities() {
+	// Nothing registers while the master switch is off (dbe_register_ability()
+	// gates every ability on it), so skip building the schemas altogether.
+	if ( ! dbe_abilities_enabled() ) {
+		return;
+	}
 	$template_arg        = array(
 		'type'        => 'string',
 		'description' => __( 'Template post ID or slug by default. When entity_type is "component", pass a Builderius component post ID or slug instead.', 'daveden-builderius-enhancements' ),

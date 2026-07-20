@@ -38,6 +38,11 @@ add_action( 'wp_abilities_api_init', 'dbe_register_workflow_abilities' );
  * Register the workflow abilities.
  */
 function dbe_register_workflow_abilities() {
+	// Nothing registers while the master switch is off (dbe_register_ability()
+	// gates every ability on it), so skip building the schemas altogether.
+	if ( ! dbe_abilities_enabled() ) {
+		return;
+	}
 	dbe_register_ability(
 		'dbe/duplicate-template',
 		array(
