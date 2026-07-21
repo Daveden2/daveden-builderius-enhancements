@@ -147,7 +147,7 @@ function dbe_bootstrap() {
 		if ( function_exists( 'wp_register_ability' ) ) {
 			require_once DBE_DIR . 'includes/abilities.php';
 			require_once DBE_DIR . 'includes/abilities-workflow.php';
-			require_once DBE_DIR . 'includes/abilities-verify.php';
+			require_once DBE_DIR . 'includes/abilities/verification.php';
 		}
 		// Agent skills for Novamira's lookup registry. The filter only
 		// fires when Novamira applies it, so this is inert without it.

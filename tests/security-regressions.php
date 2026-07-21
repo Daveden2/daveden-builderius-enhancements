@@ -50,6 +50,14 @@ dbe_test_assert( function_exists( 'dbe_register_publishing_abilities' ), 'The pu
 dbe_test_assert( function_exists( 'dbe_ability_status' ), 'The save/publish status callback is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_publish' ), 'The publish callback is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_extract_release' ), 'The release-extraction callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_register_verify_abilities' ), 'The verification ability registrar is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_check_rendered_output' ), 'The rendered-output verification callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_check_render_scenarios' ), 'The render-scenario verification callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_dynamic_data_schema' ), 'The dynamic-data schema callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_resolve_data_variable' ), 'The data-variable resolution callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_inspect_binding_value' ), 'The binding-value inspection callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_resolve_metabox_field' ), 'The Meta Box field-resolution callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_rendered_styles' ), 'The rendered-style diagnostics callback is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The template ability registrar is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_component_abilities' ), 'The component ability registrar is not loaded.' );

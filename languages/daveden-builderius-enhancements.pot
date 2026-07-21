@@ -54,242 +54,242 @@ msgstr ""
 msgid "Builderius required"
 msgstr ""
 
-#: includes/abilities-verify.php:66
+#: includes/abilities/verification.php:66
 msgid "Plain-text strings that MUST appear in the rendered HTML."
 msgstr ""
 
-#: includes/abilities-verify.php:75
+#: includes/abilities/verification.php:75
 msgid "Plain-text strings that must NOT appear (e.g. a row that a filter should exclude)."
 msgstr ""
 
-#: includes/abilities-verify.php:84
+#: includes/abilities/verification.php:84
 msgid "Label texts that must be followed by visible non-blank text — catches bindings that resolve to empty (numeric 0, \"0\", null and \"\" all render blank)."
 msgstr ""
 
-#: includes/abilities-verify.php:91
+#: includes/abilities/verification.php:91
 #: includes/features.php:873
 msgid "Check rendered output"
 msgstr ""
 
-#: includes/abilities-verify.php:92
+#: includes/abilities/verification.php:92
 msgid "Fetches one front-end page as the invoking user (an authenticated loopback — logged-in users see saved dev-branch commits, so no publish is needed) and scans the HTML for the dynamic-data failures that save-time validation cannot catch: leaked <template> elements, unresolved [[...]] or {{...}} bindings, PHP warnings/fatals, missing expected text, unexpectedly present text, and labels with blank values. Interactive (client-side URL-source) Collections are exempt from the template/binding scan — their markup legitimately ships to the browser. A saved data variable with a bad nested field, a scalar Collection source or a runtime resolver failure all pass dbe/manage-data-variable but fail here — run this after every dynamic-data save. Pass page (post ID or path) or a same-site url, plus optional query args."
 msgstr ""
 
-#: includes/abilities-verify.php:101
+#: includes/abilities/verification.php:101
 msgid "WordPress post ID or path (e.g. \"dbe-dynamic-stress\" or \"/events/\") to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:106
-#: includes/abilities-verify.php:156
+#: includes/abilities/verification.php:106
+#: includes/abilities/verification.php:156
 msgid "Full same-site URL to fetch. Other hosts are refused."
 msgstr ""
 
-#: includes/abilities-verify.php:111
+#: includes/abilities/verification.php:111
 msgid "Query parameters to append, e.g. {\"topic\": \"dbe-stress-build\", \"listing_page\": \"2\"}."
 msgstr ""
 
-#: includes/abilities-verify.php:126
+#: includes/abilities/verification.php:126
 msgid "Each failure: check, message, and up to five matches with line numbers."
 msgstr ""
 
-#: includes/abilities-verify.php:141
+#: includes/abilities/verification.php:141
 #: includes/features.php:878
 msgid "Check render scenarios"
 msgstr ""
 
-#: includes/abilities-verify.php:142
+#: includes/abilities/verification.php:142
 msgid "Runs dbe/check-rendered-output across a matrix of request scenarios against one page — each scenario sets its own query parameters and/or cookies and its own expectations. This is how URL-driven listings are proven: default filters, a valid override, an invalid value falling back, pagination pages, cookie-segmented content and recursive roots, in one call. Shared expect/absent/nonblank_labels apply to every scenario on top of the per-scenario ones. At most ten scenarios per call; every scenario fetch runs the full failure scan (leaked templates, unresolved bindings, PHP errors)."
 msgstr ""
 
-#: includes/abilities-verify.php:151
+#: includes/abilities/verification.php:151
 msgid "WordPress post ID or path to fetch. Use this OR url."
 msgstr ""
 
-#: includes/abilities-verify.php:161
+#: includes/abilities/verification.php:161
 msgid "Up to ten scenarios. Each: { label, query?: {name: value}, cookies?: {name: value}, expect?: [], absent?: [], nonblank_labels?: [] }."
 msgstr ""
 
-#: includes/abilities-verify.php:218
+#: includes/abilities/verification.php:218
 msgid "Per scenario: label, url, status_code, passed and failures."
 msgstr ""
 
-#: includes/abilities-verify.php:233
+#: includes/abilities/verification.php:233
 msgid "WordPress post ID or path establishing the resolution context (current post, archive, URL parameters). Defaults to the site front page."
 msgstr ""
 
-#: includes/abilities-verify.php:238
+#: includes/abilities/verification.php:238
 msgid "Full same-site URL establishing the context instead of page."
 msgstr ""
 
-#: includes/abilities-verify.php:243
+#: includes/abilities/verification.php:243
 msgid "Query parameters for the context request — url_parameter() resolvers read these."
 msgstr ""
 
-#: includes/abilities-verify.php:250
+#: includes/abilities/verification.php:250
 msgid "Get the dynamic-data GraphQL schema"
 msgstr ""
 
-#: includes/abilities-verify.php:251
+#: includes/abilities/verification.php:251
 msgid "Returns the LIVE Builderius dynamic-data GraphQL schema — the Root query type every data variable runs against, including fields added by Builderius Pro, ACF, Meta Box and other integrations on this site. No open builder tab is needed. By default returns the Root fields (name, arguments, return type) and an index of type names; pass type to expand one type's fields, or search to find fields/types by name fragment. Use this instead of guessing field names: a wrong nested field saves fine but silently blanks the whole variable at render."
 msgstr ""
 
-#: includes/abilities-verify.php:258
+#: includes/abilities/verification.php:258
 msgid "A type name to expand (e.g. Post, User, Term, Pagination). Case-sensitive."
 msgstr ""
 
-#: includes/abilities-verify.php:262
+#: includes/abilities/verification.php:262
 msgid "Case-insensitive fragment matched against type and field names (e.g. \"acf\", \"meta\", \"pagination\")."
 msgstr ""
 
-#: includes/abilities-verify.php:267
+#: includes/abilities/verification.php:267
 msgid "Bypass the cached schema (use after activating a plugin that extends it)."
 msgstr ""
 
-#: includes/abilities-verify.php:277
+#: includes/abilities/verification.php:277
 msgid "The Root query fields: name, args, type."
 msgstr ""
 
-#: includes/abilities-verify.php:282
+#: includes/abilities/verification.php:282
 msgid "The expanded type (name, kind, fields) when type was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:286
+#: includes/abilities/verification.php:286
 msgid "Search hits as \"Type.field: ReturnType\" rows when search was passed."
 msgstr ""
 
-#: includes/abilities-verify.php:304
+#: includes/abilities/verification.php:304
 #: includes/features.php:858
 msgid "Resolve a data variable"
 msgstr ""
 
-#: includes/abilities-verify.php:305
+#: includes/abilities/verification.php:305
 msgid "Validates AND actually resolves one dynamic-data variable, returning its runtime value in a chosen page context — the missing proof step between \"the query saved\" and \"the page renders\". The query is first validated against the live GraphQL schema (unknown fields and bad arguments are reported with messages, which dbe/manage-data-variable's syntax check cannot see), then executed through Builderius' own dynamic-data channel with the context page's real WordPress query state, so wp/current-post/url_parameter resolvers behave exactly as on the front end. Pass name for a saved variable (its [[dep]] dependencies resolve too) or graphql_query for an ad-hoc probe. Large values are compacted (lists truncated, long strings clipped) unless full: true."
 msgstr ""
 
-#: includes/abilities-verify.php:313
+#: includes/abilities/verification.php:313
 msgid "A saved data variable name. Global scope by default; pass template for entity scope."
 msgstr ""
 
-#: includes/abilities-verify.php:318
+#: includes/abilities/verification.php:318
 msgid "An ad-hoc GraphQL query to resolve instead of a saved variable. Saved global variables are still available as [[dep]] interpolations. (The query parameter carries URL parameters for the context request instead.)"
 msgstr ""
 
-#: includes/abilities-verify.php:322
-#: includes/abilities-verify.php:390
+#: includes/abilities/verification.php:322
+#: includes/abilities/verification.php:390
 msgid "Template (or component) post ID or slug for ENTITY-scoped variables. Omit for the global settings set."
 msgstr ""
 
-#: includes/abilities-verify.php:328
-#: includes/abilities-verify.php:396
+#: includes/abilities/verification.php:328
+#: includes/abilities/verification.php:396
 msgid "Entity type when template is passed."
 msgstr ""
 
-#: includes/abilities-verify.php:332
-#: includes/abilities-verify.php:400
+#: includes/abilities/verification.php:332
+#: includes/abilities/verification.php:400
 msgid "Global settings set post ID or slug. Omit when the site has one."
 msgstr ""
 
-#: includes/abilities-verify.php:337
+#: includes/abilities/verification.php:337
 msgid "Return the complete value without compaction. Use only when the compact preview is not enough."
 msgstr ""
 
-#: includes/abilities-verify.php:349
+#: includes/abilities/verification.php:349
 msgid "Schema validation: valid plus error messages (an invalid query is still executed so you can see the runtime effect)."
 msgstr ""
 
-#: includes/abilities-verify.php:352
+#: includes/abilities/verification.php:352
 msgid "The resolved value (compacted unless full: true; compaction is flagged in truncated)."
 msgstr ""
 
-#: includes/abilities-verify.php:357
+#: includes/abilities/verification.php:357
 msgid "Byte length of the full JSON-encoded value."
 msgstr ""
 
-#: includes/abilities-verify.php:362
+#: includes/abilities/verification.php:362
 msgid "Every variable name resolved in the request (the target plus its dependencies)."
 msgstr ""
 
-#: includes/abilities-verify.php:376
+#: includes/abilities/verification.php:376
 #: includes/features.php:863
 msgid "Inspect a binding value"
 msgstr ""
 
-#: includes/abilities-verify.php:377
+#: includes/abilities/verification.php:377
 msgid "Reports the resolved type and compact shape at a binding path — run this on a Collection's data-b-context source BEFORE binding it, because a source that is not an array renders a silent empty loop (scalars/null leave the <template> markup in the page; an object renders exactly once). Accepts a saved-variable path (\"var.path.to.items\", with or without [[ ]]/[[[ ]]] wrapping) or a literal JSON source. Returns the value's type, list/object classification, row count, first-row keys, a small preview, and whether it is safe as a Collection source in the chosen page context."
 msgstr ""
 
-#: includes/abilities-verify.php:386
+#: includes/abilities/verification.php:386
 msgid "The binding to inspect: \"var.path.to.items\", \"[[var.path]]\", \"[[[var.path]]]\", or a literal JSON array/object."
 msgstr ""
 
-#: includes/abilities-verify.php:413
+#: includes/abilities/verification.php:413
 msgid "list | object | string | number | boolean | null | missing."
 msgstr ""
 
-#: includes/abilities-verify.php:417
+#: includes/abilities/verification.php:417
 msgid "Whether this value is safe as a Collection source (a non-empty list of rows)."
 msgstr ""
 
-#: includes/abilities-verify.php:425
+#: includes/abilities/verification.php:425
 msgid "Compacted value preview."
 msgstr ""
 
-#: includes/abilities-verify.php:443
+#: includes/abilities/verification.php:443
 #: includes/features.php:868
 msgid "Resolve a Meta Box field"
 msgstr ""
 
-#: includes/abilities-verify.php:444
+#: includes/abilities/verification.php:444
 msgid "Maps a Meta Box field to the exact ways Builderius dynamic data can read it, so agents stop guessing: the builder's auto-generated helper name (derived from the slugified field LABEL, not the id — field id rc_number labelled \"RC Number (CAC)\" becomes wp.…__rc_number_cac_), the GraphQL accessor and arguments for headless data variables (settings-page fields need option_name, the storage owner, which is NOT always the admin page id), group children, and the array/clone caveats. Searches every registered field by id or label fragment across posts, users, terms and settings pages. Term fields get a warning: Builderius ships no term Meta Box helper and term meta_value() has returned false in testing — use a php_function_output wrapper."
 msgstr ""
 
-#: includes/abilities-verify.php:451
+#: includes/abilities/verification.php:451
 msgid "The field id, or a fragment of the id or label, to search for."
 msgstr ""
 
-#: includes/abilities-verify.php:456
+#: includes/abilities/verification.php:456
 msgid "Limit the search to one Meta Box object type."
 msgstr ""
 
-#: includes/abilities-verify.php:467
+#: includes/abilities/verification.php:467
 msgid "Per field: id, label, type, object_type, context (post type or settings page), builder_helper, graphql read recipe, children, warnings."
 msgstr ""
 
-#: includes/abilities-verify.php:472
+#: includes/abilities/verification.php:472
 msgid "Total matches before the 20-row cap."
 msgstr ""
 
-#: includes/abilities-verify.php:485
+#: includes/abilities/verification.php:485
 msgid "Get a module's matched styles"
 msgstr ""
 
-#: includes/abilities-verify.php:486
+#: includes/abilities/verification.php:486
 msgid "Returns the authored CSS rules that target one module, gathered from the saved entity CSS and the global stylesheet — the headless stand-in for the builder's computed-styles tool when no live builder tab is connected. Rules are matched against the module's tag, id, classes and its uni-node id (per-module %local% styles compile to .uni-node-<id> selectors), with their media-query context preserved. This reports what the stylesheets SAY, not what a browser computed — cascade order and specificity are returned so you can reason about conflicts, but inherited values and runtime layout are out of scope."
 msgstr ""
 
-#: includes/abilities-verify.php:493
+#: includes/abilities/verification.php:493
 #: includes/abilities-workflow.php:226
 msgid "Template or component post ID or slug."
 msgstr ""
 
-#: includes/abilities-verify.php:499
+#: includes/abilities/verification.php:499
 #: includes/abilities-workflow.php:232
 msgid "Entity type of the template reference."
 msgstr ""
 
-#: includes/abilities-verify.php:503
+#: includes/abilities/verification.php:503
 msgid "The module whose matched rules to report (find ids with dbe/get-tree-outline)."
 msgstr ""
 
-#: includes/abilities-verify.php:508
+#: includes/abilities/verification.php:508
 msgid "Also match rules from the global stylesheet (framework classes)."
 msgstr ""
 
-#: includes/abilities-verify.php:519
+#: includes/abilities/verification.php:519
 msgid "The module's identity: id, tag, html id, classes, label."
 msgstr ""
 
-#: includes/abilities-verify.php:523
+#: includes/abilities/verification.php:523
 msgid "Matched rules in source order: selector, declarations, media, source (entity|global), matched_by."
 msgstr ""
 
