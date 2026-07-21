@@ -17,6 +17,7 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
+const workspace = read('assets/builder/js/chunks/workspace.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
@@ -42,12 +43,12 @@ assert.match(
     'The canvas iframe must retain an accessible title.'
 );
 assert.match(
-    builder,
+    workspace,
     /resizePreviewLeft[\s\S]+resizePreviewRight/,
     'The two canvas resize handles must have distinct accessible names.'
 );
 assert.match(
-    builder,
+    workspace,
     /resizePanelLeft[\s\S]+resizePanelRight/,
     'The two panel resize handles must have distinct accessible names.'
 );
@@ -57,12 +58,12 @@ assert.match(
     'Navigator view tabs must be distinguishable from similarly named controls.'
 );
 assert.match(
-    builder,
+    workspace,
     /set\('aria-valuetext',[\s\S]+pixelsWide/,
     'Canvas resize handles must expose a human-readable width.'
 );
 assert.match(
-    builder,
+    workspace,
     /setAttribute\('aria-valuetext',[\s\S]+pixelsWide/,
     'Panel resize handles must expose a human-readable width.'
 );
@@ -82,17 +83,17 @@ assert.match(
     'Area-jump shortcuts must run before editable targets suppress element commands.'
 );
 assert.match(
-    builder,
+    workspace,
     /else if \(which === 'footer'\)[\s\S]+dbeQuery\('footerBar'\)[\s\S]+button\[tabindex="0"\]/,
     'The direct-focus routes must include the Footer toolbar.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeFocusArea\(which, compactReady\)[\s\S]+dbeCompactLeftMode\(\) !== which[\s\S]+dbeEnsureCompactLeftMode\(which\)[\s\S]+dbeFocusArea\(which, true\)/,
     'Wide region shortcuts must switch the shared left panel before moving focus.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeEnsureCompactLeftMode\(pane\)[\s\S]+button\.click\(\)/,
     'The shared left-panel mode switch must use the native button activation path.'
 );
@@ -262,27 +263,27 @@ assert.doesNotMatch(
     'The shared refresh pass must not bypass the terminal integration controller.'
 );
 assert.match(
-    builder,
+    workspace,
     /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyWorkspace\(\)/,
     'Workspace features must participate in the shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeRefreshWorkspace\(\)[\s\S]+ensureCanvasModeControl\(\)[\s\S]+ensurePreviewHandles\(\)[\s\S]+ensureCompactPanes\(\)[\s\S]+dbeSyncPanelsHidden\(\)[\s\S]+ensurePanelHandles\(\)[\s\S]+ensureNavDetach\(\)/,
     'The workspace controller must refresh the complete responsive and sizing surface.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeRestoreWorkspaceState\(\)[\s\S]+dbePreviewClearOverride\(\)[\s\S]+dbeObserveChrome\('workspace-main', null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_WORKSPACE_OWNER\)[\s\S]+dbeDestroyOwnedGroups\(DBE_WORKSPACE_OWNER\)[\s\S]+\.dbe-preview-handle[\s\S]+dbe-compact-panes[\s\S]+--dbe-nav-h/,
     'Workspace teardown must release observations, activity, generated controls, classes and sizing variables.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeCompactMedia\(\)[\s\S]+dbeBindOwnedEvent\(DBE_WORKSPACE_OWNER, dbeCompactMql, 'compact-media-change'[\s\S]+function bindNavHeaderDrag\(\)[\s\S]+navigator-drag-start[\s\S]+navigator-drag-cancel/,
     'Compact media and detached-Navigator document listeners must be controller-owned.'
 );
 assert.doesNotMatch(
-    builder,
+    workspace,
     /dbeCanvasModeKeyBound|dbePersistedPanelsBound|dbeNavHeaderBound/,
     'Workspace listeners must not rely on irreversible flags.'
 );
@@ -572,7 +573,7 @@ assert.match(
     'Feature controllers must register chrome roots through the core observer router.'
 );
 assert.equal(
-    ((builder + coreRuntime).match(/new MutationObserver/g) || []).length,
+    ((builder + workspace + coreRuntime).match(/new MutationObserver/g) || []).length,
     3,
     'Only the shared chrome router, preview-document bridge and temporary preview-width guard may construct observers.'
 );
@@ -724,28 +725,28 @@ assert.match(
     'Compact sessions must receive a pre-paint canvas view before Builderius mounts.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeEnsureCompactSwitcher\(\)[\s\S]+select\.setAttribute\('aria-label', dbeT\('compactView', 'Builder view'\)\)[\s\S]+\['inserter', 'settings', 'canvas', 'navigator'\]/,
     'Compact mode must expose all four builder destinations through a named native select.'
 );
 assert.match(
-    builder,
+    workspace,
     /function ensureCompactPanes\(\)[\s\S]+switcher\.contains\(document\.activeElement\)[\s\S]+switcher\.remove\(\)[\s\S]+frame\.focus\(\)/,
     'Leaving compact mode must remove its switcher and rescue focus from the disappearing control.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeSetCompactAccessibility\(\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.left, !leftShown\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.right, !navigatorShown\)[\s\S]+dbeSetPanelHiddenState\(iframe, !canvasShown\)/,
     'Compact mode must remove every hidden workspace destination from the accessibility tree.'
 );
 assert.match(
-    builder,
+    workspace,
     /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, function \(\) \{ dbeFocusArea\(pane, true\); \}/,
     'Compact view changes must be announced and move focus to the chosen destination.'
 );
 assert.match(
     builder,
-    /\(!on\('compact_panes'\) \|\| !dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
+    /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
     'Wide-view panel visibility commands must not masquerade as compact-view controls.'
 );
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');

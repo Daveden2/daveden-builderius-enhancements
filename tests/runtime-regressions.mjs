@@ -15,13 +15,14 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
+const workspace = read('assets/builder/js/chunks/workspace.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-enhancements-js/,
-    'The core runtime and both accessibility chunks must load synchronously before the feature host.'
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-enhancements-js/,
+    'The core runtime and feature chunks must load synchronously before the feature host.'
 );
 assert.match(
     outputBuilder,
@@ -32,6 +33,11 @@ assert.match(
     outputBuilder,
     /filemtime\( \$a11y_composites_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y-composites\.js/,
     'The composites chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$workspace_path \)[\s\S]+assets\/builder\/js\/chunks\/workspace\.js/,
+    'The workspace chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     builder,
@@ -79,6 +85,31 @@ assert.match(
     'A missing composites chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
+    workspace,
+    /chunks\.workspace = function \(host\)[\s\S]+host\.setWorkspaceApi\(Object\.freeze\([\s\S]+dbeControllers\.register\(DBE_WORKSPACE_OWNER/,
+    'The workspace chunk must register through an explicit host contract and export only its shared actions.'
+);
+assert.match(
+    builder,
+    /var dbeWorkspaceChunk = window\.dbeBuilderChunks[\s\S]+dbeWorkspaceChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+canvas: Object\.freeze[\s\S]+setWorkspaceApi/,
+    'The feature host must provide grouped workspace services and receive its narrow shared API.'
+);
+assert.doesNotMatch(
+    builder,
+    /function dbeRefreshWorkspace\(|function ensurePreviewHandles\(|function ensureCompactPanes\(|function ensurePanelHandles\(|function ensureNavDetach\(/,
+    'The feature host must not duplicate workspace implementations behind its shared API.'
+);
+assert.match(
+    workspace,
+    /host\.setWorkspaceApi\(Object\.freeze\([\s\S]+focusArea: dbeFocusArea[\s\S]+compactActive: dbeCompactActive[\s\S]+panelWrappers: dbePanelWrappers[\s\S]+panelSideHidden: dbePanelSideHidden[\s\S]+toggleSidePanels: dbeToggleSidePanels[\s\S]+setPanelVisibility: dbeSetPanelVisibility/,
+    'Commands must receive only the workspace actions they consume.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'workspace:missing'[\s\S]+Workspace chunk failed to load/,
+    'A missing workspace chunk must fail soft with a persistent diagnostic.'
+);
+assert.match(
     builder,
     /Core runtime failed to load; enhancements were not started/,
     'A missing prerequisite must fail closed with a diagnostic instead of partially wiring features.'
@@ -124,7 +155,7 @@ assert.match(
     'Tree semantics and favourites must refresh and tear down through the composite controller.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeRefreshWorkspace\(\)[\s\S]+ensureThemeButton\(\)[\s\S]+ensureDensityButton\(\)[\s\S]+function dbeRestoreWorkspaceState\(\)[\s\S]+dbe-theme-btn[\s\S]+dbe-density-btn/,
     'Theme and density controls must refresh and tear down through the workspace controller.'
 );
@@ -173,6 +204,7 @@ assert.doesNotMatch(builder, /DBE_BUILDERIUS_ADAPTERS|__builderiusStoreFns/, 'Bu
 assert.ok(gzipSync(coreRuntime).length < 35 * 1024, 'The core runtime must remain within the 35 KB compressed bootstrap budget.');
 assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must remain within an 8 KB compressed budget.');
 assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must remain within a 35 KB compressed budget.');
+assert.ok(gzipSync(workspace).length < 25 * 1024, 'The workspace chunk must remain within a 25 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the
 // registry contract is behavioural, not only a source-shape assertion.

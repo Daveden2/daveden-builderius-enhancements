@@ -16,6 +16,7 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
+const workspace = read('assets/builder/js/chunks/workspace.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
@@ -73,7 +74,7 @@ assert.match(
     'Controller-owned composite observer roots must resolve through the adapter host.'
 );
 assert.match(
-    builder,
+    workspace,
     /function dbeObserveWorkspace\(\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+dbeQuery\('topPanel'\)/,
     'Controller-owned workspace observer roots must resolve through the adapter.'
 );
