@@ -444,6 +444,30 @@ if ( function_exists( 'dbe_ability_render_url' ) ) {
 $ability_defaults = dbe_default_options();
 $js_ability_key   = dbe_ability_option_key( 'dbe/manage-js-snippet' );
 dbe_test_assert( empty( $ability_defaults[ $js_ability_key ] ), 'The raw-JavaScript ability is not off by default.' );
+dbe_test_assert( function_exists( 'dbe_register_snippet_abilities' ), 'The JavaScript-snippet registrar was not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_js_snippets' ), 'The JavaScript-snippet read callback was not loaded.' );
+
+$js_snippet_row = dbe_ability_js_snippet_row(
+	array(
+		'a1' => 'test_snippet',
+		'b1' => 'snippet_1',
+		'c1' => 'document.documentElement.dataset.test = "ready";',
+		'e1' => true,
+	)
+);
+dbe_test_assert(
+	'test_snippet' === $js_snippet_row['label'] && 'snippet_1' === $js_snippet_row['id'] && true === $js_snippet_row['external'] && true === $js_snippet_row['footer'] && true === $js_snippet_row['enabled'] && 10 === $js_snippet_row['priority'],
+	'The JavaScript-snippet row projection or saved defaults changed during domain extraction.'
+);
+dbe_test_assert(
+	'dbe_bad_action' === dbe_ability_manage_js_snippet(
+		array(
+			'action'  => 'invalid',
+			'snippet' => 'test',
+		)
+	)->get_error_code(),
+	'An invalid JavaScript-snippet action reached the saved-state loader.'
+);
 dbe_test_assert( function_exists( 'dbe_register_data_abilities' ), 'The dynamic-data registrar was not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_get_data_variables' ), 'The dynamic-data read callback was not loaded.' );
 
