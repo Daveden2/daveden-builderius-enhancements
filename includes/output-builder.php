@@ -252,6 +252,9 @@ function dbe_print_builder_footer() {
 		'heartbeat'  => dbe_heartbeat_config(),
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
+		'builderius' => array(
+			'version' => function_exists( 'builderius_get_version' ) ? builderius_get_version() : '',
+		),
 	);
 
 	$config['adminUrls'] = array(

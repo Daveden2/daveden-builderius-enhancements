@@ -44,3 +44,6 @@ jobs:
 
       - name: Stylelint
         run: npm run lint:css
+
+      - name: Runtime contracts
+        run: npm test

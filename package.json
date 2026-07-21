@@ -6,7 +6,9 @@
     "lint:js": "eslint assets",
     "lint:css": "stylelint \"assets/**/*.css\"",
     "lint": "npm run lint:js && npm run lint:css",
-    "test:a11y": "node tests/accessibility-regressions.mjs"
+    "test:a11y": "node tests/accessibility-regressions.mjs",
+    "test:adapter": "node tests/builderius-adapter-regressions.mjs",
+    "test": "npm run test:a11y && npm run test:adapter"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

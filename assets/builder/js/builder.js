@@ -26,13 +26,85 @@
         return count === 1 ? dbeT(keyOne, fallbackOne) : dbeT(keyMany, fallbackMany);
     }
 
-    var ROW_SEL = '.uniRightPanel .uniModTree__item';
-    var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
-    var lastCtxId = null;
+    /* Versioned boundary around the Builderius internals DBE depends on. Keep
+       store-global and stable chrome-root knowledge here; feature-specific
+       selectors stay with their controllers until they prove shared. A new
+       Builderius family should add an adapter entry instead of scattering
+       compatibility branches through the feature code. */
+    var DBE_BUILDERIUS_ADAPTERS = {
+        '1.3': {
+            testedVersion: '1.3.5-beta',
+            storeGlobal: '__builderiusStoreFns',
+            selectors: {
+                mainPanel: '.uniMainPanel',
+                topPanel: '.uniTopPanel',
+                leftPanel: '.uniLeftPanel',
+                leftPanelOuter: '.uniLeftPanelOuter',
+                navigatorPanel: '.uniRightPanel',
+                navigatorRows: '.uniRightPanel .uniModTree__item',
+                navigatorTree: '.uniRightPanel .uniModTree .uniModTree__list',
+                navigatorFirstRow: '.uniRightPanel .uniModTree__list button.uniModTree__item',
+                navigatorRowPrefix: '.uniRightPanel .uni-tree-node-',
+                canvasPanel: '.uniIframePanel',
+                canvasOuter: '.uniIframePanel__outer',
+                canvasInner: '.uniIframePanel__inner',
+                previewFrame: '#builderInner',
+                footerPanel: '.uniFooterPanel',
+                footerBar: '.uniFooterPanelBar',
+                saveButton: '.uniTopPanel .uniPanelButtonPrimary.saveBtn'
+            }
+        }
+    };
+    var dbeBuilderiusVersion = String((CFG.builderius && CFG.builderius.version) || '');
+    var dbeBuilderiusVersionMatch = dbeBuilderiusVersion.match(/^(\d+\.\d+)/);
+    var dbeBuilderiusFamily = dbeBuilderiusVersionMatch ? dbeBuilderiusVersionMatch[1] : '';
+    var dbeBuilderiusCompatible = !!DBE_BUILDERIUS_ADAPTERS[dbeBuilderiusFamily];
+    var dbeBuilderiusAdapterKey = dbeBuilderiusCompatible ? dbeBuilderiusFamily : '1.3';
+    var dbeBuilderiusAdapter = DBE_BUILDERIUS_ADAPTERS[dbeBuilderiusAdapterKey];
+    var dbeBuilderiusTested = dbeBuilderiusVersion === dbeBuilderiusAdapter.testedVersion;
+    var dbeBuilderiusStore = window[dbeBuilderiusAdapter.storeGlobal];
 
-    function store() { return window.__builderiusStoreFns; }
+    function dbeSelector(name) { return dbeBuilderiusAdapter.selectors[name] || ''; }
+    function dbeQuery(name, root) {
+        var selector = dbeSelector(name);
+        return selector ? (root || document).querySelector(selector) : null;
+    }
+    function dbeQueryAll(name, root) {
+        var selector = dbeSelector(name);
+        return selector ? (root || document).querySelectorAll(selector) : [];
+    }
+    function dbeNavigatorRow(id) {
+        return id ? document.querySelector(dbeSelector('navigatorRowPrefix') + id) : null;
+    }
+    function store() {
+        if (!dbeBuilderiusStore) {
+            dbeBuilderiusStore = window[dbeBuilderiusAdapter.storeGlobal];
+            if (dbeBuilderiusStore) { document.documentElement.dataset.dbeBuilderiusStore = 'captured'; }
+        }
+        return dbeBuilderiusStore;
+    }
     function modules() { try { return store().storeGet('modules'); } catch (e) { return null; } }
     function activeId() { try { return store().storeGet('activeModule'); } catch (e) { return null; } }
+
+    /* Persistent diagnostics for support and live contract tests. Builderius
+       removes temporary globals after start-up, so both the store reference and
+       these flags must be captured before that cleanup. Unknown/new versions
+       keep using the last compatible adapter so features fail soft, but the
+       untested state remains visible on the document root. */
+    var dbeBuilderiusRoot = document.documentElement;
+    dbeBuilderiusRoot.dataset.dbeBuilderiusAdapter = dbeBuilderiusAdapterKey;
+    dbeBuilderiusRoot.dataset.dbeBuilderiusVersion = dbeBuilderiusVersion || 'unknown';
+    dbeBuilderiusRoot.dataset.dbeBuilderiusTestedVersion = dbeBuilderiusAdapter.testedVersion;
+    dbeBuilderiusRoot.dataset.dbeBuilderiusCompatible = String(dbeBuilderiusCompatible);
+    dbeBuilderiusRoot.dataset.dbeBuilderiusTested = String(dbeBuilderiusTested);
+    dbeBuilderiusRoot.dataset.dbeBuilderiusStore = dbeBuilderiusStore ? 'captured' : 'missing';
+    if (dbeBuilderiusVersion && !dbeBuilderiusTested && window.console && console.warn) {
+        console.warn('[DBE] Builderius ' + dbeBuilderiusVersion + ' is using the ' + dbeBuilderiusAdapterKey +
+            ' compatibility adapter tested against ' + dbeBuilderiusAdapter.testedVersion + '. Re-audit the adapter contract.');
+    }
+
+    var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
+    var lastCtxId = null;
 
     /* The site's breakpoints, [{name:'--tablet', label:'Tablet', width:991}]
        in top-bar button order (base first, width:null for the base entry).
@@ -103,7 +175,7 @@
     /* (a) tag + label, (b) keep-icon flag, (c) selected-row accent flag —
        each part gated on its own toggle. */
     function decorateTree() {
-        var iframe = document.getElementById('builderInner');
+        var iframe = dbeQuery('previewFrame');
         var idoc = iframe && iframe.contentDocument;
         var mods = modules();
         var sel = activeId();
@@ -126,7 +198,7 @@
             return tagById[id] || null;
         }
 
-        document.querySelectorAll(ROW_SEL).forEach(function (btn) {
+        dbeQueryAll('navigatorRows').forEach(function (btn) {
             var idMatch = btn.className.toString().match(/uni-tree-node-(\w+)/);
             if (!idMatch) { return; }
             var id = idMatch[1];
@@ -1077,7 +1149,7 @@
     /* The subtree in tree order (module-map key order = sibling order). */
     function bemCollectRows(rootId) {
         var mods = modules() || {};
-        var iframe = document.getElementById('builderInner');
+        var iframe = dbeQuery('previewFrame');
         var idoc = iframe && iframe.contentDocument;
         var kids = dbeChildIndex(mods);
         var rows = [];
@@ -5824,7 +5896,7 @@
 
     function dbeStyleTargets(id) {
         try {
-            var iframe = document.getElementById('builderInner');
+            var iframe = dbeQuery('previewFrame');
             var idoc = iframe && iframe.contentDocument;
             return idoc ? [].slice.call(idoc.querySelectorAll('.uni-node-' + id)) : [];
         } catch (e) { return []; }
@@ -7485,7 +7557,7 @@
         }
         // Panel: open/collapse (content mounts/unmounts, height/style change).
         // Shallow — no subtree — so the Monaco editors inside do not spam it.
-        var fp = document.querySelector('.uniFooterPanel');
+        var fp = dbeQuery('footerPanel');
         if (fp && fp !== dbeFooterPanelNode) {
             dbeObserveChrome('footer-panel', fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
             dbeFooterPanelNode = fp;
@@ -7502,7 +7574,7 @@
         }
     }
     function ensureFooterToolbar() {
-        var bar = document.querySelector('.uniFooterPanelBar');
+        var bar = dbeQuery('footerBar');
         if (!bar) { return; }
         dbeObserveFooter(bar);
         var tools = [].slice.call(bar.querySelectorAll('button.uniPanelIconButton--footer'));
@@ -8109,7 +8181,7 @@
     var dbeTermAiNode = null;
     function dbeObserveTerminalBar() {
         // Same bar, same options as the footer toolbar — share its observer.
-        dbeObserveFooter(document.querySelector('.uniFooterPanelBar'));
+        dbeObserveFooter(dbeQuery('footerBar'));
     }
     function dbeObserveTerminalPanel(ai) {
         if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
@@ -8728,7 +8800,7 @@
         // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal mounts
         // its own (disabled) primary Save earlier in document order, and the bare
         // class would anchor the cue to — and rebaseline on — that dead button.
-        var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
+        var save = dbeQuery('saveButton');
         if (!save) { return; }
         if (!dbeSaveClickBound) {
             dbeSaveClickBound = true;
@@ -8737,7 +8809,7 @@
             // again — the baseline would stop resetting and the cue would read
             // "Unsaved" forever after the first save.
             document.addEventListener('click', function (e) {
-                if (!(e.target.closest && e.target.closest('.uniTopPanel .uniPanelButtonPrimary.saveBtn'))) { return; }
+                if (!(e.target.closest && e.target.closest(dbeSelector('saveButton')))) { return; }
                 // The caret strip inside the button opens the Save menu without
                 // saving — opening it must not rebaseline the Unsaved cue.
                 if (e.target.closest('.saveBtn .actions')) { return; }
@@ -8775,7 +8847,7 @@
             // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal
             // mounts its own (disabled) primary Save earlier in document order,
             // and querySelector on the bare class lands on that dead button.
-            var save = document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn');
+            var save = dbeQuery('saveButton');
             if (!save || save.disabled) { return; } // nothing to drive — leave the browser default alone
             e.preventDefault();
             e.stopPropagation();
@@ -8809,7 +8881,7 @@
            dialog's own cancel closes and returns focus to the menu button. */
     var dbeSaveMenuEl = null;
 
-    function dbeSaveBtn() { return document.querySelector('.uniTopPanel .uniPanelButtonPrimary.saveBtn'); }
+    function dbeSaveBtn() { return dbeQuery('saveButton'); }
 
     /* clickSeq with real coordinates — for native handlers that position UI
        from the event's clientX/Y rather than the target's box. */
@@ -9274,25 +9346,25 @@
         }
         var el = null;
         if (which === 'navigator') {
-            el = document.querySelector('.uniRightPanel .uni-tree-node-' + (activeId() || '\0'))
-                || document.querySelector('.uniRightPanel .uniModTree__list button.uniModTree__item');
+            el = dbeNavigatorRow(activeId()) || dbeQuery('navigatorFirstRow');
             if (el) { el.setAttribute('tabindex', '0'); }
         } else if (which === 'settings') {
             // The settings panel shows the selected element's settings — nothing to
             // go to without a selection.
             if (!activeId()) { return; }
-            var left = document.querySelector('.uniLeftPanel');
+            var left = dbeQuery('leftPanel');
             el = (left && left.querySelector('button, input, select, textarea, a[href], [tabindex="0"]')) || left;
             if (el === left && left && left.tabIndex < 0) { left.setAttribute('tabindex', '-1'); }
         } else if (which === 'canvas') {
-            el = document.getElementById('builderInner');
+            el = dbeQuery('previewFrame');
         } else if (which === 'inserter') {
             el = document.querySelector('.uniModItems__item')
                 || document.querySelector('.uniModTree__favouritesListItem');
             if (el && el.tabIndex < 0 && !/^(a|button|input)$/i.test(el.tagName)) { el.setAttribute('tabindex', '-1'); }
         } else if (which === 'footer') {
-            el = document.querySelector('.uniFooterPanelBar button[tabindex="0"]')
-                || document.querySelector('.uniFooterPanelBar button:not([disabled]):not([aria-disabled="true"])');
+            var footerBar = dbeQuery('footerBar');
+            el = footerBar && (footerBar.querySelector('button[tabindex="0"]')
+                || footerBar.querySelector('button:not([disabled]):not([aria-disabled="true"])'));
         }
         if (!el) { return; }
         try { el.focus(); } catch (e) {}
@@ -9907,7 +9979,7 @@
         if (!mod || mod.name !== 'HtmlElement' || !((mod.settings || []).some(function (s) { return s.name === 'content'; }))) {
             return null;
         }
-        var frame = document.getElementById('builderInner');
+        var frame = dbeQuery('previewFrame');
         var doc;
         try { doc = frame && frame.contentDocument; } catch (e) { doc = null; }
         if (!doc) { return null; }
@@ -9996,7 +10068,7 @@
             ? dbeT('canvasInteractiveOn', 'Interacting with page. Press Escape to select elements.')
             : dbeT('canvasSelectionOn', 'Selecting elements.'));
         if (!interactive) {
-            var frame = document.getElementById('builderInner');
+            var frame = dbeQuery('previewFrame');
             if (frame) { setTimeout(function () { try { frame.focus(); } catch (e) {} }, 0); }
         }
         return true;
@@ -10121,7 +10193,7 @@
     }
 
     function ensureKeyboardIframeBridge() {
-        var frame = document.getElementById('builderInner');
+        var frame = dbeQuery('previewFrame');
         if (!frame) { return; }
         if (dbeKeyboardFrame !== frame) {
             dbeKeyboardFrame = frame;
@@ -10204,10 +10276,10 @@
         } catch (e) { return false; }
     }
 
-    function dbeCanvasInner() { return document.querySelector('.uniIframePanel__inner'); }
+    function dbeCanvasInner() { return dbeQuery('canvasInner'); }
 
     function dbeCanvasMax() {
-        var outer = document.querySelector('.uniIframePanel__outer');
+        var outer = dbeQuery('canvasOuter');
         return outer ? Math.round(outer.getBoundingClientRect().width) : window.innerWidth;
     }
 
@@ -10427,7 +10499,7 @@
             // boundary within it (dbeApplyPreviewWidth), not a ceiling.
             drag = { x: ev.clientX, w: inner.getBoundingClientRect().width, max: dbeCanvasMax(), raf: 0 };
             try { h.setPointerCapture(ev.pointerId); } catch (e) {}
-            var panel = document.querySelector('.uniIframePanel');
+            var panel = dbeQuery('canvasPanel');
             if (panel) { panel.classList.add('dbe-preview-resizing'); }
         });
         h.addEventListener('pointermove', function (ev) {
@@ -10445,7 +10517,7 @@
         function endPreviewDrag() {
             if (!drag) { return; }
             drag = null;
-            var panel = document.querySelector('.uniIframePanel');
+            var panel = dbeQuery('canvasPanel');
             if (panel) { panel.classList.remove('dbe-preview-resizing'); }
             // Release the guard now the drag is over, so it can never fight a
             // breakpoint click; the custom width stays as a plain inline value.
@@ -10738,8 +10810,8 @@
 
     function dbeSetCompactAccessibility() {
         var wrappers = dbePanelWrappers();
-        var canvas = document.querySelector('.uniIframePanel');
-        var iframe = document.getElementById('builderInner');
+        var canvas = dbeQuery('canvasPanel');
+        var iframe = dbeQuery('previewFrame');
         var tabs = document.querySelector('.uniIframeTabs');
         var leftShown = dbeCompactPane === 'inserter' || dbeCompactPane === 'settings';
         var canvasShown = dbeCompactPane === 'canvas';
@@ -10782,8 +10854,8 @@
         if (!mq || !mq.matches) {
             root.classList.remove('dbe-compact-panes');
             delete root.dataset.dbeCompactPane;
-            dbeSetPanelHiddenState(document.querySelector('.uniIframePanel'), false);
-            dbeSetPanelHiddenState(document.getElementById('builderInner'), false);
+            dbeSetPanelHiddenState(dbeQuery('canvasPanel'), false);
+            dbeSetPanelHiddenState(dbeQuery('previewFrame'), false);
             dbeSetPanelHiddenState(document.querySelector('.uniIframeTabs'), false);
             return false;
         }
@@ -10831,9 +10903,9 @@
     }
 
     function dbePanelWrappers() {
-        var rp = document.querySelector('.uniRightPanel');
+        var rp = dbeQuery('navigatorPanel');
         return {
-            left: document.querySelector('.uniLeftPanelOuter'),
+            left: dbeQuery('leftPanelOuter'),
             right: rp && rp.parentElement
         };
     }
@@ -10901,7 +10973,7 @@
         if (document.activeElement &&
             ((leftHidden && wrappers.left && wrappers.left.contains(document.activeElement)) ||
                 (rightHidden && wrappers.right && wrappers.right.contains(document.activeElement)))) {
-            var fallback = document.querySelector('.dbe-palette-btn') || document.getElementById('builderInner') || dbeSidePanelsButton();
+            var fallback = document.querySelector('.dbe-palette-btn') || dbeQuery('previewFrame') || dbeSidePanelsButton();
             if (fallback) { try { fallback.focus(); } catch (e) {} }
         }
         document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
@@ -12642,20 +12714,19 @@
        and expand/collapse go through the proven channels: clickSeq(button)
        selects, clickSeq(chevron <i>) toggles — both async re-renders, so focus is
        re-asserted by node id afterwards. */
-    var NAV_TREE_SEL = '.uniRightPanel .uniModTree .uniModTree__list';
     var NAV_ROW_SEL = 'button.uniModTree__item';
 
     function navRootList() {
         // Outermost element list — querySelector returns the first in document
         // order (favourites live in a separate list, the footer outside it).
-        return document.querySelector(NAV_TREE_SEL);
+        return dbeQuery('navigatorTree');
     }
     function navRowId(btn) {
         var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
         return m ? m[1] : null;
     }
     function navRowById(id) {
-        return id ? document.querySelector('.uniRightPanel .uni-tree-node-' + id) : null;
+        return dbeNavigatorRow(id);
     }
     function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
     function navRowExpandable(btn) { return !!btn.querySelector('i'); }
@@ -13293,8 +13364,8 @@
                 el.removeAttribute('aria-keyshortcuts');
             }
         }
-        stamp(document.querySelector('.uniTopPanel'), dbeT('regionTopBar', 'Top toolbar'));
-        var left = document.querySelector('.uniLeftPanelOuter') || document.querySelector('.uniLeftPanel');
+        stamp(dbeQuery('topPanel'), dbeT('regionTopBar', 'Top toolbar'));
+        var left = dbeQuery('leftPanelOuter') || dbeQuery('leftPanel');
         if (left) {
             var isInserter = !!left.querySelector('.uniModList');
             stamp(
@@ -13303,12 +13374,12 @@
                 isInserter ? 'L' : 'E'
             );
         }
-        stamp(document.querySelector('.uniIframePanel'), dbeT('regionCanvas', 'Canvas'), 'P');
-        var iframe = document.getElementById('builderInner');
+        stamp(dbeQuery('canvasPanel'), dbeT('regionCanvas', 'Canvas'), 'P');
+        var iframe = dbeQuery('previewFrame');
         var iframeTitle = dbeT('canvasPreview', 'Canvas preview');
         if (iframe && iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
-        stamp(document.querySelector('.uniRightPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
-        stamp(document.querySelector('.uniFooterPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
+        stamp(dbeQuery('navigatorPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
+        stamp(dbeQuery('footerPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
     }
 
     function schedule() {
@@ -13384,7 +13455,7 @@
     }
 
     function boot() {
-        var panel = document.querySelector('.uniRightPanel');
+        var panel = dbeQuery('navigatorPanel');
         if (!panel) { return void setTimeout(boot, 500); }
         // Seed the shared panel width before the first paint of the handles.
         if (on('panel_resize')) { try { applyStoredPanelWidth(); } catch (e) {} }
@@ -13409,7 +13480,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in).
         if (needMainObservation) {
-            var main = document.querySelector('.uniMainPanel') || panel.parentElement;
+            var main = dbeQuery('mainPanel') || panel.parentElement;
             if (main) {
                 dbeObserveChrome('main-panel', main, {
                     childList: true,
@@ -13427,7 +13498,7 @@
         // there; labelChromeIcons(), the theme/density/palette buttons and the
         // save cue must reach it when it re-renders.
         if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
-            var top = document.querySelector('.uniTopPanel');
+            var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
@@ -13437,7 +13508,7 @@
         // re-renders. childList only (no attributes) so our own data-dbe-tip /
         // aria-label edits don't retrigger it.
         if (on('tooltips')) {
-            var footer = document.querySelector('.uniFooterPanel');
+            var footer = dbeQuery('footerPanel');
             if (footer) {
                 dbeObserveChrome('footer-tooltips', footer, { childList: true, subtree: true });
             }

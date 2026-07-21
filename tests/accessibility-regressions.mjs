@@ -79,7 +79,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /else if \(which === 'footer'\)[\s\S]+\.uniFooterPanelBar button\[tabindex="0"\]/,
+    /else if \(which === 'footer'\)[\s\S]+dbeQuery\('footerBar'\)[\s\S]+button\[tabindex="0"\]/,
     'The direct-focus routes must include the Footer toolbar.'
 );
 assert.match(
