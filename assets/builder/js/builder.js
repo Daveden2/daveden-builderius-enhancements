@@ -9013,7 +9013,6 @@
     var dbeSaveState = '';
     var dbeSavePending = null;
     var dbeSaveTimer = null;
-    var dbeSaveHookBound = false;
     var dbeSaveIgnoreDirtyUntil = 0;
     var dbeSaveLastStamp = 0;
     var dbeSaveSnapshotItem = null;
@@ -9127,8 +9126,9 @@
         saveSettingsBaseline = false;
         dbeSaveIgnoreDirtyUntil = Date.now() + 500;
         dbeSaveState = 'saved';
-        clearTimeout(dbeSaveTimer);
-        dbeSaveTimer = setTimeout(function () {
+        dbeClearOwnedTimeout(DBE_EDITING_OWNER, dbeSaveTimer);
+        dbeSaveTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+            dbeSaveTimer = null;
             if (dbeSaveState === 'saved') { dbeSaveState = ''; dbeRenderSaveCue(); }
         }, 2000);
         dbeRenderSaveCue();
@@ -9144,19 +9144,21 @@
         }
         var pending = dbeSavePending;
         dbeSavePending = null;
-        clearTimeout(dbeSaveTimer);
+        dbeClearOwnedTimeout(DBE_EDITING_OWNER, dbeSaveTimer);
+        dbeSaveTimer = null;
         var confirmed = stamp >= pending.started && stamp !== pending.beforeStamp;
         if (confirmed) { dbeShowSavedState(stamp); }
         else { dbeSaveState = 'error'; dbeRenderSaveCue(); }
     }
     function dbeBeginSave() {
-        clearTimeout(dbeSaveTimer);
+        dbeClearOwnedTimeout(DBE_EDITING_OWNER, dbeSaveTimer);
         dbeSavePending = { started: Date.now(), beforeStamp: dbeSaveStamp() };
         dbeSaveState = 'saving';
         dbeRenderSaveCue();
         // Session-expiry failures can stop before saveAllSettings runs, so its
         // finally hook never fires. Do not leave the cue saying Saving forever.
-        dbeSaveTimer = setTimeout(function () {
+        dbeSaveTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+            dbeSaveTimer = null;
             if (!dbeSavePending) { return; }
             dbeSavePending = null;
             dbeSaveState = 'error';
@@ -9164,37 +9166,36 @@
         }, 30000);
     }
     function hookSaveStatus() {
-        if (dbeSaveHookBound) { return; }
-        try {
-            dbeSaveLastStamp = dbeSaveStamp();
-            window.Builderius.API.hooks.addAction('builderius.storeAction.afterSaveAllSettings', 'dbeSaveStatus', dbeFinishSave);
-            dbeSaveHookBound = true;
-        } catch (e) {}
+        dbeSaveLastStamp = dbeSaveStamp();
+        dbeBindOwnedHook(
+            DBE_EDITING_OWNER,
+            'builderius.storeAction.afterSaveAllSettings',
+            'dbeSaveStatus',
+            dbeFinishSave
+        );
     }
-    var dbeSaveClickBound = false;
+    function dbeSaveButtonClick(e) {
+        if (!(e.target.closest && e.target.closest(dbeSelector('saveButton')))) { return; }
+        // The caret strip inside the button opens the Save menu without
+        // saving — opening it must not rebaseline the Unsaved cue.
+        if (e.target.closest('.saveBtn .actions')) { return; }
+        dbeBeginSave();
+    }
+    function dbeEnsureSaveShortcutMetadata() {
+        var save = dbeQuery('saveButton');
+        if (!save || !on('save_shortcut')) { return; }
+        dbeRememberOwnedAttributes(DBE_EDITING_OWNER, save, ['aria-keyshortcuts']);
+        var shortcut = dbeIsMac ? 'Meta+S' : 'Control+S';
+        if (save.getAttribute('aria-keyshortcuts') !== shortcut) {
+            save.setAttribute('aria-keyshortcuts', shortcut);
+        }
+    }
     function ensureSaveCue() {
         // .saveBtn, not bare .uniPanelButtonPrimary: the breakpoints modal mounts
         // its own (disabled) primary Save earlier in document order, and the bare
         // class would anchor the cue to — and rebaseline on — that dead button.
         var save = dbeQuery('saveButton');
         if (!save) { return; }
-        if (!dbeSaveClickBound) {
-            dbeSaveClickBound = true;
-            // Delegated to document, NOT bound to the button: React remounts the
-            // Save button freely, and a listener on a replaced button never fires
-            // again — the baseline would stop resetting and the cue would read
-            // "Unsaved" forever after the first save.
-            document.addEventListener('click', function (e) {
-                if (!(e.target.closest && e.target.closest(dbeSelector('saveButton')))) { return; }
-                // The caret strip inside the button opens the Save menu without
-                // saving — opening it must not rebaseline the Unsaved cue.
-                if (e.target.closest('.saveBtn .actions')) { return; }
-                dbeBeginSave();
-            }, true);
-        }
-        if (on('save_shortcut') && save.getAttribute('aria-keyshortcuts') !== (dbeIsMac ? 'Meta+S' : 'Control+S')) {
-            save.setAttribute('aria-keyshortcuts', dbeIsMac ? 'Meta+S' : 'Control+S');
-        }
         var cue = document.querySelector('.dbe-save-cue');
         if (!cue) {
             cue = document.createElement('span');
@@ -9216,7 +9217,7 @@
        bubbles through the save cue's delegated listener, so keyboard and
        pointer saves report the same Saving/Saved state. */
     function bindSaveShortcut() {
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'save-shortcut', 'keydown', function (e) {
             if (e.repeat || (e.key || '').toLowerCase() !== 's') { return; }
             var mod = dbeIsMac ? (e.metaKey && !e.ctrlKey) : e.ctrlKey;
             if (!mod || e.shiftKey || e.altKey) { return; }
@@ -9278,8 +9279,10 @@
 
     function dbeStampSaveMenu(menu) {
         dbeSaveMenuEl = menu;
+        dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, menu, ['aria-label']);
         if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('tipSaveOptions', 'Save options')); }
         dbeSaveMenuItems(menu).forEach(function (li) {
+            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, li, ['role', 'tabindex', 'aria-disabled']);
             if (li.getAttribute('role') !== 'menuitem') { li.setAttribute('role', 'menuitem'); }
             if (!li.hasAttribute('tabindex')) { li.setAttribute('tabindex', '-1'); }
             // Disabled items stay focusable (aria-disabled) so a keyboard user
@@ -9292,7 +9295,12 @@
             }
         });
         var dlg = menu.closest('dialog');
-        if (dlg) { dlg.addEventListener('close', function () { dbeSaveMenuEl = null; ensureSaveMenuButton(); }, { once: true }); }
+        if (dlg) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dlg, 'save-menu-close', 'close', function () {
+                dbeSaveMenuEl = null;
+                ensureSaveMenuButton();
+            });
+        }
         ensureSaveMenuButton(); // aria-expanded reflects the open menu at once
     }
 
@@ -9328,7 +9336,7 @@
                 var first = items.filter(function (li) { return !li.classList.contains('disabled'); })[0] || items[0];
                 if (first) { first.focus(); }
             }
-        }, 40);
+        }, 40, DBE_COMMANDS_OWNER);
     }
 
     /* Open the native menu through the hidden strip, positioned at our
@@ -9344,7 +9352,7 @@
     }
 
     function bindSaveMenuKeys() {
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'save-menu-keys', 'keydown', function (e) {
             var menu = dbeSaveMenuOpenEl();
             if (!menu) { return; }
             var items = dbeSaveMenuItems(menu);
@@ -9383,6 +9391,7 @@
             if (btn) { btn.remove(); }
             return;
         }
+        dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, actions, ['aria-hidden']);
         if (actions.getAttribute('aria-hidden') !== 'true') { actions.setAttribute('aria-hidden', 'true'); }
         if (!btn) {
             btn = document.createElement('button');
@@ -13118,7 +13127,7 @@
             return (row && row.getClientRects().length) ? row : null;
         }, function (row) {
             if (row) { try { scrollRowIntoTree(row); } catch (e) {} }
-        });
+        }, 60, DBE_COMMANDS_OWNER);
     }
     function bindRevealActive() {
         // Seed with the current selection so the very first tick does not yank the
@@ -14093,12 +14102,43 @@
         on('css_code_default') || on('panel_tabs') || on('reveal_selected'));
 
     var DBE_EDITING_OWNER = 'editing';
+    var dbeEditingControllerActive = false;
     var NEED_EDITING = on('undo_delete') || on('image_defaults') || on('inline_rename') ||
         on('dblclick_rename') || on('keyboard_shortcuts') || on('command_palette') ||
         on('edit_as_html') || on('import_html') || on('auto_bem') || on('tag_change') ||
-        on('wrap_in') || on('element_moves') || on('navigator_paste');
+        on('wrap_in') || on('element_moves') || on('navigator_paste') ||
+        on('save_shortcut') || on('save_state_cue');
+
+    function dbeObserveEditing() {
+        dbeObserveChrome(
+            'editing-top',
+            (on('save_shortcut') || on('save_state_cue')) ? dbeQuery('topPanel') : null,
+            { childList: true, subtree: true }
+        );
+        dbeObserveChrome(
+            'editing-main',
+            on('save_state_cue') ? dbeQuery('mainPanel') : null,
+            {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            }
+        );
+    }
+
+    function dbeRefreshEditing() {
+        if (!dbeEditingControllerActive) { return; }
+        dbeObserveEditing();
+        if (on('save_shortcut')) { dbeEnsureSaveShortcutMetadata(); }
+        if (on('save_state_cue')) { ensureSaveCue(); }
+    }
 
     function destroyEditing() {
+        dbeEditingControllerActive = false;
+        dbeObserveChrome('editing-top', null);
+        dbeObserveChrome('editing-main', null);
         closeRename(false, true);
         dbeRemovePriorHtmlDialog();
         dbeRemovePriorBemDialog();
@@ -14111,19 +14151,41 @@
         redoStack = [];
         dbeDestroyOwnedHooks(DBE_EDITING_OWNER);
         dbeDestroyOwnedActivity(DBE_EDITING_OWNER);
+        dbeRestoreOwnedAttributes(DBE_EDITING_OWNER);
+        var cue = document.querySelector('.dbe-save-cue');
+        if (cue) { cue.remove(); }
+        dbeSaveTimer = null;
+        dbeSavePending = null;
+        dbeSaveState = '';
+        dbeSaveLastStamp = 0;
+        dbeSaveInitialisingUntil = 0;
+        saveBaseline = null;
+        saveBaselineSnapshot = null;
+        saveSettingsBaseline = null;
+        dbeSaveSnapshotItem = null;
+        dbeSaveSnapshotSignature = null;
     }
 
     dbeControllers.register(DBE_EDITING_OWNER, {
         init: function (context) {
             if (!context || !context.builderius) { return; }
+            dbeEditingControllerActive = true;
             if (on('undo_delete')) {
                 hookHistoryCapture();
                 bindUndoKeys();
             }
             if (on('image_defaults')) { hookImageDefaults(); }
             if (on('dblclick_rename')) { bindDblclickRename(); }
+            if (on('save_shortcut')) { bindSaveShortcut(); }
+            if (on('save_state_cue')) {
+                hookSaveStatus();
+                dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'save-button-click', 'click', dbeSaveButtonClick, true);
+            }
+            dbeRefreshEditing();
         },
-        refresh: function () {},
+        refresh: function (reason) {
+            if (reason) { dbeRefreshEditing(); }
+        },
         destroy: function () {
             destroyEditing();
         }
@@ -14160,7 +14222,7 @@
     function dbeObserveCommands() {
         var needMain = on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') ||
             on('reveal_selected') || on('context_menu');
-        dbeObserveChrome('commands-top', on('command_palette') ? dbeQuery('topPanel') : null, {
+        dbeObserveChrome('commands-top', (on('command_palette') || on('save_split_button')) ? dbeQuery('topPanel') : null, {
             childList: true,
             subtree: true
         });
@@ -14174,10 +14236,15 @@
         if (!dbeCommandsControllerActive) { return; }
         dbeObserveCommands();
         if (on('command_palette')) { ensurePaletteButton(); }
+        if (on('save_split_button')) { ensureSaveMenuButton(); }
         if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
             ensureKeyboardIframeBridge();
         }
         if (on('context_menu')) { decorateClassChips(); }
+        if (on('reveal_selected')) {
+            revealActiveInTree();
+            dbeSyncSelectionContext();
+        }
     }
 
     function destroyCommands() {
@@ -14196,12 +14263,16 @@
         }
         document.querySelectorAll(
             '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
-            '.dbe-canvas-editing-indicator, .dbe-canvas-status'
+            '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +
+            '.dbe-canvas-selection-context'
         ).forEach(function (node) { node.remove(); });
         if (dbeVarMenuAnchorBtn) { dbeVarMenuAnchorBtn.style.removeProperty('anchor-name'); }
         dbeVarMenuAnchorBtn = null;
         dbePasteCtxRow = null;
         dbeKeyboardFrame = null;
+        dbeSaveMenuEl = null;
+        dbeLastRevealedId = null;
+        dbeSelectionContextState = '';
     }
 
     dbeControllers.register(DBE_COMMANDS_OWNER, {
@@ -14232,6 +14303,8 @@
             if (on('command_palette')) {
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'palette-key', 'keydown', dbePaletteKeydown, true);
             }
+            if (on('save_split_button')) { bindSaveMenuKeys(); }
+            if (on('reveal_selected')) { bindRevealActive(); }
             dbeRefreshCommands();
         },
         refresh: function (reason) {
@@ -14242,7 +14315,7 @@
         }
     }, NEED_CTX_MENU || on('footer_toolbar') || on('context_menu') || on('navigator_paste') ||
         on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
-        on('navigator_keyboard') || on('reveal_selected'));
+        on('navigator_keyboard') || on('reveal_selected') || on('save_split_button'));
 
     var DBE_STYLES_OWNER = 'styles';
     var dbeStylesControllerActive = false;
@@ -14532,19 +14605,13 @@
             }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
             }
-            if (on('reveal_selected')) {
-                try { revealActiveInTree(); } catch (e) {}
-                try { dbeSyncSelectionContext(); } catch (e) {}
-            }
             if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
-            if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('favourites_reorder')) {
                 try { ensureFavouritesReorder(); } catch (e) {}
                 try { applyFavouritesOrder(); } catch (e) {}
@@ -14569,7 +14636,7 @@
         // The main panel contains the Navigator, so when both are needed it
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tree_search') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers');
         var needMainObservation = NEED_LEFT_PANEL || on('condition_helpers');
 
         // Remaining left-panel helpers and condition controls share this legacy
@@ -14590,10 +14657,10 @@
             dbeObserveChrome('navigator', panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
-        // Top bar too — breakpoint buttons and the breakpoints modal mount
-        // there; the theme/density/palette buttons and save cue must reach it
-        // when it re-renders. a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle') || on('save_state_cue')) {
+        // Top bar too — the remaining legacy theme and density buttons must
+        // reach it when React re-renders. Controllers own the palette and save
+        // surfaces; a11y/chrome owns the tooltip requirement.
+        if (on('theme_switcher') || on('density_toggle')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
@@ -14605,18 +14672,6 @@
         // on('multi_select') is always false; bindMultiSelect / bindMultiDrag
         // stay parked below for when the drag is fixed.
         if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
-
-        // Cmd/Ctrl+S saves the template.
-        if (on('save_shortcut')) { bindSaveShortcut(); }
-
-        // Confirm save-state transitions from Builderius's completion hook.
-        if (on('save_state_cue')) { hookSaveStatus(); }
-
-        // Save split-button menu.
-        if (on('save_split_button')) { bindSaveMenuKeys(); }
-
-        // Follow the preview selection: expand + scroll the active row into view.
-        if (on('reveal_selected')) { bindRevealActive(); }
 
     }
 

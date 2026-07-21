@@ -366,6 +366,26 @@ assert.match(
 );
 assert.match(
     builder,
+    /function hookSaveStatus\(\)[\s\S]+dbeBindOwnedHook\([\s\S]+DBE_EDITING_OWNER[\s\S]+builderius\.storeAction\.afterSaveAllSettings[\s\S]+function bindSaveShortcut\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'save-shortcut'/,
+    'Save completion and shortcut handling must use editing-owned hooks and listeners.'
+);
+assert.match(
+    builder,
+    /function dbeShowSavedState\(stamp\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER[\s\S]+function dbeBeginSave\(\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER/,
+    'Saved and failed-state timers must be cancelled with the editing controller.'
+);
+assert.match(
+    builder,
+    /function dbeObserveEditing\(\)[\s\S]+editing-top[\s\S]+editing-main[\s\S]+function dbeRefreshEditing\(\)[\s\S]+dbeEnsureSaveShortcutMetadata\(\)[\s\S]+ensureSaveCue\(\)/,
+    'Save metadata and status must refresh through editing-owned observation roots.'
+);
+assert.match(
+    builder,
+    /function dbeEnsureSaveShortcutMetadata\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_EDITING_OWNER, save, \['aria-keyshortcuts'\]\)[\s\S]+function destroyEditing\(\)[\s\S]+dbeRestoreOwnedAttributes\(DBE_EDITING_OWNER\)[\s\S]+\.dbe-save-cue/,
+    'Editing teardown must restore native Save metadata and remove its generated status.'
+);
+assert.match(
+    builder,
     /function closeRename\(commit, restoreFocus\)[\s\S]+dbeRestoreRenameFocus\(st\.id, st\.focusReturn\)[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
     'Committing or cancelling inline rename from the keyboard must return focus to its tree row.'
 );
@@ -388,6 +408,26 @@ assert.match(
     builder,
     /function destroyEditing\(\)[\s\S]+closeRename\(false, true\)[\s\S]+dbeRemovePriorHtmlDialog\(\)[\s\S]+dbeRemovePriorBemDialog\(\)[\s\S]+undoStack = \[\][\s\S]+dbeDestroyOwnedHooks\(DBE_EDITING_OWNER\)[\s\S]+dbeDestroyOwnedActivity\(DBE_EDITING_OWNER\)/,
     'Editing teardown must remove transient interfaces, history, hooks and owned activity.'
+);
+assert.match(
+    builder,
+    /function dbeStampSaveMenu\(menu\)[\s\S]+dbeRememberOwnedAttributes\(DBE_COMMANDS_OWNER, menu[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, dlg, 'save-menu-close'[\s\S]+function bindSaveMenuKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'save-menu-keys'/,
+    'The Save menu must give its generated semantics and document keys to the commands controller.'
+);
+assert.match(
+    builder,
+    /function dbeWatchSaveMenuOpen\(focusFirst\)[\s\S]+40, DBE_COMMANDS_OWNER[\s\S]+function revealActiveInTree\(\)[\s\S]+60, DBE_COMMANDS_OWNER/,
+    'Save-menu mount polling and selection reveal must use cancellable commands-owned work.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshCommands\(\)[\s\S]+ensureSaveMenuButton\(\)[\s\S]+revealActiveInTree\(\)[\s\S]+dbeSyncSelectionContext\(\)[\s\S]+function destroyCommands\(\)[\s\S]+\.dbe-save-menu-btn[\s\S]+\.dbe-canvas-selection-context/,
+    'Save-menu and selection-reveal interfaces must refresh and tear down through commands.'
+);
+assert.doesNotMatch(
+    builder,
+    /function boot\(\)[\s\S]+if \(on\('save_shortcut'\)\) \{ bindSaveShortcut\(\)|function boot\(\)[\s\S]+if \(on\('save_state_cue'\)\) \{ hookSaveStatus\(\)|function boot\(\)[\s\S]+if \(on\('save_split_button'\)\) \{ bindSaveMenuKeys\(\)|function boot\(\)[\s\S]+if \(on\('reveal_selected'\)\) \{ bindRevealActive\(\)/,
+    'Boot must not bypass editing and commands lifecycle ownership.'
 );
 assert.match(
     builder,
