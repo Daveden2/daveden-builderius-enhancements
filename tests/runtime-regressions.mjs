@@ -14,18 +14,24 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
+const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-enhancements-js/,
-    'The core runtime and accessibility chunk must load synchronously before the feature host.'
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-enhancements-js/,
+    'The core runtime and both accessibility chunks must load synchronously before the feature host.'
 );
 assert.match(
     outputBuilder,
     /filemtime\( \$a11y_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y\.js/,
     'The accessibility chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$a11y_composites_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y-composites\.js/,
+    'The composites chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     builder,
@@ -46,6 +52,21 @@ assert.match(
     builder,
     /dataset\.dbeChunkError = 'a11y:missing'[\s\S]+Accessibility chunk failed to load/,
     'A missing accessibility chunk must fail soft with a persistent diagnostic.'
+);
+assert.match(
+    composites,
+    /chunks\.a11yComposites = function \(host\)[\s\S]+host\.setEnsureGroup\(dbeEnsureGroup\)[\s\S]+dbeControllers\.register\('a11y\/composites'/,
+    'The composites chunk must register through an explicit host contract and share its APG group primitive.'
+);
+assert.match(
+    builder,
+    /var dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+setEnsureGroup/,
+    'The feature host must provide the composites chunk a frozen service surface.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'a11y\/composites:missing'[\s\S]+Accessibility composites chunk failed to load/,
+    'A missing composites chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
     builder,
@@ -88,7 +109,7 @@ assert.doesNotMatch(
     'Boot must not retain legacy feature observation roots outside controllers.'
 );
 assert.match(
-    builder,
+    composites,
     /function dbeRefreshA11yComposites\(\)[\s\S]+decorateTree\(\)[\s\S]+ensureNavKeyboard\(\)[\s\S]+ensureFavouritesReorder\(\)[\s\S]+function destroyA11yComposites\(\)[\s\S]+dbeResetFavouritesReorder\(\)[\s\S]+dbeRestoreTreeDecorations\(\)/,
     'Tree semantics and favourites must refresh and tear down through the composite controller.'
 );
@@ -141,6 +162,7 @@ assert.match(builder, /dbeRuntime\.whenReady\(boot\)/, 'The feature runtime must
 assert.doesNotMatch(builder, /DBE_BUILDERIUS_ADAPTERS|__builderiusStoreFns/, 'Builderius compatibility knowledge must stay out of feature code.');
 assert.ok(gzipSync(coreRuntime).length < 35 * 1024, 'The core runtime must remain within the 35 KB compressed bootstrap budget.');
 assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must remain within an 8 KB compressed budget.');
+assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must remain within a 35 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the
 // registry contract is behavioural, not only a source-shape assertion.

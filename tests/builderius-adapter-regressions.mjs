@@ -15,6 +15,7 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
+const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
@@ -67,9 +68,14 @@ assert.match(
     'Shared landmark roots must resolve through the adapter.'
 );
 assert.match(
+    composites,
+    /function dbeObserveA11yComposites\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
+    'Controller-owned composite observer roots must resolve through the adapter host.'
+);
+assert.match(
     builder,
-    /function dbeObserveA11yComposites\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+function dbeObserveWorkspace\(\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+dbeQuery\('topPanel'\)/,
-    'Controller-owned composite and workspace observer roots must resolve through the adapter.'
+    /function dbeObserveWorkspace\(\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+dbeQuery\('topPanel'\)/,
+    'Controller-owned workspace observer roots must resolve through the adapter.'
 );
 assert.match(
     builder,

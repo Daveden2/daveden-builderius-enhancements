@@ -16,6 +16,7 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
+const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
@@ -51,7 +52,7 @@ assert.match(
     'The two panel resize handles must have distinct accessible names.'
 );
 assert.match(
-    builder,
+    composites,
     /navigatorViewTab[\s\S]+Show %s in Navigator/,
     'Navigator view tabs must be distinguishable from similarly named controls.'
 );
@@ -121,7 +122,7 @@ assert.match(
     'The chrome controller must declare its own shared observation roots.'
 );
 assert.match(
-    builder,
+    composites,
     /dbeControllers\.register\('a11y\/composites',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yComposites\(\)/,
     'Breakpoint and footer composites must participate in the shared controller lifecycle.'
 );
@@ -141,47 +142,47 @@ assert.match(
     'Composite controllers must own and cancel delayed animation-frame focus work.'
 );
 assert.match(
-    builder,
+    composites,
     /ensureTopbarToolbars\(\)[\s\S]+owner: 'a11y\/composites'[\s\S]+ensureFooterToolbar\(\)[\s\S]+owner: 'a11y\/composites'/,
     'The breakpoint radio group and footer toolbar must declare composite-controller ownership.'
 );
 assert.match(
-    builder,
+    composites,
     /function ensureInserterKeyboard\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', container, 'inserter-keys'[\s\S]+function ensureFavouritesKeyboard\(\)[\s\S]+owner: 'a11y\/composites'/,
     'Inserter grids and the favourites toolbar must declare composite-controller ownership.'
 );
 assert.match(
-    builder,
-    /function ensurePanelTabs\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', strip, 'panel-tabs-keys'[\s\S]+dbeSetOwnedTimeout\('a11y\/composites'/,
-    'Panel tablists must own their keyboard, click and delayed-refocus work.'
+    composites,
+    /function ensurePanelTabs\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', strip, 'panel-tabs-keys'[\s\S]+e\.key === 'Enter'[\s\S]+e\.key === ' '[\s\S]+clickSeq\(focused\)[\s\S]+dbeSetOwnedTimeout\('a11y\/composites'/,
+    'Panel tablists must own arrow movement, Enter/Space activation and delayed-refocus work.'
 );
 assert.match(
-    builder,
+    composites,
     /function bindSelectCombobox\(\)[\s\S]+select-search-keys[\s\S]+select-search-input[\s\S]+select-trigger-keys[\s\S]+multi-select-keys[\s\S]+fake-select-focusout/,
     'Combobox variants must register every delegated listener through the composite controller.'
 );
 assert.match(
-    builder,
+    composites,
     /function dbeAccRefocus\(name\)[\s\S]+dbeSetOwnedFrame\('a11y\/composites'[\s\S]+function ensureSettingsAccordions\(\)[\s\S]+settings-accordion-keys/,
     'Settings accordions must own their remount refocus and keyboard listener.'
 );
 assert.match(
-    builder,
+    composites,
     /function ensureBuilderiusMenu\(\)[\s\S]+dbeRememberOwnedAttributes\('a11y\/composites', trigger[\s\S]+dbeRememberOwnedAttributes\('a11y\/composites', list[\s\S]+builderius-menu-keys/,
     'The Builderius menu trigger, tree and delegated keyboard handling must belong to the composite controller.'
 );
 assert.match(
-    builder,
+    composites,
     /function destroyA11yComposites\(\)[\s\S]+dbeObserveChrome\('a11y-composites-top', null\)[\s\S]+dbeUnobserveFooter\('a11y-composites-footer'\)[\s\S]+dbeDestroyOwnedGroups\('a11y\/composites'\)/,
     'The composite controller must release its top-bar/footer observations and owned DOM state.'
 );
 assert.match(
-    builder,
+    composites,
     /function dbeObserveA11yComposites\(\)[\s\S]+a11y-composites-main[\s\S]+a11y-composites-portals/,
     'The composite controller must own its main-panel and portal observation roots.'
 );
 assert.doesNotMatch(
-    builder,
+    composites,
     /dbeUnavailableBound|dbeInserterBound|dbePanelTabsBound|dbeAccBound|dbeMenuKeyBound/,
     'Composite listeners must not rely on irreversible element flags.'
 );
@@ -658,12 +659,12 @@ assert.match(
     'Canvas selection changes must schedule the controller-owned event-driven reveal path.'
 );
 assert.match(
-    builder,
+    composites,
     /function ensureFavouritesKeyboard\(\)[\s\S]+Favourite elements[\s\S]+orientation: 'vertical'/,
     'Favourite elements must remain a single vertical keyboard toolbar.'
 );
 assert.match(
-    builder,
+    composites,
     /data-dbe-favourite-name[\s\S]+insertFavourite[\s\S]+Insert %s/,
     'Favourite controls must expose an action-led accessible name without changing tree rows.'
 );
@@ -678,8 +679,8 @@ assert.match(
     'Navigator condition state must be exposed as a description rather than renaming the row.'
 );
 assert.match(
-    builder,
-    /function dbeSyncInserterAvailability\([\s\S]+lockedForPro[\s\S]+inserterComingSoon[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+stopImmediatePropagation/,
+    composites,
+    /function dbeSyncInserterAvailability\([\s\S]+lockedForPro[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+inserterComingSoon[\s\S]+stopImmediatePropagation/,
     'Unavailable Inserter elements must be named truthfully, excluded from roving navigation and protected from activation.'
 );
 assert.match(
@@ -693,7 +694,7 @@ assert.match(
     'Unavailable Inserter badges must retain a non-colour state cue in forced-colour modes.'
 );
 assert.match(
-    builder,
+    composites,
     /classList\.contains\('locked'\)[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+footerComingSoon/,
     'Unavailable footer tools must be identified and excluded from the roving sequence.'
 );
