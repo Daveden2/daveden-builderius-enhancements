@@ -343,6 +343,8 @@ function dbe_builder_strings() {
 		'builderiusMenu'                => __( 'Builderius menu', 'daveden-builderius-enhancements' ),
 		'comboboxFilter'                => __( 'Filter options', 'daveden-builderius-enhancements' ),
 		'comboboxListbox'               => __( 'Options', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the unavailable Inserter element name (e.g. Lottie). */
+		'inserterComingSoon'            => __( '%s (coming soon)', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the currently selected value. Names the select trigger for screen readers. */
 		'comboboxTrigger'               => __( 'Selection: %s', 'daveden-builderius-enhancements' ),
 		'terminalTablist'               => __( 'AI chat sessions', 'daveden-builderius-enhancements' ),

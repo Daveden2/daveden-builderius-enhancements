@@ -7098,6 +7098,58 @@
         return cols || 1;
     }
 
+    /* Builderius exposes not-yet-available Inserter items as ordinary buttons
+       with a lockedForPro class and a small visual SOON badge. Keep the visible
+       element name first (Label in Name / voice matching), then explain the
+       unavailable state. aria-disabled, rather than the native disabled
+       attribute, lets assistive technology discover the item while tabindex=-1
+       keeps it out of the category's roving keyboard sequence. The capture
+       guard also prevents voice software or a scripted click from activating a
+       control whose action cannot succeed. */
+    function dbeSyncInserterAvailability(container, sel) {
+        container.querySelectorAll(sel).forEach(function (btn) {
+            var unavailable = btn.classList.contains('lockedForPro') || btn.classList.contains('locked');
+            if (!unavailable) {
+                if (btn.getAttribute('data-dbe-unavailable') === 'true') {
+                    btn.removeAttribute('aria-disabled');
+                    var original = btn.getAttribute('data-dbe-inserter-original-label');
+                    if (original) { btn.setAttribute('aria-label', original); }
+                    else { btn.removeAttribute('aria-label'); }
+                    btn.removeAttribute('data-dbe-inserter-original-label');
+                    btn.removeAttribute('data-dbe-inserter-name');
+                    btn.removeAttribute('data-dbe-unavailable');
+                }
+                return;
+            }
+
+            var name = btn.getAttribute('data-dbe-inserter-name');
+            if (!name) {
+                var title = btn.querySelector('.uniModItems__itemTitle');
+                name = ((title && title.textContent) || btn.textContent || '').trim().replace(/^SOON\s*/i, '').trim();
+                if (name) { btn.setAttribute('data-dbe-inserter-name', name); }
+            }
+            if (!btn.hasAttribute('data-dbe-inserter-original-label')) {
+                btn.setAttribute('data-dbe-inserter-original-label', btn.getAttribute('aria-label') || '');
+            }
+            btn.setAttribute('data-dbe-unavailable', 'true');
+            btn.setAttribute('aria-disabled', 'true');
+            btn.setAttribute('tabindex', '-1');
+            if (name) {
+                var label = dbeFmt(dbeT('inserterComingSoon', '%s (coming soon)'), name);
+                if (btn.getAttribute('aria-label') !== label) { btn.setAttribute('aria-label', label); }
+            }
+        });
+
+        if (container.dbeUnavailableBound) { return; }
+        container.dbeUnavailableBound = true;
+        container.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest(sel) : null;
+            if (!btn || !container.contains(btn) || btn.getAttribute('aria-disabled') !== 'true') { return; }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }, true);
+    }
+
     function ensureInserterKeyboard() {
         var sel = '.uniModItems__item';
         document.querySelectorAll('.uniModItems__catWrapper').forEach(function (cw) {
@@ -7107,6 +7159,7 @@
             var label = titleEl ? (titleEl.textContent || '').trim() : '';
             if (container.getAttribute('role') !== 'group') { container.setAttribute('role', 'group'); }
             if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
+            dbeSyncInserterAvailability(container, sel);
             dbeSyncRoving(container, sel);
             if (container.dbeInserterBound) { return; }
             container.dbeInserterBound = true;

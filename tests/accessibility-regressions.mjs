@@ -26,6 +26,7 @@ const treeRows = read('assets/builder/css/14-tree-rows.css');
 const previewResize = read('assets/builder/css/74-preview-resize.css');
 const panelResize = read('assets/builder/css/75-panel-resize.css');
 const compactPanes = read('assets/builder/css/83-compact-panes.css');
+const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 
@@ -131,6 +132,21 @@ assert.match(
     builder,
     /data-dbe-favourite-name[\s\S]+insertFavourite[\s\S]+Insert %s/,
     'Favourite controls must expose an action-led accessible name without changing tree rows.'
+);
+assert.match(
+    builder,
+    /function dbeSyncInserterAvailability\([\s\S]+lockedForPro[\s\S]+inserterComingSoon[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+stopImmediatePropagation/,
+    'Unavailable Inserter elements must be named truthfully, excluded from roving navigation and protected from activation.'
+);
+assert.match(
+    strings,
+    /'inserterComingSoon'\s+=> __\( '%s \(coming soon\)'/,
+    'Unavailable Inserter copy must keep the visible element name before its availability state.'
+);
+assert.match(
+    inserterKeyboard,
+    /data-dbe-unavailable[\s\S]+\.proBadge[\s\S]+border:[\s\S]+@media \(forced-colors: active\)[\s\S]+GrayText/,
+    'Unavailable Inserter badges must retain a non-colour state cue in forced-colour modes.'
 );
 assert.match(
     builder,

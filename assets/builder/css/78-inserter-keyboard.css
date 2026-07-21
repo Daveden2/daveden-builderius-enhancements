@@ -10,3 +10,24 @@
     outline-offset: 2px !important;
     border-radius: var(--dbe-r-sm);
 }
+
+/* Builderius's SOON items are discoverable to assistive technology but are not
+   actionable. Keep the visual badge legible in both DBE themes and add a border
+   so its state does not depend on the painted background alone. */
+.uniModItems__item[data-dbe-unavailable="true"] {
+    cursor: not-allowed !important;
+}
+.uniModItems__item[data-dbe-unavailable="true"] .proBadge {
+    color: var(--dbe-text-2) !important;
+    background: var(--dbe-l2-hi) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+}
+
+@media (forced-colors: active) {
+    .uniModItems__item[data-dbe-unavailable="true"] .proBadge {
+        color: GrayText !important;
+        background: Canvas !important;
+        border-color: GrayText !important;
+        forced-color-adjust: auto;
+    }
+}

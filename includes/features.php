@@ -484,7 +484,7 @@ function dbe_features() {
 		'inserter_keyboard'     => array(
 			'title'       => __( 'Inserter keyboard navigation', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Arrow-key navigation of the element Inserter and favourites.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between its elements, and Enter or Space inserts. The favourite-elements strip also becomes one vertical toolbar Tab stop with action-led names such as “Insert Heading”. Without this feature, reaching a lower category or later favourite means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between its available elements, and Enter or Space inserts. Elements marked “Soon” are announced as coming soon and excluded from the keyboard sequence. The favourite-elements strip also becomes one vertical toolbar Tab stop with action-led names such as “Insert Heading”. Without this feature, reaching a lower category or later favourite means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '78-inserter-keyboard.css' ),
 			'js'          => true,
