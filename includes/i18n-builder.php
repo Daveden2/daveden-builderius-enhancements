@@ -524,6 +524,7 @@ function dbe_builder_strings() {
 		'commandPalette'                => __( 'Command palette', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the palette's keyboard shortcut, e.g. Ctrl+K. */
 		'paletteTip'                    => __( 'Command palette (%s)', 'daveden-builderius-enhancements' ),
+		'searchCommandsLabel'           => __( 'Search commands', 'daveden-builderius-enhancements' ),
 		'searchCommands'                => __( 'Search commands…', 'daveden-builderius-enhancements' ),
 		'paletteNoEl'                   => __( 'No element selected — element commands are hidden', 'daveden-builderius-enhancements' ),
 		'paletteAddClass'               => __( 'Add classes', 'daveden-builderius-enhancements' ),

@@ -288,6 +288,71 @@ assert.doesNotMatch(
     /if \(on\('preview_resize'\)\) \{ try \{ ensurePreviewHandles\(\)|if \(on\('compact_panes'\)\) \{ try \{ ensureCompactPanes\(\)|if \(on\('panel_resize'\)\) \{ try \{ ensurePanelHandles\(\)|if \(on\('panel_detach'\)\) \{ try \{ ensureNavDetach\(\)/,
     'The shared refresh pass must not bypass the workspace controller.'
 );
+assert.match(
+    builder,
+    /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyCommands\(\)/,
+    'Command interfaces must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshCommands\(\)[\s\S]+dbeObserveCommands\(\)[\s\S]+ensurePaletteButton\(\)[\s\S]+ensureKeyboardIframeBridge\(\)[\s\S]+decorateClassChips\(\)/,
+    'The commands controller must refresh its top-bar, iframe and class-chip surfaces.'
+);
+assert.match(
+    builder,
+    /function dbeCommandHooksApi\(\)[\s\S]+dbeCommandHookApi = window\.Builderius\.API\.hooks[\s\S]+function dbeBindCommandHook\(hook, namespace, callback\)[\s\S]+api\.addAction\(hook, namespace, callback\)[\s\S]+function dbeDestroyCommandHooks\(\)[\s\S]+api\.removeAction\(item\.hook, item\.namespace\)/,
+    'Builderius context-menu subscriptions must retain their startup API and unsubscribe during teardown.'
+);
+assert.match(
+    builder,
+    /input\.setAttribute\('aria-label', dbeT\('searchCommandsLabel', 'Search commands'\)\)/,
+    'The command search field must use concise spoken copy independently of its visual placeholder.'
+);
+assert.match(
+    strings,
+    /'searchCommandsLabel'\s*=>\s*__\( 'Search commands'/,
+    'Command search must provide a dedicated translatable accessible label.'
+);
+assert.match(
+    builder,
+    /function dbeBindKeyboardFrameDocument\(frame\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'palette-key'[\s\S]+canvas-text-editing-key[\s\S]+canvas-navigation-key[\s\S]+reveal-selection-click/,
+    'The preview bridge must own every inner-document keyboard and selection listener.'
+);
+assert.match(
+    builder,
+    /function dbeReleaseCommandFrameDocuments\(keepDoc\)[\s\S]+dbeUnbindOwnedEvent\(DBE_COMMANDS_OWNER, record\.doc[\s\S]+record\.observer\.disconnect\(\)[\s\S]+function ensureKeyboardIframeBridge\(\)[\s\S]+canvas-frame-load/,
+    'Reloaded preview documents must release listeners and observers before the new bridge binds.'
+);
+assert.match(
+    builder,
+    /function setupMenuKeyboard\(container\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, dialog, 'context-menu-keys'/,
+    'Native context-menu keyboard handling must be removable with the commands controller.'
+);
+assert.match(
+    builder,
+    /function dbeNavigatorContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+row\.dispatchEvent\(new MouseEvent\('contextmenu'[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key'/,
+    'Navigator rows must explicitly open their context menu from Shift+F10 and the Menu key.'
+);
+assert.match(
+    builder,
+    /function decorateClassChips\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_COMMANDS_OWNER, li, \['tabindex'\]\)/,
+    'Class-chip focusability must restore the native tabindex on teardown.'
+);
+assert.match(
+    builder,
+    /function destroyCommands\(\)[\s\S]+dbeObserveChrome\('commands-top', null\)[\s\S]+dbeDestroyCommandHooks\(\)[\s\S]+dbeReleaseCommandFrameDocuments\(null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_COMMANDS_OWNER\)[\s\S]+dialog\.dbe-palette[\s\S]+dbeKeyboardFrame = null/,
+    'Command teardown must release observations, hooks, iframe activity and generated interfaces.'
+);
+assert.doesNotMatch(
+    builder,
+    /dbeShortcutKeyBound|dbePaletteKeyBound|dbeChipDismissBound|dbeChipDecorated|dbeCanvasTextEditingKeyBound|dbeCanvasNavigationKeyBound|dbeRevealSelectionBound|dbeCanvasTextEditingObserver/,
+    'Command and iframe listeners must not rely on irreversible flags.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('context_menu'\)\) \{ try \{ decorateClassChips\(\)|if \(on\('command_palette'\)\)[\s\S]{0,100}try \{ ensurePaletteButton\(\)|try \{ ensureKeyboardIframeBridge\(\)/,
+    'The shared refresh pass must not bypass the commands controller.'
+);
 assert.doesNotMatch(
     builder,
     /if \(on\('tooltips'\)\) \{ try \{ labelChromeIcons\(\)/,
@@ -437,8 +502,8 @@ assert.doesNotMatch(
 );
 assert.match(
     builder,
-    /doc\.addEventListener\('click', function \(\) \{ setTimeout\(schedule, 0\); \}\)/,
-    'Canvas selection changes must schedule the event-driven reveal path.'
+    /dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'reveal-selection-click', 'click'[\s\S]+schedule\('canvas-selection'\)/,
+    'Canvas selection changes must schedule the controller-owned event-driven reveal path.'
 );
 assert.match(
     builder,

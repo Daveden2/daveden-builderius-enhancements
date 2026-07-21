@@ -3632,22 +3632,22 @@
         // Which row (if any) the menu-opening right-click landed on. Cleared
         // when the menu hides, so a menu that arrives by another route (e.g.
         // a stale id from an earlier right-click) can never misdirect a paste.
-        document.addEventListener('contextmenu', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'paste-target-context', 'contextmenu', function (e) {
             if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
             var btn = e.target && e.target.closest && e.target.closest('.uniModTree__item');
             var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
             dbePasteCtxRow = m ? m[1] : null;
         }, true);
-        try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; }); } catch (e) {}
+        dbeBindCommandHook('builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; });
         // Swallow the whole activation sequence: the native item may act on
         // any of these, and the menu keyboard model activates through the
         // same synthetic chain (clickSeq); the flow itself runs on click.
         ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) {
-            document.addEventListener(t, function (e) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'paste-target-' + t, t, function (e) {
                 if (dbePasteNativeItem(e)) { e.preventDefault(); e.stopPropagation(); }
             }, true);
         });
-        document.addEventListener('click', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'paste-target-click', 'click', function (e) {
             if (!dbePasteNativeItem(e)) { return; }
             e.preventDefault();
             e.stopPropagation();
@@ -3658,7 +3658,7 @@
     }
 
     function bindTreeAreaMenu() {
-        document.addEventListener('contextmenu', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'tree-area-menu', 'contextmenu', function (e) {
             if (document.documentElement.classList.contains('dbe-auto-ctx')) { return; }
             var t = e.target;
             if (!t || !t.closest) { return; }
@@ -3776,7 +3776,7 @@
         inner.appendChild(menu);
         fly.appendChild(inner);
         fly.addEventListener('mouseenter', function () { clearTimeout(submenuCloseTimer); });
-        fly.addEventListener('mouseleave', function () { submenuCloseTimer = setTimeout(removeSubmenus, 180); });
+        fly.addEventListener('mouseleave', function () { submenuCloseTimer = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, removeSubmenus, 180); });
         return fly;
     }
 
@@ -3858,7 +3858,7 @@
         li._dbeOpenFlyout = openFlyout; // keyboard channel (Enter / ArrowRight)
         li.addEventListener('mouseenter', openFlyout);
         li.addEventListener('mouseleave', function () {
-            submenuCloseTimer = setTimeout(removeSubmenus, 180);
+            submenuCloseTimer = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, removeSubmenus, 180);
         });
         return li;
     }
@@ -4062,10 +4062,7 @@
                 li.setAttribute('aria-disabled', 'true');
             }
         });
-        if (!dialog.dbeMenuKeysBound) {
-            dialog.dbeMenuKeysBound = true;
-            dialog.addEventListener('keydown', onMenuKeydown, true);
-        }
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'context-menu-keys', 'keydown', onMenuKeydown, true);
         // Focus the first action so a Shift+F10 / Menu-key open is usable;
         // after a right-click :focus-visible stays off, so no ring for mouse
         // users. Skipped while undo/redo is auto-driving a hidden menu.
@@ -4096,7 +4093,7 @@
        handlers when re-parented. With context_menu OFF the injected items are
        appended after the untouched native ones. */
     function onContextMenuShow() {
-        requestAnimationFrame(function () {
+        dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
             removeSubmenus();
             // While a feature is auto-driving the native menu (wrap's Paste,
             // multi-remove's Remove — driveContextMenuItem sets .dbe-auto-ctx),
@@ -4546,7 +4543,7 @@
        its own hook registration, so it never drags the element-menu
        machinery in. */
     function onVarMenuShow() {
-        requestAnimationFrame(function () {
+        dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
             var menu = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'))
                 .filter(function (m) { return m.offsetParent !== null; })[0];
             if (!menu) { return; }
@@ -9376,7 +9373,7 @@
         if (!dlg.open) { dlg.showModal(); }
     }
     function bindShortcutsKey() {
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'shortcut-help-key', 'keydown', function (e) {
             if (e.key !== '?') { return; }
             if (renameActive()) { return; }
             var t = e.target;
@@ -9569,7 +9566,6 @@
         try { el.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     }
 
-    var dbeShortcutKeyBound = false;
     function dbeElementShortcutsKeydown(e) {
         if (renameActive()) { return; }
         if (document.querySelector('dialog[open]')) { return; } // don't fire over a dialog or the native menu
@@ -9620,8 +9616,6 @@
        (minimal Emmet), the element ops and the area jumps. Any command that drives
        the tree or a native picker CLOSES the dialog first (showModal makes the page
        inert), then runs. */
-    var dbePaletteKeyBound = false;
-
     /* The shortcut choices mirror dbe_enum_settings() in PHP. Ctrl+Shift+K, the
        original default, is reserved by Firefox on Windows/Linux for the DevTools
        Web Console — browser chrome consumes it before the page sees the event —
@@ -9701,7 +9695,7 @@
         var input = document.createElement('input');
         input.type = 'text';
         input.className = 'dbe-palette__input';
-        input.setAttribute('aria-label', dbeT('searchCommands', 'Search commands'));
+        input.setAttribute('aria-label', dbeT('searchCommandsLabel', 'Search commands'));
         input.placeholder = dbeT('searchCommands', 'Search commands…');
         input.setAttribute('role', 'combobox');
         input.setAttribute('aria-autocomplete', 'list');
@@ -9736,7 +9730,7 @@
         });
         document.body.appendChild(dlg);
 
-        function runClose(fn) { dlg.close(); setTimeout(fn, 120); }
+        function runClose(fn) { dlg.close(); dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, fn, 120); }
 
         // Commands carry a group key; renderList draws a labelled divider each
         // time the group changes, so related commands read as a set. `accel` is a
@@ -10149,7 +10143,37 @@
     /* The preview is a same-origin iframe. Once focus enters it, key events no
        longer bubble to the builder document, so bridge the canvas-specific keys
        into that document. */
+    var DBE_COMMANDS_OWNER = 'commands';
+    var dbeCommandsControllerActive = false;
+    var dbeCommandHooks = [];
+    var dbeCommandHookApi = null;
     var dbeKeyboardFrame = null;
+    var dbeCommandFrameDocuments = [];
+
+    function dbeCommandHooksApi() {
+        if (dbeCommandHookApi) { return dbeCommandHookApi; }
+        try { dbeCommandHookApi = window.Builderius.API.hooks; } catch (e) { dbeCommandHookApi = null; }
+        return dbeCommandHookApi;
+    }
+
+    function dbeBindCommandHook(hook, namespace, callback) {
+        var api = dbeCommandHooksApi();
+        if (!api || typeof api.addAction !== 'function' || dbeCommandHooks.some(function (item) {
+            return item.hook === hook && item.namespace === namespace;
+        })) { return; }
+        api.addAction(hook, namespace, callback);
+        dbeCommandHooks.push({ hook: hook, namespace: namespace });
+    }
+
+    function dbeDestroyCommandHooks() {
+        var api = dbeCommandHooksApi();
+        if (api && typeof api.removeAction === 'function') {
+            dbeCommandHooks.forEach(function (item) { api.removeAction(item.hook, item.namespace); });
+        }
+        dbeCommandHooks = [];
+        // Builderius removes window.Builderius after boot. Retain only this API
+        // reference so a later controller re-init can subscribe again.
+    }
 
     function dbeCanvasTextEditingKeydown(e) {
         if (e.key !== 'Escape') { return; }
@@ -10252,7 +10276,9 @@
             document.body.appendChild(status);
         }
         status.textContent = '';
-        setTimeout(function () { status.textContent = message; }, 20);
+        dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+            if (status.isConnected) { status.textContent = message; }
+        }, 20);
     }
 
     function dbeSetCanvasInteractive(interactive) {
@@ -10267,7 +10293,7 @@
             : dbeT('canvasSelectionOn', 'Selecting elements.'));
         if (!interactive) {
             var frame = dbeQuery('previewFrame');
-            if (frame) { setTimeout(function () { try { frame.focus(); } catch (e) {} }, 0); }
+            if (frame) { dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { try { frame.focus(); } catch (e) {} }, 0); }
         }
         return true;
     }
@@ -10358,44 +10384,69 @@
         }
     }
 
+    function dbeReleaseCommandFrameDocuments(keepDoc) {
+        dbeCommandFrameDocuments.filter(function (record) { return record.doc !== keepDoc; }).forEach(function (record) {
+            dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'palette-key');
+            dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'canvas-text-editing-key');
+            dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'canvas-navigation-key');
+            dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'reveal-selection-click');
+            if (record.observer) { record.observer.disconnect(); }
+            try { delete record.doc.dbeCanvasTextEditingActive; } catch (e) {}
+        });
+        dbeCommandFrameDocuments = dbeCommandFrameDocuments.filter(function (record) { return record.doc === keepDoc; });
+    }
+
     function dbeBindKeyboardFrameDocument(frame) {
         var doc;
         try { doc = frame && frame.contentDocument; } catch (e) { return; }
         if (!doc) { return; }
-        if (on('command_palette') && !doc.dbePaletteKeyBound) {
-            doc.addEventListener('keydown', dbePaletteKeydown, true);
-            doc.dbePaletteKeyBound = true;
+        dbeReleaseCommandFrameDocuments(doc);
+        var record = dbeCommandFrameDocuments.filter(function (item) { return item.doc === doc; })[0];
+        if (!record) {
+            record = { doc: doc, observer: null };
+            dbeCommandFrameDocuments.push(record);
         }
-        if (on('keyboard_shortcuts') && !doc.dbeCanvasTextEditingKeyBound) {
-            doc.addEventListener('keydown', dbeCanvasTextEditingKeydown, true);
-            doc.dbeCanvasTextEditingKeyBound = true;
+        if (on('command_palette')) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'palette-key', 'keydown', dbePaletteKeydown, true);
         }
-        if (on('keyboard_shortcuts') && !doc.dbeCanvasTextEditingObserver) {
-            doc.dbeCanvasTextEditingObserver = new MutationObserver(function () {
+        if (on('keyboard_shortcuts')) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'canvas-text-editing-key', 'keydown', dbeCanvasTextEditingKeydown, true);
+        }
+        if (on('keyboard_shortcuts') && !record.observer) {
+            record.observer = new MutationObserver(function () {
                 dbeSyncCanvasEditingIndicator(doc);
             });
-            doc.dbeCanvasTextEditingObserver.observe(doc.documentElement, { childList: true, subtree: true });
+            record.observer.observe(doc.documentElement, { childList: true, subtree: true });
         }
         if (on('keyboard_shortcuts')) { dbeSyncCanvasEditingIndicator(doc); }
-        if ((on('navigator_keyboard') || on('keyboard_shortcuts')) && !doc.dbeCanvasNavigationKeyBound) {
-            doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
-            doc.dbeCanvasNavigationKeyBound = true;
+        if (on('navigator_keyboard') || on('keyboard_shortcuts')) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'canvas-navigation-key', 'keydown', dbeCanvasNavigationKeydown);
         }
-        if (on('reveal_selected') && !doc.dbeRevealSelectionBound) {
+        if (on('reveal_selected')) {
             // Builderius changes activeModule after its own canvas click
             // handler. Schedule on the next task so the store and selected
             // Navigator row have caught up before revealActiveInTree() reads.
-            doc.addEventListener('click', function () { setTimeout(schedule, 0); });
-            doc.dbeRevealSelectionBound = true;
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'reveal-selection-click', 'click', function () {
+                dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { schedule('canvas-selection'); }, 0);
+            });
         }
     }
 
     function ensureKeyboardIframeBridge() {
         var frame = dbeQuery('previewFrame');
-        if (!frame) { return; }
+        if (!frame) {
+            if (dbeKeyboardFrame) { dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dbeKeyboardFrame, 'canvas-frame-load'); }
+            dbeKeyboardFrame = null;
+            dbeReleaseCommandFrameDocuments(null);
+            return;
+        }
         if (dbeKeyboardFrame !== frame) {
+            if (dbeKeyboardFrame) { dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dbeKeyboardFrame, 'canvas-frame-load'); }
+            dbeReleaseCommandFrameDocuments(null);
             dbeKeyboardFrame = frame;
-            frame.addEventListener('load', function () { dbeBindKeyboardFrameDocument(frame); });
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, frame, 'canvas-frame-load', 'load', function () {
+                dbeBindKeyboardFrameDocument(frame);
+            });
         }
         dbeBindKeyboardFrameDocument(frame);
     }
@@ -12684,14 +12735,13 @@
        users reach them and open the copy menu with Shift+F10 / the Menu key. */
     function decorateClassChips() {
         document.querySelectorAll('.uniModuleCssClassesSelect__list li, .uniSystemSelectClasses .uniModuleCssSelectorItemSelected').forEach(function (li) {
-            if (li.dbeChipDecorated) { return; }
-            li.dbeChipDecorated = true;
+            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, li, ['tabindex']);
             li.tabIndex = 0;
         });
     }
 
     function bindChipMenu() {
-        document.addEventListener('contextmenu', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'chip-menu-context', 'contextmenu', function (e) {
             // Active-selector chip first (it is not inside the __list).
             var sel = e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected');
             if (sel) {
@@ -12725,12 +12775,12 @@
             return (e.target.closest && e.target.closest('.uniSystemSelectClasses .uniModuleCssSelectorItemSelected .actions')) || null;
         }
         ['pointerdown', 'mousedown'].forEach(function (t) {
-            document.addEventListener(t, function (e) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'chip-menu-' + t, t, function (e) {
                 if (dbeSelCaretBypass) { return; }
                 if (selCaretActions(e)) { e.stopPropagation(); }
             }, true);
         });
-        document.addEventListener('click', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'chip-menu-click', 'click', function (e) {
             if (dbeSelCaretBypass) { return; }
             var actions = selCaretActions(e);
             if (!actions) { return; }
@@ -12747,16 +12797,13 @@
     /* Outside dismissal for every renderChipCard menu (chip menus, the
        Navigator empty-area menu): any outside pointer press, scroll or
        Escape closes it. Bound once, shared by whichever features need it. */
-    var dbeChipDismissBound = false;
     function bindChipMenuDismiss() {
-        if (dbeChipDismissBound) { return; }
-        dbeChipDismissBound = true;
         ['pointerdown', 'wheel'].forEach(function (t) {
-            document.addEventListener(t, function (e) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'chip-menu-dismiss-' + t, t, function (e) {
                 if (dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) { closeChipMenu(); }
             }, true);
         });
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'chip-menu-dismiss-key', 'keydown', function (e) {
             if (e.key === 'Escape' && dbeChipMenu && !(e.target.closest && e.target.closest('.dbe-chip-menu'))) {
                 e.stopPropagation();
                 closeChipMenu();
@@ -12767,7 +12814,7 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('style_inspector') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
+    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('style_inspector') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
     var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -13874,6 +13921,121 @@
         on('panel_detach') || on('keyboard_shortcuts') || on('command_palette') ||
         on('css_code_default') || on('panel_tabs') || on('reveal_selected'));
 
+    function dbeRememberContextTarget(e) {
+        var btn = e.target.closest && e.target.closest('.uniModTree__item');
+        if (!btn) { return; }
+        var match = btn.className.toString().match(/uni-tree-node-(\w+)/);
+        if (!match) { return; }
+        lastCtxId = match[1];
+        if (dbeMultiSel.size && !dbeMultiSel.has(lastCtxId) &&
+            !document.documentElement.classList.contains('dbe-auto-ctx')) {
+            clearMultiSel();
+        }
+    }
+
+    function dbeNavigatorContextMenuKeydown(e) {
+        if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) { return; }
+        var row = e.target && e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
+        if (!row || document.querySelector('dialog.uniBuilderContextMenu[open]')) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        var rect = row.getBoundingClientRect();
+        row.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: rect.left + Math.min(rect.width / 2, 48),
+            clientY: rect.top + rect.height / 2
+        }));
+    }
+
+    function dbeObserveCommands() {
+        var needMain = on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') ||
+            on('reveal_selected') || on('context_menu');
+        dbeObserveChrome('commands-top', on('command_palette') ? dbeQuery('topPanel') : null, {
+            childList: true,
+            subtree: true
+        });
+        dbeObserveChrome('commands-main', needMain ? dbeQuery('mainPanel') : null, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    function dbeRefreshCommands() {
+        if (!dbeCommandsControllerActive) { return; }
+        dbeObserveCommands();
+        if (on('command_palette')) { ensurePaletteButton(); }
+        if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
+            ensureKeyboardIframeBridge();
+        }
+        if (on('context_menu')) { decorateClassChips(); }
+    }
+
+    function destroyCommands() {
+        dbeCommandsControllerActive = false;
+        dbeObserveChrome('commands-top', null);
+        dbeObserveChrome('commands-main', null);
+        dbeDestroyCommandHooks();
+        dbeReleaseCommandFrameDocuments(null);
+        dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
+        dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
+        removeSubmenus();
+        closeChipMenu();
+        if (submenuCloseTimer) {
+            clearTimeout(submenuCloseTimer);
+            submenuCloseTimer = null;
+        }
+        document.querySelectorAll(
+            '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
+            '.dbe-canvas-editing-indicator, .dbe-canvas-status'
+        ).forEach(function (node) { node.remove(); });
+        if (dbeVarMenuAnchorBtn) { dbeVarMenuAnchorBtn.style.removeProperty('anchor-name'); }
+        dbeVarMenuAnchorBtn = null;
+        dbePasteCtxRow = null;
+        dbeKeyboardFrame = null;
+    }
+
+    dbeControllers.register(DBE_COMMANDS_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbeCommandsControllerActive = true;
+            if (NEED_CTX_MENU) {
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'context-target', 'contextmenu', dbeRememberContextTarget, true);
+                dbeBindCommandHook('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow);
+                dbeBindCommandHook('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus);
+            }
+            if (NEED_CTX_MENU || on('navigator_paste') || on('navigator_keyboard')) {
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key', 'keydown', dbeNavigatorContextMenuKeydown, true);
+            }
+            if (on('footer_toolbar')) {
+                dbeBindCommandHook('builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow);
+            }
+            if (on('context_menu')) { bindChipMenu(); }
+            if (on('navigator_paste')) {
+                bindPasteTarget();
+                bindTreeAreaMenu();
+                bindChipMenuDismiss();
+            }
+            if (on('shortcuts_overlay')) { bindShortcutsKey(); }
+            if (on('keyboard_shortcuts')) {
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'element-shortcuts', 'keydown', dbeElementShortcutsKeydown, true);
+            }
+            if (on('command_palette')) {
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'palette-key', 'keydown', dbePaletteKeydown, true);
+            }
+            dbeRefreshCommands();
+        },
+        refresh: function (reason) {
+            if (reason) { dbeRefreshCommands(); }
+        },
+        destroy: function () {
+            destroyCommands();
+        }
+    }, NEED_CTX_MENU || on('footer_toolbar') || on('context_menu') || on('navigator_paste') ||
+        on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
+        on('navigator_keyboard') || on('reveal_selected'));
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -13895,15 +14057,8 @@
                 try { ensureScopeIsolation(); } catch (e) {}
             }
             if (on('style_inspector')) { try { refreshOpenStyleInspector(); } catch (e) {} }
-            if (on('context_menu')) { try { decorateClassChips(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('command_palette')) {
-                try { ensurePaletteButton(); } catch (e) {}
-            }
-            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
-                try { ensureKeyboardIframeBridge(); } catch (e) {}
-            }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
@@ -13966,44 +14121,12 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; the theme/density/palette buttons and save cue must reach it
         // when it re-renders. a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue')) {
+        if (on('theme_switcher') || on('density_toggle') || on('save_state_cue')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
         }
-        // Remember which row was right-clicked (target for wrap/rename/expand).
-        // Right-clicking OUTSIDE the multi-selection resets it to a single-row
-        // menu (the convention in comparable tools); auto-driven menus are exempt.
-        if (NEED_CTX_MENU) {
-            document.addEventListener('contextmenu', function (e) {
-                var btn = e.target.closest && e.target.closest('.uniModTree__item');
-                if (btn) {
-                    var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
-                    if (m) {
-                        lastCtxId = m[1];
-                        if (dbeMultiSel.size && !dbeMultiSel.has(lastCtxId) &&
-                            !document.documentElement.classList.contains('dbe-auto-ctx')) {
-                            clearMultiSel();
-                        }
-                    }
-                }
-            }, true);
-
-            // Hook the native context menu.
-            try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow); } catch (e) {}
-            try { window.Builderius.API.hooks.addAction('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus); } catch (e) {}
-        }
-
-        // The snippet/variable list menu in the footer panels gets its
-        // keyboard model under footer_toolbar, independent of NEED_CTX_MENU.
-        if (on('footer_toolbar')) {
-            try { window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow); } catch (e) {}
-        }
-
-        // Copy menu on the Styles editor's class chips.
-        if (on('context_menu')) { bindChipMenu(); }
-
         // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree —
         // temporarily withdrawn (the multi-row drag never reliably carried the
         // whole selection). The 'multi_select' registry entry is removed, so
@@ -14015,14 +14138,6 @@
         if (on('undo_delete')) {
             hookHistoryCapture();
             bindUndoKeys();
-        }
-
-        // Paste targets the right-clicked row; the empty tree area gets its
-        // own menu with "Paste at top level".
-        if (on('navigator_paste')) {
-            bindPasteTarget();
-            bindTreeAreaMenu();
-            bindChipMenuDismiss();
         }
 
         // Seed new Image elements with a placeholder src and an empty alt.
@@ -14037,26 +14152,12 @@
         // Save split-button menu.
         if (on('save_split_button')) { bindSaveMenuKeys(); }
 
-        // Keyboard shortcuts overlay (?).
-        if (on('shortcuts_overlay')) { bindShortcutsKey(); }
-
         // Double-click a Navigator row to rename it inline.
         if (on('dblclick_rename')) { bindDblclickRename(); }
 
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
 
-        // Element keyboard shortcuts (Duplicate / Cut / Add before-after / Rename).
-        if (on('keyboard_shortcuts') && !dbeShortcutKeyBound) {
-            dbeShortcutKeyBound = true;
-            document.addEventListener('keydown', dbeElementShortcutsKeydown, true);
-        }
-
-        // Command palette (shortcut from the palette_shortcut setting; default Cmd/Ctrl+K).
-        if (on('command_palette') && !dbePaletteKeyBound) {
-            dbePaletteKeyBound = true;
-            document.addEventListener('keydown', dbePaletteKeydown, true);
-        }
     }
 
     /* Presence heartbeat for the admin-bar "Edit template" link (see
