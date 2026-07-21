@@ -14,6 +14,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
+const a11y = read('assets/builder/js/chunks/a11y.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
@@ -61,8 +62,8 @@ assert.match(
     'Persistent runtime diagnostics must expose compatibility, exact tested-version and store-capture state.'
 );
 assert.match(
-    builder,
-    /function ensureChromeLandmarks\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('navigatorPanel'\)[\s\S]+dbeQuery\('footerPanel'\)/,
+    a11y,
+    /function ensureChromeLandmarks\(\)[\s\S]+host\.query\('topPanel'\)[\s\S]+host\.query\('navigatorPanel'\)[\s\S]+host\.query\('footerPanel'\)/,
     'Shared landmark roots must resolve through the adapter.'
 );
 assert.match(

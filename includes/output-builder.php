@@ -233,8 +233,9 @@ function dbe_print_builder_footer() {
 	}
 
 	$runtime_path = DBE_DIR . 'assets/builder/js/core-runtime.js';
+	$a11y_path    = DBE_DIR . 'assets/builder/js/chunks/a11y.js';
 	$builder_path = DBE_DIR . 'assets/builder/js/builder.js';
-	if ( ! is_readable( $runtime_path ) || ! is_readable( $builder_path ) ) {
+	if ( ! is_readable( $runtime_path ) || ! is_readable( $a11y_path ) || ! is_readable( $builder_path ) ) {
 		return;
 	}
 
@@ -277,10 +278,12 @@ function dbe_print_builder_footer() {
 	}
 
 	$runtime_src = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
+	$a11y_src    = add_query_arg( 'ver', (string) filemtime( $a11y_path ), DBE_URL . 'assets/builder/js/chunks/a11y.js' );
 	$builder_src = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '<script id="dbe-builder-runtime-js" src="' . esc_url( $runtime_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed in dependency order because the enqueue pipeline is unproven under builder mode (see the function docblock).
-	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after core-runtime.js so feature controllers can capture the runtime synchronously.
+	echo '<script id="dbe-builder-a11y-js" src="' . esc_url( $a11y_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers the accessibility chunk before builder.js supplies its host services.
+	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );

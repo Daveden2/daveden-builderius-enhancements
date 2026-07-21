@@ -26,6 +26,7 @@
 
     var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
+    var dbeRememberChromeAttributes = function () {};
 
     /* The site's breakpoints, [{name:'--tablet', label:'Tablet', width:991}]
        in top-bar button order (base first, width:null for the base entry).
@@ -13918,116 +13919,26 @@
         });
     }
 
-    /* Screen-reader landmarks (chrome_landmarks). The builder chrome is one
-       long anonymous document to a screen reader: nothing marks where the top
-       toolbar ends and the settings panel or the Navigator begins, so the only
-       way around is element-by-element. Name each major part as a landmark
-       region — the way the WordPress block editor exposes "Editor top bar",
-       "Editor content" and friends — so the screen reader's landmark list (and
-       its region-jump keys) can move straight to a section. role="region" is
-       only exposed as a landmark when it has an accessible name, so every
-       stamp pairs the role with an aria-label. The left panel is contextual —
-       the element library (Inserter) and the element settings share it — so
-       its label is re-read from what it currently holds on every tick.
-       Attributes are only written when they differ, so the ticks stay free
-       under the MutationObservers that drive schedule(). */
-    var dbeA11yChromeRecords = [];
-    function dbeRememberChromeAttributes(el, attributes) {
-        var record = dbeA11yChromeRecords.filter(function (item) { return item.node === el; })[0];
-        if (!record) {
-            record = { node: el, attributes: {} };
-            dbeA11yChromeRecords.push(record);
-        }
-        attributes.forEach(function (name) {
-            if (Object.prototype.hasOwnProperty.call(record.attributes, name)) { return; }
-            record.attributes[name] = el.hasAttribute(name) ? el.getAttribute(name) : null;
-        });
-    }
-    function ensureChromeLandmarks() {
-        function stamp(el, label, shortcutKey) {
-            if (!el || !label) { return; }
-            dbeRememberChromeAttributes(el, ['role', 'aria-label', 'aria-keyshortcuts']);
-            if (el.getAttribute('role') !== 'region') { el.setAttribute('role', 'region'); }
-            if (el.getAttribute('aria-label') !== label) { el.setAttribute('aria-label', label); }
-            var shortcut = on('keyboard_shortcuts') && shortcutKey ? dbeAreaAriaShortcut(shortcutKey) : '';
-            if (shortcut && el.getAttribute('aria-keyshortcuts') !== shortcut) {
-                el.setAttribute('aria-keyshortcuts', shortcut);
-            } else if (!shortcut && el.hasAttribute('aria-keyshortcuts')) {
-                el.removeAttribute('aria-keyshortcuts');
-            }
-        }
-        stamp(dbeQuery('topPanel'), dbeT('regionTopBar', 'Top toolbar'));
-        var left = dbeQuery('leftPanelOuter') || dbeQuery('leftPanel');
-        if (left) {
-            var isInserter = !!left.querySelector('.uniModList');
-            stamp(
-                left,
-                isInserter ? dbeT('regionInserter', 'Element library') : dbeT('regionSettings', 'Element settings'),
-                isInserter ? 'L' : 'E'
-            );
-        }
-        stamp(dbeQuery('canvasPanel'), dbeT('regionCanvas', 'Canvas'), 'P');
-        var iframe = dbeQuery('previewFrame');
-        var iframeTitle = dbeT('canvasPreview', 'Canvas preview');
-        if (iframe) {
-            dbeRememberChromeAttributes(iframe, ['title']);
-            if (iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
-        }
-        stamp(dbeQuery('navigatorPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
-        stamp(dbeQuery('footerPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
-    }
-    function dbeObserveA11yChrome() {
-        var main = dbeQuery('mainPanel');
-        if (main) {
-            dbeObserveChrome('a11y-chrome-main', main, {
-                childList: true,
-                subtree: true,
-                characterData: on('tooltips'),
-                attributes: true,
-                attributeFilter: ['class', 'style']
-            });
-        }
-        var top = dbeQuery('topPanel');
-        if (top) { dbeObserveChrome('a11y-chrome-top', top, { childList: true, subtree: true }); }
-        var footer = dbeQuery('footerPanel');
-        if (footer && on('tooltips')) {
-            dbeObserveChrome('a11y-chrome-footer', footer, { childList: true, subtree: true });
+    var dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
+    if (typeof dbeA11yChunk === 'function') {
+        dbeA11yChunk(Object.freeze({
+            on: on,
+            translate: dbeT,
+            query: dbeQuery,
+            controllers: dbeControllers,
+            observe: dbeObserveChrome,
+            areaAriaShortcut: dbeAreaAriaShortcut,
+            bindTooltips: bindTooltips,
+            unbindTooltips: unbindTooltips,
+            labelChromeIcons: labelChromeIcons,
+            setAttributeRecorder: function (callback) { dbeRememberChromeAttributes = callback; }
+        }));
+    } else {
+        document.documentElement.dataset.dbeChunkError = 'a11y:missing';
+        if (window.console && console.error) {
+            console.error('[DBE] Accessibility chunk failed to load; chrome accessibility enhancements were not started.');
         }
     }
-    function destroyA11yChrome() {
-        dbeObserveChrome('a11y-chrome-main', null);
-        dbeObserveChrome('a11y-chrome-top', null);
-        dbeObserveChrome('a11y-chrome-footer', null);
-        unbindTooltips();
-        dbeA11yChromeRecords.forEach(function (record) {
-            Object.keys(record.attributes).forEach(function (name) {
-                var value = record.attributes[name];
-                if (value === null) { record.node.removeAttribute(name); }
-                else { record.node.setAttribute(name, value); }
-            });
-        });
-        dbeA11yChromeRecords = [];
-    }
-    dbeControllers.register('a11y/chrome', {
-        init: function (context) {
-            if (!context || !context.builderius) { return; }
-            dbeObserveA11yChrome();
-            if (on('chrome_landmarks')) { ensureChromeLandmarks(); }
-            if (on('tooltips')) {
-                bindTooltips();
-                labelChromeIcons();
-            }
-        },
-        refresh: function (reason) {
-            if (!reason) { return; }
-            dbeObserveA11yChrome();
-            if (on('chrome_landmarks')) { ensureChromeLandmarks(); }
-            if (on('tooltips')) { labelChromeIcons(); }
-        },
-        destroy: function () {
-            destroyA11yChrome();
-        }
-    }, on('chrome_landmarks') || on('tooltips'));
 
     var dbeCompositeControllerActive = false;
     var dbeCompositeFooterTimer = 0;

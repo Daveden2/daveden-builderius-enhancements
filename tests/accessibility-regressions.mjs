@@ -15,6 +15,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
+const a11y = read('assets/builder/js/chunks/a11y.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
@@ -35,7 +36,7 @@ const features = read('includes/features.php');
 const adminBar = read('includes/admin-bar.php');
 
 assert.match(
-    builder,
+    a11y,
     /iframe\.setAttribute\('title', iframeTitle\)/,
     'The canvas iframe must retain an accessible title.'
 );
@@ -95,18 +96,18 @@ assert.match(
     'The shared left-panel mode switch must use the native button activation path.'
 );
 assert.match(
-    builder,
-    /function ensureChromeLandmarks\(\)[\s\S]+dbeAreaAriaShortcut\(shortcutKey\)[\s\S]+regionNavigator[\s\S]+regionFooter/,
+    a11y,
+    /function ensureChromeLandmarks\(\)[\s\S]+host\.areaAriaShortcut\(shortcutKey\)[\s\S]+regionNavigator[\s\S]+regionFooter/,
     'Named builder regions must expose their direct-focus shortcuts programmatically.'
 );
 assert.match(
-    builder,
-    /dbeControllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yChrome\(\)/,
+    a11y,
+    /host\.controllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyChrome\(\)/,
     'Builder landmarks must participate in the shared init, refresh and destroy lifecycle.'
 );
 assert.match(
-    builder,
-    /function destroyA11yChrome\(\)[\s\S]+record\.node\.removeAttribute\(name\)[\s\S]+record\.node\.setAttribute\(name, value\)/,
+    a11y,
+    /function destroyChrome\(\)[\s\S]+record\.node\.removeAttribute\(name\)[\s\S]+record\.node\.setAttribute\(name, value\)/,
     'Destroying the chrome controller must restore the native landmark and iframe attributes.'
 );
 assert.match(
@@ -115,8 +116,8 @@ assert.match(
     'The chrome controller must own reversible tooltip event listeners.'
 );
 assert.match(
-    builder,
-    /function dbeObserveA11yChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
+    a11y,
+    /function observeChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
     'The chrome controller must declare its own shared observation roots.'
 );
 assert.match(

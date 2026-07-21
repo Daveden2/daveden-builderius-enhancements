@@ -13,18 +13,39 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const coreRuntime = read('assets/builder/js/core-runtime.js');
+const a11y = read('assets/builder/js/chunks/a11y.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-enhancements-js/,
-    'The core runtime must load synchronously before the feature runtime.'
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-enhancements-js/,
+    'The core runtime and accessibility chunk must load synchronously before the feature host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$a11y_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y\.js/,
+    'The accessibility chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     builder,
     /var dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
     'The feature runtime must capture the core factory and configured context.'
+);
+assert.match(
+    a11y,
+    /chunks\.a11y = function \(host\)[\s\S]+host\.setAttributeRecorder\(rememberAttributes\)[\s\S]+host\.controllers\.register\('a11y\/chrome'/,
+    'The accessibility chunk must register through an explicit host contract.'
+);
+assert.match(
+    builder,
+    /var dbeA11yChunk = window\.dbeBuilderChunks[\s\S]+dbeA11yChunk\(Object\.freeze\([\s\S]+setAttributeRecorder/,
+    'The feature host must provide the accessibility chunk a frozen, narrow service surface.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'a11y:missing'[\s\S]+Accessibility chunk failed to load/,
+    'A missing accessibility chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
     builder,
@@ -119,6 +140,7 @@ assert.match(
 assert.match(builder, /dbeRuntime\.whenReady\(boot\)/, 'The feature runtime must enter through the shared lifecycle helper.');
 assert.doesNotMatch(builder, /DBE_BUILDERIUS_ADAPTERS|__builderiusStoreFns/, 'Builderius compatibility knowledge must stay out of feature code.');
 assert.ok(gzipSync(coreRuntime).length < 35 * 1024, 'The core runtime must remain within the 35 KB compressed bootstrap budget.');
+assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must remain within an 8 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the
 // registry contract is behavioural, not only a source-shape assertion.
