@@ -46,6 +46,8 @@ dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The temp
 dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_component_abilities' ), 'The component ability registrar is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_create_component' ), 'The component ability callbacks are not loaded.' );
+dbe_test_assert( function_exists( 'dbe_register_css_abilities' ), 'The CSS ability registrar is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_global_css' ), 'The CSS ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_css_blocks_parse' ), 'The shared CSS block parser is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_presence_beat' ), 'The presence service is not loaded.' );
 
@@ -85,6 +87,19 @@ if ( function_exists( 'dbe_ability_validate_prop_def' ) && function_exists( 'dbe
 		'Example' === ( $settings['dataVars'][0]['c1']['heading_text'] ?? null )
 			&& 'heading_text' === ( $settings['componentTmplProperties'][0]['name'] ?? null ),
 		'The extracted component domain no longer synchronises declarations and derived defaults.'
+	);
+}
+
+if ( function_exists( 'dbe_ability_css_patch' ) ) {
+	$original_css = ".before { color: inherit; }\n/* @block: test */\n.old { display: block; }\n/* @endblock */\n.after { color: inherit; }\n";
+	$patched_css  = dbe_ability_css_patch( $original_css, 'test', '.new { display: grid; }' );
+	dbe_test_assert(
+		! is_wp_error( $patched_css )
+			&& 'replaced' === $patched_css['action']
+			&& 0 === strpos( $patched_css['css'], '.before { color: inherit; }' )
+			&& false !== strpos( $patched_css['css'], '.new { display: grid; }' )
+			&& ".after { color: inherit; }\n" === substr( $patched_css['css'], -strlen( ".after { color: inherit; }\n" ) ),
+		'The extracted CSS domain no longer preserves bytes outside a managed block.'
 	);
 }
 
