@@ -1478,6 +1478,13 @@
         return p.join('+');
     }
 
+    /* Machine-readable counterpart for the global area-jump chords. Keep this
+       separate from dbeAccel: aria-keyshortcuts requires named modifier tokens,
+       not the glyphs and abbreviations used in visual shortcut hints. */
+    function dbeAreaAriaShortcut(key) {
+        return (dbeIsMac ? 'Meta' : 'Control') + '+Alt+' + key;
+    }
+
     function clearMultiSel() {
         if (!dbeMultiSel.size) { return; }
         dbeMultiSel.clear();
@@ -9016,9 +9023,10 @@
         ]],
         [dbeT('scGroupAreas', 'Move focus to'), [
             [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
-            [sc('S', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Settings panel')],
+            [sc('E', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Element settings')],
             [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas')],
-            [sc('N', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Insert elements')]
+            [sc('L', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Element library')],
+            [sc('B', { cmd: true, alt: true }), dbeT('scGotoFooter', 'Footer bar')]
         ]]
     ] : []).concat(on('ai_terminal_tabs') ? [
         [dbeT('scGroupSenseAi', 'Sense AI'), [
@@ -9230,6 +9238,17 @@
             }
             return;
         }
+        /* On wide layouts the Element library and Element settings still share
+           one native panel. A region shortcut must switch that native mode
+           before choosing a focus target; otherwise "Element library" from
+           Settings either does nothing or lands in the Navigator favourites. */
+        if (!compactReady && !dbeCompactActive()
+            && (which === 'inserter' || which === 'settings')
+            && dbeCompactLeftMode() !== which) {
+            if (!dbeEnsureCompactLeftMode(which)) { return; }
+            setTimeout(function () { dbeFocusArea(which, true); }, 140);
+            return;
+        }
         var wrappers = dbePanelWrappers();
         var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
         if (side && dbePanelSideHidden(side, wrappers[side])) {
@@ -9255,6 +9274,9 @@
             el = document.querySelector('.uniModItems__item')
                 || document.querySelector('.uniModTree__favouritesListItem');
             if (el && el.tabIndex < 0 && !/^(a|button|input)$/i.test(el.tagName)) { el.setAttribute('tabindex', '-1'); }
+        } else if (which === 'footer') {
+            el = document.querySelector('.uniFooterPanelBar button[tabindex="0"]')
+                || document.querySelector('.uniFooterPanelBar button:not([disabled]):not([aria-disabled="true"])');
         }
         if (!el) { return; }
         try { el.focus(); } catch (e) {}
@@ -9264,9 +9286,20 @@
     var dbeShortcutKeyBound = false;
     function dbeElementShortcutsKeydown(e) {
         if (renameActive()) { return; }
+        if (document.querySelector('dialog[open]')) { return; } // don't fire over a dialog or the native menu
+        var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey);
+        var code = e.code;
+        // Area jumps are escape routes, so they must work from searches, text
+        // fields and Monaco as well as ordinary chrome controls. Process them
+        // before the editable-target guard used by destructive/editing keys.
+        var AREA = { KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' };
+        if (mod && e.altKey && !e.shiftKey && AREA[code]) {
+            e.preventDefault(); e.stopPropagation();
+            dbeFocusArea(AREA[code]);
+            return;
+        }
         var t = e.target;
         if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
-        if (document.querySelector('dialog[open]')) { return; } // don't fire over a dialog or the native menu
         var id = activeId();
         // F2 — rename (no modifiers).
         if (e.key === 'F2' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
@@ -9275,16 +9308,7 @@
             startRename(id);
             return;
         }
-        var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey);
         if (!mod) { return; }
-        var code = e.code;
-        // Area jumps — Cmd/Ctrl+Alt+O/S/P/N. No selected element required.
-        var AREA = { KeyO: 'navigator', KeyS: 'settings', KeyP: 'canvas', KeyN: 'inserter' };
-        if (e.altKey && !e.shiftKey && AREA[code]) {
-            e.preventDefault(); e.stopPropagation();
-            dbeFocusArea(AREA[code]);
-            return;
-        }
         if (code === 'KeyD' && e.shiftKey && !e.altKey) {                       // Duplicate
             if (!id) { return; }
             e.preventDefault(); e.stopPropagation();
@@ -9576,7 +9600,7 @@
                 { group: 'element', label: dbeT('paletteCut', 'Cut'), accel: dbeAccel('X', { cmd: true }), run: function () { runClose(function () { driveContextMenuItem(id, 'Copy', function (ok) { if (ok) { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); }); } }); }); } },
                 { group: 'element', label: dbeT('paletteDelete', 'Delete'), accel: dbeT('accelDelete', 'Del'), run: function () { runClose(function () { driveContextMenuItem(id, 'Remove', function () { undoToast(dbeT('deletedElement', 'Deleted element'), 'undo'); }); }); } },
                 // Settings show the selected element's settings — only useful with one.
-                { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
+                { group: 'goto', label: dbeT('goToSettings', 'Go to Element settings'), accel: dbeAccel('E', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
         commands.push(
@@ -9607,7 +9631,8 @@
         commands.push(
             { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
             { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
-            { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
+            { group: 'goto', label: dbeT('openInserterCmd', 'Open Element library'), accel: dbeAccel('L', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
+            { group: 'goto', label: dbeT('goToFooter', 'Go to footer bar'), accel: dbeAccel('B', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('footer'); }); } },
             { group: 'goto', label: dbeT('keyboardShortcuts', 'Keyboard shortcuts'), accel: '?', run: function () { runClose(openShortcutsDialog); } }
         );
         var adminUrls = CFG.adminUrls || {};
@@ -10626,7 +10651,11 @@
         if (dbeCompactLeftMode() === pane) { return true; }
         var button = dbeCompactElementsButton();
         if (button) {
-            clickSeq(button);
+            /* This native control is a standard React onClick button. A full
+               synthetic pointer sequence does not complete the wide-layout
+               library/settings transition; one HTMLElement click is reliable
+               in both wide and compact views. */
+            button.click();
             setTimeout(schedule, 0);
         }
         return true;
@@ -13237,24 +13266,33 @@
        Attributes are only written when they differ, so the ticks stay free
        under the MutationObservers that drive schedule(). */
     function ensureChromeLandmarks() {
-        function stamp(el, label) {
+        function stamp(el, label, shortcutKey) {
             if (!el || !label) { return; }
             if (el.getAttribute('role') !== 'region') { el.setAttribute('role', 'region'); }
             if (el.getAttribute('aria-label') !== label) { el.setAttribute('aria-label', label); }
+            var shortcut = on('keyboard_shortcuts') && shortcutKey ? dbeAreaAriaShortcut(shortcutKey) : '';
+            if (shortcut && el.getAttribute('aria-keyshortcuts') !== shortcut) {
+                el.setAttribute('aria-keyshortcuts', shortcut);
+            } else if (!shortcut && el.hasAttribute('aria-keyshortcuts')) {
+                el.removeAttribute('aria-keyshortcuts');
+            }
         }
         stamp(document.querySelector('.uniTopPanel'), dbeT('regionTopBar', 'Top toolbar'));
         var left = document.querySelector('.uniLeftPanelOuter') || document.querySelector('.uniLeftPanel');
         if (left) {
-            stamp(left, left.querySelector('.uniModList')
-                ? dbeT('regionInserter', 'Element library')
-                : dbeT('regionSettings', 'Element settings'));
+            var isInserter = !!left.querySelector('.uniModList');
+            stamp(
+                left,
+                isInserter ? dbeT('regionInserter', 'Element library') : dbeT('regionSettings', 'Element settings'),
+                isInserter ? 'L' : 'E'
+            );
         }
-        stamp(document.querySelector('.uniIframePanel'), dbeT('regionCanvas', 'Canvas'));
+        stamp(document.querySelector('.uniIframePanel'), dbeT('regionCanvas', 'Canvas'), 'P');
         var iframe = document.getElementById('builderInner');
         var iframeTitle = dbeT('canvasPreview', 'Canvas preview');
         if (iframe && iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
-        stamp(document.querySelector('.uniRightPanel'), dbeT('regionNavigator', 'Navigator'));
-        stamp(document.querySelector('.uniFooterPanel'), dbeT('regionFooter', 'Footer bar'));
+        stamp(document.querySelector('.uniRightPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
+        stamp(document.querySelector('.uniFooterPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
     }
 
     function schedule() {

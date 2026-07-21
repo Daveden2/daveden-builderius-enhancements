@@ -74,6 +74,41 @@ assert.match(
 );
 assert.match(
     builder,
+    /var AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
+    'Area-jump shortcuts must run before editable targets suppress element commands.'
+);
+assert.match(
+    builder,
+    /else if \(which === 'footer'\)[\s\S]+\.uniFooterPanelBar button\[tabindex="0"\]/,
+    'The direct-focus routes must include the Footer toolbar.'
+);
+assert.match(
+    builder,
+    /function dbeFocusArea\(which, compactReady\)[\s\S]+dbeCompactLeftMode\(\) !== which[\s\S]+dbeEnsureCompactLeftMode\(which\)[\s\S]+dbeFocusArea\(which, true\)/,
+    'Wide region shortcuts must switch the shared left panel before moving focus.'
+);
+assert.match(
+    builder,
+    /function dbeEnsureCompactLeftMode\(pane\)[\s\S]+button\.click\(\)/,
+    'The shared left-panel mode switch must use the native button activation path.'
+);
+assert.match(
+    builder,
+    /function ensureChromeLandmarks\(\)[\s\S]+dbeAreaAriaShortcut\(shortcutKey\)[\s\S]+regionNavigator[\s\S]+regionFooter/,
+    'Named builder regions must expose their direct-focus shortcuts programmatically.'
+);
+assert.match(
+    strings,
+    /'openInserterCmd'\s+=> __\( 'Open Element library'/,
+    'The palette must use the visible Element library destination name.'
+);
+assert.match(
+    strings,
+    /'scGotoFooter'\s+=> __\( 'Footer bar'/,
+    'The region-navigation copy must include the Footer bar.'
+);
+assert.match(
+    builder,
     /dbeSaveInitialisingUntil[\s\S]+state = dbeSaveState \|\| \(dirty \? 'dirty' : 'clean'\)/,
     'The save cue must baseline Builderius hydration and retain an explicit clean state.'
 );

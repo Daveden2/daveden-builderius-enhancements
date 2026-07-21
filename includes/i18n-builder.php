@@ -515,9 +515,10 @@ function dbe_builder_strings() {
 		// Shortcuts overlay — Move to area group.
 		'scGroupAreas'                  => __( 'Move focus to', 'daveden-builderius-enhancements' ),
 		'scGotoNavigator'               => __( 'Navigator', 'daveden-builderius-enhancements' ),
-		'scGotoSettings'                => __( 'Settings panel', 'daveden-builderius-enhancements' ),
+		'scGotoSettings'                => __( 'Element settings', 'daveden-builderius-enhancements' ),
 		'scGotoCanvas'                  => __( 'Canvas', 'daveden-builderius-enhancements' ),
-		'scGotoInserter'                => __( 'Insert elements', 'daveden-builderius-enhancements' ),
+		'scGotoInserter'                => __( 'Element library', 'daveden-builderius-enhancements' ),
+		'scGotoFooter'                  => __( 'Footer bar', 'daveden-builderius-enhancements' ),
 
 		// Command palette.
 		'commandPalette'                => __( 'Command palette', 'daveden-builderius-enhancements' ),
@@ -558,8 +559,9 @@ function dbe_builder_strings() {
 		// Shortcut hint for the native delete (kept short for the right-aligned label).
 		'accelDelete'                   => __( 'Del', 'daveden-builderius-enhancements' ),
 		'goToNavigator'                 => __( 'Go to Navigator', 'daveden-builderius-enhancements' ),
-		'goToSettings'                  => __( 'Go to settings', 'daveden-builderius-enhancements' ),
+		'goToSettings'                  => __( 'Go to Element settings', 'daveden-builderius-enhancements' ),
 		'goToCanvas'                    => __( 'Go to canvas', 'daveden-builderius-enhancements' ),
+		'goToFooter'                    => __( 'Go to footer bar', 'daveden-builderius-enhancements' ),
 		'enterInteractiveCanvas'        => __( 'Interact with page', 'daveden-builderius-enhancements' ),
 		'exitInteractiveCanvas'         => __( 'Select elements', 'daveden-builderius-enhancements' ),
 		'canvasInteractiveOn'           => __( 'Interacting with page. Press Escape to select elements.', 'daveden-builderius-enhancements' ),
@@ -580,7 +582,7 @@ function dbe_builder_strings() {
 		'treeMatchesOne'                => __( '%1$s of %2$s element matches', 'daveden-builderius-enhancements' ),
 		/* translators: 1: number of matching elements, 2: total number of elements. */
 		'treeMatchesMany'               => __( '%1$s of %2$s elements match', 'daveden-builderius-enhancements' ),
-		'openInserterCmd'               => __( 'Open Inserter', 'daveden-builderius-enhancements' ),
+		'openInserterCmd'               => __( 'Open Element library', 'daveden-builderius-enhancements' ),
 		'copiedElement'                 => __( 'Copied element', 'daveden-builderius-enhancements' ),
 		'deletedElement'                => __( 'Deleted element', 'daveden-builderius-enhancements' ),
 		'phClass'                       => __( 'class1 class2  (or .a.b)', 'daveden-builderius-enhancements' ),

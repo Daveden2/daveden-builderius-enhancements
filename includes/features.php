@@ -498,9 +498,9 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'keyboard_shortcuts'    => array(
-			'title'        => __( 'Element keyboard shortcuts', 'daveden-builderius-enhancements' ),
-			'summary'      => __( 'Block-editor-style shortcuts for the selected element.', 'daveden-builderius-enhancements' ),
-			'description'  => __( 'Adds keyboard shortcuts, in the style of the WordPress block editor, for the element selected in the Navigator: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add an element before or after it (Cmd/Ctrl+Opt/Alt+T / Cmd/Ctrl+Opt/Alt+Y, via a quick element picker), rename (F2), and edit text in the canvas (Enter to start, Escape to finish). A persistent canvas indicator shows when text editing is active. For elements without editable text, Enter lets you interact with the page and Escape returns to selecting elements. The native canvas-mode control also becomes keyboard operable. The new element actions appear in the right-click menu, alongside shortcuts to jump between the builder’s regions. Experimental: Builderius is adding its own shortcuts, so this may overlap or be retired.', 'daveden-builderius-enhancements' ),
+			'title'        => __( 'Builder keyboard shortcuts', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'Shortcuts for selected elements and builder regions.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'Adds block-editor-style shortcuts for the selected element: duplicate (Cmd/Ctrl+Shift+D), cut (Cmd/Ctrl+X), add before or after, rename (F2), and edit text in the canvas (Enter to start, Escape to finish). Direct shortcuts move focus to the Element library, Settings, Canvas, Navigator or Footer bar—even from a search field or code editor—so you can bypass the builder’s long Tab sequence. The command palette and shortcuts overlay list the same routes. Experimental: Builderius is adding its own shortcuts, so some may overlap or be retired.', 'daveden-builderius-enhancements' ),
 			'tab'          => 'editing',
 			'css'          => array( '32-rename.css', '81-keyboard-shortcuts.css' ),
 			'shared_css'   => array( '01-infra.css', '30-context-menu.css' ),
