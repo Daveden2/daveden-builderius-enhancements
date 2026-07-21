@@ -7435,33 +7435,60 @@
            of its own — chrome_landmarks marks the whole .uniFooterPanel as the
            footer's landmark, and a second nested landmark would only clutter the
            screen reader's region list. The name still announces on entry.
-       The footer lives outside the panels the other observers watch, so it wires
-       its own (attached once, lazily, when the bar first appears). */
-    /* Shared by footer_toolbar and ai_terminal_tabs (previously each attached
-       its own identical observer, doubling the callback work). Tracked by NODE,
-       not a done-once flag: a flag would outlive a React-replaced bar — the old
-       observer dies with the old node and the feature would go silently dead.
-       The panel is retried independently of the bar: it can mount later, and
-       the old code never re-checked once the bar was seen. */
+       The footer lives outside the main-panel root, so its narrow targets join
+       the shared router lazily when the bar first appears. */
+    /* One mutation router owns every builder-chrome observation whose only job
+       is to schedule the shared refresh pass. A single MutationObserver may
+       watch multiple narrow roots with different options, so this removes the
+       per-feature observer objects without widening observation over Monaco or
+       unrelated builder subtrees. When React replaces a registered root, rebuild
+       the registrations as one set so the detached node is released. The two
+       observers with specialised callbacks (preview-document editing state and
+       the temporary canvas-width guard) deliberately remain independent. */
+    var dbeChromeObserver = null;
+    var dbeChromeObservations = {};
+    function dbeRebuildChromeObserver() {
+        if (!window.MutationObserver) { return; }
+        if (!dbeChromeObserver) { dbeChromeObserver = new MutationObserver(schedule); }
+        else { dbeChromeObserver.disconnect(); }
+        Object.keys(dbeChromeObservations).forEach(function (key) {
+            var observation = dbeChromeObservations[key];
+            try { dbeChromeObserver.observe(observation.node, observation.options); } catch (e) {}
+        });
+    }
+    function dbeObserveChrome(key, node, options) {
+        var current = dbeChromeObservations[key];
+        if (!node) {
+            if (!current) { return; }
+            delete dbeChromeObservations[key];
+            dbeRebuildChromeObserver();
+            return;
+        }
+        // Every key has one static option set; node identity is the only part
+        // that can change at runtime.
+        if (current && current.node === node) { return; }
+        dbeChromeObservations[key] = { node: node, options: options };
+        dbeRebuildChromeObserver();
+    }
+
+    /* Shared by footer_toolbar and ai_terminal_tabs. Tracked by NODE, not a
+       done-once flag: a flag would outlive a React-replaced bar. The panel is
+       retried independently of the bar because it can mount later. */
     var dbeFooterBarNode = null, dbeFooterPanelNode = null, dbeFooterScopeContentNode = null;
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar) {
         if (!window.MutationObserver) { return; }
         if (bar && bar !== dbeFooterBarNode) {
-            try {
-                // Bar: button active/locked class + add/remove (small subtree).
-                new MutationObserver(schedule).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-                dbeFooterBarNode = bar;
-            } catch (e) {}
+            // Bar: button active/locked class + add/remove (small subtree).
+            dbeObserveChrome('footer-bar', bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            dbeFooterBarNode = bar;
         }
         // Panel: open/collapse (content mounts/unmounts, height/style change).
         // Shallow — no subtree — so the Monaco editors inside do not spam it.
         var fp = document.querySelector('.uniFooterPanel');
         if (fp && fp !== dbeFooterPanelNode) {
-            try {
-                new MutationObserver(schedule).observe(fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
-                dbeFooterPanelNode = fp;
-            } catch (e) {}
+            dbeObserveChrome('footer-panel', fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+            dbeFooterPanelNode = fp;
         }
         // Scope content: the snippet/variable configure panel mounts and
         // unmounts as a DIRECT child (list menu -> Configure), which the
@@ -7470,10 +7497,8 @@
         // the content remounts when the tool or scope switches.
         var sc = document.querySelector('.uniFooterTabScopeContent');
         if (sc && sc !== dbeFooterScopeContentNode) {
-            try {
-                new MutationObserver(schedule).observe(sc, { childList: true });
-                dbeFooterScopeContentNode = sc;
-            } catch (e) {}
+            dbeObserveChrome('footer-scope-content', sc, { childList: true });
+            dbeFooterScopeContentNode = sc;
         }
     }
     function ensureFooterToolbar() {
@@ -7571,12 +7596,7 @@
         // Switching scope toggles the `active` class deep inside the footer panel,
         // which the shallow footer observer misses; watch it here so aria-selected
         // and the panel's aria-labelledby follow the switch.
-        if (!scope.dbeScopeObserved) {
-            scope.dbeScopeObserved = true;
-            try {
-                new MutationObserver(schedule).observe(scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
-            } catch (e) { scope.dbeScopeObserved = false; }
-        }
+        dbeObserveChrome('footer-scope-tabs', scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
     }
 
     /* (tf3) Field labels in the snippet/variable configure panel. Every plain
@@ -7616,12 +7636,7 @@
         // a React-replaced panel is re-observed, and childList-only so our own
         // attribute writes never retrigger the pass.
         var cfg = document.querySelector('.uniTabDataVars__configurePanel');
-        if (cfg && !cfg.dbeFieldsObserved) {
-            cfg.dbeFieldsObserved = true;
-            try {
-                new MutationObserver(schedule).observe(cfg, { childList: true, subtree: true });
-            } catch (e) { cfg.dbeFieldsObserved = false; }
-        }
+        if (cfg) { dbeObserveChrome('footer-config-panel', cfg, { childList: true, subtree: true }); }
     }
 
     /* (bm) Accessible Builderius menu (builderius_menu). The menu button in the
@@ -8083,28 +8098,23 @@
          - the "+" button gets a real accessible name and, with its agent picker,
            becomes a menu button (aria-haspopup/expanded, role=menu/menuitem,
            focus moves in on open, arrow/Home/End roam, Escape/Tab close it).
-       The strip lives in the footer, which the main panel observers do not watch
-       (like footer_toolbar), and native re-renders it on every switch. Two cheap
-       observers keep it in sync: one on the always-present footer bar (fires when
-       Sense AI is opened) and one on the .uniAiChat panel (fires on connect and on
-       every tab switch). Neither spans a Monaco editor, so subtree is safe here;
-       schedule()'s rAF debounce coalesces the rest. The "+" sits inside the list
-       as a labelled button (as a browser tab strip's does); it is not a tab, so
-       the roving set (matched on .uniAiChat__terminalTab) skips it. */
+       The strip lives in the footer, which the main panel observation does not
+       watch (like footer_toolbar), and native re-renders it on every switch. Two
+       narrow roots feed the shared chrome mutation router: the always-present
+       footer bar (fires when Sense AI is opened) and the .uniAiChat panel (fires
+       on connect and every tab switch). Neither spans a Monaco editor. The "+"
+       sits inside the list as a labelled button (as a browser tab strip's does);
+       it is not a tab, so the roving set (matched on .uniAiChat__terminalTab)
+       skips it. */
     var dbeTermAiNode = null;
-    var dbeTermAiObs = null;
     function dbeObserveTerminalBar() {
         // Same bar, same options as the footer toolbar — share its observer.
         dbeObserveFooter(document.querySelector('.uniFooterPanelBar'));
     }
     function dbeObserveTerminalPanel(ai) {
         if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
-        if (dbeTermAiObs) { try { dbeTermAiObs.disconnect(); } catch (e) {} }
         dbeTermAiNode = ai;
-        try {
-            dbeTermAiObs = new MutationObserver(schedule);
-            dbeTermAiObs.observe(ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-        } catch (e) { dbeTermAiNode = null; dbeTermAiObs = null; }
+        dbeObserveChrome('terminal-panel', ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
     var DBE_AI_MENU_ID = 'dbe-ai-agent-menu';
     var dbeAgentMenuWasOpen = false;
@@ -13387,25 +13397,30 @@
         }
         schedule();
 
-        // Navigator (right panel) observer — tree decoration, header buttons,
-        // multi-select paint, the scope-control cache, the search filter and
-        // the tooltip labels that live in its header. Tree mutations are also
-        // the cheapest signal that a module operation happened, which is what
-        // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected')) {
-            new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
-        }
+        // Route the stable builder-chrome roots through one MutationObserver.
+        // The main panel contains the Navigator, so when both are needed it
+        // absorbs the Navigator's character-data/class requirements rather than
+        // registering an overlapping second root.
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needMainObservation = NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('compact_panes') || on('condition_helpers');
 
         // Also watch the settings panel area (left) so the CSS-code default
         // reacts to element selection, tab switches, and the CSS-mode toggle.
         // .uniMainPanel is a stable parent of both panels (and of the canvas
-        // wrappers the preview + panel handles live in); the rAF debounce in
-        // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('compact_panes') || on('condition_helpers')) {
+        // wrappers the preview + panel handles live in).
+        if (needMainObservation) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
-                new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+                dbeObserveChrome('main-panel', main, {
+                    childList: true,
+                    subtree: true,
+                    characterData: needNavigatorObservation,
+                    attributes: true,
+                    attributeFilter: ['class', 'style']
+                });
             }
+        } else if (needNavigatorObservation) {
+            dbeObserveChrome('navigator', panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 
         // Top bar too — breakpoint buttons and the breakpoints modal mount
@@ -13414,7 +13429,7 @@
         if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
-                new MutationObserver(schedule).observe(top, { childList: true, subtree: true });
+                dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
         }
         // Footer bar sits outside uniMainPanel/uniTopPanel, so it needs its own
@@ -13424,7 +13439,7 @@
         if (on('tooltips')) {
             var footer = document.querySelector('.uniFooterPanel');
             if (footer) {
-                new MutationObserver(schedule).observe(footer, { childList: true, subtree: true });
+                dbeObserveChrome('footer-tooltips', footer, { childList: true, subtree: true });
             }
         }
         if (on('tooltips')) { bindTooltips(); }
@@ -13433,7 +13448,7 @@
         // <body> (where the popover portals) so roles are applied when it opens.
         if (on('select_combobox')) {
             bindSelectCombobox();
-            try { new MutationObserver(schedule).observe(document.body, { childList: true }); } catch (e) {}
+            dbeObserveChrome('body-portals', document.body, { childList: true });
         }
 
         // The bottom-bar tools live outside every panel observed above, and

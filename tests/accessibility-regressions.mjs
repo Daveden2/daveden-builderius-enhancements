@@ -142,6 +142,21 @@ assert.match(
     /if \(!on\('save_state_cue'\)\)[\s\S]{0,160}pr\.transitionInterval \|\| 2500/,
     'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
 );
+assert.match(
+    builder,
+    /function dbeRebuildChromeObserver\(\)[\s\S]+dbeChromeObserver\.observe\(observation\.node, observation\.options\)[\s\S]+function dbeObserveChrome\(key, node, options\)/,
+    'Builder-chrome mutations must route through one shared observer with targeted roots.'
+);
+assert.equal(
+    (builder.match(/new MutationObserver/g) || []).length,
+    3,
+    'Only the shared chrome router, preview-document bridge and temporary preview-width guard may construct observers.'
+);
+assert.equal(
+    (builder.match(/new MutationObserver\(schedule\)/g) || []).length,
+    1,
+    'Only the shared chrome mutation router may observe directly into the coalesced schedule.'
+);
 assert.match(saveCue, /\.dbe-save-cue\.is-clean/, 'The clean save state must be visible.');
 assert.match(strings, /'saveClean'\s+=> __\( 'All changes saved'/, 'Clean save copy must remain truthful.');
 assert.match(strings, /'saveCleanShort'\s+=> __\( 'Saved'/, 'The responsive clean-state copy must remain concise.');
