@@ -258,6 +258,36 @@ assert.doesNotMatch(
     /if \(on\('ai_terminal_tabs'\)\) \{ try \{ ensureTerminalTabs\(\)/,
     'The shared refresh pass must not bypass the terminal integration controller.'
 );
+assert.match(
+    builder,
+    /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyWorkspace\(\)/,
+    'Workspace features must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshWorkspace\(\)[\s\S]+ensureCanvasModeControl\(\)[\s\S]+ensurePreviewHandles\(\)[\s\S]+ensureCompactPanes\(\)[\s\S]+dbeSyncPanelsHidden\(\)[\s\S]+ensurePanelHandles\(\)[\s\S]+ensureNavDetach\(\)/,
+    'The workspace controller must refresh the complete responsive and sizing surface.'
+);
+assert.match(
+    builder,
+    /function dbeRestoreWorkspaceState\(\)[\s\S]+dbePreviewClearOverride\(\)[\s\S]+dbeObserveChrome\('workspace-main', null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_WORKSPACE_OWNER\)[\s\S]+dbeDestroyOwnedGroups\(DBE_WORKSPACE_OWNER\)[\s\S]+\.dbe-preview-handle[\s\S]+dbe-compact-panes[\s\S]+--dbe-nav-h/,
+    'Workspace teardown must release observations, activity, generated controls, classes and sizing variables.'
+);
+assert.match(
+    builder,
+    /function dbeCompactMedia\(\)[\s\S]+dbeBindOwnedEvent\(DBE_WORKSPACE_OWNER, dbeCompactMql, 'compact-media-change'[\s\S]+function bindNavHeaderDrag\(\)[\s\S]+navigator-drag-start[\s\S]+navigator-drag-cancel/,
+    'Compact media and detached-Navigator document listeners must be controller-owned.'
+);
+assert.doesNotMatch(
+    builder,
+    /dbeCanvasModeKeyBound|dbePersistedPanelsBound|dbeNavHeaderBound/,
+    'Workspace listeners must not rely on irreversible flags.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('preview_resize'\)\) \{ try \{ ensurePreviewHandles\(\)|if \(on\('compact_panes'\)\) \{ try \{ ensureCompactPanes\(\)|if \(on\('panel_resize'\)\) \{ try \{ ensurePanelHandles\(\)|if \(on\('panel_detach'\)\) \{ try \{ ensureNavDetach\(\)/,
+    'The shared refresh pass must not bypass the workspace controller.'
+);
 assert.doesNotMatch(
     builder,
     /if \(on\('tooltips'\)\) \{ try \{ labelChromeIcons\(\)/,
@@ -457,17 +487,22 @@ assert.match(
 );
 assert.match(
     builder,
+    /function ensureCompactPanes\(\)[\s\S]+switcher\.contains\(document\.activeElement\)[\s\S]+switcher\.remove\(\)[\s\S]+frame\.focus\(\)/,
+    'Leaving compact mode must remove its switcher and rescue focus from the disappearing control.'
+);
+assert.match(
+    builder,
     /function dbeSetCompactAccessibility\(\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.left, !leftShown\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.right, !navigatorShown\)[\s\S]+dbeSetPanelHiddenState\(iframe, !canvasShown\)/,
     'Compact mode must remove every hidden workspace destination from the accessibility tree.'
 );
 assert.match(
     builder,
-    /compactViewChanged[\s\S]+setTimeout\(function \(\) \{ dbeFocusArea\(pane, true\); \}/,
+    /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, function \(\) \{ dbeFocusArea\(pane, true\); \}/,
     'Compact view changes must be announced and move focus to the chosen destination.'
 );
 assert.match(
     builder,
-    /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
+    /\(!on\('compact_panes'\) \|\| !dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
     'Wide-view panel visibility commands must not masquerade as compact-view controls.'
 );
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');

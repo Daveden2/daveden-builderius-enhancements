@@ -7047,7 +7047,7 @@
             return record.node.isConnected;
         });
         dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) {
-            if (binding.node === document || binding.node.isConnected) { return true; }
+            if (binding.node === document || typeof binding.node.isConnected !== 'boolean' || binding.node.isConnected) { return true; }
             binding.node.removeEventListener(binding.type, binding.handler, binding.options);
             return false;
         });
@@ -9520,7 +9520,7 @@
     function dbeFocusArea(which, compactReady) {
         if (!compactReady && on('compact_panes') && dbeCompactActive()) {
             if (dbeSetCompactPane(which, { announce: true, focus: false })) {
-                setTimeout(function () { dbeFocusArea(which, true); }, which === 'inserter' || which === 'settings' ? 140 : 0);
+                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which, true); }, which === 'inserter' || which === 'settings' ? 140 : 0);
             }
             return;
         }
@@ -9528,18 +9528,18 @@
            one native panel. A region shortcut must switch that native mode
            before choosing a focus target; otherwise "Element library" from
            Settings either does nothing or lands in the Navigator favourites. */
-        if (!compactReady && !dbeCompactActive()
+        if (!compactReady && (!on('compact_panes') || !dbeCompactActive())
             && (which === 'inserter' || which === 'settings')
             && dbeCompactLeftMode() !== which) {
             if (!dbeEnsureCompactLeftMode(which)) { return; }
-            setTimeout(function () { dbeFocusArea(which, true); }, 140);
+            dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which, true); }, 140);
             return;
         }
         var wrappers = dbePanelWrappers();
         var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
         if (side && dbePanelSideHidden(side, wrappers[side])) {
             dbeSetPanelVisibility(side, false);
-            setTimeout(function () { dbeFocusArea(which); }, 120);
+            dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which); }, 120);
             return;
         }
         var el = null;
@@ -10400,9 +10400,13 @@
         dbeBindKeyboardFrameDocument(frame);
     }
 
+    var DBE_WORKSPACE_OWNER = 'workspace';
+    var dbeWorkspaceControllerActive = false;
+
     function ensureCanvasModeControl() {
         var toggle = document.querySelector('.overlayToggleIcon');
         if (!toggle) { return; }
+        dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, toggle, ['role', 'tabindex', 'aria-pressed', 'aria-label']);
         var interactive = dbeCanvasInteractive();
         var label = interactive
             ? dbeT('exitInteractiveCanvas', 'Select elements')
@@ -10411,9 +10415,7 @@
         if (toggle.getAttribute('tabindex') !== '0') { toggle.setAttribute('tabindex', '0'); }
         if (toggle.getAttribute('aria-pressed') !== String(interactive)) { toggle.setAttribute('aria-pressed', String(interactive)); }
         if (toggle.getAttribute('aria-label') !== label) { toggle.setAttribute('aria-label', label); }
-        if (toggle.dbeCanvasModeKeyBound) { return; }
-        toggle.dbeCanvasModeKeyBound = true;
-        toggle.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, toggle, 'canvas-mode-keys', 'keydown', function (e) {
             if (e.key !== 'Enter' && e.key !== ' ') { return; }
             e.preventDefault();
             e.stopPropagation();
@@ -10706,8 +10708,9 @@
             // by 2px (both edges mirror around the middle).
             var delta = (ev.clientX - drag.x) * (edge === 'right' ? 2 : -2);
             var w = Math.max(DBE_PREVIEW_MIN, Math.min(drag.max, drag.w + delta));
-            drag.raf = requestAnimationFrame(function () {
-                if (drag) { drag.raf = 0; }
+            drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                if (!drag) { return; }
+                drag.raf = 0;
                 dbeApplyPreviewWidth(w, drag.max);
                 dbeSyncHandleAria(h);
             });
@@ -10833,8 +10836,9 @@
             // panel sits flush to the viewport's right edge.
             var vw = document.documentElement.clientWidth;
             var w = side === 'left' ? ev.clientX : (vw - ev.clientX);
-            drag.raf = requestAnimationFrame(function () {
-                if (drag) { drag.raf = 0; }
+            drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                if (!drag) { return; }
+                drag.raf = 0;
                 dbeSetPanelWidth(w);
             });
         });
@@ -10894,8 +10898,10 @@
         if (!dbeCompactMql) {
             try {
                 dbeCompactMql = window.matchMedia(DBE_COMPACT_QUERY);
-                dbeCompactMql.addEventListener('change', schedule);
             } catch (e) {}
+        }
+        if (dbeCompactMql && dbeWorkspaceControllerActive) {
+            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, dbeCompactMql, 'compact-media-change', 'change', schedule);
         }
         return dbeCompactMql;
     }
@@ -10942,7 +10948,7 @@
                library/settings transition; one HTMLElement click is reliable
                in both wide and compact views. */
             button.click();
-            setTimeout(schedule, 0);
+            dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, schedule, 0);
         }
         return true;
     }
@@ -11001,7 +11007,7 @@
             ));
         }
         if (opts.focus) {
-            setTimeout(function () { dbeFocusArea(pane, true); }, pane === 'inserter' || pane === 'settings' ? 140 : 0);
+            dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(pane, true); }, pane === 'inserter' || pane === 'settings' ? 140 : 0);
         }
         return true;
     }
@@ -11025,6 +11031,7 @@
         dbeSetPanelHiddenState(iframe, !canvasShown);
         dbeSetPanelHiddenState(tabs, !canvasShown);
         if (canvas) {
+            dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, canvas, ['role', 'aria-label']);
             if (leftShown) {
                 dbeSetPanelHiddenState(canvas, true);
             } else {
@@ -11050,11 +11057,18 @@
         var mq = dbeCompactMedia();
         var root = document.documentElement;
         if (!mq || !mq.matches) {
+            var switcher = document.querySelector('.dbe-compact-pane-switcher');
+            var restoreFocus = !!(switcher && switcher.contains(document.activeElement));
+            if (switcher) { switcher.remove(); }
             root.classList.remove('dbe-compact-panes');
             delete root.dataset.dbeCompactPane;
             dbeSetPanelHiddenState(dbeQuery('canvasPanel'), false);
             dbeSetPanelHiddenState(dbeQuery('previewFrame'), false);
             dbeSetPanelHiddenState(document.querySelector('.uniIframeTabs'), false);
+            if (restoreFocus) {
+                var frame = dbeQuery('previewFrame');
+                if (frame) { try { frame.focus(); } catch (e) {} }
+            }
             return false;
         }
         root.classList.add('dbe-compact-panes');
@@ -11130,24 +11144,25 @@
 
     function dbeSyncPanelToggle(button, hidden) {
         if (!button) { return; }
+        dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, button, ['aria-label', 'aria-pressed', 'data-dbe-tip']);
         var label = hidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)');
         if (button.getAttribute('aria-label') !== label) { button.setAttribute('aria-label', label); }
         var pressed = hidden ? 'true' : 'false';
         if (button.getAttribute('aria-pressed') !== pressed) { button.setAttribute('aria-pressed', pressed); }
         if (on('tooltips') && button.getAttribute('data-dbe-tip') !== label) { button.setAttribute('data-dbe-tip', label); }
-        if (on('command_palette') && !button.dbePersistedPanelsBound) {
-            button.addEventListener('click', function (event) {
+        if (on('command_palette')) {
+            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, button, 'persisted-panels', 'click', function (event) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 var nextHidden = !dbePanelsAreHidden();
                 dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
             }, true);
-            button.dbePersistedPanelsBound = true;
         }
     }
 
     function dbeSetPanelHiddenState(wrapper, hidden) {
         if (!wrapper) { return; }
+        dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, wrapper, ['inert', 'aria-hidden']);
         if (hidden) {
             if (!wrapper.hasAttribute('inert')) { wrapper.setAttribute('inert', ''); }
             if (wrapper.getAttribute('aria-hidden') !== 'true') { wrapper.setAttribute('aria-hidden', 'true'); }
@@ -11368,8 +11383,6 @@
     var DBE_NAV_KEY = 'dbeBuilderNavFloat';
     var DBE_NAV_MIN_W = 240;
     var DBE_NAV_MIN_H = 200;
-    var dbeNavHeaderBound = false;
-
     function navWrap() {
         var rp = document.querySelector('.uniRightPanel');
         return rp ? rp.parentElement : null;
@@ -11430,7 +11443,7 @@
        transition (76-panel-detach.css, .25s) has settled on the final width. */
     function dbeNavRescheduled() {
         schedule();
-        setTimeout(schedule, 300);
+        dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, schedule, 300);
     }
     function toggleNav() {
         if (document.body.classList.contains('dbe-nav-detached')) { dockNav(); } else { detachNav(); }
@@ -11509,7 +11522,8 @@
         });
         grip.addEventListener('pointermove', function (ev) {
             if (!drag || drag.raf) { return; }
-            drag.raf = requestAnimationFrame(function () {
+            drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                if (!drag) { return; }
                 drag.raf = 0;
                 var st = navFloatState() || {};
                 st.w = drag.w + (ev.clientX - drag.x);
@@ -11529,10 +11543,8 @@
        it survives the header re-rendering). Ignores clicks on the header's own
        buttons so the detach/collapse/expand icons still work. */
     function bindNavHeaderDrag() {
-        if (dbeNavHeaderBound) { return; }
-        dbeNavHeaderBound = true;
         var drag = null;
-        document.addEventListener('pointerdown', function (ev) {
+        dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-start', 'pointerdown', function (ev) {
             if (!document.body.classList.contains('dbe-nav-detached')) { return; }
             var header = ev.target.closest && ev.target.closest('.uniRightPanel .uniPanelHeader');
             if (!header) { return; }
@@ -11543,9 +11555,10 @@
             drag = { px: ev.clientX, py: ev.clientY, x: st.x, y: st.y, raf: 0 };
             document.body.classList.add('dbe-nav-dragging');
         }, true);
-        document.addEventListener('pointermove', function (ev) {
+        dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-move', 'pointermove', function (ev) {
             if (!drag || drag.raf) { return; }
-            drag.raf = requestAnimationFrame(function () {
+            drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                if (!drag) { return; }
                 drag.raf = 0;
                 var st = navFloatState() || {};
                 st.x = drag.x + (ev.clientX - drag.px);
@@ -11556,8 +11569,8 @@
             });
         }, true);
         function end() { if (drag) { drag = null; document.body.classList.remove('dbe-nav-dragging'); } }
-        document.addEventListener('pointerup', end, true);
-        document.addEventListener('pointercancel', end, true);
+        dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-end', 'pointerup', end, true);
+        dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-cancel', 'pointercancel', end, true);
     }
 
     /* Called from schedule(): keep the detach button + resize grip present, and
@@ -13778,6 +13791,89 @@
         }
     }, on('ai_terminal_tabs'));
 
+    function dbeObserveWorkspace() {
+        var main = dbeQuery('mainPanel');
+        dbeObserveChrome('workspace-main', main, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+        dbeObserveChrome('workspace-top', on('compact_panes') ? dbeQuery('topPanel') : null, {
+            childList: true,
+            subtree: true
+        });
+        if (on('keyboard_shortcuts')) { dbeObserveFooter(dbeQuery('footerBar'), 'workspace-footer'); }
+        else { dbeUnobserveFooter('workspace-footer'); }
+    }
+    function dbeRefreshWorkspace() {
+        if (!dbeWorkspaceControllerActive) { return; }
+        dbeObserveWorkspace();
+        if (on('keyboard_shortcuts')) { ensureCanvasModeControl(); }
+        if (on('preview_resize')) { ensurePreviewHandles(); }
+        if (on('compact_panes')) { ensureCompactPanes(); }
+        dbeSyncPanelsHidden();
+        if (on('panel_resize')) { ensurePanelHandles(); }
+        if (on('panel_detach')) { ensureNavDetach(); }
+    }
+    function dbeRestoreWorkspaceState() {
+        var root = document.documentElement;
+        var body = document.body;
+        dbePreviewClearOverride();
+        dbeObserveChrome('workspace-main', null);
+        dbeObserveChrome('workspace-top', null);
+        dbeUnobserveFooter('workspace-footer');
+        dbeDestroyOwnedActivity(DBE_WORKSPACE_OWNER);
+        dbeDestroyOwnedGroups(DBE_WORKSPACE_OWNER);
+        document.querySelectorAll(
+            '.dbe-preview-handle, .dbe-panel-handle, .dbe-compact-pane-switcher, ' +
+            '.dbe-detach-btn, .dbe-nav-grip, .dbe-nav-resize'
+        ).forEach(function (node) { node.remove(); });
+        root.classList.remove(
+            'dbe-compact-panes', 'dbe-panels-hidden',
+            'dbe-left-panel-hidden', 'dbe-right-panel-hidden'
+        );
+        delete root.dataset.dbeCompactPane;
+        ['--dbe-panel-width', '--dbe-nav-x', '--dbe-nav-y', '--dbe-nav-w', '--dbe-nav-h'].forEach(function (name) {
+            root.style.removeProperty(name);
+        });
+        if (body) {
+            body.classList.remove('dbe-nav-detached', 'dbe-nav-dragging', 'dbe-panel-resizing');
+            body.style.removeProperty('--dbe-panel-width');
+        }
+        var canvas = dbeQuery('canvasPanel');
+        if (canvas) { canvas.classList.remove('dbe-preview-resizing'); }
+        dbeCompactMql = null;
+        dbeCompactPane = 'canvas';
+    }
+    function destroyWorkspace() {
+        dbeWorkspaceControllerActive = false;
+        dbeRestoreWorkspaceState();
+    }
+    dbeControllers.register(DBE_WORKSPACE_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbeWorkspaceControllerActive = true;
+            if (on('panel_resize')) { applyStoredPanelWidth(); }
+            if (on('panel_detach')) {
+                var navState = navFloatState();
+                if (navState && navState.detached) {
+                    applyNavFloatVars(clampNav(navState));
+                    document.body.classList.add('dbe-nav-detached');
+                }
+            }
+            dbeRefreshWorkspace();
+        },
+        refresh: function (reason) {
+            if (reason) { dbeRefreshWorkspace(); }
+        },
+        destroy: function () {
+            destroyWorkspace();
+        }
+    }, on('preview_resize') || on('panel_resize') || on('compact_panes') ||
+        on('panel_detach') || on('keyboard_shortcuts') || on('command_palette') ||
+        on('css_code_default') || on('panel_tabs') || on('reveal_selected'));
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -13808,7 +13904,6 @@
             if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
                 try { ensureKeyboardIframeBridge(); } catch (e) {}
             }
-            if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
@@ -13822,11 +13917,6 @@
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
-            if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
-            if (on('compact_panes')) { try { ensureCompactPanes(); } catch (e) {} }
-            try { dbeSyncPanelsHidden(); } catch (e) {}
-            if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
-            if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
             if (on('favourites_reorder')) {
                 try { ensureFavouritesReorder(); } catch (e) {}
                 try { applyFavouritesOrder(); } catch (e) {}
@@ -13845,23 +13935,14 @@
         var panel = dbeQuery('navigatorPanel');
         if (!panel) { return void setTimeout(boot, 500); }
         dbeControllers.init();
-        // Seed the shared panel width before the first paint of the handles.
-        if (on('panel_resize')) { try { applyStoredPanelWidth(); } catch (e) {} }
-        // Restore a detached Navigator before first paint (avoids a docked flash).
-        if (on('panel_detach')) {
-            try {
-                var navSt = navFloatState();
-                if (navSt && navSt.detached) { applyNavFloatVars(clampNav(navSt)); document.body.classList.add('dbe-nav-detached'); }
-            } catch (e) {}
-        }
         schedule('boot');
 
         // Route the stable builder-chrome roots through one MutationObserver.
         // The main panel contains the Navigator, so when both are needed it
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
-        var needMainObservation = NEED_LEFT_PANEL || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('compact_panes') || on('condition_helpers');
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needMainObservation = NEED_LEFT_PANEL || on('condition_helpers');
 
         // Also watch the settings panel area (left) so the CSS-code default
         // reacts to element selection, tab switches, and the CSS-mode toggle.
@@ -13885,7 +13966,7 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; the theme/density/palette buttons and save cue must reach it
         // when it re-renders. a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('compact_panes')) {
+        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
