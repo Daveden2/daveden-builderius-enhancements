@@ -22,6 +22,7 @@
     var store = dbeBuilderius.store;
     var modules = dbeBuilderius.modules;
     var activeId = dbeBuilderius.activeId;
+    var dbeControllers = dbeRuntime.createControllerRegistry(dbeRuntime);
 
     var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
@@ -13250,9 +13251,22 @@
        its label is re-read from what it currently holds on every tick.
        Attributes are only written when they differ, so the ticks stay free
        under the MutationObservers that drive schedule(). */
+    var dbeChromeLandmarkRecords = [];
+    function dbeRememberChromeAttributes(el, attributes) {
+        var record = dbeChromeLandmarkRecords.filter(function (item) { return item.node === el; })[0];
+        if (!record) {
+            record = { node: el, attributes: {} };
+            dbeChromeLandmarkRecords.push(record);
+        }
+        attributes.forEach(function (name) {
+            if (Object.prototype.hasOwnProperty.call(record.attributes, name)) { return; }
+            record.attributes[name] = el.hasAttribute(name) ? el.getAttribute(name) : null;
+        });
+    }
     function ensureChromeLandmarks() {
         function stamp(el, label, shortcutKey) {
             if (!el || !label) { return; }
+            dbeRememberChromeAttributes(el, ['role', 'aria-label', 'aria-keyshortcuts']);
             if (el.getAttribute('role') !== 'region') { el.setAttribute('role', 'region'); }
             if (el.getAttribute('aria-label') !== label) { el.setAttribute('aria-label', label); }
             var shortcut = on('keyboard_shortcuts') && shortcutKey ? dbeAreaAriaShortcut(shortcutKey) : '';
@@ -13275,12 +13289,39 @@
         stamp(dbeQuery('canvasPanel'), dbeT('regionCanvas', 'Canvas'), 'P');
         var iframe = dbeQuery('previewFrame');
         var iframeTitle = dbeT('canvasPreview', 'Canvas preview');
-        if (iframe && iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
+        if (iframe) {
+            dbeRememberChromeAttributes(iframe, ['title']);
+            if (iframe.getAttribute('title') !== iframeTitle) { iframe.setAttribute('title', iframeTitle); }
+        }
         stamp(dbeQuery('navigatorPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
         stamp(dbeQuery('footerPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
     }
+    function destroyChromeLandmarks() {
+        dbeChromeLandmarkRecords.forEach(function (record) {
+            Object.keys(record.attributes).forEach(function (name) {
+                var value = record.attributes[name];
+                if (value === null) { record.node.removeAttribute(name); }
+                else { record.node.setAttribute(name, value); }
+            });
+        });
+        dbeChromeLandmarkRecords = [];
+    }
+    dbeControllers.register('a11y/chrome', {
+        init: function (context) {
+            if (context && context.builderius) { ensureChromeLandmarks(); }
+        },
+        refresh: function (reason) {
+            if (reason) { ensureChromeLandmarks(); }
+        },
+        destroy: function () {
+            destroyChromeLandmarks();
+        }
+    }, on('chrome_landmarks'));
 
+    var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
+            var refreshReason = dbeScheduleReason;
+            dbeScheduleReason = 'scheduled';
             if (NEED_TREE) { try { decorateTree(); } catch (e) {} }
             if (NEED_NAV_BUTTONS) {
                 try { ensureCollapseButton(); } catch (e) {}
@@ -13332,7 +13373,6 @@
             if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
             if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
             if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
-            if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
             if (on('compact_panes')) { try { ensureCompactPanes(); } catch (e) {} }
@@ -13345,14 +13385,18 @@
             }
             if (on('properties_reorder')) { try { ensurePropertiesReorder(); } catch (e) {} }
             if (on('attr_helpers')) { try { ensureBlankAttrRow(); } catch (e) {} }
+            dbeControllers.refresh(refreshReason);
     });
-    function schedule() {
+    function schedule(reason) {
+        if (typeof reason === 'string') { dbeScheduleReason = reason; }
+        else if (reason && typeof reason.length === 'number') { dbeScheduleReason = 'mutation'; }
         dbeScheduleRefresh();
     }
 
     function boot() {
         var panel = dbeQuery('navigatorPanel');
         if (!panel) { return void setTimeout(boot, 500); }
+        dbeControllers.init();
         // Seed the shared panel width before the first paint of the handles.
         if (on('panel_resize')) { try { applyStoredPanelWidth(); } catch (e) {} }
         // Restore a detached Navigator before first paint (avoids a docked flash).
@@ -13362,7 +13406,7 @@
                 if (navSt && navSt.detached) { applyNavFloatVars(clampNav(navSt)); document.body.classList.add('dbe-nav-detached'); }
             } catch (e) {}
         }
-        schedule();
+        schedule('boot');
 
         // Route the stable builder-chrome roots through one MutationObserver.
         // The main panel contains the Navigator, so when both are needed it

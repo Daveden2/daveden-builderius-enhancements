@@ -99,6 +99,21 @@ assert.match(
     'Named builder regions must expose their direct-focus shortcuts programmatically.'
 );
 assert.match(
+    builder,
+    /dbeControllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyChromeLandmarks\(\)/,
+    'Builder landmarks must participate in the shared init, refresh and destroy lifecycle.'
+);
+assert.match(
+    builder,
+    /function destroyChromeLandmarks\(\)[\s\S]+record\.node\.removeAttribute\(name\)[\s\S]+record\.node\.setAttribute\(name, value\)/,
+    'Destroying the chrome controller must restore the native landmark and iframe attributes.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('chrome_landmarks'\)\) \{ try \{ ensureChromeLandmarks\(\)/,
+    'The shared feature refresh pass must not bypass the chrome controller lifecycle.'
+);
+assert.match(
     strings,
     /'openInserterCmd'\s+=> __\( 'Open Element library'/,
     'The palette must use the visible Element library destination name.'

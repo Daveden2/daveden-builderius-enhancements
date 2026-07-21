@@ -172,6 +172,94 @@
         });
     }
 
+    function createControllerRegistry(context) {
+        var controllers = [];
+        var running = false;
+        var pagehideBound = false;
+        var root = document.documentElement;
+
+        function reportError(item, phase, error) {
+            root.dataset.dbeControllerError = item.id + ':' + phase;
+            if (window.console && console.error) {
+                console.error('[DBE] Controller ' + item.id + ' failed during ' + phase + '.', error);
+            }
+        }
+        function invoke(item, phase, value) {
+            var callback = item.controller[phase];
+            if (typeof callback !== 'function') { return true; }
+            try {
+                if (phase === 'init') { callback(context); }
+                else if (phase === 'refresh') { callback(value); }
+                else { callback(); }
+                return true;
+            } catch (error) {
+                reportError(item, phase, error);
+                return false;
+            }
+        }
+        function updateDiagnostics() {
+            var active = controllers.filter(function (item) { return item.initialised; });
+            root.dataset.dbeControllerCount = String(active.length);
+            root.dataset.dbeControllers = active.map(function (item) { return item.id; }).join(',');
+        }
+        function initialise(item) {
+            if (!item.enabled || item.initialised) { return; }
+            item.initialised = invoke(item, 'init');
+        }
+        function register(id, controller, enabled) {
+            if (!id || !controller || controllers.some(function (item) { return item.id === id; })) {
+                return registry;
+            }
+            var item = {
+                id: id,
+                controller: controller,
+                enabled: !!enabled,
+                initialised: false
+            };
+            controllers.push(item);
+            if (running) {
+                initialise(item);
+                updateDiagnostics();
+            }
+            return registry;
+        }
+        function init() {
+            if (running) { return; }
+            running = true;
+            controllers.forEach(initialise);
+            updateDiagnostics();
+            if (!pagehideBound) {
+                pagehideBound = true;
+                window.addEventListener('pagehide', destroy, { once: true });
+            }
+        }
+        function refresh(reason) {
+            if (!running) { init(); }
+            controllers.forEach(function (item) {
+                if (item.initialised) { invoke(item, 'refresh', reason || 'scheduled'); }
+            });
+        }
+        function destroy() {
+            if (!running) { return; }
+            controllers.slice().reverse().forEach(function (item) {
+                if (!item.initialised) { return; }
+                invoke(item, 'destroy');
+                item.initialised = false;
+            });
+            running = false;
+            updateDiagnostics();
+        }
+
+        var registry = Object.freeze({
+            register: register,
+            init: init,
+            refresh: refresh,
+            destroy: destroy
+        });
+
+        return registry;
+    }
+
     function whenReady(callback) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', callback, { once: true });
@@ -195,6 +283,7 @@
                 builderius: createBuilderiusAdapter(safeConfig),
                 createScheduler: createScheduler,
                 createMutationRouter: createMutationRouter,
+                createControllerRegistry: createControllerRegistry,
                 whenReady: whenReady
             });
         }
