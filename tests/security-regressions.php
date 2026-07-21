@@ -42,6 +42,10 @@ if ( $admins ) {
 }
 
 dbe_test_assert( function_exists( 'dbe_ability_parse_fragment' ), 'The subtree ability parser is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_register_structure_abilities' ), 'The structure ability registrar is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_subtree_html' ), 'The subtree HTML read callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_tree_outline' ), 'The tree-outline callback is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_apply_subtree_html' ), 'The subtree HTML write callback is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The template ability registrar is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_component_abilities' ), 'The component ability registrar is not loaded.' );
