@@ -8550,6 +8550,8 @@
     var dbeSaveHookBound = false;
     var dbeSaveIgnoreDirtyUntil = 0;
     var dbeSaveLastStamp = 0;
+    var dbeSaveSelectionTimer = null;
+    var dbeSaveSelectionBound = false;
     function historyLen() {
         try { return (store().storeGet('history') || []).length; } catch (e) { return null; }
     }
@@ -8561,6 +8563,60 @@
     }
     function dbeShouldSave() {
         try { return store().storeGet('shouldSaveData') === true; } catch (e) { return false; }
+    }
+    function dbeHasUnsavedChanges(len, shouldSave) {
+        if (typeof len !== 'number') { len = historyLen(); }
+        if (typeof shouldSave !== 'boolean') { shouldSave = dbeShouldSave(); }
+        if (len === null) { return shouldSave; }
+        if (saveBaseline === null || (Date.now() < dbeSaveInitialisingUntil && !dbeSavePending)) { return false; }
+        if (dbeSaveSelectionTimer) { return false; }
+        var settingsDirty = saveSettingsBaseline === false && shouldSave;
+        return len > saveBaseline || (Date.now() > dbeSaveIgnoreDirtyUntil && settingsDirty);
+    }
+
+    function dbeCancelSelectionCleanBaseline() {
+        clearTimeout(dbeSaveSelectionTimer);
+        dbeSaveSelectionTimer = null;
+    }
+
+    function dbeCancelSelectionOnUserInput(e) {
+        if (!e || e.isTrusted) { dbeCancelSelectionCleanBaseline(); }
+    }
+
+    /* Selecting an element mounts its settings UI. Builderius 1.3.5-beta adds
+       a history snapshot during that mount and derives shouldSaveData solely
+       from history.length > 1, so navigation alone looks like unsaved work.
+       Arm before the native selection handler and rebaseline after the short
+       React settings-mount cycle, but ONLY when the cue was clean and
+       activeModule genuinely changed. Any real input/change cancels the hold;
+       any pre-existing edit makes dbeHasUnsavedChanges() true and is preserved. */
+    function dbeArmSelectionCleanBaseline() {
+        if (saveBaseline === null || dbeSavePending || dbeHasUnsavedChanges()) { return; }
+        var beforeActive = activeId();
+        dbeCancelSelectionCleanBaseline();
+        var started = Date.now();
+        var lastLen = historyLen();
+        var stableSamples = 0;
+        function settle() {
+            if (activeId() === beforeActive || dbeSavePending) {
+                dbeCancelSelectionCleanBaseline();
+                return;
+            }
+            var len = historyLen();
+            if (len === null) { dbeCancelSelectionCleanBaseline(); return; }
+            stableSamples = len === lastLen ? stableSamples + 1 : 0;
+            lastLen = len;
+            var elapsed = Date.now() - started;
+            if ((elapsed < 400 || stableSamples < 2) && elapsed < 1200) {
+                dbeSaveSelectionTimer = setTimeout(settle, 100);
+                return;
+            }
+            dbeSaveSelectionTimer = null;
+            saveBaseline = len;
+            saveSettingsBaseline = dbeShouldSave();
+            dbeRenderSaveCue();
+        }
+        dbeSaveSelectionTimer = setTimeout(settle, 100);
     }
     function dbeRenderSaveCue() {
         var cue = document.querySelector('.dbe-save-cue');
@@ -8584,8 +8640,7 @@
         // Once Builderius clears it, normal false -> true settings edits are
         // detectable for the rest of the session.
         if (saveSettingsBaseline === true && !shouldSave) { saveSettingsBaseline = false; }
-        var settingsDirty = saveSettingsBaseline === false && shouldSave;
-        var dirty = len > saveBaseline || (Date.now() > dbeSaveIgnoreDirtyUntil && settingsDirty);
+        var dirty = dbeHasUnsavedChanges(len, shouldSave);
         if (dbeSaveState === 'saved' && len > saveBaseline) { dbeSaveState = ''; }
         var state = dbeSaveState || (dirty ? 'dirty' : 'clean');
         var text = state === 'saving' ? dbeT('saving', 'Saving…')
@@ -8685,6 +8740,20 @@
                 if (e.target.closest('.saveBtn .actions')) { return; }
                 dbeBeginSave();
             }, true);
+        }
+        if (!dbeSaveSelectionBound) {
+            dbeSaveSelectionBound = true;
+            document.addEventListener('click', function (e) {
+                if (e.target.closest && e.target.closest('.uniModTree__itemContentWrapper')) {
+                    dbeArmSelectionCleanBaseline();
+                } else if (e.isTrusted) {
+                    dbeCancelSelectionCleanBaseline();
+                }
+            }, true);
+            document.addEventListener('pointerdown', dbeCancelSelectionOnUserInput, true);
+            document.addEventListener('keydown', dbeCancelSelectionOnUserInput, true);
+            document.addEventListener('input', dbeCancelSelectionOnUserInput, true);
+            document.addEventListener('change', dbeCancelSelectionOnUserInput, true);
         }
         if (on('save_shortcut') && save.getAttribute('aria-keyshortcuts') !== (dbeIsMac ? 'Meta+S' : 'Control+S')) {
             save.setAttribute('aria-keyshortcuts', dbeIsMac ? 'Meta+S' : 'Control+S');
@@ -10034,6 +10103,16 @@
         if ((on('navigator_keyboard') || on('keyboard_shortcuts')) && !doc.dbeCanvasNavigationKeyBound) {
             doc.addEventListener('keydown', dbeCanvasNavigationKeydown);
             doc.dbeCanvasNavigationKeyBound = true;
+        }
+        if (on('save_state_cue') && !doc.dbeSaveSelectionBound) {
+            // Capture before Builderius changes activeModule; the deferred
+            // rebaseline verifies that selection really changed.
+            doc.addEventListener('click', dbeArmSelectionCleanBaseline, true);
+            doc.addEventListener('pointerdown', dbeCancelSelectionOnUserInput, true);
+            doc.addEventListener('keydown', dbeCancelSelectionOnUserInput, true);
+            doc.addEventListener('input', dbeCancelSelectionOnUserInput, true);
+            doc.addEventListener('change', dbeCancelSelectionOnUserInput, true);
+            doc.dbeSaveSelectionBound = true;
         }
         if (on('reveal_selected') && !doc.dbeRevealSelectionBound) {
             // Builderius changes activeModule after its own canvas click
@@ -13528,7 +13607,7 @@
                     } catch (e) { return ''; }
                 }
                 function prDirty() {
-                    return dbeShouldSave();
+                    return dbeHasUnsavedChanges();
                 }
                 function sendBeat(force, clear) {
                     var slug = prSlug();

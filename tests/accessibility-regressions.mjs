@@ -75,6 +75,21 @@ assert.match(
     /dbeSaveInitialisingUntil[\s\S]+state = dbeSaveState \|\| \(dirty \? 'dirty' : 'clean'\)/,
     'The save cue must baseline Builderius hydration and retain an explicit clean state.'
 );
+assert.match(
+    builder,
+    /function dbeArmSelectionCleanBaseline\(\)[\s\S]+dbeHasUnsavedChanges\(\)[\s\S]+beforeActive = activeId\(\)[\s\S]+activeId\(\) === beforeActive[\s\S]+saveBaseline = len/,
+    'Selection-only navigation must rebaseline only from a previously clean state after activeModule changes.'
+);
+assert.match(
+    builder,
+    /pointerdown', dbeCancelSelectionOnUserInput[\s\S]+keydown', dbeCancelSelectionOnUserInput[\s\S]+input', dbeCancelSelectionOnUserInput[\s\S]+change', dbeCancelSelectionOnUserInput/,
+    'Real pointer, keyboard and form actions must cancel a pending selection-only baseline hold.'
+);
+assert.match(
+    builder,
+    /function prDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
+    'Server presence must use the same corrected dirty-state contract as the visible save cue.'
+);
 assert.match(saveCue, /\.dbe-save-cue\.is-clean/, 'The clean save state must be visible.');
 assert.match(strings, /'saveClean'\s+=> __\( 'All changes saved'/, 'Clean save copy must remain truthful.');
 assert.match(strings, /'saveCleanShort'\s+=> __\( 'Saved'/, 'The responsive clean-state copy must remain concise.');
