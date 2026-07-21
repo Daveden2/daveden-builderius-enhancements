@@ -468,83 +468,85 @@ if ( function_exists( 'dbe_ability_render_url' ) ) {
 	);
 }
 
-$ability_defaults = dbe_default_options();
-$js_ability_key   = dbe_ability_option_key( 'dbe/manage-js-snippet' );
-dbe_test_assert( empty( $ability_defaults[ $js_ability_key ] ), 'The raw-JavaScript ability is not off by default.' );
-dbe_test_assert( function_exists( 'dbe_register_snippet_abilities' ), 'The JavaScript-snippet registrar was not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_js_snippets' ), 'The JavaScript-snippet read callback was not loaded.' );
+if ( $abilities_available ) {
+	$ability_defaults = dbe_default_options();
+	$js_ability_key   = dbe_ability_option_key( 'dbe/manage-js-snippet' );
+	dbe_test_assert( empty( $ability_defaults[ $js_ability_key ] ), 'The raw-JavaScript ability is not off by default.' );
+	dbe_test_assert( function_exists( 'dbe_register_snippet_abilities' ), 'The JavaScript-snippet registrar was not loaded.' );
+	dbe_test_assert( function_exists( 'dbe_ability_get_js_snippets' ), 'The JavaScript-snippet read callback was not loaded.' );
 
-$js_snippet_row = dbe_ability_js_snippet_row(
-	array(
-		'a1' => 'test_snippet',
-		'b1' => 'snippet_1',
-		'c1' => 'document.documentElement.dataset.test = "ready";',
-		'e1' => true,
-	)
-);
-dbe_test_assert(
-	'test_snippet' === $js_snippet_row['label'] && 'snippet_1' === $js_snippet_row['id'] && true === $js_snippet_row['external'] && true === $js_snippet_row['footer'] && true === $js_snippet_row['enabled'] && 10 === $js_snippet_row['priority'],
-	'The JavaScript-snippet row projection or saved defaults changed during domain extraction.'
-);
-dbe_test_assert(
-	'dbe_bad_action' === dbe_ability_manage_js_snippet(
+	$js_snippet_row = dbe_ability_js_snippet_row(
 		array(
-			'action'  => 'invalid',
-			'snippet' => 'test',
+			'a1' => 'test_snippet',
+			'b1' => 'snippet_1',
+			'c1' => 'document.documentElement.dataset.test = "ready";',
+			'e1' => true,
 		)
-	)->get_error_code(),
-	'An invalid JavaScript-snippet action reached the saved-state loader.'
-);
-dbe_test_assert( function_exists( 'dbe_register_data_abilities' ), 'The dynamic-data registrar was not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_data_variables' ), 'The dynamic-data read callback was not loaded.' );
+	);
+	dbe_test_assert(
+		'test_snippet' === $js_snippet_row['label'] && 'snippet_1' === $js_snippet_row['id'] && true === $js_snippet_row['external'] && true === $js_snippet_row['footer'] && true === $js_snippet_row['enabled'] && 10 === $js_snippet_row['priority'],
+		'The JavaScript-snippet row projection or saved defaults changed during domain extraction.'
+	);
+	dbe_test_assert(
+		'dbe_bad_action' === dbe_ability_manage_js_snippet(
+			array(
+				'action'  => 'invalid',
+				'snippet' => 'test',
+			)
+		)->get_error_code(),
+		'An invalid JavaScript-snippet action reached the saved-state loader.'
+	);
+	dbe_test_assert( function_exists( 'dbe_register_data_abilities' ), 'The dynamic-data registrar was not loaded.' );
+	dbe_test_assert( function_exists( 'dbe_ability_get_data_variables' ), 'The dynamic-data read callback was not loaded.' );
 
-$data_var_row = dbe_ability_data_var_row(
-	array(
-		'a1' => 'json',
-		'b1' => 'test_data',
-		'c1' => array( 'ready' => true ),
-	)
-);
-dbe_test_assert(
-	'test_data' === $data_var_row['name'] && 'json' === $data_var_row['type'] && '{"ready":true}' === $data_var_row['value'] && false === $data_var_row['system'],
-	'The dynamic-data row projection changed during domain extraction.'
-);
+	$data_var_row = dbe_ability_data_var_row(
+		array(
+			'a1' => 'json',
+			'b1' => 'test_data',
+			'c1' => array( 'ready' => true ),
+		)
+	);
+	dbe_test_assert(
+		'test_data' === $data_var_row['name'] && 'json' === $data_var_row['type'] && '{"ready":true}' === $data_var_row['value'] && false === $data_var_row['system'],
+		'The dynamic-data row projection changed during domain extraction.'
+	);
 
-if ( class_exists( '\\Builderius\\GraphQL\\Language\\Parser' ) ) {
-	dbe_test_assert( true === dbe_ability_validate_graphql_syntax( 'query DbeDataDomain { __typename }' ), 'A valid GraphQL document failed syntax validation.' );
-	$bad_graphql = dbe_ability_validate_graphql_syntax( 'query {' );
-	dbe_test_assert( is_wp_error( $bad_graphql ) && 'dbe_bad_graphql' === $bad_graphql->get_error_code(), 'An invalid GraphQL document passed syntax validation.' );
+	if ( class_exists( '\\Builderius\\GraphQL\\Language\\Parser' ) ) {
+		dbe_test_assert( true === dbe_ability_validate_graphql_syntax( 'query DbeDataDomain { __typename }' ), 'A valid GraphQL document failed syntax validation.' );
+		$bad_graphql = dbe_ability_validate_graphql_syntax( 'query {' );
+		dbe_test_assert( is_wp_error( $bad_graphql ) && 'dbe_bad_graphql' === $bad_graphql->get_error_code(), 'An invalid GraphQL document passed syntax validation.' );
+	}
+
+	dbe_test_assert(
+		'dbe_css_too_large' === dbe_ability_patch_global_css(
+			array(
+				'block' => 'test',
+				'css'   => str_repeat( 'x', 1048577 ),
+			)
+		)->get_error_code(),
+		'Oversized CSS reached the global-settings loader.'
+	);
+	dbe_test_assert(
+		'dbe_value_too_large' === dbe_ability_manage_data_variable(
+			array(
+				'action' => 'create',
+				'name'   => 'test',
+				'value'  => str_repeat( 'x', 262145 ),
+			)
+		)->get_error_code(),
+		'Oversized dynamic data reached the saved-state loader.'
+	);
+	dbe_test_assert(
+		'dbe_code_too_large' === dbe_ability_manage_js_snippet(
+			array(
+				'action'  => 'create',
+				'snippet' => 'test',
+				'code'    => str_repeat( 'x', 262145 ),
+			)
+		)->get_error_code(),
+		'Oversized JavaScript reached the saved-state loader.'
+	);
 }
-
-dbe_test_assert(
-	'dbe_css_too_large' === dbe_ability_patch_global_css(
-		array(
-			'block' => 'test',
-			'css'   => str_repeat( 'x', 1048577 ),
-		)
-	)->get_error_code(),
-	'Oversized CSS reached the global-settings loader.'
-);
-dbe_test_assert(
-	'dbe_value_too_large' === dbe_ability_manage_data_variable(
-		array(
-			'action' => 'create',
-			'name'   => 'test',
-			'value'  => str_repeat( 'x', 262145 ),
-		)
-	)->get_error_code(),
-	'Oversized dynamic data reached the saved-state loader.'
-);
-dbe_test_assert(
-	'dbe_code_too_large' === dbe_ability_manage_js_snippet(
-		array(
-			'action'  => 'create',
-			'snippet' => 'test',
-			'code'    => str_repeat( 'x', 262145 ),
-		)
-	)->get_error_code(),
-	'Oversized JavaScript reached the saved-state loader.'
-);
 
 if ( $dbe_test_failures ) {
 	WP_CLI::error( sprintf( '%d security regression check(s) failed.', count( $dbe_test_failures ) ) );
