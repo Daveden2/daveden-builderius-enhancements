@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.1.0-dev-3
+Stable tag: 2.0.0-dev-16
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -60,14 +60,10 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
-= 2.1.0 =
-A direct route from an element to the CSS that affects it, with a compact DevTools-style overview inside Builderius.
-* New: Style inspector (Pro, experimental, off by default). Open it from an element's Styles context-menu flyout or the command palette to see matching authored rules, searchable computed CSS properties, and connected pseudo-state or pseudo-element selectors such as :hover and ::before.
-* New: matched rules identify Local, Global and Template or Component sources, follow native nested CSS, group inherited declarations by ancestor, show active media-query context, and provide Edit rule buttons that open Builderius's own editor at the correct selector and scope. Custom and compound selectors open in the native Selector CSS editor.
-* Improved: Collections with several rendered instances can be inspected one instance at a time. The persistent non-modal panel is keyboard-operable, preserves its scroll position during builder updates and leaves framework or page rules read-only when they do not belong to an editable Builderius scope.
-
 = 2.0.0 =
-Two major additions, both opt-in: HTML editing tools inside the builder, and an agent-abilities layer that lets connected AI tools build and verify Builderius content without a builder tab open.
+The foundation release: a faster, lifecycle-managed builder runtime, a broad accessibility and responsive-workspace pass, and opt-in HTML authoring tools.
+* Improved: the builder runtime is divided into cacheable accessibility, workspace, command, editing, style and integration chunks behind a versioned Builderius adapter. Targeted events replace broad polling and observer work, while CI guards compressed size, controller mounts and long tasks.
+* Improved: clean/save state, focus return, composite controls, compact one-pane reflow, forced colours, target sizes, responsive top-bar behaviour and direct region navigation have been audited and strengthened across the builder.
 * New: Edit as HTML (Pro, experimental, off by default). Open it from an element's context menu or the command palette to edit its subtree as readable HTML, change tags, classes, attributes and text, and apply it back. Marked elements keep their identity, labels and settings, and a preview shows exactly what will change before you apply. The dialog warns beforehand that the complete operation cannot be undone.
 * New: Import HTML (Pro, experimental, off by default). Open it from an element's context menu or the command palette, paste markup, preview the elements it will create, and insert it. Structurally identical repeated blocks are offered for collapse into a Collection and Template, and a pasted SVG becomes an editable element. The dialog explains before insertion that a complete import cannot be undone as one action.
 * New: Change tag (Pro, experimental, off by default). Change an element's HTML tag from a Navigator flyout or the command palette, Collections included, keeping its label and any data binding.
@@ -81,8 +77,7 @@ Two major additions, both opt-in: HTML editing tools inside the builder, and an 
 * Improved: recoverable element changes now show an Undo button in their confirmation message, followed by Redo after undoing. Keyboard shortcuts remain available, and no action is offered for changes DBE cannot safely reverse.
 * Fixed: class, attribute and tag updates are now reversible settings changes instead of being mistaken for newly added elements. Cmd/Ctrl+Z and the confirmation message's Undo action restore the previous properties without removing the element or crossing into older work.
 * Improved: Save status now reports Unsaved, Saving and confirmed Saved states, includes settings-only edits, and keeps failed saves marked unsaved with a prompt to try again. The command palette now shows a no-results state and inline guidance for empty or invalid input.
-* New: Agent abilities (a new settings tab, master switch off by default). Turned on, it exposes a set of WordPress abilities that let a connected AI tool read and edit templates, components, CSS, data variables and JavaScript from the saved state, verify dynamic-data queries against a real render, and report save-versus-publish status. Each ability toggles individually and is grouped by Read, Write or Execute, and the destructive ones stay off until you enable them.
-* Security: markup entered through any editing path is sanitised on the way in, and every ability re-sanitises on the server, so the raw HTML stored for the builder to render cannot carry scripts or dangerous URLs.
+* Security: markup entered through any HTML-authoring path is sanitised before it becomes Builderius content, stripping scripts, event handlers, dangerous URLs and unsupported elements.
 
 = 1.14.0 =
 Accessible settings groups and image defaults, an assignable command-palette shortcut, and a round of accessibility and light-theme fixes across the footer tools and top bar.

@@ -3,59 +3,32 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
-## 2.1.0
-An element-level CSS inspection and editing workflow inside Builderius. The
-feature is opt-in, experimental and requires Builderius Pro.
-
-### Style inspector
-
-* Added: a **Styles** flyout to an element's context menu and a matching
-  command-palette group. Both provide direct routes to the element's
-  `%local%` rules and every applied class in the Global and current Template
-  or Component scopes.
-* Added: **Inspect styles**, a persistent non-modal DevTools-style panel that
-  follows the selected element. Its Matched rules view reads the rendered
-  canvas's linked, inline and adopted stylesheets, shows each matching rule's
-  declarations and active media-query context, and identifies rules authored
-  in the Local, Global or current entity scope. Rules outside an editable
-  Builderius scope remain clearly labelled as Page or framework and read-only.
-* Added: Matched rules now follows native CSS nesting, resolving nested
-  selectors against their parent while keeping the outer Builderius selector
-  as the edit destination. An **Inherited styles** section groups rules by the
-  matching ancestor and shows inheritable declarations whose computed value
-  reaches the selected child; the Computed view remains the final-cascade
-  authority. Custom properties stay out of the default inherited list to keep
-  framework token sets manageable, but appear when a matching filter is used.
-* Added: **Edit rule** routes editable matches back into Builderius rather than
-  creating a second CSS editor. Simple applied classes open in the element's
-  native Styles editor at the correct scope; custom, grouped and compound
-  selectors open as the exact selector in the Navigator's native Selector CSS
-  editor. Selector comparison tolerates CSSOM formatting differences and
-  rules nested inside at-rules.
-* Added: a **Computed** view with a concise layout-and-typography property set,
-  an optional complete property list and filtering across names and values.
-  Collection modules with several rendered instances gain previous/next
-  controls so each instance can be checked independently.
-* Added: a **Pseudos** view connects authored state selectors such as `:hover`,
-  `:focus-visible` and `:checked`, plus generated pseudo-elements such as
-  `::before`, `::after` and `::marker`, to the selected element. It distinguishes
-  currently active and inactive states, displays live computed values for
-  generated boxes, and routes editable rules to their native Builderius selector.
-* Accessibility: the inspector is fully keyboard-operable, uses an APG-style
-  tab pattern, provides named controls and visible focus, closes with Escape,
-  and restores focus to the selected Navigator row. It respects DBE's theme,
-  density and reduced-motion design tokens.
-* Fixed: unrelated Builderius refresh ticks no longer rebuild unchanged rule
-  and computed-property lists. Manual scrolling and focused controls remain
-  stable, while genuine style changes still refresh without losing the current
-  scroll offset.
-
 ## 2.0.0
-The major release. Two headline additions, both opt-in: a set of HTML
-editing tools inside the builder, and an agent-abilities layer that exposes
-Builderius content authoring and verification to connected AI tools through
-the WordPress Abilities API, all working on the saved state without a builder
-tab open.
+The foundation release: a segmented, lifecycle-managed builder runtime with
+measured performance budgets and a set of opt-in HTML authoring tools.
+
+### Runtime foundation
+
+* Changed: the builder runtime is split into coherent accessibility, workspace,
+  command, editing, style and integration chunks behind a small shared core.
+  Controllers now own explicit initialise, targeted-refresh and destroy
+  lifecycles, so disabling DBE can release its listeners, observers, timers and
+  generated interface state predictably.
+* Changed: version-sensitive Builderius DOM and store access now runs through a
+  central adapter. An unsupported Builderius version fails soft in one place
+  instead of letting selector assumptions drift independently across features.
+* Performance: broad overlapping observers and continuous selection work have
+  been replaced by a shared mutation router, targeted scheduling and native
+  builder/store events. Local and server presence use separate cadences and
+  clean tabs no longer send server keep-alives.
+* Performance: enabled builder CSS is delivered as a content-addressed,
+  cacheable external bundle with a safe inline fallback. JavaScript chunks are
+  independently cacheable, and CI now enforces compressed-size, controller
+  mount, observer-burst and long-task budgets.
+* Accessibility: completed a builder-wide pass over clean/save state, compact
+  reflow, region navigation, composite controls, forced colours, focus return,
+  target size and responsive top-bar behaviour. Individual Navigator row names
+  remain under Builderius ownership rather than relying on a fragile rewrite.
 
 ### HTML editing tools (Pro, experimental, off by default)
 
@@ -157,47 +130,6 @@ tab open.
   `data:` URLs, and unknown tags, and reports what it removed. Inline SVG is
   sanitised in place. The tools are gated on the `unfiltered_html`
   capability, so their builder output reaches only users who already hold it.
-
-### Agent abilities (a new "Agent abilities" settings tab; master switch off by default)
-
-* Added: a headless **WordPress Abilities API surface** for Builderius. With
-  the master switch on, a connected AI tool (for example through the Novamira
-  MCP adapter) can drive Builderius from the saved state, no builder tab
-  required. Each ability toggles individually beneath the master switch and
-  is grouped by access class, Read, Write or Execute; destructive abilities
-  default off. Every writing ability works through Builderius' own commit
-  mutation, so the same events, cache flushes and history apply as a builder
-  save, guarded by an `expected_commit` check and a dirty-builder-tab
-  preflight.
-* Added: **structure** abilities to read a template's tree outline, serialise
-  a subtree to HTML and apply edited HTML back (the same engine as Edit as
-  HTML, re-sanitised on the server).
-* Added: **CSS** abilities that read and patch the global stylesheet and a
-  template's entity CSS by named block, so a patch can never clobber the
-  framework, plus commit history and restore-from-commit. A named-block guard
-  keeps ability-committed CSS blocks intact across builder saves.
-* Added: **template and component** lifecycle abilities: create, update,
-  duplicate and delete, with page-template support.
-* Added: **dynamic-data** abilities to read and manage data variables, and a
-  verification suite that closes the gap between "the query saved" and "the
-  page renders": read the live GraphQL schema, resolve a variable against a
-  real page render, inspect a binding's resolved shape before a Collection
-  binds it, check a rendered page (or a matrix of query-parameter and cookie
-  scenarios) for the silent failures that leave empty loops or unresolved
-  bindings, resolve a Meta Box field to its exact read recipe and helper
-  name, and read the CSS rules matching a module.
-* Added: **JavaScript** abilities to read, manage and structurally validate
-  custom snippets; **visibility-condition** management; **global settings-set**
-  discovery and editing (breakpoints, responsive strategy, fonts); and
-  **status, publish and extract-release** abilities for the save, publish and
-  work-on-a-release lifecycle.
-* Added: agent **skills** served to Novamira's skill registry, covering
-  headless builds, dynamic data, CSS safety, components, the subtree HTML
-  workflow and save/publish.
-* Security: read-only abilities need the builder-development capability;
-  writing abilities additionally require `unfiltered_html`. Markup, GraphQL
-  and CSS are validated and sanitised server-side, and the whole surface is
-  inert until the master switch is turned on.
 
 ## 1.14.0
 Accessible settings groups and image defaults, an assignable command-palette
