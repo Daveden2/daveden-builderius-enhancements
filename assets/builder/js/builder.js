@@ -7031,9 +7031,57 @@
                       'uniAiChat__terminalTab--active'). Defaults to 'active'.
        Re-runs each schedule() tick (roles + state stay in sync through React
        re-renders); the keydown handler binds once per container. */
+    var dbeOwnedAttributeRecords = [];
+    var dbeGroupBindings = [];
+    function dbePruneGroupState() {
+        dbeGroupBindings = dbeGroupBindings.filter(function (binding) {
+            if (binding.node.isConnected) { return true; }
+            binding.node.removeEventListener('keydown', binding.handler);
+            if (binding.frame) { cancelAnimationFrame(binding.frame); }
+            return false;
+        });
+        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter(function (record) {
+            return record.node.isConnected;
+        });
+    }
+    function dbeRememberOwnedAttributes(owner, node, attributes) {
+        if (!owner || !node) { return; }
+        var record = dbeOwnedAttributeRecords.filter(function (item) {
+            return item.owner === owner && item.node === node;
+        })[0];
+        if (!record) {
+            record = { owner: owner, node: node, attributes: {} };
+            dbeOwnedAttributeRecords.push(record);
+        }
+        attributes.forEach(function (name) {
+            if (Object.prototype.hasOwnProperty.call(record.attributes, name)) { return; }
+            record.attributes[name] = node.hasAttribute(name) ? node.getAttribute(name) : null;
+        });
+    }
+    function dbeRestoreOwnedAttributes(owner) {
+        dbeOwnedAttributeRecords.filter(function (record) { return record.owner === owner; }).forEach(function (record) {
+            Object.keys(record.attributes).forEach(function (name) {
+                var value = record.attributes[name];
+                if (value === null) { record.node.removeAttribute(name); }
+                else { record.node.setAttribute(name, value); }
+            });
+        });
+        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter(function (record) { return record.owner !== owner; });
+    }
+    function dbeDestroyOwnedGroups(owner) {
+        dbeGroupBindings.filter(function (binding) { return binding.owner === owner; }).forEach(function (binding) {
+            binding.node.removeEventListener('keydown', binding.handler);
+            if (binding.frame) { cancelAnimationFrame(binding.frame); }
+        });
+        dbeGroupBindings = dbeGroupBindings.filter(function (binding) { return binding.owner !== owner; });
+        dbeRestoreOwnedAttributes(owner);
+    }
+
     function dbeEnsureGroup(container, label, sel, opts) {
         if (!container) { return; }
+        dbePruneGroupState();
         opts = opts || {};
+        var owner = opts.owner || '';
         var role = opts.role || 'toolbar';
         // APG: a horizontal tablist or toolbar navigates with Left/Right only —
         // Up/Down belong to a vertical orientation and must pass through. A radio
@@ -7042,21 +7090,29 @@
         var orientation = opts.orientation || (role === 'radiogroup' ? 'both' : 'horizontal');
         var useHoriz = orientation !== 'vertical';
         var useVert = orientation === 'vertical' || orientation === 'both';
+        dbeRememberOwnedAttributes(owner, container, ['role', 'aria-label', 'aria-orientation']);
         if (container.getAttribute('role') !== role) { container.setAttribute('role', role); }
         if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
         // A vertical group announces its orientation; horizontal is the default.
         if (orientation === 'vertical' && container.getAttribute('aria-orientation') !== 'vertical') {
             container.setAttribute('aria-orientation', 'vertical');
         }
+        var currentItems = dbeRovingItems(container, sel);
+        currentItems.forEach(function (el) {
+            var attributes = ['tabindex'];
+            if (opts.itemRole) { attributes.push('role'); }
+            if (opts.selectAttr) { attributes.push(opts.selectAttr); }
+            dbeRememberOwnedAttributes(owner, el, attributes);
+        });
         if (opts.itemRole) {
-            dbeRovingItems(container, sel).forEach(function (el) {
+            currentItems.forEach(function (el) {
                 if (el.getAttribute('role') !== opts.itemRole) { el.setAttribute('role', opts.itemRole); }
             });
         }
         dbeSyncRoving(container, sel, opts);
-        if (container.dbeGroupBound) { return; }
-        container.dbeGroupBound = true;
-        container.addEventListener('keydown', function (e) {
+        if (dbeGroupBindings.some(function (binding) { return binding.node === container; })) { return; }
+        var binding = { node: container, owner: owner, handler: null, frame: 0 };
+        binding.handler = function (e) {
             var moveNext = (useHoriz && e.key === 'ArrowRight') || (useVert && e.key === 'ArrowDown');
             var movePrev = (useHoriz && e.key === 'ArrowLeft') || (useVert && e.key === 'ArrowUp');
             if (!moveNext && !movePrev && e.key !== 'Home' && e.key !== 'End') { return; }
@@ -7088,7 +7144,8 @@
                 // The switch re-renders the breakpoint row and drops focus; restore
                 // it next frame to the (possibly rebuilt) selected radio so keyboard
                 // users are not stranded. Re-query in case the nodes were replaced.
-                requestAnimationFrame(function () {
+                binding.frame = requestAnimationFrame(function () {
+                    binding.frame = 0;
                     var scope = container.isConnected ? container : document;
                     var again = dbeRovingItems(scope, sel);
                     var target = dbeGroupActive(again, opts.activeClass) || again[Math.min(next, again.length - 1)];
@@ -7098,7 +7155,9 @@
                     }
                 });
             }
-        });
+        };
+        dbeGroupBindings.push(binding);
+        container.addEventListener('keydown', binding.handler);
     }
 
     /* Inserter keyboard navigation (inserter_keyboard). The element Inserter
@@ -7413,6 +7472,7 @@
         var bps = dbeBreakpoints();
         document.querySelectorAll('.uniPanelButtonBreakpoint').forEach(function (b, i) {
             if (b.getAttribute('aria-label')) { return; }
+            dbeRememberOwnedAttributes('a11y/composites', b, ['aria-label']);
             var bp = bps && bps[i];
             b.setAttribute('aria-label', bp
                 ? (bp.width
@@ -7428,12 +7488,13 @@
             document.querySelector('.uniGlobalBreakpoints__list'),
             dbeT('toolbarBreakpoints', 'Breakpoints'),
             '.uniPanelButtonBreakpoint',
-            { role: 'radiogroup', itemRole: 'radio', selectAttr: 'aria-checked', selectOnMove: true }
+            { role: 'radiogroup', itemRole: 'radio', selectAttr: 'aria-checked', selectOnMove: true, owner: 'a11y/composites' }
         );
         // Canvas width + zoom — a labelled group, not a roving toolbar (the fields
         // own their arrow keys). The fields themselves are labelled in DBE_TIPS.
         var canvas = document.querySelector('.uniGlobalBreakpoints__canvasControl');
         if (canvas) {
+            dbeRememberOwnedAttributes('a11y/composites', canvas, ['role', 'aria-label']);
             if (canvas.getAttribute('role') !== 'group') { canvas.setAttribute('role', 'group'); }
             var cl = dbeT('groupCanvasSize', 'Canvas size');
             if (canvas.getAttribute('aria-label') !== cl) { canvas.setAttribute('aria-label', cl); }
@@ -7470,24 +7531,24 @@
         dbeChromeObserver.observe(key, node, options);
     }
 
-    /* Shared by footer_toolbar and ai_terminal_tabs. Tracked by NODE, not a
-       done-once flag: a flag would outlive a React-replaced bar. The panel is
-       retried independently of the bar because it can mount later. */
-    var dbeFooterBarNode = null, dbeFooterPanelNode = null, dbeFooterScopeContentNode = null;
+    /* Shared by footer_toolbar and ai_terminal_tabs. Each owner uses distinct
+       router keys, so overlapping roots merge while either lifecycle remains
+       active. Keep the bar reference only for the terminal's bounded boot retry. */
+    var dbeFooterBarNode = null;
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
-    function dbeObserveFooter(bar) {
+    function dbeObserveFooter(bar, owner) {
         if (!window.MutationObserver) { return; }
-        if (bar && bar !== dbeFooterBarNode) {
+        var prefix = owner || 'footer-shared';
+        if (bar) {
             // Bar: button active/locked class + add/remove (small subtree).
-            dbeObserveChrome('footer-bar', bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            dbeObserveChrome(prefix + '-bar', bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
             dbeFooterBarNode = bar;
         }
         // Panel: open/collapse (content mounts/unmounts, height/style change).
         // Shallow — no subtree — so the Monaco editors inside do not spam it.
         var fp = dbeQuery('footerPanel');
-        if (fp && fp !== dbeFooterPanelNode) {
-            dbeObserveChrome('footer-panel', fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
-            dbeFooterPanelNode = fp;
+        if (fp) {
+            dbeObserveChrome(prefix + '-panel', fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
         }
         // Scope content: the snippet/variable configure panel mounts and
         // unmounts as a DIRECT child (list menu -> Configure), which the
@@ -7495,21 +7556,26 @@
         // Monaco editors deeper inside still do not spam it. Node-tracked:
         // the content remounts when the tool or scope switches.
         var sc = document.querySelector('.uniFooterTabScopeContent');
-        if (sc && sc !== dbeFooterScopeContentNode) {
-            dbeObserveChrome('footer-scope-content', sc, { childList: true });
-            dbeFooterScopeContentNode = sc;
+        if (sc) {
+            dbeObserveChrome(prefix + '-scope-content', sc, { childList: true });
         }
+    }
+    function dbeUnobserveFooter(owner) {
+        dbeObserveChrome(owner + '-bar', null);
+        dbeObserveChrome(owner + '-panel', null);
+        dbeObserveChrome(owner + '-scope-content', null);
     }
     function ensureFooterToolbar() {
         var bar = dbeQuery('footerBar');
         if (!bar) { return; }
-        dbeObserveFooter(bar);
+        dbeObserveFooter(bar, 'a11y-composites-footer');
         var tools = [].slice.call(bar.querySelectorAll('button.uniPanelIconButton--footer'));
         if (!tools.length) { return; }
 
         var panel = document.querySelector('.uniFooterPanelContent');
         var panelId = 'dbe-footer-panel';
         if (panel) {
+            dbeRememberOwnedAttributes('a11y/composites', panel, ['id', 'role', 'aria-label']);
             if (!panel.id) { panel.id = panelId; }
             if (panel.getAttribute('role') !== 'group') { panel.setAttribute('role', 'group'); }
         }
@@ -7518,6 +7584,9 @@
         var activeTool = tools.filter(function (b) { return b.classList.contains('uniPanelIconButton--active'); })[0];
 
         tools.forEach(function (b) {
+            dbeRememberOwnedAttributes('a11y/composites', b, [
+                'aria-disabled', 'tabindex', 'aria-expanded', 'aria-controls', 'aria-label', 'data-dbe-tip'
+            ]);
             var base = (b.textContent || '').trim(); // aria-label never changes textContent
             if (b.classList.contains('locked')) {
                 b.setAttribute('aria-disabled', 'true');
@@ -7553,7 +7622,9 @@
         // Toolbar semantics + roving arrow navigation over available tools. The
         // unavailable items remain visibly labelled “coming soon”, but do not
         // consume the toolbar's single Tab stop or arrow-key sequence.
-        dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
+        dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer', {
+            owner: 'a11y/composites'
+        });
 
         dbeEnsureFooterScopeTabs();
         dbeEnsurePanelFieldLabels();
@@ -7575,12 +7646,14 @@
         if (!scope) { return; }
         var content = document.querySelector('.uniFooterTabScopeContent');
         if (content) {
+            dbeRememberOwnedAttributes('a11y/composites', content, ['id', 'role', 'tabindex', 'aria-labelledby']);
             if (!content.id) { content.id = DBE_FOOTER_SCOPE_PANEL_ID; }
             if (content.getAttribute('role') !== 'tabpanel') { content.setAttribute('role', 'tabpanel'); }
             if (content.getAttribute('tabindex') !== '0') { content.setAttribute('tabindex', '0'); }
         }
         var active = null;
         [].slice.call(scope.querySelectorAll('button')).forEach(function (t, i) {
+            dbeRememberOwnedAttributes('a11y/composites', t, ['id', 'aria-controls']);
             if (!t.id) { t.id = 'dbe-footer-scope-tab-' + i; }
             if (content && t.getAttribute('aria-controls') !== content.id) { t.setAttribute('aria-controls', content.id); }
             if (t.classList.contains('active')) { active = t; }
@@ -7590,12 +7663,12 @@
         }
         dbeEnsureGroup(scope, dbeT('footerScopeTabs', 'Scope'), 'button', {
             role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
-            orientation: 'vertical', activeClass: 'active'
+            orientation: 'vertical', activeClass: 'active', owner: 'a11y/composites'
         });
         // Switching scope toggles the `active` class deep inside the footer panel,
         // which the shallow footer observer misses; watch it here so aria-selected
         // and the panel's aria-labelledby follow the switch.
-        dbeObserveChrome('footer-scope-tabs', scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
+        dbeObserveChrome('a11y-composites-footer-scope-tabs', scope, { attributes: true, subtree: true, attributeFilter: ['class'] });
     }
 
     /* (tf3) Field labels in the snippet/variable configure panel. Every plain
@@ -7618,6 +7691,8 @@
             if (!label) { return; }
             var group = field.querySelector('.uniPanelField__radioGroup');
             if (group) {
+                dbeRememberOwnedAttributes('a11y/composites', label, ['id']);
+                dbeRememberOwnedAttributes('a11y/composites', group, ['role', 'aria-labelledby']);
                 if (!label.id) { label.id = 'dbe-panel-field-label-' + (++dbePanelFieldSeq); }
                 if (group.getAttribute('role') !== 'radiogroup') { group.setAttribute('role', 'radiogroup'); }
                 if (group.getAttribute('aria-labelledby') !== label.id) { group.setAttribute('aria-labelledby', label.id); }
@@ -7626,6 +7701,8 @@
             var control = field.querySelector('input, textarea, select');
             // Controls inside their own wrapping <label> are already named.
             if (!control || control.closest('label')) { return; }
+            dbeRememberOwnedAttributes('a11y/composites', control, ['id']);
+            dbeRememberOwnedAttributes('a11y/composites', label, ['for']);
             if (!control.id) { control.id = 'dbe-panel-field-' + (++dbePanelFieldSeq); }
             if (label.getAttribute('for') !== control.id) { label.setAttribute('for', control.id); }
         });
@@ -7635,7 +7712,7 @@
         // a React-replaced panel is re-observed, and childList-only so our own
         // attribute writes never retrigger the pass.
         var cfg = document.querySelector('.uniTabDataVars__configurePanel');
-        if (cfg) { dbeObserveChrome('footer-config-panel', cfg, { childList: true, subtree: true }); }
+        if (cfg) { dbeObserveChrome('a11y-composites-footer-config-panel', cfg, { childList: true, subtree: true }); }
     }
 
     /* (bm) Accessible Builderius menu (builderius_menu). The menu button in the
@@ -8108,7 +8185,7 @@
     var dbeTermAiNode = null;
     function dbeObserveTerminalBar() {
         // Same bar, same options as the footer toolbar — share its observer.
-        dbeObserveFooter(dbeQuery('footerBar'));
+        dbeObserveFooter(dbeQuery('footerBar'), 'a11y-terminal-footer');
     }
     function dbeObserveTerminalPanel(ai) {
         if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
@@ -13376,6 +13453,57 @@
         }
     }, on('chrome_landmarks') || on('tooltips'));
 
+    var dbeCompositeFooterTimer = 0;
+    var dbeCompositeFooterAttempts = 0;
+    function dbeObserveA11yComposites() {
+        var top = dbeQuery('topPanel');
+        if (on('topbar_toolbar') && top) {
+            dbeObserveChrome('a11y-composites-top', top, { childList: true, subtree: true });
+        }
+    }
+    function dbeRefreshA11yComposites() {
+        dbeObserveA11yComposites();
+        if (on('topbar_toolbar')) { ensureTopbarToolbars(); }
+        if (on('footer_toolbar')) { ensureFooterToolbar(); }
+    }
+    function dbeRetryCompositeFooter() {
+        if (!on('footer_toolbar') || dbeQuery('footerBar') || dbeCompositeFooterAttempts >= 30) {
+            dbeCompositeFooterTimer = 0;
+            return;
+        }
+        dbeCompositeFooterAttempts++;
+        dbeCompositeFooterTimer = setTimeout(function () {
+            dbeCompositeFooterTimer = 0;
+            dbeRefreshA11yComposites();
+            dbeRetryCompositeFooter();
+        }, 500);
+    }
+    function destroyA11yComposites() {
+        if (dbeCompositeFooterTimer) {
+            clearTimeout(dbeCompositeFooterTimer);
+            dbeCompositeFooterTimer = 0;
+        }
+        dbeCompositeFooterAttempts = 0;
+        dbeObserveChrome('a11y-composites-top', null);
+        dbeUnobserveFooter('a11y-composites-footer');
+        dbeObserveChrome('a11y-composites-footer-scope-tabs', null);
+        dbeObserveChrome('a11y-composites-footer-config-panel', null);
+        dbeDestroyOwnedGroups('a11y/composites');
+    }
+    dbeControllers.register('a11y/composites', {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbeRefreshA11yComposites();
+            dbeRetryCompositeFooter();
+        },
+        refresh: function (reason) {
+            if (reason) { dbeRefreshA11yComposites(); }
+        },
+        destroy: function () {
+            destroyA11yComposites();
+        }
+    }, on('topbar_toolbar') || on('footer_toolbar'));
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -13407,7 +13535,6 @@
                 try { ensureKeyboardIframeBridge(); } catch (e) {}
             }
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
-            if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
             if (on('inserter_keyboard')) {
                 try { ensureInserterKeyboard(); } catch (e) {}
@@ -13415,7 +13542,6 @@
             }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
-            if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
             if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
@@ -13494,7 +13620,7 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; the theme/density/palette buttons and save cue must reach it
         // when it re-renders. a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
+        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('builderius_menu') || on('compact_panes')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
@@ -13505,19 +13631,6 @@
         if (on('select_combobox')) {
             bindSelectCombobox();
             dbeObserveChrome('body-portals', document.body, { childList: true });
-        }
-
-        // The bottom-bar tools live outside every panel observed above, and
-        // ensureFooterToolbar() wires the footer's own observers the first time it
-        // sees the bar. Nudge schedule() until that happens, so footer_toolbar
-        // works even when it is the only feature enabled (nothing else would be
-        // keeping schedule() running). Bounded; stops as soon as the bar is found.
-        if (on('footer_toolbar')) {
-            (function footerBoot(n) {
-                if (dbeFooterBarNode || n <= 0) { return; }
-                schedule();
-                setTimeout(function () { footerBoot(n - 1); }, 500);
-            })(30);
         }
 
         // The Sense AI session tabs live in that same footer. Nudge schedule()

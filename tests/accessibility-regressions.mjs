@@ -118,6 +118,36 @@ assert.match(
     /function dbeObserveA11yChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
     'The chrome controller must declare its own shared observation roots.'
 );
+assert.match(
+    builder,
+    /dbeControllers\.register\('a11y\/composites',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yComposites\(\)/,
+    'Breakpoint and footer composites must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function dbeDestroyOwnedGroups\(owner\)[\s\S]+removeEventListener\('keydown', binding\.handler\)[\s\S]+dbeRestoreOwnedAttributes\(owner\)/,
+    'Destroying an owned composite must remove its keyboard listener and restore native attributes.'
+);
+assert.match(
+    builder,
+    /ensureTopbarToolbars\(\)[\s\S]+owner: 'a11y\/composites'[\s\S]+ensureFooterToolbar\(\)[\s\S]+owner: 'a11y\/composites'/,
+    'The breakpoint radio group and footer toolbar must declare composite-controller ownership.'
+);
+assert.match(
+    builder,
+    /function destroyA11yComposites\(\)[\s\S]+dbeObserveChrome\('a11y-composites-top', null\)[\s\S]+dbeUnobserveFooter\('a11y-composites-footer'\)[\s\S]+dbeDestroyOwnedGroups\('a11y\/composites'\)/,
+    'The composite controller must release its top-bar/footer observations and owned DOM state.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('topbar_toolbar'\)\) \{ try \{ ensureTopbarToolbars\(\)/,
+    'The shared refresh pass must not bypass the composite controller for the top bar.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('footer_toolbar'\)\) \{ try \{ ensureFooterToolbar\(\)/,
+    'The shared refresh pass must not bypass the composite controller for the footer.'
+);
 assert.doesNotMatch(
     builder,
     /if \(on\('tooltips'\)\) \{ try \{ labelChromeIcons\(\)/,
