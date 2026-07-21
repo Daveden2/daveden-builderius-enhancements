@@ -135,6 +135,11 @@ assert.match(
 );
 assert.match(
     builder,
+    /function dbeSetOwnedFrame\(owner, callback\)[\s\S]+function dbeDestroyOwnedActivity\(owner\)[\s\S]+cancelAnimationFrame\(frame\.id\)/,
+    'Composite controllers must own and cancel delayed animation-frame focus work.'
+);
+assert.match(
+    builder,
     /ensureTopbarToolbars\(\)[\s\S]+owner: 'a11y\/composites'[\s\S]+ensureFooterToolbar\(\)[\s\S]+owner: 'a11y\/composites'/,
     'The breakpoint radio group and footer toolbar must declare composite-controller ownership.'
 );
@@ -155,6 +160,16 @@ assert.match(
 );
 assert.match(
     builder,
+    /function dbeAccRefocus\(name\)[\s\S]+dbeSetOwnedFrame\('a11y\/composites'[\s\S]+function ensureSettingsAccordions\(\)[\s\S]+settings-accordion-keys/,
+    'Settings accordions must own their remount refocus and keyboard listener.'
+);
+assert.match(
+    builder,
+    /function ensureBuilderiusMenu\(\)[\s\S]+dbeRememberOwnedAttributes\('a11y\/composites', trigger[\s\S]+dbeRememberOwnedAttributes\('a11y\/composites', list[\s\S]+builderius-menu-keys/,
+    'The Builderius menu trigger, tree and delegated keyboard handling must belong to the composite controller.'
+);
+assert.match(
+    builder,
     /function destroyA11yComposites\(\)[\s\S]+dbeObserveChrome\('a11y-composites-top', null\)[\s\S]+dbeUnobserveFooter\('a11y-composites-footer'\)[\s\S]+dbeDestroyOwnedGroups\('a11y\/composites'\)/,
     'The composite controller must release its top-bar/footer observations and owned DOM state.'
 );
@@ -165,7 +180,7 @@ assert.match(
 );
 assert.doesNotMatch(
     builder,
-    /dbeUnavailableBound|dbeInserterBound|dbePanelTabsBound/,
+    /dbeUnavailableBound|dbeInserterBound|dbePanelTabsBound|dbeAccBound|dbeMenuKeyBound/,
     'Composite listeners must not rely on irreversible element flags.'
 );
 assert.doesNotMatch(
@@ -192,6 +207,21 @@ assert.doesNotMatch(
     builder,
     /if \(on\('select_combobox'\)\) \{ try \{ ensureSelectComboboxes\(\)/,
     'The shared refresh pass must not bypass the composite controller for comboboxes.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('settings_accordions'\)\) \{ try \{ ensureSettingsAccordions\(\)/,
+    'The shared refresh pass must not bypass the composite controller for settings accordions.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('builderius_menu'\)\) \{ try \{ ensureBuilderiusMenu\(\)/,
+    'The shared refresh pass must not bypass the composite controller for the Builderius menu.'
+);
+assert.doesNotMatch(
+    builder,
+    /document\.addEventListener\('keydown', dbeMenuKeydown, true\)/,
+    'The Builderius menu must not leave an irreversible boot-time document listener.'
 );
 assert.doesNotMatch(
     builder,

@@ -7035,6 +7035,7 @@
     var dbeGroupBindings = [];
     var dbeOwnedEventBindings = [];
     var dbeOwnedTimers = [];
+    var dbeOwnedFrames = [];
     function dbePruneGroupState() {
         dbeGroupBindings = dbeGroupBindings.filter(function (binding) {
             if (binding.node.isConnected) { return true; }
@@ -7106,6 +7107,15 @@
         dbeOwnedTimers.push(timer);
         return timer.id;
     }
+    function dbeSetOwnedFrame(owner, callback) {
+        var frame = { owner: owner, id: 0 };
+        frame.id = requestAnimationFrame(function () {
+            dbeOwnedFrames = dbeOwnedFrames.filter(function (item) { return item !== frame; });
+            callback();
+        });
+        dbeOwnedFrames.push(frame);
+        return frame.id;
+    }
     function dbeDestroyOwnedActivity(owner) {
         dbeOwnedEventBindings.filter(function (binding) { return binding.owner === owner; }).forEach(function (binding) {
             binding.node.removeEventListener(binding.type, binding.handler, binding.options);
@@ -7115,6 +7125,10 @@
             clearTimeout(timer.id);
         });
         dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) { return timer.owner !== owner; });
+        dbeOwnedFrames.filter(function (frame) { return frame.owner === owner; }).forEach(function (frame) {
+            cancelAnimationFrame(frame.id);
+        });
+        dbeOwnedFrames = dbeOwnedFrames.filter(function (frame) { return frame.owner !== owner; });
     }
 
     function dbeEnsureGroup(container, label, sel, opts) {
@@ -7474,25 +7488,32 @@
         // Two frames: the first re-render swaps the heading node, the group
         // body mounts on the next. Re-stamp the fresh nodes before focusing so
         // the landing heading already announces its new expanded state.
-        requestAnimationFrame(function () { requestAnimationFrame(function () {
+        dbeSetOwnedFrame('a11y/composites', function () {
+            dbeSetOwnedFrame('a11y/composites', function () {
+            if (!dbeCompositeControllerActive) { return; }
             try { ensureSettingsAccordions(); } catch (e) {}
             var heads = document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper__catTitle');
             for (var i = 0; i < heads.length; i++) {
                 if (dbeAccName(heads[i]) === name) { heads[i].focus(); return; }
             }
-        }); });
+            });
+        });
     }
     function ensureSettingsAccordions() {
         document.querySelectorAll('.uniLeftPanel .uniModCssCatWrapper').forEach(function (wrap) {
             var head = wrap.querySelector('.uniModCssCatWrapper__catTitle');
             if (!head) { return; }
             var items = wrap.querySelector('.uniModCssCatWrapper__items');
+            dbeRememberOwnedAttributes('a11y/composites', head, [
+                'role', 'tabindex', 'aria-expanded', 'id', 'aria-controls'
+            ]);
             if (head.getAttribute('role') !== 'button') { head.setAttribute('role', 'button'); }
             if (head.getAttribute('tabindex') !== '0') { head.setAttribute('tabindex', '0'); }
             var expanded = items ? 'true' : 'false';
             if (head.getAttribute('aria-expanded') !== expanded) { head.setAttribute('aria-expanded', expanded); }
             if (!head.id) { head.id = 'dbe-acc-head-' + (++dbeAccSeq); }
             if (items) {
+                dbeRememberOwnedAttributes('a11y/composites', items, ['id', 'role', 'aria-labelledby']);
                 if (!items.id) { items.id = 'dbe-acc-panel-' + (++dbeAccSeq); }
                 if (items.getAttribute('role') !== 'region') { items.setAttribute('role', 'region'); }
                 if (items.getAttribute('aria-labelledby') !== head.id) { items.setAttribute('aria-labelledby', head.id); }
@@ -7502,9 +7523,7 @@
                 // reference would dangle — drop it until the body exists again.
                 head.removeAttribute('aria-controls');
             }
-            if (head.dbeAccBound) { return; }
-            head.dbeAccBound = true;
-            head.addEventListener('keydown', function (e) {
+            dbeBindOwnedEvent('a11y/composites', head, 'settings-accordion-keys', 'keydown', function (e) {
                 if (e.key !== 'Enter' && e.key !== ' ') { return; }
                 e.preventDefault();
                 e.stopPropagation();
@@ -7787,7 +7806,6 @@
        section's items are on screen. */
     var DBE_MENU_ID = 'dbe-builderius-menu';
     var dbeMenuWasOpen = false;
-    var dbeMenuKeyBound = false;
     var DBE_MENU_ROW_SEL = '.uniCatTitle, .uniNavigatorItems__item';
 
     function dbeMenuTrigger() { return document.querySelector('.uniPanelButton--builderiusMenu'); }
@@ -7808,7 +7826,10 @@
         });
     }
     function dbeMenuFocus(rows, idx) {
-        rows.forEach(function (el, k) { el.setAttribute('tabindex', k === idx ? '0' : '-1'); });
+        rows.forEach(function (el, k) {
+            dbeRememberOwnedAttributes('a11y/composites', el, ['tabindex']);
+            el.setAttribute('tabindex', k === idx ? '0' : '-1');
+        });
         try { rows[idx].focus(); } catch (e) {}
     }
 
@@ -7819,6 +7840,9 @@
         var list = open ? dbeMenuList() : null;
 
         // Disclosure semantics on the trigger.
+        dbeRememberOwnedAttributes('a11y/composites', trigger, [
+            'aria-haspopup', 'aria-expanded', 'aria-controls'
+        ]);
         if (trigger.getAttribute('aria-haspopup') !== 'tree') { trigger.setAttribute('aria-haspopup', 'tree'); }
         var exp = open ? 'true' : 'false';
         if (trigger.getAttribute('aria-expanded') !== exp) { trigger.setAttribute('aria-expanded', exp); }
@@ -7840,6 +7864,7 @@
             return;
         }
 
+        dbeRememberOwnedAttributes('a11y/composites', list, ['id', 'role', 'aria-label']);
         if (list.getAttribute('role') !== 'tree') { list.setAttribute('role', 'tree'); }
         var label = dbeT('builderiusMenu', 'Builderius menu');
         if (list.getAttribute('aria-label') !== label) { list.setAttribute('aria-label', label); }
@@ -7849,12 +7874,17 @@
             var title = cat.querySelector('.uniCatTitle');
             var wrap = cat.querySelector('.uniNavigatorItems__items');
             if (title) {
+                dbeRememberOwnedAttributes('a11y/composites', title, [
+                    'role', 'aria-level', 'aria-hidden', 'aria-expanded',
+                    'aria-controls', 'tabindex'
+                ]);
                 if (title.getAttribute('role') !== 'treeitem') { title.setAttribute('role', 'treeitem'); }
                 if (title.getAttribute('aria-level') !== '1') { title.setAttribute('aria-level', '1'); }
                 if (title.hasAttribute('aria-hidden')) { title.removeAttribute('aria-hidden'); }
                 var ex = dbeMenuCatExpanded(title) ? 'true' : 'false';
                 if (title.getAttribute('aria-expanded') !== ex) { title.setAttribute('aria-expanded', ex); }
                 if (wrap) {
+                    dbeRememberOwnedAttributes('a11y/composites', wrap, ['id', 'role']);
                     if (!wrap.id) { wrap.id = 'dbe-menu-grp-' + ci; }
                     if (title.getAttribute('aria-controls') !== wrap.id) { title.setAttribute('aria-controls', wrap.id); }
                 }
@@ -7863,6 +7893,7 @@
         });
         // Items = level-2 treeitems.
         [].slice.call(list.querySelectorAll('.uniNavigatorItems__item')).forEach(function (b) {
+            dbeRememberOwnedAttributes('a11y/composites', b, ['role', 'aria-level', 'tabindex']);
             if (b.getAttribute('role') !== 'treeitem') { b.setAttribute('role', 'treeitem'); }
             if (b.getAttribute('aria-level') !== '2') { b.setAttribute('aria-level', '2'); }
         });
@@ -7874,6 +7905,7 @@
         var current = all.filter(function (el) { return el.getAttribute('tabindex') === '0' && el.offsetParent !== null; })[0];
         var keep = current || rows[0];
         all.forEach(function (el) {
+            dbeRememberOwnedAttributes('a11y/composites', el, ['tabindex']);
             var t = el === keep ? '0' : '-1';
             if (el.getAttribute('tabindex') !== t) { el.setAttribute('tabindex', t); }
         });
@@ -13579,11 +13611,11 @@
     var dbeCompositeFooterAttempts = 0;
     function dbeObserveA11yComposites() {
         var top = dbeQuery('topPanel');
-        if (on('topbar_toolbar') && top) {
+        if ((on('topbar_toolbar') || on('builderius_menu')) && top) {
             dbeObserveChrome('a11y-composites-top', top, { childList: true, subtree: true });
         }
         var main = dbeQuery('mainPanel');
-        if ((on('inserter_keyboard') || on('panel_tabs')) && main) {
+        if ((on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('builderius_menu')) && main) {
             dbeObserveChrome('a11y-composites-main', main, {
                 childList: true,
                 subtree: true,
@@ -13607,6 +13639,8 @@
         }
         if (on('panel_tabs')) { ensurePanelTabs(); }
         if (on('select_combobox')) { ensureSelectComboboxes(); }
+        if (on('settings_accordions')) { ensureSettingsAccordions(); }
+        if (on('builderius_menu')) { ensureBuilderiusMenu(); }
     }
     function dbeRetryCompositeFooter() {
         if (!on('footer_toolbar') || dbeQuery('footerBar') || dbeCompositeFooterAttempts >= 30) {
@@ -13627,6 +13661,7 @@
             dbeCompositeFooterTimer = 0;
         }
         dbeCompositeFooterAttempts = 0;
+        dbeMenuWasOpen = false;
         dbeObserveChrome('a11y-composites-top', null);
         dbeObserveChrome('a11y-composites-main', null);
         dbeObserveChrome('a11y-composites-portals', null);
@@ -13641,6 +13676,9 @@
             if (!context || !context.builderius) { return; }
             dbeCompositeControllerActive = true;
             if (on('select_combobox')) { bindSelectCombobox(); }
+            if (on('builderius_menu')) {
+                dbeBindOwnedEvent('a11y/composites', document, 'builderius-menu-keys', 'keydown', dbeMenuKeydown, true);
+            }
             dbeRefreshA11yComposites();
             dbeRetryCompositeFooter();
         },
@@ -13650,7 +13688,7 @@
         destroy: function () {
             destroyA11yComposites();
         }
-    }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') || on('select_combobox'));
+    }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') || on('select_combobox') || on('settings_accordions') || on('builderius_menu'));
 
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
@@ -13684,8 +13722,6 @@
             }
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
-            if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
-            if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
@@ -13738,7 +13774,7 @@
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
         var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
-        var needMainObservation = NEED_LEFT_PANEL || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('compact_panes') || on('condition_helpers');
+        var needMainObservation = NEED_LEFT_PANEL || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('compact_panes') || on('condition_helpers');
 
         // Also watch the settings panel area (left) so the CSS-code default
         // reacts to element selection, tab switches, and the CSS-mode toggle.
@@ -13762,7 +13798,7 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; the theme/density/palette buttons and save cue must reach it
         // when it re-renders. a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('builderius_menu') || on('compact_panes')) {
+        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('compact_panes')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
@@ -13852,13 +13888,6 @@
 
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
-
-        // Builderius menu: arrow/Home/End/Escape while focus is inside the menu.
-        // Bound on document (capture) so it survives the menu mounting/unmounting.
-        if (on('builderius_menu') && !dbeMenuKeyBound) {
-            dbeMenuKeyBound = true;
-            document.addEventListener('keydown', dbeMenuKeydown, true);
-        }
 
         // Element keyboard shortcuts (Duplicate / Cut / Add before-after / Rename).
         if (on('keyboard_shortcuts') && !dbeShortcutKeyBound) {
