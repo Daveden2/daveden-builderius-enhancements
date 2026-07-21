@@ -28,3 +28,14 @@
     color: var(--dbe-danger);
 }
 .dbe-save-cue.is-error::before { background: var(--dbe-danger); }
+
+@media (forced-colors: active) {
+    .dbe-save-cue::before {
+        background: Canvas !important;
+        border: 2px solid currentColor !important;
+        box-sizing: border-box !important;
+    }
+    .dbe-save-cue.is-clean::before,
+    .dbe-save-cue.is-saving::before,
+    .dbe-save-cue.is-saved::before { background: Highlight !important; }
+}

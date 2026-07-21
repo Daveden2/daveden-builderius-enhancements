@@ -47,8 +47,17 @@ function dbe_presence_key( $slug ) {
  * @return bool Whether the entity exists.
  */
 function dbe_presence_entity_exists( $slug ) {
-	$post = get_page_by_path( $slug, OBJECT, array( 'builderius_template', 'builderius_component' ) );
-	return $post instanceof WP_Post;
+	$posts = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => array( 'builderius_template', 'builderius_component' ),
+			'post_status'    => 'any',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		)
+	);
+	return ! empty( $posts );
 }
 
 /**

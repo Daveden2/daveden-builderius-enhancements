@@ -10,3 +10,12 @@
     outline-offset: 1px !important;
 }
 .monaco-editor :focus-visible { outline: revert !important; }
+
+@media (forced-colors: active) {
+    .uniLeftPanel :focus-visible, .uniRightPanel :focus-visible,
+    .uniTopPanel :focus-visible, .uniFooterPanel :focus-visible,
+    .uniFooterPanelBar :focus-visible,
+    .uniAdvancedDialogMenu :focus-visible {
+        outline-color: Highlight !important;
+    }
+}

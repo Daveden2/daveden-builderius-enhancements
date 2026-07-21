@@ -51,3 +51,11 @@
    The tag marker inherits, so it brightens with the label. */
 .uniModTree__item:hover span:not(.dbe-tag-badge) { color: var(--dbe-text-2) !important; }
 .uniModTree__item.dbe-tree-selected span:not(.dbe-tag-badge) { color: var(--dbe-text) !important; }
+
+@media (forced-colors: active) {
+    .uniModTree__item.dbe-tree-selected {
+        outline: 2px solid Highlight !important;
+        outline-offset: -2px !important;
+        box-shadow: none !important;
+    }
+}

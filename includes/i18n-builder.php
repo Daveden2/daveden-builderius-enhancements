@@ -332,8 +332,10 @@ function dbe_builder_strings() {
 		'toolbarBreakpoints'            => __( 'Breakpoints', 'daveden-builderius-enhancements' ),
 		'groupCanvasSize'               => __( 'Canvas size', 'daveden-builderius-enhancements' ),
 		'toolbarFooterTools'            => __( 'Editor tools', 'daveden-builderius-enhancements' ),
-		/* translators: %s: the tool name (e.g. Custom CSS). Marks a locked/Pro tool for screen readers. */
-		'footerLocked'                  => __( '%s (locked)', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the unavailable tool name (e.g. Custom CSS). */
+		'footerComingSoon'              => __( '%s (coming soon)', 'daveden-builderius-enhancements' ),
+		/* translators: %s: a short description of an unavailable tool. */
+		'footerComingSoonTip'           => __( 'Coming soon: %s', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the name of the open tool (e.g. Dynamic Data). Names the editor panel region. */
 		'footerPanelNamed'              => __( '%s panel', 'daveden-builderius-enhancements' ),
 		'footerToolsPanel'              => __( 'Editor tools panel', 'daveden-builderius-enhancements' ),
@@ -427,6 +429,9 @@ function dbe_builder_strings() {
 
 		// Favourites & component properties.
 		'rearrangeFavourites'           => __( 'Rearrange favourites', 'daveden-builderius-enhancements' ),
+		'favouriteElements'             => __( 'Favourite elements', 'daveden-builderius-enhancements' ),
+		/* translators: %s: favourite element name. */
+		'insertFavourite'               => __( 'Insert %s', 'daveden-builderius-enhancements' ),
 		'rearrangeProperties'           => __( 'Rearrange properties', 'daveden-builderius-enhancements' ),
 		'rearrange'                     => __( 'Rearrange', 'daveden-builderius-enhancements' ),
 		/* translators: %s: favourite element name. */

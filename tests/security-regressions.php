@@ -285,6 +285,7 @@ if ( function_exists( 'dbe_presence_beat' ) ) {
 	);
 	try {
 		dbe_test_assert( ! is_wp_error( $presence_post ), 'Could not create the temporary presence-test entity.' );
+		dbe_test_assert( dbe_presence_entity_exists( $slug ), 'Presence could not resolve an existing Builderius entity.' );
 		$unknown = new WP_REST_Request( 'POST' );
 		$unknown->set_param( 'entity', 'dbe-presence-does-not-exist' );
 		$unknown->set_param( 'tab', $presence_tabs[0] );

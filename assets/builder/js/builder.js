@@ -4735,7 +4735,9 @@
         document.querySelectorAll('.uniModTree__favouritesListItem .closeIcon').forEach(function (btn) {
             var favourite = btn.parentElement && btn.parentElement.querySelector('.modIcon');
             var name = favourite && (
-                favourite.getAttribute('aria-label') || favourite.getAttribute('data-dbe-tip')
+                favourite.getAttribute('data-dbe-favourite-name')
+                || favourite.getAttribute('aria-label')
+                || favourite.getAttribute('data-dbe-tip')
             );
             setTip(btn, name
                 ? dbeFmt(dbeT('tipRemoveFavourite', 'Remove %s from favourites'), name)
@@ -6946,7 +6948,9 @@
 
     function dbeRovingItems(container, sel) {
         return [].slice.call(container.querySelectorAll(sel)).filter(function (el) {
-            return el.offsetParent !== null && !el.disabled; // visible + enabled
+            return el.offsetParent !== null
+                && !el.disabled
+                && el.getAttribute('aria-disabled') !== 'true'; // visible + enabled
         });
     }
 
@@ -7127,6 +7131,47 @@
                 items.forEach(function (el, k) { el.setAttribute('tabindex', k === next ? '0' : '-1'); });
                 items[next].focus();
             });
+        });
+    }
+
+    /* The compact favourites strip is a second element inserter. Its icon-only
+       buttons otherwise create one Tab stop per favourite and their native names
+       say only “Heading”, “Image”, and so on — a voice-control or screen-reader
+       user is not told that activating one inserts an element. Treat the strip
+       as a vertical toolbar: one Tab stop, Up/Down/Home/End navigation and an
+       action-led name for every favourite. The individual Navigator tree-row
+       names are deliberately untouched. */
+    function ensureFavouritesKeyboard() {
+        var list = document.querySelector('.uniModTree__favouritesList');
+        if (!list) { return; }
+        var favouriteSel = '.uniModTree__favouritesListItem .modIcon';
+        var sel = '.dbe-fav-reorder-btn, ' + favouriteSel;
+        list.querySelectorAll(':scope > li').forEach(function (li) {
+            if (li.getAttribute('role') !== 'presentation') { li.setAttribute('role', 'presentation'); }
+        });
+        list.querySelectorAll(favouriteSel).forEach(function (btn) {
+            var name = btn.getAttribute('data-dbe-favourite-name');
+            if (!name) {
+                var item = btn.closest('.uniModTree__favouritesListItem');
+                var nativeTip = item && item.querySelector('[data-tooltip-content]');
+                name = ((nativeTip && nativeTip.getAttribute('data-tooltip-content'))
+                    || btn.getAttribute('aria-label')
+                    || btn.getAttribute('data-dbe-tip')
+                    || btn.textContent
+                    || '').trim();
+                name = name.replace(/^Insert\s+/i, '').trim();
+                if (name) { btn.setAttribute('data-dbe-favourite-name', name); }
+            }
+            if (!name) { return; }
+            var label = dbeFmt(dbeT('insertFavourite', 'Insert %s'), name);
+            if (btn.getAttribute('aria-label') !== label) { btn.setAttribute('aria-label', label); }
+            if (on('tooltips') && btn.getAttribute('data-dbe-tip') !== label) {
+                btn.setAttribute('data-dbe-tip', label);
+            }
+        });
+        dbeEnsureGroup(list, dbeT('favouriteElements', 'Favourite elements'), sel, {
+            role: 'toolbar',
+            orientation: 'vertical'
         });
     }
 
@@ -7324,7 +7369,7 @@
          - bar = role="toolbar" with roving arrow-key navigation over the tools;
          - each functional button = aria-expanded (true only when its panel is the
            open one) + aria-controls on the shared panel;
-         - locked buttons = aria-disabled with "(locked)" in the accessible name;
+         - unavailable buttons = aria-disabled with “coming soon” in the name;
          - the shared panel = a labelled role="group", named after the open tool.
            A group, not a region: the panel is part of the footer, not a landmark
            of its own — chrome_landmarks marks the whole .uniFooterPanel as the
@@ -7392,10 +7437,19 @@
             var base = (b.textContent || '').trim(); // aria-label never changes textContent
             if (b.classList.contains('locked')) {
                 b.setAttribute('aria-disabled', 'true');
+                b.setAttribute('tabindex', '-1');
                 b.removeAttribute('aria-expanded');
                 b.removeAttribute('aria-controls');
-                var want = dbeFmt(dbeT('footerLocked', '%s (locked)'), base);
+                var want = dbeFmt(dbeT('footerComingSoon', '%s (coming soon)'), base);
                 if (b.getAttribute('aria-label') !== want) { b.setAttribute('aria-label', want); }
+                var tip = (b.getAttribute('data-dbe-tip') || '').trim();
+                if (/^Soon:\s*/i.test(tip)) {
+                    tip = dbeFmt(
+                        dbeT('footerComingSoonTip', 'Coming soon: %s'),
+                        tip.replace(/^Soon:\s*/i, '')
+                    );
+                    if (b.getAttribute('data-dbe-tip') !== tip) { b.setAttribute('data-dbe-tip', tip); }
+                }
             } else {
                 b.removeAttribute('aria-disabled');
                 if (b.getAttribute('aria-label')) { b.removeAttribute('aria-label'); } // fall back to the text name
@@ -7412,9 +7466,9 @@
             if (panel.getAttribute('aria-label') !== rl) { panel.setAttribute('aria-label', rl); }
         }
 
-        // Toolbar semantics + roving arrow navigation over the tool buttons. Locked
-        // buttons stay in the roving set (focusable, aria-disabled) so a keyboard
-        // user can discover them and hear that they are locked.
+        // Toolbar semantics + roving arrow navigation over available tools. The
+        // unavailable items remain visibly labelled “coming soon”, but do not
+        // consume the toolbar's single Tab stop or arrow-key sequence.
         dbeEnsureGroup(bar, dbeT('toolbarFooterTools', 'Editor tools'), 'button.uniPanelIconButton--footer');
 
         dbeEnsureFooterScopeTabs();
@@ -12924,7 +12978,10 @@
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('topbar_toolbar')) { try { ensureTopbarToolbars(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
-            if (on('inserter_keyboard')) { try { ensureInserterKeyboard(); } catch (e) {} }
+            if (on('inserter_keyboard')) {
+                try { ensureInserterKeyboard(); } catch (e) {}
+                try { ensureFavouritesKeyboard(); } catch (e) {}
+            }
             if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
             if (on('footer_toolbar')) { try { ensureFooterToolbar(); } catch (e) {} }
@@ -12976,7 +13033,7 @@
         // the tooltip labels that live in its header. Tree mutations are also
         // the cheapest signal that a module operation happened, which is what
         // the save cue keys off.
-        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected')) {
+        if (NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected')) {
             new MutationObserver(schedule).observe(panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         }
 

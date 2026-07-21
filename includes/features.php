@@ -251,7 +251,7 @@ function dbe_features() {
 		'footer_toolbar'        => array(
 			'title'       => __( 'Bottom-bar keyboard toolbar', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Makes the bottom tool bar one Tab stop with arrow keys.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each tool announces whether its panel is open, the shared panel is a labelled group, and locked tools are announced as such. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the bottom bar of editor tools (Custom CSS, JavaScript, Dynamic Data, Sense AI and so on) as a keyboard toolbar: one Tab stop with arrow-key navigation, each available tool announces whether its panel is open, the shared panel is a labelled group, and unavailable tools are identified as coming soon without entering the keyboard sequence. Also wires the Global / Template scope tabs inside the JavaScript and Dynamic Data tools as a vertical tab list.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => false,
 			'shared_css'  => array( '04-menu-anchor.css' ),
@@ -483,8 +483,8 @@ function dbe_features() {
 		),
 		'inserter_keyboard'     => array(
 			'title'       => __( 'Inserter keyboard navigation', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Arrow-key navigation of the element Inserter.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between the elements within a category (Home and End jump to its first and last), and Enter or Space inserts. Without it, reaching a lower category means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Arrow-key navigation of the element Inserter and favourites.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes the element Inserter navigable from the keyboard the way the WordPress block inserter is: each category is one Tab stop, the arrow keys move between its elements, and Enter or Space inserts. The favourite-elements strip also becomes one vertical toolbar Tab stop with action-led names such as “Insert Heading”. Without this feature, reaching a lower category or later favourite means tabbing through every element above it.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array( '78-inserter-keyboard.css' ),
 			'js'          => true,

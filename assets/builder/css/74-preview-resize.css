@@ -70,6 +70,19 @@
     border-radius: var(--dbe-r-sm, 6px) !important;
 }
 
+@media (forced-colors: active) {
+    .dbe-preview-handle::before {
+        background: Canvas !important;
+        border-color: CanvasText !important;
+        box-shadow: none !important;
+    }
+    .dbe-preview-handle::after {
+        background: CanvasText !important;
+        box-shadow: 0 -5px 0 CanvasText, 0 5px 0 CanvasText !important;
+    }
+    .dbe-preview-handle:focus-visible { outline-color: Highlight !important; }
+}
+
 /* While dragging, the iframe must not swallow pointer events, and nothing
    should get text-selected. */
 .uniIframePanel.dbe-preview-resizing #builderInner {

@@ -18,6 +18,12 @@ const builder = read('assets/builder/js/builder.js');
 const controls = read('assets/builder/css/12-controls.css');
 const palette = read('assets/builder/css/82-command-palette.css');
 const saveCue = read('assets/builder/css/72-save-cue.css');
+const tokens = read('assets/builder/css/00-tokens.css');
+const tabs = read('assets/builder/css/11-tabs.css');
+const focus = read('assets/builder/css/13-focus.css');
+const treeRows = read('assets/builder/css/14-tree-rows.css');
+const previewResize = read('assets/builder/css/74-preview-resize.css');
+const panelResize = read('assets/builder/css/75-panel-resize.css');
 const strings = read('includes/i18n-builder.php');
 
 assert.match(
@@ -97,5 +103,30 @@ assert.match(
     /doc\.addEventListener\('click', function \(\) \{ setTimeout\(schedule, 0\); \}\)/,
     'Canvas selection changes must schedule the event-driven reveal path.'
 );
+assert.match(
+    builder,
+    /function ensureFavouritesKeyboard\(\)[\s\S]+Favourite elements[\s\S]+orientation: 'vertical'/,
+    'Favourite elements must remain a single vertical keyboard toolbar.'
+);
+assert.match(
+    builder,
+    /data-dbe-favourite-name[\s\S]+insertFavourite[\s\S]+Insert %s/,
+    'Favourite controls must expose an action-led accessible name without changing tree rows.'
+);
+assert.match(
+    builder,
+    /classList\.contains\('locked'\)[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+footerComingSoon/,
+    'Unavailable footer tools must be identified and excluded from the roving sequence.'
+);
+assert.match(
+    strings,
+    /'footerComingSoon'\s+=> __\( '%s \(coming soon\)'/,
+    'Unavailable-tool copy must describe availability rather than an unexplained lock.'
+);
+
+[tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize].forEach((css) => {
+    assert.match(css, /@media \(forced-colors: active\)/, 'Accessibility CSS must retain a forced-colours treatment.');
+});
+assert.match(tokens, /--dbe-focus:\s*Highlight/, 'The focus token must resolve to a system colour in forced-colour mode.');
 
 console.log('Accessibility source regressions passed.');

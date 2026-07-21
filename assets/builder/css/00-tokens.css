@@ -151,3 +151,28 @@ html[data-dbe-theme="light"] {
     white-space: nowrap !important;
     border: 0 !important;
 }
+
+/* Windows High Contrast and other forced-colour modes replace authored
+   surfaces. Resolve the semantic tokens to system colours as well, so borders,
+   focus rings and non-background cues keep their meaning after replacement.
+   This deliberately follows both palette blocks so the system colours win. */
+@media (forced-colors: active) {
+    :root,
+    html[data-dbe-theme="dark"],
+    html[data-dbe-theme="light"] {
+        --dbe-l0: Canvas;
+        --dbe-l1: Canvas;
+        --dbe-l2: Canvas;
+        --dbe-l2-hi: Canvas;
+        --dbe-line: CanvasText;
+        --dbe-line-hi: CanvasText;
+        --dbe-text: CanvasText;
+        --dbe-text-2: CanvasText;
+        --dbe-muted: GrayText;
+        --dbe-accent: Highlight;
+        --dbe-accent-strong: Highlight;
+        --dbe-focus: Highlight;
+        --dbe-danger: LinkText;
+        --dbe-shadow: transparent;
+    }
+}

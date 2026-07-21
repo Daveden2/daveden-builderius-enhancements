@@ -121,6 +121,22 @@
    mode; .65 keeps the locked cue while the label stays legible. */
 .uniFooterPanelBar .uniPanelIconButton--footer.locked { opacity: .65 !important; }
 
+@media (forced-colors: active) {
+    .uniPanelTabs__tab.active,
+    .uniIframeTabButton.active,
+    .uniFooterPanelBar .uniPanelIconButton--footer.uniPanelIconButton--active,
+    .uniScopeControl button.active,
+    .uniFooterTabScopes button.active,
+    .uniVarsTabButton.active {
+        outline: 2px solid Highlight !important;
+        outline-offset: -2px !important;
+    }
+    .uniFooterPanelBar .uniPanelIconButton--footer.locked {
+        color: GrayText !important;
+        opacity: 1 !important;
+    }
+}
+
 /* --- Vertical Template/Global rail inside the footer panels (JavaScript,
    Dynamic Data) — same "underline sits under the text as written" rule as
    every other tab. The buttons are writing-mode: vertical-rl with the label
