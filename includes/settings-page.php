@@ -384,14 +384,18 @@ function dbe_render_abilities_panel() {
  * per-tab summary of enabled features. No form fields.
  */
 function dbe_render_dashboard_panel() {
-	$features = dbe_features();
+	$features = dbe_available_features();
 	/* translators: %s: number of settings enabled by a preset. */
 	$preset_many = __( 'Preset ready: %s settings enabled. Review the changes, then save.', 'daveden-builderius-enhancements' );
 	?>
 	<div class="dbe-dashboard">
 		<p><?php esc_html_e( 'Daveden Builder Enhancements adds independent appearance, accessibility, editing and workflow tools to Builderius.', 'daveden-builderius-enhancements' ); ?></p>
 		<p>
-			<?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools and agent features can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?>
+			<?php if ( dbe_release_feature_available( 'agent_abilities' ) ) : ?>
+				<?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools and agent features can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?>
+			<?php else : ?>
+				<?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?>
+			<?php endif; ?>
 		</p>
 		<p class="dbe-dashboard__meta">
 			<?php
@@ -516,7 +520,7 @@ function dbe_render_settings_page() {
 		return;
 	}
 	$tabs     = dbe_tabs();
-	$features = dbe_features();
+	$features = dbe_available_features();
 	/* translators: %s: number of matching features. */
 	$result_many = __( '%s features shown', 'daveden-builderius-enhancements' );
 	?>

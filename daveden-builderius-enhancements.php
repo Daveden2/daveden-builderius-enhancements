@@ -141,17 +141,19 @@ function dbe_bootstrap() {
 		// tabs before committing (the REST route must register on every
 		// request, not just builder pages).
 		require_once DBE_DIR . 'includes/presence.php';
-		// Agent-facing subtree HTML abilities (prototype) — needs both
-		// Builderius (its commit mutation is the save path) and the
-		// Abilities API runtime.
-		if ( function_exists( 'wp_register_ability' ) ) {
+		// Agent abilities begin with the 2.1 release line. Before then the
+		// implementation stays unloaded even when an Abilities API provider is
+		// active, so 2.0 exposes only its foundation and HTML-authoring promise.
+		if ( dbe_release_feature_available( 'agent_abilities' ) && function_exists( 'wp_register_ability' ) ) {
 			require_once DBE_DIR . 'includes/abilities.php';
 			require_once DBE_DIR . 'includes/abilities-workflow.php';
 			require_once DBE_DIR . 'includes/abilities/verification.php';
 		}
-		// Agent skills for Novamira's lookup registry. The filter only
-		// fires when Novamira applies it, so this is inert without it.
-		require_once DBE_DIR . 'includes/novamira-skills.php';
+		// Agent skills follow the same release boundary as the abilities they
+		// describe and remain absent from Novamira discovery before 2.1.
+		if ( dbe_release_feature_available( 'agent_abilities' ) ) {
+			require_once DBE_DIR . 'includes/novamira-skills.php';
+		}
 	} else {
 		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
 	}

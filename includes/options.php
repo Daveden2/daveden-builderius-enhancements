@@ -83,6 +83,9 @@ function dbe_builderius_pro_active() {
  * @return bool
  */
 function dbe_enabled( $id ) {
+	if ( ! dbe_release_feature_available( $id ) ) {
+		return false;
+	}
 	$options = dbe_get_options();
 	if ( empty( $options[ $id ] ) ) {
 		return false;
@@ -142,6 +145,9 @@ function dbe_feature_output_permitted( $id ) {
  * @return bool
  */
 function dbe_abilities_enabled() {
+	if ( ! dbe_release_feature_available( 'agent_abilities' ) ) {
+		return false;
+	}
 	$options = dbe_get_options();
 	return ! empty( $options['abilities_enabled'] );
 }
@@ -215,6 +221,12 @@ function dbe_sanitise_options( $input ) {
 	$pro      = dbe_builderius_pro_active();
 
 	foreach ( $features as $id => $feature ) {
+		// A feature staged for a later release has no field in this release's
+		// settings form. Preserve its saved value across a temporary downgrade.
+		if ( ! dbe_release_feature_available( $id ) ) {
+			$clean[ $id ] = ! empty( $saved[ $id ] );
+			continue;
+		}
 		// A Pro-locked toggle renders disabled, so the POST omits it. Keep the
 		// saved preference rather than letting "absent" read as off. The user's
 		// choice returns intact the moment Builderius Pro is active again.
@@ -224,10 +236,18 @@ function dbe_sanitise_options( $input ) {
 		}
 		$clean[ $id ] = ! empty( $input[ $id ] );
 	}
-	$clean['abilities_enabled'] = ! empty( $input['abilities_enabled'] );
-	foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-		$key           = dbe_ability_option_key( $ability_id );
-		$clean[ $key ] = ! empty( $input[ $key ] );
+	if ( dbe_release_feature_available( 'agent_abilities' ) ) {
+		$clean['abilities_enabled'] = ! empty( $input['abilities_enabled'] );
+		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
+			$key           = dbe_ability_option_key( $ability_id );
+			$clean[ $key ] = ! empty( $input[ $key ] );
+		}
+	} else {
+		$clean['abilities_enabled'] = ! empty( $saved['abilities_enabled'] );
+		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
+			$key           = dbe_ability_option_key( $ability_id );
+			$clean[ $key ] = ! empty( $saved[ $key ] );
+		}
 	}
 
 	foreach ( dbe_enum_settings() as $id => $setting ) {

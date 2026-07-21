@@ -13,20 +13,96 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Headline capabilities staged for later 2.x release lines.
+ *
+ * The current integration history contains the already-tested implementation
+ * of these features, but the public roadmap introduces them one minor release
+ * at a time. This map is the single availability boundary used by settings,
+ * runtime output and server-side registration.
+ *
+ * @return array<string,string> Capability id => first available major.minor.
+ */
+function dbe_release_availability() {
+	return array(
+		'agent_abilities' => '2.1',
+		'style_inspector' => '2.2',
+	);
+}
+
+/**
+ * Extract a comparable major.minor release line from a plugin version.
+ *
+ * Development suffixes such as 2.1.0-dev-1 belong to the 2.1 release line,
+ * so version_compare() against the final 2.1.0 string would be too strict.
+ *
+ * @param string $version Plugin version.
+ * @return string Major.minor, or 0.0 for an invalid value.
+ */
+function dbe_release_line( $version ) {
+	if ( preg_match( '/^(\d+)\.(\d+)/', (string) $version, $matches ) ) {
+		return (int) $matches[1] . '.' . (int) $matches[2];
+	}
+	return '0.0';
+}
+
+/**
+ * Test a staged capability against an explicit plugin version.
+ *
+ * Kept pure so the release-boundary regression suite can exercise every 2.x
+ * line without redefining DBE_VERSION in separate processes.
+ *
+ * @param string $capability Capability id from dbe_release_availability().
+ * @param string $version    Plugin version to test.
+ * @return bool
+ */
+function dbe_release_feature_available_for_version( $capability, $version ) {
+	$availability = dbe_release_availability();
+	if ( ! isset( $availability[ $capability ] ) ) {
+		return true;
+	}
+	return version_compare( dbe_release_line( $version ), $availability[ $capability ], '>=' );
+}
+
+/**
+ * Whether a staged headline capability belongs to the current release line.
+ *
+ * The filter is a developer-only escape hatch for testing future work locally;
+ * public behaviour always follows the version-derived default.
+ *
+ * @param string $capability Capability id from dbe_release_availability().
+ * @return bool
+ */
+function dbe_release_feature_available( $capability ) {
+	$available = dbe_release_feature_available_for_version( $capability, DBE_VERSION );
+
+	/**
+	 * Filter staged feature availability for local integration testing.
+	 *
+	 * @param bool   $available  Version-derived availability.
+	 * @param string $capability Capability id.
+	 * @param string $version    Current plugin version.
+	 */
+	return (bool) apply_filters( 'dbe_release_feature_available', $available, $capability, DBE_VERSION );
+}
+
+/**
  * Settings-page tabs, in display order.
  *
  * @return array<string,string> slug => label.
  */
 function dbe_tabs() {
-	return array(
+	$tabs = array(
 		'dashboard'  => __( 'Dashboard', 'daveden-builderius-enhancements' ),
 		'appearance' => __( 'Appearance', 'daveden-builderius-enhancements' ),
 		'navigator'  => __( 'Navigator', 'daveden-builderius-enhancements' ),
 		'editing'    => __( 'Editing', 'daveden-builderius-enhancements' ),
 		'styles'     => __( 'Styles panel', 'daveden-builderius-enhancements' ),
 		'workflow'   => __( 'Workflow', 'daveden-builderius-enhancements' ),
-		'abilities'  => __( 'Agent abilities', 'daveden-builderius-enhancements' ),
 	);
+	if ( dbe_release_feature_available( 'agent_abilities' ) ) {
+		$tabs['abilities'] = __( 'Agent abilities', 'daveden-builderius-enhancements' );
+	}
+	return $tabs;
 }
 
 /**
@@ -121,7 +197,7 @@ function dbe_feature_sections() {
  * @return array<string,array{title:string,description:string,features:array<int,string>}>
  */
 function dbe_feature_presets() {
-	return array(
+	$presets = array(
 		'accessibility' => array(
 			'title'       => __( 'Accessibility essentials', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Keyboard routes, screen-reader structure, visible focus and clearer controls across the builder.', 'daveden-builderius-enhancements' ),
@@ -148,6 +224,18 @@ function dbe_feature_presets() {
 			'features'    => array( 'context_menu', 'wrap_in', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'keyboard_shortcuts', 'command_palette', 'edit_as_html', 'import_html', 'tag_change', 'css_code_default', 'scope_bar', 'style_inspector', 'auto_bem', 'hide_minimap' ),
 		),
 	);
+	foreach ( $presets as &$preset ) {
+		$preset['features'] = array_values(
+			array_filter(
+				$preset['features'],
+				function ( $feature_id ) {
+					return dbe_release_feature_available( $feature_id );
+				}
+			)
+		);
+	}
+	unset( $preset );
+	return $presets;
 }
 
 /**
@@ -708,6 +796,23 @@ function dbe_features() {
 			'js'          => false,
 		),
 	);
+}
+
+/**
+ * The feature registry restricted to the current public release line.
+ *
+ * Keep dbe_features() complete so future preferences and sanitisation can be
+ * preserved across a temporary downgrade. User-facing settings and summaries
+ * use this filtered view so staged features have no premature entry point.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function dbe_available_features() {
+	$features = dbe_features();
+	if ( ! dbe_release_feature_available( 'style_inspector' ) ) {
+		unset( $features['style_inspector'] );
+	}
+	return $features;
 }
 
 /**
