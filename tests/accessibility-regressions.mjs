@@ -130,13 +130,43 @@ assert.match(
 );
 assert.match(
     builder,
+    /function dbeBindOwnedEvent\(owner, node, key, type, handler, options\)[\s\S]+function dbeDestroyOwnedActivity\(owner\)[\s\S]+removeEventListener\(binding\.type, binding\.handler, binding\.options\)/,
+    'Composite controllers must own and remove their non-roving event listeners.'
+);
+assert.match(
+    builder,
     /ensureTopbarToolbars\(\)[\s\S]+owner: 'a11y\/composites'[\s\S]+ensureFooterToolbar\(\)[\s\S]+owner: 'a11y\/composites'/,
     'The breakpoint radio group and footer toolbar must declare composite-controller ownership.'
 );
 assert.match(
     builder,
+    /function ensureInserterKeyboard\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', container, 'inserter-keys'[\s\S]+function ensureFavouritesKeyboard\(\)[\s\S]+owner: 'a11y\/composites'/,
+    'Inserter grids and the favourites toolbar must declare composite-controller ownership.'
+);
+assert.match(
+    builder,
+    /function ensurePanelTabs\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', strip, 'panel-tabs-keys'[\s\S]+dbeSetOwnedTimeout\('a11y\/composites'/,
+    'Panel tablists must own their keyboard, click and delayed-refocus work.'
+);
+assert.match(
+    builder,
+    /function bindSelectCombobox\(\)[\s\S]+select-search-keys[\s\S]+select-search-input[\s\S]+select-trigger-keys[\s\S]+multi-select-keys[\s\S]+fake-select-focusout/,
+    'Combobox variants must register every delegated listener through the composite controller.'
+);
+assert.match(
+    builder,
     /function destroyA11yComposites\(\)[\s\S]+dbeObserveChrome\('a11y-composites-top', null\)[\s\S]+dbeUnobserveFooter\('a11y-composites-footer'\)[\s\S]+dbeDestroyOwnedGroups\('a11y\/composites'\)/,
     'The composite controller must release its top-bar/footer observations and owned DOM state.'
+);
+assert.match(
+    builder,
+    /function dbeObserveA11yComposites\(\)[\s\S]+a11y-composites-main[\s\S]+a11y-composites-portals/,
+    'The composite controller must own its main-panel and portal observation roots.'
+);
+assert.doesNotMatch(
+    builder,
+    /dbeUnavailableBound|dbeInserterBound|dbePanelTabsBound/,
+    'Composite listeners must not rely on irreversible element flags.'
 );
 assert.doesNotMatch(
     builder,
@@ -147,6 +177,21 @@ assert.doesNotMatch(
     builder,
     /if \(on\('footer_toolbar'\)\) \{ try \{ ensureFooterToolbar\(\)/,
     'The shared refresh pass must not bypass the composite controller for the footer.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('inserter_keyboard'\)\) \{[\s\S]{0,180}try \{ ensureInserterKeyboard\(\)/,
+    'The shared refresh pass must not bypass the composite controller for the Inserter.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('panel_tabs'\)\) \{ try \{ ensurePanelTabs\(\)/,
+    'The shared refresh pass must not bypass the composite controller for panel tabs.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('select_combobox'\)\) \{ try \{ ensureSelectComboboxes\(\)/,
+    'The shared refresh pass must not bypass the composite controller for comboboxes.'
 );
 assert.doesNotMatch(
     builder,

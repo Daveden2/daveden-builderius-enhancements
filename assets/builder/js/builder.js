@@ -7033,6 +7033,8 @@
        re-renders); the keydown handler binds once per container. */
     var dbeOwnedAttributeRecords = [];
     var dbeGroupBindings = [];
+    var dbeOwnedEventBindings = [];
+    var dbeOwnedTimers = [];
     function dbePruneGroupState() {
         dbeGroupBindings = dbeGroupBindings.filter(function (binding) {
             if (binding.node.isConnected) { return true; }
@@ -7042,6 +7044,11 @@
         });
         dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter(function (record) {
             return record.node.isConnected;
+        });
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) {
+            if (binding.node === document || binding.node.isConnected) { return true; }
+            binding.node.removeEventListener(binding.type, binding.handler, binding.options);
+            return false;
         });
     }
     function dbeRememberOwnedAttributes(owner, node, attributes) {
@@ -7075,6 +7082,39 @@
         });
         dbeGroupBindings = dbeGroupBindings.filter(function (binding) { return binding.owner !== owner; });
         dbeRestoreOwnedAttributes(owner);
+    }
+    function dbeBindOwnedEvent(owner, node, key, type, handler, options) {
+        if (!owner || !node || dbeOwnedEventBindings.some(function (binding) {
+            return binding.owner === owner && binding.node === node && binding.key === key;
+        })) { return; }
+        node.addEventListener(type, handler, options);
+        dbeOwnedEventBindings.push({
+            owner: owner,
+            node: node,
+            key: key,
+            type: type,
+            handler: handler,
+            options: options
+        });
+    }
+    function dbeSetOwnedTimeout(owner, callback, delay) {
+        var timer = { owner: owner, id: 0 };
+        timer.id = setTimeout(function () {
+            dbeOwnedTimers = dbeOwnedTimers.filter(function (item) { return item !== timer; });
+            callback();
+        }, delay);
+        dbeOwnedTimers.push(timer);
+        return timer.id;
+    }
+    function dbeDestroyOwnedActivity(owner) {
+        dbeOwnedEventBindings.filter(function (binding) { return binding.owner === owner; }).forEach(function (binding) {
+            binding.node.removeEventListener(binding.type, binding.handler, binding.options);
+        });
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) { return binding.owner !== owner; });
+        dbeOwnedTimers.filter(function (timer) { return timer.owner === owner; }).forEach(function (timer) {
+            clearTimeout(timer.id);
+        });
+        dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) { return timer.owner !== owner; });
     }
 
     function dbeEnsureGroup(container, label, sel, opts) {
@@ -7194,6 +7234,10 @@
        control whose action cannot succeed. */
     function dbeSyncInserterAvailability(container, sel) {
         container.querySelectorAll(sel).forEach(function (btn) {
+            dbeRememberOwnedAttributes('a11y/composites', btn, [
+                'aria-disabled', 'tabindex', 'aria-label', 'data-dbe-inserter-original-label',
+                'data-dbe-inserter-name', 'data-dbe-unavailable'
+            ]);
             var unavailable = btn.classList.contains('lockedForPro') || btn.classList.contains('locked');
             if (!unavailable) {
                 if (btn.getAttribute('data-dbe-unavailable') === 'true') {
@@ -7226,9 +7270,7 @@
             }
         });
 
-        if (container.dbeUnavailableBound) { return; }
-        container.dbeUnavailableBound = true;
-        container.addEventListener('click', function (e) {
+        dbeBindOwnedEvent('a11y/composites', container, 'inserter-unavailable', 'click', function (e) {
             var btn = e.target && e.target.closest ? e.target.closest(sel) : null;
             if (!btn || !container.contains(btn) || btn.getAttribute('aria-disabled') !== 'true') { return; }
             e.preventDefault();
@@ -7243,13 +7285,15 @@
             if (!container) { return; }
             var titleEl = cw.querySelector('.uniCatTitle');
             var label = titleEl ? (titleEl.textContent || '').trim() : '';
+            dbeRememberOwnedAttributes('a11y/composites', container, ['role', 'aria-label']);
             if (container.getAttribute('role') !== 'group') { container.setAttribute('role', 'group'); }
             if (label && container.getAttribute('aria-label') !== label) { container.setAttribute('aria-label', label); }
             dbeSyncInserterAvailability(container, sel);
+            dbeRovingItems(container, sel).forEach(function (item) {
+                dbeRememberOwnedAttributes('a11y/composites', item, ['tabindex']);
+            });
             dbeSyncRoving(container, sel);
-            if (container.dbeInserterBound) { return; }
-            container.dbeInserterBound = true;
-            container.addEventListener('keydown', function (e) {
+            dbeBindOwnedEvent('a11y/composites', container, 'inserter-keys', 'keydown', function (e) {
                 if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) === -1) { return; }
                 var items = dbeRovingItems(container, sel);
                 if (!items.length) { return; }
@@ -7286,9 +7330,13 @@
         var favouriteSel = '.uniModTree__favouritesListItem .modIcon';
         var sel = '.dbe-fav-reorder-btn, ' + favouriteSel;
         list.querySelectorAll(':scope > li').forEach(function (li) {
+            dbeRememberOwnedAttributes('a11y/composites', li, ['role']);
             if (li.getAttribute('role') !== 'presentation') { li.setAttribute('role', 'presentation'); }
         });
         list.querySelectorAll(favouriteSel).forEach(function (btn) {
+            dbeRememberOwnedAttributes('a11y/composites', btn, [
+                'data-dbe-favourite-name', 'aria-label', 'data-dbe-tip'
+            ]);
             var name = btn.getAttribute('data-dbe-favourite-name');
             if (!name) {
                 var item = btn.closest('.uniModTree__favouritesListItem');
@@ -7310,7 +7358,8 @@
         });
         dbeEnsureGroup(list, dbeT('favouriteElements', 'Favourite elements'), sel, {
             role: 'toolbar',
-            orientation: 'vertical'
+            orientation: 'vertical',
+            owner: 'a11y/composites'
         });
     }
 
@@ -7339,9 +7388,13 @@
             var label = panelSel === '.uniRightPanel'
                 ? dbeT('navigatorTabs', 'Navigator views')
                 : dbeT('settingsTabs', 'Element settings');
+            dbeRememberOwnedAttributes('a11y/composites', strip, ['role', 'aria-label']);
             if (strip.getAttribute('role') !== 'tablist') { strip.setAttribute('role', 'tablist'); }
             if (strip.getAttribute('aria-label') !== label) { strip.setAttribute('aria-label', label); }
             dbeRovingItems(strip, sel).forEach(function (t) {
+                dbeRememberOwnedAttributes('a11y/composites', t, [
+                    'role', 'aria-label', 'aria-selected', 'tabindex'
+                ]);
                 if (t.getAttribute('role') !== 'tab') { t.setAttribute('role', 'tab'); }
                 if (panelSel === '.uniRightPanel') {
                     var tabName = (t.textContent || '').trim();
@@ -7352,9 +7405,7 @@
                 if (t.getAttribute('aria-selected') !== on) { t.setAttribute('aria-selected', on); }
             });
             dbeSyncRoving(strip, sel, { activeClass: 'active' });
-            if (strip.dbePanelTabsBound) { return; }
-            strip.dbePanelTabsBound = true;
-            strip.addEventListener('keydown', function (e) {
+            dbeBindOwnedEvent('a11y/composites', strip, 'panel-tabs-keys', 'keydown', function (e) {
                 // Horizontal tablist (APG): Left/Right move between tabs; Up/Down
                 // belong to a vertical tablist and are left to pass through.
                 if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
@@ -7382,9 +7433,9 @@
             // Styles mounts the CSS editor, which should keep it). Re-query the
             // live strip: the node captured in this closure is detached by the
             // remount, so focusing its buttons would silently land on <body>.
-            strip.addEventListener('click', function (e) {
+            dbeBindOwnedEvent('a11y/composites', strip, 'panel-tabs-click', 'click', function (e) {
                 if (!e.target.closest(sel)) { return; }
-                setTimeout(function () {
+                dbeSetOwnedTimeout('a11y/composites', function () {
                     var ae = document.activeElement;
                     if (ae && ae !== document.body && !(ae.closest && ae.closest('.uniPanelTabs'))) { return; }
                     var live = document.querySelector(panelSel + ' .uniPanelTabs');
@@ -7935,12 +7986,18 @@
         // and name the caret by the current value — it otherwise inherits the
         // generic "Save options" tooltip label from the .caretIcon selector.
         document.querySelectorAll('.uniSystemSelect').forEach(function (sel) {
+            dbeRememberOwnedAttributes('a11y/composites', sel, [
+                'role', 'aria-haspopup', 'aria-expanded', 'aria-controls',
+                'aria-activedescendant', 'aria-labelledby', 'aria-label'
+            ]);
             var hidden = sel.querySelector('.uniSystemSelect__hiddenField');
+            dbeRememberOwnedAttributes('a11y/composites', hidden, ['tabindex']);
             if (hidden && hidden.getAttribute('tabindex') !== '-1') { hidden.setAttribute('tabindex', '-1'); }
             // Fold the caret into the trigger: one Tab stop, out of the a11y tree,
             // so the whole control reads and behaves as a single combobox.
             var caret = sel.querySelector('.uniIconButton.caretIcon');
             if (caret) {
+                dbeRememberOwnedAttributes('a11y/composites', caret, ['tabindex', 'aria-hidden']);
                 if (caret.getAttribute('tabindex') !== '-1') { caret.setAttribute('tabindex', '-1'); }
                 if (caret.getAttribute('aria-hidden') !== 'true') { caret.setAttribute('aria-hidden', 'true'); }
             }
@@ -7962,8 +8019,16 @@
             var titleEl = dbeSSLabelEl(sel);
             var valueEl = sel.querySelector('.uniSystemSelect__value') || sel.querySelector('.uniSystemSelect__valueInner');
             var ref = [];
-            if (titleEl) { if (!titleEl.id) { titleEl.id = 'dbe-ss-lbl-' + (++dbeSSId); } ref.push(titleEl.id); }
-            if (valueEl) { if (!valueEl.id) { valueEl.id = 'dbe-ss-val-' + (++dbeSSId); } ref.push(valueEl.id); }
+            if (titleEl) {
+                dbeRememberOwnedAttributes('a11y/composites', titleEl, ['id']);
+                if (!titleEl.id) { titleEl.id = 'dbe-ss-lbl-' + (++dbeSSId); }
+                ref.push(titleEl.id);
+            }
+            if (valueEl) {
+                dbeRememberOwnedAttributes('a11y/composites', valueEl, ['id']);
+                if (!valueEl.id) { valueEl.id = 'dbe-ss-val-' + (++dbeSSId); }
+                ref.push(valueEl.id);
+            }
             if (ref.length) {
                 var lb = ref.join(' ');
                 if (sel.getAttribute('aria-labelledby') !== lb) { sel.setAttribute('aria-labelledby', lb); }
@@ -7985,12 +8050,14 @@
         document.querySelectorAll('.uniSystemSelectModuleTags').forEach(function (mt) {
             var results = mt.querySelector('.uniSystemSelectModuleTags__resultsWrapper');
             if (results) {
+                dbeRememberOwnedAttributes('a11y/composites', results, ['role', 'id', 'aria-label']);
                 if (results.getAttribute('role') !== 'listbox') { results.setAttribute('role', 'listbox'); }
                 if (!results.id || results.id.indexOf('dbe-mtags-list') !== 0) { results.id = 'dbe-mtags-list-' + (++dbeSSId); }
                 if (!results.getAttribute('aria-label')) { results.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
             var curVal = ((mt.querySelector('.uniSystemSelectModuleTags__placeholder') || {}).textContent || '').trim();
             mt.querySelectorAll('.uniSystemSelectModuleTags__item').forEach(function (it) {
+                dbeRememberOwnedAttributes('a11y/composites', it, ['role', 'aria-selected']);
                 if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
                 var isSel = (curVal && (it.textContent || '').trim() === curVal) ? 'true' : 'false';
                 if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
@@ -8001,6 +8068,9 @@
             // the current tag as its value. Focus moves to the real search on open.
             var mfake = mt.querySelector('.uniSystemSelectModuleTags__fakeInput');
             if (mfake) {
+                dbeRememberOwnedAttributes('a11y/composites', mfake, [
+                    'role', 'aria-haspopup', 'aria-expanded', 'aria-controls', 'aria-labelledby'
+                ]);
                 if (mfake.getAttribute('role') !== 'combobox') { mfake.setAttribute('role', 'combobox'); }
                 if (mfake.getAttribute('aria-haspopup') !== 'listbox') { mfake.setAttribute('aria-haspopup', 'listbox'); }
                 var fexp = mexp ? 'true' : 'false';
@@ -8010,13 +8080,24 @@
                 } else if (mfake.hasAttribute('aria-controls')) { mfake.removeAttribute('aria-controls'); }
                 var mTitle = dbeSSLabelEl(mt);
                 var mRef = [];
-                if (mTitle) { if (!mTitle.id) { mTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } mRef.push(mTitle.id); }
+                if (mTitle) {
+                    dbeRememberOwnedAttributes('a11y/composites', mTitle, ['id']);
+                    if (!mTitle.id) { mTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); }
+                    mRef.push(mTitle.id);
+                }
                 var mPlaceholder = mt.querySelector('.uniSystemSelectModuleTags__placeholder');
-                if (mPlaceholder) { if (!mPlaceholder.id) { mPlaceholder.id = 'dbe-ss-val-' + (++dbeSSId); } mRef.push(mPlaceholder.id); }
+                if (mPlaceholder) {
+                    dbeRememberOwnedAttributes('a11y/composites', mPlaceholder, ['id']);
+                    if (!mPlaceholder.id) { mPlaceholder.id = 'dbe-ss-val-' + (++dbeSSId); }
+                    mRef.push(mPlaceholder.id);
+                }
                 if (mRef.length && mfake.getAttribute('aria-labelledby') !== mRef.join(' ')) { mfake.setAttribute('aria-labelledby', mRef.join(' ')); }
             }
             var msearch = mt.querySelector('.uniSystemSelectModuleTags__search');
             if (msearch) {
+                dbeRememberOwnedAttributes('a11y/composites', msearch, [
+                    'role', 'aria-expanded', 'aria-controls', 'aria-autocomplete', 'aria-label'
+                ]);
                 if (msearch.getAttribute('role') !== 'combobox') { msearch.setAttribute('role', 'combobox'); }
                 if (msearch.getAttribute('aria-expanded') !== (mexp ? 'true' : 'false')) { msearch.setAttribute('aria-expanded', mexp ? 'true' : 'false'); }
                 if (results && msearch.getAttribute('aria-controls') !== results.id) { msearch.setAttribute('aria-controls', results.id); }
@@ -8040,9 +8121,18 @@
                 ? [].slice.call(cs.querySelectorAll('.uniSystemSelectClasses__item')).filter(function (it) { return it.offsetParent !== null; })
                 : [];
             var csList = csItems.length ? csItems[0].parentElement : null;
-            if (csList && (!csList.id || csList.id.indexOf('dbe-csclasses-list') !== 0)) { csList.id = 'dbe-csclasses-list-' + (++dbeSSId); }
+            if (csList) {
+                dbeRememberOwnedAttributes('a11y/composites', csList, [
+                    'id', 'role', 'aria-multiselectable', 'aria-label'
+                ]);
+                if (!csList.id || csList.id.indexOf('dbe-csclasses-list') !== 0) { csList.id = 'dbe-csclasses-list-' + (++dbeSSId); }
+            }
             var csFake = cs.querySelector('.uniSystemSelectClasses__fakeInput');
             if (csFake) {
+                dbeRememberOwnedAttributes('a11y/composites', csFake, [
+                    'role', 'aria-haspopup', 'aria-expanded', 'aria-controls',
+                    'aria-labelledby', 'aria-label'
+                ]);
                 if (csFake.getAttribute('role') !== 'combobox') { csFake.setAttribute('role', 'combobox'); }
                 if (csFake.getAttribute('aria-haspopup') !== 'listbox') { csFake.setAttribute('aria-haspopup', 'listbox'); }
                 var ce = csExp ? 'true' : 'false';
@@ -8052,6 +8142,7 @@
                 } else if (csFake.hasAttribute('aria-controls')) { csFake.removeAttribute('aria-controls'); }
                 var csTitle = dbeSSLabelEl(cs);
                 if (csTitle) {
+                    dbeRememberOwnedAttributes('a11y/composites', csTitle, ['id']);
                     if (!csTitle.id) { csTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); }
                     if (csFake.getAttribute('aria-labelledby') !== csTitle.id) { csFake.setAttribute('aria-labelledby', csTitle.id); }
                 } else {
@@ -8067,12 +8158,16 @@
                 if (!csList.getAttribute('aria-label')) { csList.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
             }
             csItems.forEach(function (it) {
+                dbeRememberOwnedAttributes('a11y/composites', it, ['role', 'aria-selected']);
                 if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
                 var on = it.classList.contains('assigned') ? 'true' : 'false';
                 if (it.getAttribute('aria-selected') !== on) { it.setAttribute('aria-selected', on); }
             });
             var csSearch = cs.querySelector('.uniSystemSelectClasses__search');
             if (csSearch) {
+                dbeRememberOwnedAttributes('a11y/composites', csSearch, [
+                    'role', 'aria-expanded', 'aria-controls', 'aria-autocomplete', 'aria-label'
+                ]);
                 if (csSearch.getAttribute('role') !== 'combobox') { csSearch.setAttribute('role', 'combobox'); }
                 if (csSearch.getAttribute('aria-expanded') !== 'true') { csSearch.setAttribute('aria-expanded', 'true'); }
                 if (csList && csSearch.getAttribute('aria-controls') !== csList.id) { csSearch.setAttribute('aria-controls', csList.id); }
@@ -8092,6 +8187,10 @@
         document.querySelectorAll('.builderiusMultiSelect').forEach(function (ms) {
             var msTrigger = ms.querySelector('.builderiusMultiSelect__trigger');
             if (!msTrigger) { return; }
+            dbeRememberOwnedAttributes('a11y/composites', msTrigger, [
+                'tabindex', 'role', 'aria-haspopup', 'aria-expanded',
+                'aria-labelledby', 'aria-label'
+            ]);
             if (msTrigger.getAttribute('tabindex') !== '0') { msTrigger.setAttribute('tabindex', '0'); }
             if (msTrigger.getAttribute('role') !== 'combobox') { msTrigger.setAttribute('role', 'combobox'); }
             if (msTrigger.getAttribute('aria-haspopup') !== 'listbox') { msTrigger.setAttribute('aria-haspopup', 'listbox'); }
@@ -8100,8 +8199,16 @@
             var msTitle = dbeSSLabelEl(ms);
             var msValue = ms.querySelector('.builderiusMultiSelect__value');
             var msRef = [];
-            if (msTitle) { if (!msTitle.id) { msTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); } msRef.push(msTitle.id); }
-            if (msValue) { if (!msValue.id) { msValue.id = 'dbe-ss-val-' + (++dbeSSId); } msRef.push(msValue.id); }
+            if (msTitle) {
+                dbeRememberOwnedAttributes('a11y/composites', msTitle, ['id']);
+                if (!msTitle.id) { msTitle.id = 'dbe-ss-lbl-' + (++dbeSSId); }
+                msRef.push(msTitle.id);
+            }
+            if (msValue) {
+                dbeRememberOwnedAttributes('a11y/composites', msValue, ['id']);
+                if (!msValue.id) { msValue.id = 'dbe-ss-val-' + (++dbeSSId); }
+                msRef.push(msValue.id);
+            }
             if (msRef.length) {
                 var mlb = msRef.join(' ');
                 if (msTrigger.getAttribute('aria-labelledby') !== mlb) { msTrigger.setAttribute('aria-labelledby', mlb); }
@@ -8113,6 +8220,7 @@
             ms.querySelectorAll('.builderiusMultiSelect__option').forEach(function (opt) {
                 var cb = opt.querySelector('input[type="checkbox"]');
                 var t = (opt.textContent || '').trim();
+                dbeRememberOwnedAttributes('a11y/composites', cb, ['aria-label']);
                 if (cb && t && cb.getAttribute('aria-label') !== t) { cb.setAttribute('aria-label', t); }
             });
         });
@@ -8123,12 +8231,14 @@
         var items = dbeSSItems(dd);
         var listContainer = items.length ? items[0].parentElement : null;
         if (listContainer) {
+            dbeRememberOwnedAttributes('a11y/composites', listContainer, ['role', 'id', 'aria-label']);
             if (listContainer.getAttribute('role') !== 'listbox') { listContainer.setAttribute('role', 'listbox'); }
             if (listContainer.id !== SSCOMBO_LIST_ID) { listContainer.id = SSCOMBO_LIST_ID; }
             if (!listContainer.getAttribute('aria-label')) { listContainer.setAttribute('aria-label', dbeT('comboboxListbox', 'Options')); }
         }
         // Category headings are not options; keep them out of the listbox structure.
         [].slice.call(dd.querySelectorAll('.uniSystemSelect__cat')).forEach(function (c) {
+            dbeRememberOwnedAttributes('a11y/composites', c, ['role']);
             if (c.getAttribute('role') !== 'presentation') { c.setAttribute('role', 'presentation'); }
         });
         // The current value has no native marker, so match option text against the
@@ -8139,6 +8249,9 @@
             if (t) { vals.push(t); }
         });
         items.forEach(function (it, i) {
+            dbeRememberOwnedAttributes('a11y/composites', it, [
+                'role', 'id', 'tabindex', 'aria-selected', 'class'
+            ]);
             if (it.getAttribute('role') !== 'option') { it.setAttribute('role', 'option'); }
             var id = SSCOMBO_LIST_ID + '-opt-' + i;
             if (it.id !== id) { it.id = id; }
@@ -8147,6 +8260,10 @@
             if (it.getAttribute('aria-selected') !== isSel) { it.setAttribute('aria-selected', isSel); }
         });
         if (search) {
+            dbeRememberOwnedAttributes('a11y/composites', search, [
+                'tabindex', 'role', 'aria-expanded', 'aria-controls',
+                'aria-label', 'aria-activedescendant'
+            ]);
             // The trigger owns combobox semantics now; the in-popup search is a
             // plain filter. Keep it out of the Tab order (keyboard drives from the
             // trigger via aria-activedescendant) but leave it clickable/typeable
@@ -8355,7 +8472,11 @@
         return -1;
     }
     function dbeSSHighlight(search, items, idx) {
-        items.forEach(function (it) { it.classList.remove('dbe-sscombo-active'); });
+        dbeRememberOwnedAttributes('a11y/composites', search, ['aria-activedescendant']);
+        items.forEach(function (it) {
+            dbeRememberOwnedAttributes('a11y/composites', it, ['class']);
+            it.classList.remove('dbe-sscombo-active');
+        });
         var t = items[idx];
         if (!t) { return; }
         t.classList.add('dbe-sscombo-active');
@@ -8364,7 +8485,7 @@
     }
     function bindSelectCombobox() {
         // Arrow nav + Enter-when-highlighted, additive over the native search.
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent('a11y/composites', document, 'select-search-keys', 'keydown', function (e) {
             var search = e.target;
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
             if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Tab') { return; }
@@ -8415,7 +8536,7 @@
         }, true);
         // Typing re-filters (native): the old highlight is stale, so drop it and
         // let schedule() re-apply roles/ids to the rebuilt list.
-        document.addEventListener('input', function (e) {
+        dbeBindOwnedEvent('a11y/composites', document, 'select-search-input', 'input', function (e) {
             var search = e.target;
             if (!search || !search.classList || !search.classList.contains('uniSystemSelect__search')) { return; }
             search.removeAttribute('aria-activedescendant');
@@ -8429,7 +8550,7 @@
         // close+commit path. Escape/Tab close by re-selecting the current value
         // (a no-op that leaves it unchanged). Runs only when the trigger itself
         // holds focus, so it never clashes with the in-popup search handler above.
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent('a11y/composites', document, 'select-trigger-keys', 'keydown', function (e) {
             var trigger = e.target;
             if (!trigger || !trigger.classList || !trigger.classList.contains('uniSystemSelect')) { return; }
             var open = trigger.classList.contains('expanded');
@@ -8446,7 +8567,7 @@
                     // option list on a busy frame can mount later than one tick,
                     // and a missed mount would leave ArrowDown apparently dead.
                     waitFor(dbeSSOpenDropdown, function (dd) {
-                        if (!dd) { return; }
+                        if (!dd || !dbeCompositeControllerActive) { return; }
                         try { ensureSelectComboboxes(); } catch (err) {}   // stamp option ids/roles
                         var items = dbeSSItems(dd);
                         var si = items.map(function (it) { return it.getAttribute('aria-selected') === 'true'; }).indexOf(true);
@@ -8473,7 +8594,7 @@
         // trigger div opens through the same click path a mouse uses; once the
         // popup is open its options are real checkboxes, so Tab and Space are
         // native — only open/close and Up/Down between options need wiring.
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent('a11y/composites', document, 'multi-select-keys', 'keydown', function (e) {
             var t = e.target;
             if (!t || !t.classList) { return; }
             if (t.classList.contains('builderiusMultiSelect__trigger')) {
@@ -8485,7 +8606,7 @@
                         var ms = t.closest('.builderiusMultiSelect');
                         return (ms && ms.querySelector('.builderiusMultiSelect__option input[type="checkbox"]')) || null;
                     }, function (cb) {
-                        if (cb) { try { cb.focus(); } catch (err) {} }
+                        if (cb && dbeCompositeControllerActive) { try { cb.focus(); } catch (err) {} }
                     });
                 } else if (e.key === 'Escape' && t.classList.contains('is-open')) {
                     e.preventDefault();
@@ -8535,7 +8656,7 @@
         // which the widget already closes itself). Neither close commits (verified)
         // — the class field is multi-select, so re-committing would be especially
         // wrong.
-        document.addEventListener('focusout', function (e) {
+        dbeBindOwnedEvent('a11y/composites', document, 'fake-select-focusout', 'focusout', function (e) {
             var w = e.target && e.target.closest && e.target.closest('.uniSystemSelectModuleTags, .uniSystemSelectClasses');
             if (!w || !w.classList.contains('expanded')) { return; }
             var to = e.relatedTarget;
@@ -13453,6 +13574,7 @@
         }
     }, on('chrome_landmarks') || on('tooltips'));
 
+    var dbeCompositeControllerActive = false;
     var dbeCompositeFooterTimer = 0;
     var dbeCompositeFooterAttempts = 0;
     function dbeObserveA11yComposites() {
@@ -13460,11 +13582,31 @@
         if (on('topbar_toolbar') && top) {
             dbeObserveChrome('a11y-composites-top', top, { childList: true, subtree: true });
         }
+        var main = dbeQuery('mainPanel');
+        if ((on('inserter_keyboard') || on('panel_tabs')) && main) {
+            dbeObserveChrome('a11y-composites-main', main, {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        }
+        if (on('select_combobox')) {
+            dbeObserveChrome('a11y-composites-portals', document.body, { childList: true });
+        }
     }
     function dbeRefreshA11yComposites() {
+        dbePruneGroupState();
         dbeObserveA11yComposites();
         if (on('topbar_toolbar')) { ensureTopbarToolbars(); }
         if (on('footer_toolbar')) { ensureFooterToolbar(); }
+        if (on('inserter_keyboard')) {
+            ensureInserterKeyboard();
+            ensureFavouritesKeyboard();
+        }
+        if (on('panel_tabs')) { ensurePanelTabs(); }
+        if (on('select_combobox')) { ensureSelectComboboxes(); }
     }
     function dbeRetryCompositeFooter() {
         if (!on('footer_toolbar') || dbeQuery('footerBar') || dbeCompositeFooterAttempts >= 30) {
@@ -13479,20 +13621,26 @@
         }, 500);
     }
     function destroyA11yComposites() {
+        dbeCompositeControllerActive = false;
         if (dbeCompositeFooterTimer) {
             clearTimeout(dbeCompositeFooterTimer);
             dbeCompositeFooterTimer = 0;
         }
         dbeCompositeFooterAttempts = 0;
         dbeObserveChrome('a11y-composites-top', null);
+        dbeObserveChrome('a11y-composites-main', null);
+        dbeObserveChrome('a11y-composites-portals', null);
         dbeUnobserveFooter('a11y-composites-footer');
         dbeObserveChrome('a11y-composites-footer-scope-tabs', null);
         dbeObserveChrome('a11y-composites-footer-config-panel', null);
+        dbeDestroyOwnedActivity('a11y/composites');
         dbeDestroyOwnedGroups('a11y/composites');
     }
     dbeControllers.register('a11y/composites', {
         init: function (context) {
             if (!context || !context.builderius) { return; }
+            dbeCompositeControllerActive = true;
+            if (on('select_combobox')) { bindSelectCombobox(); }
             dbeRefreshA11yComposites();
             dbeRetryCompositeFooter();
         },
@@ -13502,7 +13650,7 @@
         destroy: function () {
             destroyA11yComposites();
         }
-    }, on('topbar_toolbar') || on('footer_toolbar'));
+    }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') || on('select_combobox'));
 
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
@@ -13536,14 +13684,8 @@
             }
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
-            if (on('inserter_keyboard')) {
-                try { ensureInserterKeyboard(); } catch (e) {}
-                try { ensureFavouritesKeyboard(); } catch (e) {}
-            }
-            if (on('panel_tabs')) { try { ensurePanelTabs(); } catch (e) {} }
             if (on('settings_accordions')) { try { ensureSettingsAccordions(); } catch (e) {} }
             if (on('builderius_menu')) { try { ensureBuilderiusMenu(); } catch (e) {} }
-            if (on('select_combobox')) { try { ensureSelectComboboxes(); } catch (e) {} }
             if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
@@ -13595,8 +13737,8 @@
         // The main panel contains the Navigator, so when both are needed it
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
-        var needMainObservation = NEED_LEFT_PANEL || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('compact_panes') || on('condition_helpers');
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needMainObservation = NEED_LEFT_PANEL || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('compact_panes') || on('condition_helpers');
 
         // Also watch the settings panel area (left) so the CSS-code default
         // reacts to element selection, tab switches, and the CSS-mode toggle.
@@ -13626,13 +13768,6 @@
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
         }
-        // Select comboboxes: bind the additive arrow/Enter handling, and watch
-        // <body> (where the popover portals) so roles are applied when it opens.
-        if (on('select_combobox')) {
-            bindSelectCombobox();
-            dbeObserveChrome('body-portals', document.body, { childList: true });
-        }
-
         // The Sense AI session tabs live in that same footer. Nudge schedule()
         // until ensureTerminalTabs() has wired its own observer to the footer bar,
         // so the tabs are reachable even when this is the only feature enabled.
