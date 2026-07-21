@@ -1,107 +1,27 @@
 (function () {
     'use strict';
 
-    /* Config printed by the plugin (includes/output-builder.php). Every feature
-       is a toggle; helpers below are defined unconditionally (free), but
-       WIRING — observers, listeners, hooks, DOM writes — only happens for
-       enabled features. */
-    var CFG = window.dbeBuilderEnhancements || {};
-    var F = CFG.features || {};
-    function on(id) { return !!F[id]; }
-
-    /* Translations, supplied by PHP (includes/i18n-builder.php) on CFG.i18n.
-       dbeT() falls back to the in-file English so a missing key never blanks a
-       control; dbeFmt() resolves sprintf-style %s / %1$s placeholders; dbeTn()
-       picks a One/Many key pair by count (English plural shape — see the
-       PHP file header for the limitation). */
-    var I18N = CFG.i18n || {};
-    function dbeT(key, fallback) { return I18N[key] || fallback; }
-    function dbeFmt(s) {
-        var args = [].slice.call(arguments, 1), i = 0;
-        return String(s).replace(/%(\d+\$)?s/g, function (m, n) {
-            return String(n ? args[parseInt(n, 10) - 1] : args[i++]);
-        });
+    /* core-runtime.js loads immediately before this feature runtime. Capture its
+       private API once; all feature wiring remains toggle-gated below. */
+    var dbeRuntimeFactory = window.dbeBuilderRuntime;
+    if (!dbeRuntimeFactory || typeof dbeRuntimeFactory.create !== 'function') {
+        if (window.console && console.error) { console.error('[DBE] Core runtime failed to load; enhancements were not started.'); }
+        return;
     }
-    function dbeTn(count, keyOne, fallbackOne, keyMany, fallbackMany) {
-        return count === 1 ? dbeT(keyOne, fallbackOne) : dbeT(keyMany, fallbackMany);
-    }
-
-    /* Versioned boundary around the Builderius internals DBE depends on. Keep
-       store-global and stable chrome-root knowledge here; feature-specific
-       selectors stay with their controllers until they prove shared. A new
-       Builderius family should add an adapter entry instead of scattering
-       compatibility branches through the feature code. */
-    var DBE_BUILDERIUS_ADAPTERS = {
-        '1.3': {
-            testedVersion: '1.3.5-beta',
-            storeGlobal: '__builderiusStoreFns',
-            selectors: {
-                mainPanel: '.uniMainPanel',
-                topPanel: '.uniTopPanel',
-                leftPanel: '.uniLeftPanel',
-                leftPanelOuter: '.uniLeftPanelOuter',
-                navigatorPanel: '.uniRightPanel',
-                navigatorRows: '.uniRightPanel .uniModTree__item',
-                navigatorTree: '.uniRightPanel .uniModTree .uniModTree__list',
-                navigatorFirstRow: '.uniRightPanel .uniModTree__list button.uniModTree__item',
-                navigatorRowPrefix: '.uniRightPanel .uni-tree-node-',
-                canvasPanel: '.uniIframePanel',
-                canvasOuter: '.uniIframePanel__outer',
-                canvasInner: '.uniIframePanel__inner',
-                previewFrame: '#builderInner',
-                footerPanel: '.uniFooterPanel',
-                footerBar: '.uniFooterPanelBar',
-                saveButton: '.uniTopPanel .uniPanelButtonPrimary.saveBtn'
-            }
-        }
-    };
-    var dbeBuilderiusVersion = String((CFG.builderius && CFG.builderius.version) || '');
-    var dbeBuilderiusVersionMatch = dbeBuilderiusVersion.match(/^(\d+\.\d+)/);
-    var dbeBuilderiusFamily = dbeBuilderiusVersionMatch ? dbeBuilderiusVersionMatch[1] : '';
-    var dbeBuilderiusCompatible = !!DBE_BUILDERIUS_ADAPTERS[dbeBuilderiusFamily];
-    var dbeBuilderiusAdapterKey = dbeBuilderiusCompatible ? dbeBuilderiusFamily : '1.3';
-    var dbeBuilderiusAdapter = DBE_BUILDERIUS_ADAPTERS[dbeBuilderiusAdapterKey];
-    var dbeBuilderiusTested = dbeBuilderiusVersion === dbeBuilderiusAdapter.testedVersion;
-    var dbeBuilderiusStore = window[dbeBuilderiusAdapter.storeGlobal];
-
-    function dbeSelector(name) { return dbeBuilderiusAdapter.selectors[name] || ''; }
-    function dbeQuery(name, root) {
-        var selector = dbeSelector(name);
-        return selector ? (root || document).querySelector(selector) : null;
-    }
-    function dbeQueryAll(name, root) {
-        var selector = dbeSelector(name);
-        return selector ? (root || document).querySelectorAll(selector) : [];
-    }
-    function dbeNavigatorRow(id) {
-        return id ? document.querySelector(dbeSelector('navigatorRowPrefix') + id) : null;
-    }
-    function store() {
-        if (!dbeBuilderiusStore) {
-            dbeBuilderiusStore = window[dbeBuilderiusAdapter.storeGlobal];
-            if (dbeBuilderiusStore) { document.documentElement.dataset.dbeBuilderiusStore = 'captured'; }
-        }
-        return dbeBuilderiusStore;
-    }
-    function modules() { try { return store().storeGet('modules'); } catch (e) { return null; } }
-    function activeId() { try { return store().storeGet('activeModule'); } catch (e) { return null; } }
-
-    /* Persistent diagnostics for support and live contract tests. Builderius
-       removes temporary globals after start-up, so both the store reference and
-       these flags must be captured before that cleanup. Unknown/new versions
-       keep using the last compatible adapter so features fail soft, but the
-       untested state remains visible on the document root. */
-    var dbeBuilderiusRoot = document.documentElement;
-    dbeBuilderiusRoot.dataset.dbeBuilderiusAdapter = dbeBuilderiusAdapterKey;
-    dbeBuilderiusRoot.dataset.dbeBuilderiusVersion = dbeBuilderiusVersion || 'unknown';
-    dbeBuilderiusRoot.dataset.dbeBuilderiusTestedVersion = dbeBuilderiusAdapter.testedVersion;
-    dbeBuilderiusRoot.dataset.dbeBuilderiusCompatible = String(dbeBuilderiusCompatible);
-    dbeBuilderiusRoot.dataset.dbeBuilderiusTested = String(dbeBuilderiusTested);
-    dbeBuilderiusRoot.dataset.dbeBuilderiusStore = dbeBuilderiusStore ? 'captured' : 'missing';
-    if (dbeBuilderiusVersion && !dbeBuilderiusTested && window.console && console.warn) {
-        console.warn('[DBE] Builderius ' + dbeBuilderiusVersion + ' is using the ' + dbeBuilderiusAdapterKey +
-            ' compatibility adapter tested against ' + dbeBuilderiusAdapter.testedVersion + '. Re-audit the adapter contract.');
-    }
+    var dbeRuntime = dbeRuntimeFactory.create(window.dbeBuilderEnhancements || {});
+    var CFG = dbeRuntime.config;
+    var on = dbeRuntime.on;
+    var dbeT = dbeRuntime.translate;
+    var dbeFmt = dbeRuntime.format;
+    var dbeTn = dbeRuntime.plural;
+    var dbeBuilderius = dbeRuntime.builderius;
+    var dbeSelector = dbeBuilderius.selector;
+    var dbeQuery = dbeBuilderius.query;
+    var dbeQueryAll = dbeBuilderius.queryAll;
+    var dbeNavigatorRow = dbeBuilderius.navigatorRow;
+    var store = dbeBuilderius.store;
+    var modules = dbeBuilderius.modules;
+    var activeId = dbeBuilderius.activeId;
 
     var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
@@ -7517,30 +7437,9 @@
        the registrations as one set so the detached node is released. The two
        observers with specialised callbacks (preview-document editing state and
        the temporary canvas-width guard) deliberately remain independent. */
-    var dbeChromeObserver = null;
-    var dbeChromeObservations = {};
-    function dbeRebuildChromeObserver() {
-        if (!window.MutationObserver) { return; }
-        if (!dbeChromeObserver) { dbeChromeObserver = new MutationObserver(schedule); }
-        else { dbeChromeObserver.disconnect(); }
-        Object.keys(dbeChromeObservations).forEach(function (key) {
-            var observation = dbeChromeObservations[key];
-            try { dbeChromeObserver.observe(observation.node, observation.options); } catch (e) {}
-        });
-    }
+    var dbeChromeObserver = dbeRuntime.createMutationRouter(schedule);
     function dbeObserveChrome(key, node, options) {
-        var current = dbeChromeObservations[key];
-        if (!node) {
-            if (!current) { return; }
-            delete dbeChromeObservations[key];
-            dbeRebuildChromeObserver();
-            return;
-        }
-        // Every key has one static option set; node identity is the only part
-        // that can change at runtime.
-        if (current && current.node === node) { return; }
-        dbeChromeObservations[key] = { node: node, options: options };
-        dbeRebuildChromeObserver();
+        dbeChromeObserver.observe(key, node, options);
     }
 
     /* Shared by footer_toolbar and ai_terminal_tabs. Tracked by NODE, not a
@@ -12559,7 +12458,6 @@
     var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('style_inspector') || on('context_menu') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
     var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
-    var scheduled = false;
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
        to startRename(), for users who expect double-click-to-rename from
        comparable tools. The two single-clicks that precede the double select the
@@ -13382,11 +13280,7 @@
         stamp(dbeQuery('footerPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
     }
 
-    function schedule() {
-        if (scheduled) { return; }
-        scheduled = true;
-        requestAnimationFrame(function () {
-            scheduled = false;
+    var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             if (NEED_TREE) { try { decorateTree(); } catch (e) {} }
             if (NEED_NAV_BUTTONS) {
                 try { ensureCollapseButton(); } catch (e) {}
@@ -13451,7 +13345,9 @@
             }
             if (on('properties_reorder')) { try { ensurePropertiesReorder(); } catch (e) {} }
             if (on('attr_helpers')) { try { ensureBlankAttrRow(); } catch (e) {} }
-        });
+    });
+    function schedule() {
+        dbeScheduleRefresh();
     }
 
     function boot() {
@@ -13735,9 +13631,5 @@
         })();
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
-    } else {
-        boot();
-    }
+    dbeRuntime.whenReady(boot);
 })();

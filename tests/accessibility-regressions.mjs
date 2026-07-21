@@ -15,6 +15,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
+const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
 const palette = read('assets/builder/css/82-command-palette.css');
@@ -143,17 +144,22 @@ assert.match(
     'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
 );
 assert.match(
-    builder,
-    /function dbeRebuildChromeObserver\(\)[\s\S]+dbeChromeObserver\.observe\(observation\.node, observation\.options\)[\s\S]+function dbeObserveChrome\(key, node, options\)/,
+    coreRuntime,
+    /function createMutationRouter\(refresh\)[\s\S]+new MutationObserver\(refresh\)[\s\S]+observer\.observe\(observation\.node, observation\.options\)/,
     'Builder-chrome mutations must route through one shared observer with targeted roots.'
 );
+assert.match(
+    builder,
+    /var dbeChromeObserver = dbeRuntime\.createMutationRouter\(schedule\)[\s\S]+dbeChromeObserver\.observe\(key, node, options\)/,
+    'Feature controllers must register chrome roots through the core observer router.'
+);
 assert.equal(
-    (builder.match(/new MutationObserver/g) || []).length,
+    ((builder + coreRuntime).match(/new MutationObserver/g) || []).length,
     3,
     'Only the shared chrome router, preview-document bridge and temporary preview-width guard may construct observers.'
 );
 assert.equal(
-    (builder.match(/new MutationObserver\(schedule\)/g) || []).length,
+    (coreRuntime.match(/new MutationObserver\(refresh\)/g) || []).length,
     1,
     'Only the shared chrome mutation router may observe directly into the coalesced schedule.'
 );

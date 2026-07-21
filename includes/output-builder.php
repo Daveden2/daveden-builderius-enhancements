@@ -214,25 +214,27 @@ function dbe_print_builder_head() {
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
 
 /**
- * Config object (inline — it varies per site and per toggle set) and the
- * builder chrome script on wp_footer.
+ * Config object (inline — it varies per site and per toggle set), the small
+ * core runtime and the builder feature runtime on wp_footer.
  *
- * The script is a plain `<script src>` tag printed directly, NOT inlined and
- * NOT enqueued: at ~400 KB it is the plugin's largest asset and inlining
- * defeated browser caching on every builder load, while the wp_enqueue
+ * The scripts are plain `<script src>` tags printed directly, NOT inlined and
+ * NOT enqueued. Inlining the large feature runtime defeated browser caching
+ * on every builder load, while the wp_enqueue
  * pipeline under `?builderius` remains unproven (builder mode strips foreign
- * hooks — see the header docblock in the main plugin file). A printed tag
- * sidesteps both: the browser caches the file, and no enqueue machinery is
- * involved. Versioned by filemtime so a plugin update — or an edit while
- * developing — busts the cache immediately.
+ * hooks — see the header docblock in the main plugin file). Printed tags
+ * sidestep both: the browser caches each file, dependency order is explicit,
+ * and no enqueue machinery is involved. Each file is versioned by filemtime
+ * so a plugin update — or an edit while developing — busts its cache
+ * immediately.
  */
 function dbe_print_builder_footer() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	$path = DBE_DIR . 'assets/builder/js/builder.js';
-	if ( ! is_readable( $path ) ) {
+	$runtime_path = DBE_DIR . 'assets/builder/js/core-runtime.js';
+	$builder_path = DBE_DIR . 'assets/builder/js/builder.js';
+	if ( ! is_readable( $runtime_path ) || ! is_readable( $builder_path ) ) {
 		return;
 	}
 
@@ -274,9 +276,11 @@ function dbe_print_builder_footer() {
 		);
 	}
 
-	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );
+	$runtime_src = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
+	$builder_src = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: the enqueue pipeline is unproven under builder mode (see the function docblock); a printed tag is the delivery proven to survive it.
+	echo '<script id="dbe-builder-runtime-js" src="' . esc_url( $runtime_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed in dependency order because the enqueue pipeline is unproven under builder mode (see the function docblock).
+	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after core-runtime.js so feature controllers can capture the runtime synchronously.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );

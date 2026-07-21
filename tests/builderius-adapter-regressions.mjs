@@ -14,6 +14,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
+const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
@@ -22,18 +23,18 @@ assert.match(
     'Builder config must carry the authoritative parent-plugin version.'
 );
 assert.match(
-    builder,
+    coreRuntime,
     /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.5-beta'/,
     'The audited Builderius 1.3 family must have an explicit tested version.'
 );
 assert.equal(
-    (builder.match(/__builderiusStoreFns/g) || []).length,
+    (coreRuntime.match(/__builderiusStoreFns/g) || []).length,
     1,
     'The private Builderius store global must be named only inside the adapter.'
 );
 assert.match(
-    builder,
-    /var dbeBuilderiusStore = window\[dbeBuilderiusAdapter\.storeGlobal\][\s\S]+function store\(\) \{[\s\S]+return dbeBuilderiusStore;/,
+    coreRuntime,
+    /var storeReference = window\[definition\.storeGlobal\][\s\S]+function store\(\) \{[\s\S]+return storeReference;/,
     'The private store must be captured through the selected adapter before Builderius removes its globals.'
 );
 
@@ -51,12 +52,12 @@ assert.match(
     'footerBar',
     'saveButton'
 ].forEach((name) => {
-    assert.match(builder, new RegExp(`\\b${name}:`), `The adapter must define the ${name} contract.`);
+    assert.match(coreRuntime, new RegExp(`\\b${name}:`), `The adapter must define the ${name} contract.`);
 });
 
 assert.match(
-    builder,
-    /dataset\.dbeBuilderiusTestedVersion = dbeBuilderiusAdapter\.testedVersion[\s\S]+dataset\.dbeBuilderiusCompatible = String\(dbeBuilderiusCompatible\)[\s\S]+dataset\.dbeBuilderiusTested = String\(dbeBuilderiusTested\)[\s\S]+dataset\.dbeBuilderiusStore = dbeBuilderiusStore \? 'captured' : 'missing'/,
+    coreRuntime,
+    /dataset\.dbeBuilderiusTestedVersion = definition\.testedVersion[\s\S]+dataset\.dbeBuilderiusCompatible = String\(compatible\)[\s\S]+dataset\.dbeBuilderiusTested = String\(tested\)[\s\S]+dataset\.dbeBuilderiusStore = storeReference \? 'captured' : 'missing'/,
     'Persistent runtime diagnostics must expose compatibility, exact tested-version and store-capture state.'
 );
 assert.match(
@@ -70,8 +71,8 @@ assert.match(
     'The shared runtime observer roots must resolve through the adapter.'
 );
 assert.match(
-    builder,
-    /Builderius ' \+ dbeBuilderiusVersion[\s\S]+Re-audit the adapter contract/,
+    coreRuntime,
+    /Builderius ' \+ version[\s\S]+Re-audit the adapter contract/,
     'An untested parent version must produce an explicit compatibility warning.'
 );
 
