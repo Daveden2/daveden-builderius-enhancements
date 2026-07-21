@@ -5075,6 +5075,7 @@
        (redundant now) but still works when clicked programmatically below.
        `goingToContent` suppresses the flip during the Content bounce. */
     var goingToContent = false;
+    var dbeCssCodeDefaultForced = false;
     function ensureCssCodeDefault() {
         if (goingToContent) { return; }
         var lp = document.querySelector('.uniLeftPanel');
@@ -5082,7 +5083,7 @@
         if (isCssCodeMode(lp)) { return; }                       // already in code mode
         if (!/Styles/i.test(nativeStripActiveTab(lp) || '')) { return; } // only flip from the Styles tab
         var btn = lp.querySelector('.uniIconCssMode');
-        if (btn) { clickSeq(btn); }
+        if (btn) { dbeCssCodeDefaultForced = true; clickSeq(btn); }
     }
 
     /* In code mode Builderius drops the whole Content/Styles tab strip, so there
@@ -5105,7 +5106,7 @@
                 clickSeq(contentTab);
                 goingToContent = false;
             } else if (tries++ < 40) {
-                requestAnimationFrame(waitForContentTab);
+                dbeSetOwnedFrame(DBE_STYLES_OWNER, waitForContentTab);
             } else {
                 goingToContent = false;
             }
@@ -5154,6 +5155,7 @@
        %local%/%#local%, else the global/template scope. */
     var dbeScope = 'global';        // cached scope; default matches Builderius
     var dbeSwitchingScope = false;
+    var dbeScopeFinish = null;
 
     /* Display name for the non-global scope. It follows the entity being
        edited: "Component" when a component is open, "Template" otherwise —
@@ -5200,12 +5202,15 @@
     /* Poll until test() is truthy, then cb(value); cb(null) if it never is. Uses
        setTimeout (not rAF) because this runs inside a View Transition update
        callback, during which rAF can be suppressed — timer tasks still fire. */
-    function waitFor(test, cb, maxTries) {
+    function waitFor(test, cb, maxTries, owner) {
         var n = 0, max = maxTries || 60;
         (function loop() {
             var v; try { v = test(); } catch (e) { v = null; }
             if (v) { cb(v); }
-            else if (n++ < max) { setTimeout(loop, 25); }
+            else if (n++ < max) {
+                if (owner) { dbeSetOwnedTimeout(owner, loop, 25); }
+                else { setTimeout(loop, 25); }
+            }
             else { cb(null); }
         })();
     }
@@ -5298,7 +5303,7 @@
                 store().storeSet('isGlobalScope', target === 'global');
                 dbeScope = target;
                 repointScope(target, true);                              // open the target scope now
-                setTimeout(function () { repointScope(target, false); }, 60); // re-assert if the native effect reverts it
+                dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () { repointScope(target, false); }, 60); // re-assert if the native effect reverts it
                 schedule();
                 return Promise.resolve();
             } catch (e) { /* fall through to the slow path */ }
@@ -5321,10 +5326,12 @@
                 if (finished) { return; }
                 finished = true;
                 dbeSwitchingScope = false;
-                schedule();
+                dbeScopeFinish = null;
+                if (dbeStylesControllerActive) { schedule(); }
                 resolve();
             }
-            setTimeout(done, 6000);
+            dbeScopeFinish = done;
+            dbeSetOwnedTimeout(DBE_STYLES_OWNER, done, 6000);
 
             var selTab = rp && [].slice.call(rp.querySelectorAll('.uniPanelTabs__tab'))
                 .filter(function (t) { return /Selector/i.test(t.textContent || ''); })[0];
@@ -5366,14 +5373,14 @@
                                 }, function (li) {
                                     if (li && li.querySelector('span')) { clickSeq(li.querySelector('span')); }
                                     done();
-                                }, 24);
+                                }, 24, DBE_STYLES_OWNER);
                             } else {
                                 done();
                             }
-                        });
-                    });
-                });
-            });
+                        }, 60, DBE_STYLES_OWNER);
+                    }, 60, DBE_STYLES_OWNER);
+                }, 60, DBE_STYLES_OWNER);
+            }, 60, DBE_STYLES_OWNER);
         });
     }
 
@@ -5406,14 +5413,18 @@
         }
         var cleanup = function () {
             masks.forEach(function (m) {
+                if (!dbeStylesControllerActive) {
+                    if (m.parentNode) { m.parentNode.removeChild(m); }
+                    return;
+                }
                 m.classList.add('is-fading');
-                setTimeout(function () { if (m.parentNode) { m.parentNode.removeChild(m); } }, 340);
+                dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () { if (m.parentNode) { m.parentNode.removeChild(m); } }, 340);
             });
         };
         var p;
         try { p = promiseFactory(); } catch (e) { cleanup(); throw e; }
         if (p && typeof p.then === 'function') { p.then(cleanup, cleanup); }
-        else { setTimeout(cleanup, 400); }
+        else { dbeSetOwnedTimeout(DBE_STYLES_OWNER, cleanup, 400); }
         return p;
     }
 
@@ -5481,7 +5492,7 @@
                         }]);
                         h.ed.revealLineInCenter(lineNo);
                         // A flash to locate, not a permanent mark — clear it after a beat.
-                        setTimeout(function () {
+                        dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () {
                             if (gen !== dbeFlashGen) { return; } // the decorations belong to a newer flash now
                             var g = leftPanelMonaco();
                             try { if (g) { g.ed.deltaDecorations(dbeAllCssDecos, []); } } catch (e) { /* editor gone */ }
@@ -5491,7 +5502,7 @@
                 }
                 return;
             }
-            if (tries++ < 45) { setTimeout(poll, 150); }   // wait up to ~7s for the churn to settle
+            if (tries++ < 45) { dbeSetOwnedTimeout(DBE_STYLES_OWNER, poll, 150); } // wait up to ~7s for the churn to settle
         })();
     }
 
@@ -5514,6 +5525,7 @@
        shows whichever the switch beside this button has active. Each step waits
        for the builder to re-render before the next (it rebuilds the panel). */
     function openAllCss() {
+        if (!dbeStylesControllerActive) { return; }
         var lp = document.querySelector('.uniLeftPanel');
         var name = lp ? currentSelectorName(lp) : '';   // capture before we navigate away
         var flashName = (name && name.charAt(0) === '.') ? name : '';  // only class selectors flash safely
@@ -5535,6 +5547,7 @@
        sub-tab appears), tolerating the list's post-navigation re-renders. Calls
        done(allTab) on success, done(null) if it never mounts. */
     function clickSelectorUntilLoaded(name, attemptsLeft, done) {
+        if (!dbeStylesControllerActive) { done(null); return; }
         var allTab = cssViewTab('All CSS');
         // The editor may already be mounted for a previously selected item.
         // Only finish once the requested selector is the store's active one;
@@ -5549,7 +5562,7 @@
             }
             clickSeq(target || items[0]);
         }
-        setTimeout(function () { clickSelectorUntilLoaded(name, attemptsLeft - 1, done); }, 120);
+        dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () { clickSelectorUntilLoaded(name, attemptsLeft - 1, done); }, 120);
     }
 
     function ensureScopeBar() {
@@ -5882,7 +5895,8 @@
         instance: 0,
         tab: 'rules',
         filter: '',
-        allComputed: false
+        allComputed: false,
+        focusReturn: null
     };
 
     var DBE_STYLE_COMMON_PROPERTIES = [
@@ -5956,7 +5970,8 @@
     }
 
     function dbeStyleFocusEditor() {
-        setTimeout(function () {
+        if (!dbeStylesControllerActive) { return; }
+        dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () {
             var h = leftPanelMonaco();
             if (h && h.ed && h.ed.focus) { h.ed.focus(); return; }
             var lp = document.querySelector('.uniLeftPanel');
@@ -5970,6 +5985,7 @@
        selector first and wait for the list to return. `%local%` is Builderius'
        no-active-class state, reached through the same native Close action. */
     function dbeStyleSelectSelector(selector, done) {
+        if (!dbeStylesControllerActive) { done(false); return; }
         var want = selector === '%local%' ? '' : selector;
         var current = dbeStyleCurrentSelector();
         if ((want === '' && (!current || current.charAt(0) === '%')) || current === want) {
@@ -5977,8 +5993,8 @@
         }
         if (current && current.charAt(0) !== '%') {
             driveSelectedClose(function (ok) {
-                if (!ok) { done(false); return; }
-                setTimeout(function () { dbeStyleSelectSelector(selector, done); }, 80);
+                if (!dbeStylesControllerActive || !ok) { done(false); return; }
+                dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () { dbeStyleSelectSelector(selector, done); }, 80);
             });
             return;
         }
@@ -5992,11 +6008,12 @@
             clickSeq(li.querySelector('span') || li);
             waitFor(function () { return dbeStyleCurrentSelector() === want || null; }, function (selected) {
                 done(!!selected);
-            }, 40);
-        }, 50);
+            }, 40, DBE_STYLES_OWNER);
+        }, 50, DBE_STYLES_OWNER);
     }
 
     function dbeOpenStyleEditor(id, selector, scopeName) {
+        if (!dbeStylesControllerActive) { return; }
         var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
         // Clicking the already-active Navigator row toggles its selection off,
         // leaving the settings panel empty. Only drive the row when the command
@@ -6021,8 +6038,8 @@
                         dbeStyleFocusEditor();
                     }
                 });
-            }, 80);
-        }, 50);
+            }, 80, DBE_STYLES_OWNER);
+        }, 50, DBE_STYLES_OWNER);
     }
 
     /* Compound/custom selectors are authored through Builderius' Navigator
@@ -6030,6 +6047,7 @@
        Select the exact native selector after switching scope, then leave the
        user in Builderius' own Selector CSS editor. */
     function dbeOpenStylesheetSelector(selector, scopeName) {
+        if (!dbeStylesControllerActive) { return; }
         function openSelector() {
             var nav = navPanelTab('Selectors');
             if (!nav) { return; }
@@ -6715,10 +6733,13 @@
 
     function dbeCloseStyleInspector(panel) {
         var id = dbeStyleInspectorState.id;
+        var preferred = dbeStyleInspectorState.focusReturn;
         panel.remove();
         dbeStyleInspectorState.id = null;
-        var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
-        if (row) { try { row.focus(); } catch (e) {} }
+        dbeStyleInspectorState.focusReturn = null;
+        var target = preferred && preferred.isConnected
+            ? preferred : (id && document.querySelector('.uniRightPanel .uni-tree-node-' + id));
+        if (target) { try { target.focus(); } catch (e) {} }
     }
 
     function dbeBuildStyleInspector() {
@@ -6803,6 +6824,7 @@
 
     function openStyleInspector(id) {
         var existing = document.querySelector('.dbe-style-inspector');
+        if (!existing) { dbeStyleInspectorState.focusReturn = document.activeElement; }
         var row = id && document.querySelector('.uniRightPanel .uni-tree-node-' + id);
         if (row && activeId() !== id) { clickSeq(row); }
         dbeStyleInspectorState.id = id;
@@ -6826,7 +6848,9 @@
 
     function dbeStyleActionItems(id) {
         var items = [
-            makeCtxItem(dbeT('inspectStyles', 'Inspect styles…'), function () { setTimeout(function () { openStyleInspector(id); }, 120); }),
+            makeCtxItem(dbeT('inspectStyles', 'Inspect styles…'), function () {
+                dbeSetOwnedTimeout(DBE_STYLES_OWNER, function () { openStyleInspector(id); }, 120);
+            }),
             makeCtxItem(dbeT('editElementStyles', 'Edit element styles (%local%)'), function () { dbeOpenStyleEditor(id, '%local%', null); })
         ];
         var mod = (modules() || {})[id];
@@ -6922,6 +6946,8 @@
     var dbeWebpackReq = null;    // the builder bundle's __webpack_require__
     var dbeProbeN = 0;           // unique id per chunk-push so the callback always fires
     var dbeMinimapDone = false;  // current editors done + onDidCreateEditor hooked
+    var dbeMinimapCreateListener = null;
+    var dbeMinimapEditors = [];
     function dbeGetMonaco() {
         if (dbeMonacoNs) { return dbeMonacoNs; }
         try {
@@ -6948,20 +6974,37 @@
         } catch (e) { /* bundle internals changed — the CSS hide is the fallback */ }
         return null;
     }
+    function dbeDisableEditorMinimap(ed) {
+        if (!ed || dbeMinimapEditors.some(function (item) { return item.editor === ed; })) { return; }
+        var enabled = true;
+        try {
+            var raw = typeof ed.getRawOptions === 'function' ? ed.getRawOptions() : null;
+            if (raw && raw.minimap && typeof raw.minimap.enabled === 'boolean') { enabled = raw.minimap.enabled; }
+        } catch (e) { /* retain Monaco's enabled default */ }
+        dbeMinimapEditors.push({ editor: ed, enabled: enabled });
+        try { ed.updateOptions({ minimap: { enabled: false } }); } catch (e) {}
+    }
     function dbeDisableMinimap() {
         if (dbeMinimapDone) { return; }
         if (!document.querySelector('.monaco-editor')) { return; } // Monaco not loaded yet
         var monaco = dbeGetMonaco();
         if (!monaco) { return; }
         try {
-            monaco.editor.getEditors().forEach(function (ed) {
-                try { ed.updateOptions({ minimap: { enabled: false } }); } catch (e) {}
-            });
-            monaco.editor.onDidCreateEditor(function (ed) {
-                try { ed.updateOptions({ minimap: { enabled: false } }); } catch (e) {}
-            });
+            monaco.editor.getEditors().forEach(dbeDisableEditorMinimap);
+            dbeMinimapCreateListener = monaco.editor.onDidCreateEditor(dbeDisableEditorMinimap);
             dbeMinimapDone = true;
         } catch (e) { /* fail soft */ }
+    }
+    function dbeRestoreMinimap() {
+        if (dbeMinimapCreateListener) {
+            try { dbeMinimapCreateListener.dispose(); } catch (e) {}
+        }
+        dbeMinimapCreateListener = null;
+        dbeMinimapEditors.forEach(function (item) {
+            try { item.editor.updateOptions({ minimap: { enabled: item.enabled } }); } catch (e) {}
+        });
+        dbeMinimapEditors = [];
+        dbeMinimapDone = false;
     }
     function decorateThemeButton(btn) {
         var t = currentTheme();
@@ -11403,6 +11446,7 @@
        localStorage) collapses it to a small info button that always reopens the
        dialog, so the help is reclaimed-but-recoverable. */
     var DBE_HINT_KEY = 'dbeBuilderCssHintDismissed';
+    var dbeCssHintFocusReturn = null;
 
     function cssHintDismissed() {
         try { return localStorage.getItem(DBE_HINT_KEY) === '1'; } catch (e) { return false; }
@@ -11444,14 +11488,17 @@
     }
 
     function openCssHintDialog() {
+        dbeCssHintFocusReturn = document.activeElement;
         var dlg = document.getElementById('dbe-css-hint-dialog');
         if (!dlg) {
             dlg = document.createElement('dialog');
             dlg.id = 'dbe-css-hint-dialog';
             dlg.className = 'dbe-css-hint-dialog';
+            dlg.setAttribute('aria-labelledby', 'dbe-css-hint-dialog-title');
             var head = document.createElement('div');
             head.className = 'dbe-css-hint-dialog__head';
             var title = document.createElement('h2');
+            title.id = 'dbe-css-hint-dialog-title';
             title.className = 'dbe-css-hint-dialog__title';
             title.textContent = dbeT('cssHintTitle', 'Selector tokens & breakpoints');
             var close = document.createElement('button');
@@ -11467,10 +11514,21 @@
             dlg.appendChild(head);
             dlg.appendChild(body);
             close.addEventListener('click', function () { dlg.close(); });
-            // Keep builder shortcuts from firing while the dialog has focus.
-            dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
-            // Backdrop click closes (native <dialog> also gives Esc for free).
+            // Keep builder shortcuts from firing while the dialog has focus;
+            // close Escape explicitly before an embedded/native handler can
+            // consume it without reaching the browser's dialog cancellation.
+            dlg.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { e.preventDefault(); dlg.close(); }
+                e.stopPropagation();
+            });
+            // Backdrop click offers the equivalent pointer exit.
             dlg.addEventListener('click', function (e) { if (e.target === dlg) { dlg.close(); } });
+            dlg.addEventListener('close', function () {
+                var target = dbeCssHintFocusReturn && dbeCssHintFocusReturn.isConnected
+                    ? dbeCssHintFocusReturn : document.querySelector('.dbe-css-hint-btn, .dbe-scope-badge');
+                dbeCssHintFocusReturn = null;
+                if (target) { try { target.focus(); } catch (e) {} }
+            });
             document.body.appendChild(dlg);
         }
         if (!dlg.open) { dlg.showModal(); }
@@ -12915,7 +12973,9 @@
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_LEFT_PANEL = on('css_code_default') || on('scope_bar') || on('style_inspector') || on('properties_reorder') || on('attr_helpers') || on('css_hint_dialog');
+    var NEED_STYLES = on('css_code_default') || on('scope_bar') || on('style_inspector') ||
+        on('css_hint_dialog') || on('hide_minimap');
+    var NEED_LEFT_PANEL = on('properties_reorder') || on('attr_helpers');
     var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -14174,6 +14234,104 @@
         on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
         on('navigator_keyboard') || on('reveal_selected'));
 
+    var DBE_STYLES_OWNER = 'styles';
+    var dbeStylesControllerActive = false;
+
+    function dbeObserveStyles() {
+        var main = dbeQuery('mainPanel');
+        dbeObserveChrome('styles-main', main, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+    }
+
+    function dbeRefreshStyles() {
+        if (!dbeStylesControllerActive) { return; }
+        dbeObserveStyles();
+        if (on('css_code_default')) {
+            try { ensureCssCodeDefault(); } catch (e) {}
+            try { ensureCodeModeTabs(); } catch (e) {}
+        }
+        if (on('css_hint_dialog')) { try { ensureCssHint(); } catch (e) {} }
+        if (on('hide_minimap')) { try { dbeDisableMinimap(); } catch (e) {} }
+        if (on('scope_bar')) {
+            try { readScopeFromControl(); } catch (e) {}
+            try { ensureScopeBar(); } catch (e) {}
+            try { ensureScopeIsolation(); } catch (e) {}
+        }
+        if (on('style_inspector')) { try { refreshOpenStyleInspector(); } catch (e) {} }
+    }
+
+    function dbeClearAllCssDecorations() {
+        dbeFlashGen++;
+        var handle = leftPanelMonaco();
+        try { if (handle && dbeAllCssDecos.length) { handle.ed.deltaDecorations(dbeAllCssDecos, []); } } catch (e) {}
+        dbeAllCssDecos = [];
+    }
+
+    function destroyStyles() {
+        dbeStylesControllerActive = false;
+        dbeObserveChrome('styles-main', null);
+        if (dbeScopeFinish) { dbeScopeFinish(); }
+        dbeDestroyOwnedActivity(DBE_STYLES_OWNER);
+        dbeClearAllCssDecorations();
+
+        var hintDialog = document.getElementById('dbe-css-hint-dialog');
+        if (hintDialog && hintDialog.open) { try { hintDialog.close(); } catch (e) {} }
+        if (hintDialog && hintDialog.isConnected) { hintDialog.remove(); }
+        dbeCssHintFocusReturn = null;
+
+        var inspector = document.querySelector('.dbe-style-inspector');
+        if (inspector) { dbeCloseStyleInspector(inspector); }
+        document.querySelectorAll(
+            '.dbe-code-tabs, .dbe-scope-bar, .dbe-scope-status, .dbe-scope-cover, ' +
+            '.dbe-scope-mask, .dbe-css-hint'
+        ).forEach(function (node) { node.remove(); });
+
+        document.querySelectorAll('.uniLeftPanel').forEach(function (left) {
+            left.removeAttribute('data-dbe-level');
+            left.querySelectorAll('.dbe-scope-hold').forEach(function (node) { node.classList.remove('dbe-scope-hold'); });
+            left.querySelectorAll('.dbe-scope-covered').forEach(function (node) {
+                node.classList.remove('dbe-scope-covered');
+                node.removeAttribute('inert');
+            });
+        });
+
+        var currentLeft = document.querySelector('.uniLeftPanel');
+        if (dbeCssCodeDefaultForced && currentLeft && isCssCodeMode(currentLeft)) {
+            var cssToggle = currentLeft.querySelector('.uniIconCssMode');
+            if (cssToggle) { clickSeq(cssToggle); }
+        }
+        dbeCssCodeDefaultForced = false;
+        goingToContent = false;
+        dbeSwitchingScope = false;
+        dbeScopeFinish = null;
+        dbeSelScopeMemo = { global: { css: null, sel: null, hit: false }, entity: { css: null, sel: null, hit: false } };
+        dbeStyleScopeSelectorMemo = {
+            global: { css: null, selectors: {} },
+            entity: { css: null, selectors: {} }
+        };
+        dbeStyleInspectorState = { id: null, instance: 0, tab: 'rules', filter: '', allComputed: false, focusReturn: null };
+        dbeRestoreMinimap();
+    }
+
+    dbeControllers.register(DBE_STYLES_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbeStylesControllerActive = true;
+            dbeRefreshStyles();
+        },
+        refresh: function (reason) {
+            if (reason) { dbeRefreshStyles(); }
+        },
+        destroy: function () {
+            destroyStyles();
+        }
+    }, NEED_STYLES);
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -14183,18 +14341,6 @@
                 try { ensureCollapseButton(); } catch (e) {}
                 try { ensureExpandAllButton(); } catch (e) {}
             }
-            if (on('css_code_default')) {
-                try { ensureCssCodeDefault(); } catch (e) {}
-                try { ensureCodeModeTabs(); } catch (e) {}
-            }
-            if (on('css_hint_dialog')) { try { ensureCssHint(); } catch (e) {} }
-            if (on('hide_minimap')) { try { dbeDisableMinimap(); } catch (e) {} }
-            if (on('scope_bar')) {
-                try { readScopeFromControl(); } catch (e) {}
-                try { ensureScopeBar(); } catch (e) {}
-                try { ensureScopeIsolation(); } catch (e) {}
-            }
-            if (on('style_inspector')) { try { refreshOpenStyleInspector(); } catch (e) {} }
             if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
             if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
@@ -14234,13 +14380,12 @@
         // The main panel contains the Navigator, so when both are needed it
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
         var needMainObservation = NEED_LEFT_PANEL || on('condition_helpers');
 
-        // Also watch the settings panel area (left) so the CSS-code default
-        // reacts to element selection, tab switches, and the CSS-mode toggle.
-        // .uniMainPanel is a stable parent of both panels (and of the canvas
-        // wrappers the preview + panel handles live in).
+        // Remaining left-panel helpers and condition controls share this legacy
+        // main observation. The styles controller owns CSS/editor observation.
+        // .uniMainPanel is a stable parent of both panels and canvas wrappers.
         if (needMainObservation) {
             var main = dbeQuery('mainPanel') || panel.parentElement;
             if (main) {

@@ -388,6 +388,46 @@ assert.match(
     /function destroyEditing\(\)[\s\S]+closeRename\(false, true\)[\s\S]+dbeRemovePriorHtmlDialog\(\)[\s\S]+dbeRemovePriorBemDialog\(\)[\s\S]+undoStack = \[\][\s\S]+dbeDestroyOwnedHooks\(DBE_EDITING_OWNER\)[\s\S]+dbeDestroyOwnedActivity\(DBE_EDITING_OWNER\)/,
     'Editing teardown must remove transient interfaces, history, hooks and owned activity.'
 );
+assert.match(
+    builder,
+    /var NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
+    'Style features must participate in one shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function dbeObserveStyles\(\)[\s\S]+dbeObserveChrome\('styles-main'[\s\S]+function destroyStyles\(\)[\s\S]+dbeObserveChrome\('styles-main', null\)/,
+    'The styles controller must own and release its main-panel observation.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)[\s\S]+refreshOpenStyleInspector\(\)/,
+    'Style interfaces must refresh through their controller rather than the global scheduler.'
+);
+assert.match(
+    builder,
+    /function dbeRestoreMinimap\(\)[\s\S]+dbeMinimapCreateListener\.dispose\(\)[\s\S]+item\.editor\.updateOptions\(\{ minimap: \{ enabled: item\.enabled \} \}\)[\s\S]+dbeMinimapDone = false/,
+    'Minimap teardown must dispose the Monaco subscription and restore prior editor state.'
+);
+assert.match(
+    builder,
+    /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-style-inspector[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
+    'Style teardown must settle transitions, cancel work, remove generated UI and restore Monaco.'
+);
+assert.match(
+    builder,
+    /function dbeCloseStyleInspector\(panel\)[\s\S]+preferred && preferred\.isConnected[\s\S]+target\.focus\(\)/,
+    'Style inspector dismissal must return focus to a stable invoking control.'
+);
+assert.match(
+    builder,
+    /function openCssHintDialog\(\)[\s\S]+dbeCssHintFocusReturn = document\.activeElement[\s\S]+aria-labelledby', 'dbe-css-hint-dialog-title'[\s\S]+title\.id = 'dbe-css-hint-dialog-title'[\s\S]+e\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dlg\.addEventListener\('close'[\s\S]+target\.focus\(\)/,
+    'Style help must be named, close explicitly on Escape and return focus to its invoking control.'
+);
+assert.match(
+    builder,
+    /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, function \(\) \{ clickSelectorUntilLoaded/,
+    'Styles navigation and selector polling must use controller-owned delayed work.'
+);
 assert.doesNotMatch(
     builder,
     /dbeShortcutKeyBound|dbePaletteKeyBound|dbeChipDismissBound|dbeChipDecorated|dbeCanvasTextEditingKeyBound|dbeCanvasNavigationKeyBound|dbeRevealSelectionBound|dbeCanvasTextEditingObserver/,
