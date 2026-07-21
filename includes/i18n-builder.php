@@ -495,7 +495,7 @@ function dbe_builder_strings() {
 		'condPickValues'                => __( 'Values', 'daveden-builderius-enhancements' ),
 		/* translators: %s: number of display conditions. */
 		'condIconCount'                 => __( 'Dynamic data conditions (%s set)', 'daveden-builderius-enhancements' ),
-		'condTreeSuffix'                => __( ', has display conditions', 'daveden-builderius-enhancements' ),
+		'condTreeSuffix'                => __( 'Has display conditions', 'daveden-builderius-enhancements' ),
 		// Navigator row quick actions.
 		/* translators: %s: element label. */
 		'rowActionDuplicate'            => __( 'Duplicate “%s”', 'daveden-builderius-enhancements' ),

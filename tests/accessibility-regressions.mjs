@@ -668,6 +668,16 @@ assert.match(
 );
 assert.match(
     builder,
+    /badge\.setAttribute\('aria-hidden', 'true'\)[\s\S]+spokenLabel\.textContent = raw/,
+    'Visual tag badges must preserve the native Navigator row name verbatim.'
+);
+assert.match(
+    builder,
+    /dbe-cond-desc-[\s\S]+Has display conditions[\s\S]+aria-describedby/,
+    'Navigator condition state must be exposed as a description rather than renaming the row.'
+);
+assert.match(
+    builder,
     /function dbeSyncInserterAvailability\([\s\S]+lockedForPro[\s\S]+inserterComingSoon[\s\S]+aria-disabled[\s\S]+tabindex', '-1'[\s\S]+stopImmediatePropagation/,
     'Unavailable Inserter elements must be named truthfully, excluded from roving navigation and protected from activation.'
 );

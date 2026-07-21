@@ -95,6 +95,7 @@
 
     /* (a) tag + label, (b) keep-icon flag, (c) selected-row accent flag —
        each part gated on its own toggle. */
+    var dbeTreeBadgeRecords = [];
     function decorateTree() {
         var iframe = dbeQuery('previewFrame');
         var idoc = iframe && iframe.contentDocument;
@@ -151,14 +152,39 @@
             var idx = raw.indexOf(' .');
             var label = idx >= 0 ? raw.slice(0, idx) : raw;
 
+            dbeTreeBadgeRecords = dbeTreeBadgeRecords.filter(function (record) { return record.node.isConnected; });
+            if (!dbeTreeBadgeRecords.some(function (record) { return record.node === span; })) {
+                dbeTreeBadgeRecords.push({ node: span, html: span.innerHTML });
+            }
+
             var badge = document.createElement('span');
             badge.className = 'dbe-tag-badge';
             badge.textContent = '<' + tag + '>';
+            badge.setAttribute('aria-hidden', 'true');
             span.textContent = '';
             span.appendChild(badge);
             if (label && label.toLowerCase() !== tag) {
-                span.appendChild(document.createTextNode(' ' + label));
+                var visibleLabel = document.createElement('span');
+                visibleLabel.setAttribute('aria-hidden', 'true');
+                visibleLabel.textContent = ' ' + label;
+                span.appendChild(visibleLabel);
             }
+            // The badge is a visual scan aid, not a rename. Preserve the native
+            // row label verbatim for screen readers and voice-control matching.
+            var spokenLabel = document.createElement('span');
+            spokenLabel.className = 'dbe-visually-hidden';
+            spokenLabel.textContent = raw;
+            span.appendChild(spokenLabel);
+        });
+    }
+
+    function dbeRestoreTreeDecorations() {
+        dbeTreeBadgeRecords.forEach(function (record) {
+            if (record.node.isConnected) { record.node.innerHTML = record.html; }
+        });
+        dbeTreeBadgeRecords = [];
+        dbeQueryAll('navigatorRows').forEach(function (row) {
+            row.classList.remove('dbe-tree-selected', 'dbe-multi-selected', 'dbe-keep-icon');
         });
     }
 
@@ -8980,8 +9006,9 @@
         count.className = 'dbe-tree-search__count';
         count.setAttribute('role', 'status'); // polite live region for the match count
         input.addEventListener('input', function () {
-            clearTimeout(treeSearchDebounce);
-            treeSearchDebounce = setTimeout(function () {
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, treeSearchDebounce);
+            treeSearchDebounce = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                treeSearchDebounce = null;
                 treeQuery = input.value || '';
                 applyTreeFilter();
             }, 150);
@@ -11924,19 +11951,17 @@
     }
 
     function bindFavDrag(list) {
-        if (list.dbeFavBound) { return; }
-        list.dbeFavBound = true;
         var drag = null;
 
         // In drag mode clicks must not insert elements or open native UI.
-        list.addEventListener('click', function (ev) {
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-click', 'click', function (ev) {
             if (!list.classList.contains('dbe-fav-reordering')) { return; }
             if (ev.target.closest && ev.target.closest('.dbe-fav-reorder')) { return; }
             ev.preventDefault();
             ev.stopPropagation();
         }, true);
 
-        list.addEventListener('pointerdown', function (ev) {
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointerdown', 'pointerdown', function (ev) {
             if (!list.classList.contains('dbe-fav-reordering')) { return; }
             var li = ev.target.closest && ev.target.closest('li.uniModTree__favouritesListItem');
             if (!li) { return; }
@@ -11951,11 +11976,11 @@
         // times per frame, and each hit-test reads rects (layout) and may
         // insertBefore (write) — unthrottled, that interleaving thrashes.
         var favRaf = 0, favY = 0;
-        list.addEventListener('pointermove', function (ev) {
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointermove', 'pointermove', function (ev) {
             if (!drag) { return; }
             favY = ev.clientY;
             if (favRaf) { return; }
-            favRaf = requestAnimationFrame(function () {
+            favRaf = dbeSetOwnedFrame('a11y/composites', function () {
                 favRaf = 0;
                 if (!drag) { return; } // drag ended before the frame
                 var items = favItems().filter(function (it) { return it !== drag.li; });
@@ -11979,10 +12004,10 @@
             var items = favItems();
             favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), items.indexOf(li) + 1, items.length));
         }
-        list.addEventListener('pointerup', endFavDrag, true);
-        list.addEventListener('pointercancel', endFavDrag, true);
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointerup', 'pointerup', endFavDrag, true);
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointercancel', 'pointercancel', endFavDrag, true);
 
-        list.addEventListener('keydown', function (ev) {
+        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-keys', 'keydown', function (ev) {
             if (!list.classList.contains('dbe-fav-reordering')) { return; }
             if (ev.key === 'Escape') {
                 ev.preventDefault();
@@ -12006,6 +12031,24 @@
             var focusTarget = li.querySelector('button.modIcon');
             if (focusTarget) { focusTarget.focus(); }
         }, true);
+    }
+
+    function dbeResetFavouritesReorder() {
+        document.querySelectorAll('.dbe-fav-reorder').forEach(function (node) { node.remove(); });
+        document.querySelectorAll('.dbe-fav-reordering').forEach(function (list) {
+            list.classList.remove('dbe-fav-reordering');
+            favItems().forEach(function (li) {
+                li.classList.remove('dbe-fav-dragging');
+                var icon = li.querySelector('button.modIcon');
+                if (!icon) { return; }
+                var previous = icon.getAttribute('data-dbe-fav-label');
+                if (previous) { icon.setAttribute('aria-label', previous); }
+                else if (icon.hasAttribute('data-dbe-fav-label')) { icon.removeAttribute('aria-label'); }
+                icon.removeAttribute('data-dbe-fav-label');
+            });
+        });
+        if (dbeFavStatus) { dbeFavStatus.remove(); }
+        dbeFavStatus = null;
     }
 
     function ensureFavouritesReorder() {
@@ -12051,6 +12094,7 @@
            command uses. Never a raw slice write. */
     var dbeAttrSeededRow = null; // the blank row we added, awaiting use or cleanup
     var dbeAttrSeededFor = null; // activeModule id we last seeded for (double-seed guard)
+    var dbeAttrSeedOwned = false; // true only while our native Add click remains unsettled
 
     // A row is `_item` in display mode, `_itemEdit` while it holds live name/value
     // inputs (a freshly-added or edited row is always `_itemEdit`).
@@ -12109,6 +12153,7 @@
             var nameInput = attrNameInput(row);
             // React may drop an unmanaged attribute on re-render — re-apply each tick.
             if (nameInput) {
+                dbeRememberOwnedAttributes(DBE_EDITING_OWNER, nameInput, ['list', 'aria-label']);
                 if (nameInput.getAttribute('list') !== 'dbe-attr-names') { nameInput.setAttribute('list', 'dbe-attr-names'); }
                 // The inputs carry only a "name"/"value" placeholder, which is not
                 // an accessible name — give each a real label for screen readers.
@@ -12116,6 +12161,7 @@
             }
             [].slice.call(row.querySelectorAll('input')).forEach(function (inp) {
                 if (inp !== nameInput && !inp.getAttribute('aria-label')) {
+                    dbeRememberOwnedAttributes(DBE_EDITING_OWNER, inp, ['aria-label']);
                     inp.setAttribute('aria-label', dbeT('attrValueLabel', 'Attribute value'));
                 }
             });
@@ -12123,25 +12169,25 @@
     }
 
     function bindAttrAutoClean() {
-        if (document.dbeAttrCleanBound) { return; }
-        document.dbeAttrCleanBound = true;
         // When focus leaves the seeded row while it is still blank, drop it — the
         // row the user never filled in never reaches the store's save.
-        document.addEventListener('focusout', function () {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'attribute-seed-clean', 'focusout', function () {
             if (!dbeAttrSeededRow) { return; }
-            setTimeout(function () {
+            dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
                 var r = dbeAttrSeededRow;
                 if (!r) { return; }
                 if (!document.body.contains(r)) {
                     // Row gone with the panel — clean the store copy instead.
                     dbeAttrSeededRow = null;
-                    if (dbeAttrSeededFor) { try { dbeRemoveBlankAttrs(dbeAttrSeededFor); } catch (e) {} }
+                    if (dbeAttrSeedOwned && dbeAttrSeededFor) { try { dbeRemoveBlankAttrs(dbeAttrSeededFor); } catch (e) {} }
+                    dbeAttrSeedOwned = false;
                     return;
                 }
                 if (r.contains(document.activeElement)) { return; } // still editing it
                 r.classList.remove('dbe-attr-seeded');
                 if (attrRowBlank(r)) { attrRemoveRow(r); }
                 dbeAttrSeededRow = null; // its fate is settled either way
+                dbeAttrSeedOwned = false;
             }, 60);
         }, true);
     }
@@ -12159,12 +12205,13 @@
             document.querySelector('button.uniSettingHtmlAttribute_addNewBtn');
         if (!addBtn) { return; }
         dbeAttrSeededFor = mid;
+        dbeAttrSeedOwned = true;
         clickSeq(addBtn);
         waitFor(function () {
             var l = attrList();
             return (l && l.querySelector(ATTR_ROW_SEL)) || null;
         }, function (r) {
-            if (!r) { return; }
+            if (!dbeEditingControllerActive || !r) { return; }
             dbeAttrSeededRow = r;
             r.classList.add('dbe-attr-seeded');
             var l = attrList();
@@ -12197,6 +12244,7 @@
     var dbeCondSeededCard = null;  // the seeded card node, until settled
     var dbeCondViewWas = false;    // view presence last tick (seed on opening edge)
     var dbeCondSeedEngaged = false; // the user interacted with the seeded card
+    var dbeCondSeedOwned = false;  // true only for the placeholder DBE added
 
     function condVisValue(id) {
         var m = (modules() || {})[id];
@@ -12239,23 +12287,33 @@
 
     function condA11y(view) {
         [].slice.call(view.querySelectorAll('.uniElementConditions_itemActions .uniIconButton')).forEach(function (b) {
-            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condRemove', 'Remove condition')); }
+            if (!b.getAttribute('aria-label')) {
+                dbeRememberOwnedAttributes(DBE_EDITING_OWNER, b, ['aria-label']);
+                b.setAttribute('aria-label', dbeT('condRemove', 'Remove condition'));
+            }
         });
         [].slice.call(view.querySelectorAll('.uniElementConditions_itemEdit, .uniElementConditions_item')).forEach(function (item) {
             // First <select> in a card is the comparison operator; any later
             // one picks the value.
             [].slice.call(item.querySelectorAll('.uniElementConditions_itemFields select')).forEach(function (s, i) {
                 var want = i === 0 ? dbeT('condOperator', 'Comparison') : dbeT('condValue', 'Value');
-                if (s.getAttribute('aria-label') !== want) { s.setAttribute('aria-label', want); }
+                if (s.getAttribute('aria-label') !== want) {
+                    dbeRememberOwnedAttributes(DBE_EDITING_OWNER, s, ['aria-label']);
+                    s.setAttribute('aria-label', want);
+                }
             });
         });
         [].slice.call(view.querySelectorAll('.uniElementConditions_itemFields input:not([type="hidden"])')).forEach(function (inp) {
             if (inp.getAttribute('aria-label')) { return; }
             if (inp.classList.contains('uniSystemSelect__search') || inp.classList.contains('uniSystemSelect__hiddenField')) { return; }
+            dbeRememberOwnedAttributes(DBE_EDITING_OWNER, inp, ['aria-label']);
             inp.setAttribute('aria-label', inp.placeholder || dbeT('condValue', 'Value'));
         });
         [].slice.call(view.querySelectorAll('.uniSystemSelect__freeInputBtn, .builderiusSelectFreeInputToggle')).forEach(function (b) {
-            if (!b.getAttribute('aria-label')) { b.setAttribute('aria-label', dbeT('condFreeInput', 'Type a custom value')); }
+            if (!b.getAttribute('aria-label')) {
+                dbeRememberOwnedAttributes(DBE_EDITING_OWNER, b, ['aria-label']);
+                b.setAttribute('aria-label', dbeT('condFreeInput', 'Type a custom value'));
+            }
         });
     }
 
@@ -12296,12 +12354,14 @@
             var kept = condSeedResolve();
             if (kept) { kept.classList.remove('dbe-cond-seeded'); }
             dbeCondSeededCard = null;
+            dbeCondSeedOwned = false;
             return;
         }
         var card = condSeedResolve();
         if (!card) {
             if (id && condBlankOnly(id)) { try { dbeRemoveBlankCondition(id); } catch (e) {} }
             dbeCondSeededCard = null;
+            dbeCondSeedOwned = false;
             return;
         }
         if (card.contains(document.activeElement)) { return; }
@@ -12311,13 +12371,12 @@
         }
         card.classList.remove('dbe-cond-seeded');
         dbeCondSeededCard = null;
+        dbeCondSeedOwned = false;
     }
     function bindCondAutoClean() {
-        if (document.dbeCondCleanBound) { return; }
-        document.dbeCondCleanBound = true;
-        document.addEventListener('focusout', function () {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'condition-seed-clean', 'focusout', function () {
             if (!dbeCondSeededCard) { return; }
-            setTimeout(condSeedClean, 60);
+            dbeSetOwnedTimeout(DBE_EDITING_OWNER, condSeedClean, 60);
         }, true);
         // Any pointer or key interaction inside the seeded card disarms the
         // auto-clean — including clicks in the type select's dropdown, which
@@ -12327,8 +12386,8 @@
             var card = condSeedResolve();
             if (card && e.target && card.contains(e.target)) { dbeCondSeedEngaged = true; }
         };
-        document.addEventListener('pointerdown', engage, true);
-        document.addEventListener('keydown', engage, true);
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'condition-seed-pointer', 'pointerdown', engage, true);
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'condition-seed-key', 'keydown', engage, true);
     }
 
     function condSeedBlank(view) {
@@ -12340,11 +12399,12 @@
         if (!add) { return; }
         dbeCondSeededFor = id;
         dbeCondSeedEngaged = false;
+        dbeCondSeedOwned = true;
         clickSeq(add);
         waitFor(function () {
             return view.querySelector('.uniElementConditions_itemEdit') || null;
         }, function (card) {
-            if (!card) { return; }
+            if (!dbeEditingControllerActive || !card) { return; }
             dbeCondSeededCard = card;
             card.classList.add('dbe-cond-seeded');
             // Ready to choose: focus the condition-type combobox — but only
@@ -12373,6 +12433,7 @@
         }
         var icon = document.querySelector('.uniIconConditionsMode');
         if (icon) {
+            dbeRememberOwnedAttributes(DBE_EDITING_OWNER, icon, ['aria-label', 'data-dbe-tip']);
             var id = activeId();
             var n = id ? condCount(id) : 0;
             var has = n > 0;
@@ -12386,20 +12447,35 @@
         [].slice.call(document.querySelectorAll('.uniRightPanel button.uniModTree__item')).forEach(function (btn) {
             var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
             var has2 = !!(m && withCond[m[1]]);
+            var descriptionId = m ? 'dbe-cond-desc-' + m[1] : '';
             var dot = btn.querySelector('.dbe-cond-dot');
-            if (has2 && !dot) {
-                var d = document.createElement('span');
-                d.className = 'dbe-cond-dot';
-                d.setAttribute('aria-hidden', 'true');
-                var sr = document.createElement('span');
-                sr.className = 'dbe-visually-hidden dbe-cond-sr';
-                sr.textContent = dbeT('condTreeSuffix', ', has display conditions');
-                btn.appendChild(d);
-                btn.appendChild(sr);
-            } else if (!has2 && dot) {
+            if (has2) {
+                if (!dot) {
+                    var d = document.createElement('span');
+                    d.className = 'dbe-cond-dot';
+                    d.setAttribute('aria-hidden', 'true');
+                    var sr = document.createElement('span');
+                    sr.className = 'dbe-visually-hidden dbe-cond-sr';
+                    sr.id = descriptionId;
+                    sr.textContent = dbeT('condTreeSuffix', 'Has display conditions');
+                    btn.appendChild(d);
+                    btn.appendChild(sr);
+                }
+                dbeRememberOwnedAttributes(DBE_EDITING_OWNER, btn, ['aria-describedby']);
+                var descriptions = (btn.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+                if (descriptions.indexOf(descriptionId) === -1) {
+                    descriptions.push(descriptionId);
+                    btn.setAttribute('aria-describedby', descriptions.join(' '));
+                }
+            } else if (dot) {
                 dot.remove();
                 var sr2 = btn.querySelector('.dbe-cond-sr');
                 if (sr2) { sr2.remove(); }
+                var remaining = (btn.getAttribute('aria-describedby') || '').split(/\s+/).filter(function (id) {
+                    return id && id !== descriptionId;
+                });
+                if (remaining.length) { btn.setAttribute('aria-describedby', remaining.join(' ')); }
+                else { btn.removeAttribute('aria-describedby'); }
             }
         });
     }
@@ -12418,6 +12494,7 @@
         if (dbeCondSeededCard && dbeCondSeededFor && !condBlankOnly(dbeCondSeededFor)) {
             if (dbeCondSeededCard.isConnected) { dbeCondSeededCard.classList.remove('dbe-cond-seeded'); }
             dbeCondSeededCard = null;
+            dbeCondSeedOwned = false;
         }
         // Keep the seeded mark on the LIVE card node across React re-renders —
         // until the user engages with the card, when the mark stands down.
@@ -12586,16 +12663,14 @@
     }
 
     function bindPropDrag(list) {
-        if (list.dbePropBound) { return; }
-        list.dbePropBound = true;
         var drag = null;
-        list.addEventListener('click', function (ev) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-click', 'click', function (ev) {
             if (!list.classList.contains('dbe-prop-reordering')) { return; }
             if (ev.target.closest && ev.target.closest('.dbe-prop-reorder')) { return; }
             ev.preventDefault();
             ev.stopPropagation();
         }, true);
-        list.addEventListener('pointerdown', function (ev) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-pointerdown', 'pointerdown', function (ev) {
             if (!list.classList.contains('dbe-prop-reordering')) { return; }
             var li = ev.target.closest && ev.target.closest(PROP_ROW_SEL);
             if (!li) { return; }
@@ -12607,11 +12682,11 @@
         }, true);
         // rAF-gated for the same reason as the favourites drag above.
         var propRaf = 0, propY = 0;
-        list.addEventListener('pointermove', function (ev) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-pointermove', 'pointermove', function (ev) {
             if (!drag) { return; }
             propY = ev.clientY;
             if (propRaf) { return; }
-            propRaf = requestAnimationFrame(function () {
+            propRaf = dbeSetOwnedFrame(DBE_EDITING_OWNER, function () {
                 propRaf = 0;
                 if (!drag) { return; } // drag ended before the frame
                 var items = propItems(list).filter(function (it) { return it !== drag.li; });
@@ -12633,9 +12708,9 @@
             var items = propItems(list);
             propAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), propLabel(li), items.indexOf(li) + 1, items.length));
         }
-        list.addEventListener('pointerup', endDrag, true);
-        list.addEventListener('pointercancel', endDrag, true);
-        list.addEventListener('keydown', function (ev) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-pointerup', 'pointerup', endDrag, true);
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-pointercancel', 'pointercancel', endDrag, true);
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, list, 'properties-reorder-keys', 'keydown', function (ev) {
             if (!list.classList.contains('dbe-prop-reordering')) { return; }
             if (ev.key === 'Escape') {
                 ev.preventDefault();
@@ -12689,6 +12764,52 @@
         var addBtn = container.querySelector('.uniSettingComponentTmplProperties_addNewBtn');
         if (addBtn && addBtn.parentNode) { addBtn.parentNode.insertBefore(wrapEl, addBtn); }
         else { container.insertBefore(wrapEl, container.firstChild); }
+    }
+
+    function dbeResetEditingHelpers() {
+        if (dbeAttrSeededRow && dbeAttrSeededRow.isConnected) {
+            dbeAttrSeededRow.classList.remove('dbe-attr-seeded');
+            if (attrRowBlank(dbeAttrSeededRow)) { attrRemoveRow(dbeAttrSeededRow); }
+        } else if (dbeAttrSeedOwned && dbeAttrSeededFor) {
+            try { dbeRemoveBlankAttrs(dbeAttrSeededFor); } catch (e) {}
+        }
+        dbeAttrSeededRow = null;
+        dbeAttrSeededFor = null;
+        dbeAttrSeedOwned = false;
+        var attrNames = document.getElementById('dbe-attr-names');
+        if (attrNames) { attrNames.remove(); }
+
+        var seededCondition = condSeedResolve();
+        if (seededCondition) {
+            seededCondition.classList.remove('dbe-cond-seeded');
+            if (dbeCondSeedOwned && !dbeCondSeedEngaged && dbeCondSeededFor && condBlankOnly(dbeCondSeededFor)) {
+                var remove = seededCondition.querySelector('.uniElementConditions_itemActions .uniIconButton');
+                if (remove) { clickSeq(remove); }
+            }
+        } else if (dbeCondSeedOwned && !dbeCondSeedEngaged && dbeCondSeededFor) {
+            try { dbeRemoveBlankCondition(dbeCondSeededFor); } catch (e2) {}
+        }
+        dbeCondSeededFor = null;
+        dbeCondSeededCard = null;
+        dbeCondViewWas = false;
+        dbeCondSeedEngaged = false;
+        dbeCondSeedOwned = false;
+        document.querySelectorAll('.dbe-cond-dot, .dbe-cond-sr').forEach(function (node) { node.remove(); });
+        document.querySelectorAll('.dbe-has-cond').forEach(function (node) { node.classList.remove('dbe-has-cond'); });
+
+        document.querySelectorAll('.dbe-prop-reorder').forEach(function (node) { node.remove(); });
+        document.querySelectorAll('.dbe-prop-reordering').forEach(function (list) {
+            list.classList.remove('dbe-prop-reordering');
+            propItems(list).forEach(function (item) {
+                item.classList.remove('dbe-prop-dragging');
+                item.removeAttribute('data-dbe-prop-idx');
+                item.removeAttribute('tabindex');
+                var label = item.querySelector('[data-dbe-prop-label]');
+                if (label) { label.removeAttribute('data-dbe-prop-label'); }
+            });
+        });
+        if (dbePropStatus) { dbePropStatus.remove(); }
+        dbePropStatus = null;
     }
 
     /* Class-chip copy menu (context_menu). The class chips in the Styles
@@ -12994,7 +13115,6 @@
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_STYLES = on('css_code_default') || on('scope_bar') || on('style_inspector') ||
         on('css_hint_dialog') || on('hide_minimap');
-    var NEED_LEFT_PANEL = on('properties_reorder') || on('attr_helpers');
     var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     /* (g) Double-click a Navigator row to rename it inline — a second entry point
@@ -13206,7 +13326,7 @@
         navFocus(target);
         if (!id) { return; }
         clickSeq(target);
-        requestAnimationFrame(function () {
+        dbeSetOwnedFrame('a11y/composites', function () {
             var row = navRowById(id);
             if (row && document.activeElement !== row) { navFocus(row); }
         });
@@ -13234,6 +13354,7 @@
     function navSyncAria() {
         var root = navRootList();
         if (!root) { return; }
+        dbeRememberOwnedAttributes('a11y/composites', root, ['role', 'aria-label']);
         if (root.getAttribute('role') !== 'tree') { root.setAttribute('role', 'tree'); }
         var label = dbeT('elementsTree', 'Elements');
         if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
@@ -13242,6 +13363,10 @@
         var rows = [], visRows = [];
 
         function stampRow(btn, level, pos, size, visible) {
+            dbeRememberOwnedAttributes('a11y/composites', btn, [
+                'role', 'aria-level', 'aria-posinset', 'aria-setsize',
+                'aria-expanded', 'aria-selected', 'tabindex'
+            ]);
             if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
             var lvl = String(level);
             if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
@@ -13260,6 +13385,7 @@
         }
 
         function stampLi(li, level, pos, size, visible) {
+            dbeRememberOwnedAttributes('a11y/composites', li, ['role']);
             if (li.getAttribute('role') !== 'none') { li.setAttribute('role', 'none'); }
             var btn = null, childLists = [];
             (function scan(parent) {
@@ -13270,6 +13396,7 @@
                         if (!btn) { btn = node; }
                         continue; // never descend into a button (chevron/label live there)
                     }
+                    dbeRememberOwnedAttributes('a11y/composites', node, ['role']);
                     if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
                     scan(node);
                 }
@@ -13282,7 +13409,10 @@
         }
 
         function walkList(ul, level, visible) {
-            if (ul !== root && ul.getAttribute('role') !== 'none') { ul.setAttribute('role', 'none'); }
+            if (ul !== root) {
+                dbeRememberOwnedAttributes('a11y/composites', ul, ['role']);
+                if (ul.getAttribute('role') !== 'none') { ul.setAttribute('role', 'none'); }
+            }
             var lis = [];
             for (var el = ul.firstElementChild; el; el = el.nextElementSibling) {
                 if (el.matches && el.matches('li.uniModTree__itemDrag')) { lis.push(el); }
@@ -13381,13 +13511,10 @@
         if (!root) { return; }
         if (on('navigator_keyboard')) { navSyncAria(); }
         var panel = document.querySelector('.uniRightPanel');
-        if (!panel || panel.dbeNavKeyBound) { return; }
-        // Bound on the stable panel (the tree lists are replaced on re-render), so
-        // one binding survives every repaint of the tree below it. The flag lives
-        // ON the panel node (not module state): if React ever replaces the panel,
-        // the replacement simply gets bound afresh instead of the feature dying.
-        panel.addEventListener('keydown', navOnKeydown);
-        panel.dbeNavKeyBound = true;
+        if (!panel) { return; }
+        // Bound on the stable panel (the tree lists are replaced on re-render),
+        // while the controller registry keeps the binding reversible.
+        dbeBindOwnedEvent('a11y/composites', panel, 'navigator-keys', 'keydown', navOnKeydown);
     }
 
     /* (ra) Navigator row quick actions (navigator_row_actions). Duplicate and
@@ -13504,14 +13631,16 @@
     function raDisarmDelete() {
         if (!raDelArmed) { return; }
         raDelArmed = false;
-        clearTimeout(raDelArmT);
+        dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raDelArmT);
+        raDelArmT = null;
         raDel.classList.remove('dbe-row-actions__del--armed');
         if (raId) { raSetNames(raId); }
     }
 
     function raHide() {
         raDisarmDelete();
-        clearTimeout(raHideT);
+        dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+        raHideT = null;
         var lastRow = raStampedRow;
         raId = null;
         raUnstamp();
@@ -13528,7 +13657,8 @@
     }
 
     function raShow(id) {
-        clearTimeout(raHideT);
+        dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+        raHideT = null;
         if (!id || raSuppressed) { return; }
         // A REAL open context menu owns the row — do not paint over it. (Our
         // own invisible auto-driven menus are marked html.dbe-auto-ctx.)
@@ -13587,12 +13717,16 @@
     function raPointerOver(e) {
         var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
         if (btn) {
-            clearTimeout(raHideT);
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+            raHideT = null;
             var id = navRowId(btn);
             if (id && id !== raId) { raShow(id); } else { raShow(raId); }
             return;
         }
-        if (raBox && raBox.contains(e.target)) { clearTimeout(raHideT); }
+        if (raBox && raBox.contains(e.target)) {
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+            raHideT = null;
+        }
     }
 
     function raPointerOut(e) {
@@ -13602,17 +13736,22 @@
         // pointerout (e.g. the row re-rendering under a parked pointer) must
         // not steal it from under their focus.
         if (raBox.contains(document.activeElement)) { return; }
-        clearTimeout(raHideT);
-        raHideT = setTimeout(raRelease, 150); // grace for diagonal/subpixel exits
+        dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+        raHideT = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+            raHideT = null;
+            raRelease();
+        }, 150); // grace for diagonal/subpixel exits
     }
 
     function raFocusIn(e) {
         var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
         if (btn) {
-            clearTimeout(raHideT);
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+            raHideT = null;
             raShow(navRowId(btn));
         } else if (raBox && raBox.contains(e.target)) {
-            clearTimeout(raHideT);
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raHideT);
+            raHideT = null;
         }
     }
 
@@ -13625,7 +13764,7 @@
     function raOnScroll() {
         if (RA_CAN_ANCHOR || !raId || raScrollQueued) { return; }
         raScrollQueued = true;
-        requestAnimationFrame(function () {
+        dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
             raScrollQueued = false;
             var row = raId && navRowById(raId);
             if (!row) { return; }
@@ -13705,8 +13844,11 @@
             raDel.classList.add('dbe-row-actions__del--armed');
             raSetNames(id);
             undoToast(dbeT('rowActionDeleteArmed', 'Press again to confirm'));
-            clearTimeout(raDelArmT);
-            raDelArmT = setTimeout(raDisarmDelete, 4000);
+            dbeClearOwnedTimeout(DBE_COMMANDS_OWNER, raDelArmT);
+            raDelArmT = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                raDelArmT = null;
+                raDisarmDelete();
+            }, 4000);
             return;
         }
         raDisarmDelete();
@@ -13755,25 +13897,25 @@
         }
         raSync();
         var panel = document.querySelector('.uniRightPanel');
-        if (!panel || panel.dbeRowActionsBound) { return; }
-        panel.addEventListener('pointerover', raPointerOver);
-        panel.addEventListener('pointerout', raPointerOut);
-        panel.addEventListener('focusin', raFocusIn);
-        panel.addEventListener('focusout', raFocusOut);
-        panel.addEventListener('scroll', raOnScroll, true); // the scroller is a nested div
-        panel.dbeRowActionsBound = true;
+        if (!panel) { return; }
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, panel, 'row-actions-pointerover', 'pointerover', raPointerOver);
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, panel, 'row-actions-pointerout', 'pointerout', raPointerOut);
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, panel, 'row-actions-focusin', 'focusin', raFocusIn);
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, panel, 'row-actions-focusout', 'focusout', raFocusOut);
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, panel, 'row-actions-scroll', 'scroll', raOnScroll, true);
         // A native drag means the row rects are about to churn — get out of the
         // way until it settles. Document-level: dragstart fires on the row <li>.
-        document.addEventListener('dragstart', function () { raSuppressed = true; raHide(); });
-        document.addEventListener('dragend', function () { raSuppressed = false; });
-        document.addEventListener('drop', function () { raSuppressed = false; });
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'row-actions-dragstart', 'dragstart', function () {
+            raSuppressed = true;
+            raHide();
+        });
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'row-actions-dragend', 'dragend', function () { raSuppressed = false; });
+        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'row-actions-drop', 'drop', function () { raSuppressed = false; });
         // A REAL context menu on a row supersedes the cluster; our own invisible
         // auto-driven menus (html.dbe-auto-ctx) must not knock it out mid-action.
-        try {
-            window.Builderius.API.hooks.addAction('builderius.contextMenu.show', 'dbeRowActionsYield', function () {
-                if (!document.documentElement.classList.contains('dbe-auto-ctx')) { raHide(); }
-            });
-        } catch (e) {}
+        dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeRowActionsYield', function () {
+            if (!document.documentElement.classList.contains('dbe-auto-ctx')) { raHide(); }
+        });
     }
 
     /* Screen-reader landmarks (chrome_landmarks). The builder chrome is one
@@ -13896,7 +14038,8 @@
             dbeObserveChrome('a11y-composites-top', top, { childList: true, subtree: true });
         }
         var main = dbeQuery('mainPanel');
-        if ((on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('builderius_menu')) && main) {
+        if ((on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('builderius_menu') ||
+            NEED_TREE || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves')) && main) {
             dbeObserveChrome('a11y-composites-main', main, {
                 childList: true,
                 subtree: true,
@@ -13922,6 +14065,12 @@
         if (on('select_combobox')) { ensureSelectComboboxes(); }
         if (on('settings_accordions')) { ensureSettingsAccordions(); }
         if (on('builderius_menu')) { ensureBuilderiusMenu(); }
+        if (NEED_TREE) { decorateTree(); }
+        if (on('navigator_keyboard') || on('element_moves')) { ensureNavKeyboard(); }
+        if (on('favourites_reorder')) {
+            ensureFavouritesReorder();
+            applyFavouritesOrder();
+        }
     }
     function dbeRetryCompositeFooter() {
         if (!on('footer_toolbar') || dbeQuery('footerBar') || dbeCompositeFooterAttempts >= 30) {
@@ -13951,11 +14100,17 @@
         dbeObserveChrome('a11y-composites-footer-config-panel', null);
         dbeDestroyOwnedActivity('a11y/composites');
         dbeDestroyOwnedGroups('a11y/composites');
+        dbeResetFavouritesReorder();
+        dbeRestoreTreeDecorations();
     }
     dbeControllers.register('a11y/composites', {
         init: function (context) {
             if (!context || !context.builderius) { return; }
             dbeCompositeControllerActive = true;
+            // Parked until the multi-row drag is reliable; the registry has no
+            // multi_select feature, but keep its dormant wiring with its future
+            // tree-composite owner rather than in the global boot path.
+            if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
             if (on('select_combobox')) { bindSelectCombobox(); }
             if (on('builderius_menu')) {
                 dbeBindOwnedEvent('a11y/composites', document, 'builderius-menu-keys', 'keydown', dbeMenuKeydown, true);
@@ -13969,7 +14124,9 @@
         destroy: function () {
             destroyA11yComposites();
         }
-    }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') || on('select_combobox') || on('settings_accordions') || on('builderius_menu'));
+    }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') ||
+        on('select_combobox') || on('settings_accordions') || on('builderius_menu') || NEED_TREE ||
+        on('favourites_reorder') || on('navigator_keyboard') || on('element_moves'));
 
     function dbeRefreshTerminalIntegration() {
         if (!dbeTerminalControllerActive) { return; }
@@ -14026,7 +14183,7 @@
             attributes: true,
             attributeFilter: ['class', 'style']
         });
-        dbeObserveChrome('workspace-top', on('compact_panes') ? dbeQuery('topPanel') : null, {
+        dbeObserveChrome('workspace-top', (on('compact_panes') || on('theme_switcher') || on('density_toggle')) ? dbeQuery('topPanel') : null, {
             childList: true,
             subtree: true
         });
@@ -14042,6 +14199,8 @@
         dbeSyncPanelsHidden();
         if (on('panel_resize')) { ensurePanelHandles(); }
         if (on('panel_detach')) { ensureNavDetach(); }
+        if (on('theme_switcher')) { ensureThemeButton(); }
+        if (on('density_toggle')) { ensureDensityButton(); }
     }
     function dbeRestoreWorkspaceState() {
         var root = document.documentElement;
@@ -14054,8 +14213,10 @@
         dbeDestroyOwnedGroups(DBE_WORKSPACE_OWNER);
         document.querySelectorAll(
             '.dbe-preview-handle, .dbe-panel-handle, .dbe-compact-pane-switcher, ' +
-            '.dbe-detach-btn, .dbe-nav-grip, .dbe-nav-resize'
+            '.dbe-detach-btn, .dbe-nav-grip, .dbe-nav-resize, .dbe-theme-btn, .dbe-density-btn'
         ).forEach(function (node) { node.remove(); });
+        if (dbeModeStatus) { dbeModeStatus.remove(); }
+        dbeModeStatus = null;
         root.classList.remove(
             'dbe-compact-panes', 'dbe-panels-hidden',
             'dbe-left-panel-hidden', 'dbe-right-panel-hidden'
@@ -14099,7 +14260,8 @@
         }
     }, on('preview_resize') || on('panel_resize') || on('compact_panes') ||
         on('panel_detach') || on('keyboard_shortcuts') || on('command_palette') ||
-        on('css_code_default') || on('panel_tabs') || on('reveal_selected'));
+        on('css_code_default') || on('panel_tabs') || on('reveal_selected') ||
+        on('theme_switcher') || on('density_toggle'));
 
     var DBE_EDITING_OWNER = 'editing';
     var dbeEditingControllerActive = false;
@@ -14107,7 +14269,8 @@
         on('dblclick_rename') || on('keyboard_shortcuts') || on('command_palette') ||
         on('edit_as_html') || on('import_html') || on('auto_bem') || on('tag_change') ||
         on('wrap_in') || on('element_moves') || on('navigator_paste') ||
-        on('save_shortcut') || on('save_state_cue');
+        on('save_shortcut') || on('save_state_cue') || on('condition_helpers') ||
+        on('properties_reorder') || on('attr_helpers');
 
     function dbeObserveEditing() {
         dbeObserveChrome(
@@ -14117,7 +14280,8 @@
         );
         dbeObserveChrome(
             'editing-main',
-            on('save_state_cue') ? dbeQuery('mainPanel') : null,
+            (on('save_state_cue') || on('condition_helpers') || on('properties_reorder') || on('attr_helpers'))
+                ? dbeQuery('mainPanel') : null,
             {
                 childList: true,
                 subtree: true,
@@ -14133,6 +14297,9 @@
         dbeObserveEditing();
         if (on('save_shortcut')) { dbeEnsureSaveShortcutMetadata(); }
         if (on('save_state_cue')) { ensureSaveCue(); }
+        if (on('condition_helpers')) { ensureConditionHelpers(); }
+        if (on('properties_reorder')) { ensurePropertiesReorder(); }
+        if (on('attr_helpers')) { ensureBlankAttrRow(); }
     }
 
     function destroyEditing() {
@@ -14151,6 +14318,7 @@
         redoStack = [];
         dbeDestroyOwnedHooks(DBE_EDITING_OWNER);
         dbeDestroyOwnedActivity(DBE_EDITING_OWNER);
+        dbeResetEditingHelpers();
         dbeRestoreOwnedAttributes(DBE_EDITING_OWNER);
         var cue = document.querySelector('.dbe-save-cue');
         if (cue) { cue.remove(); }
@@ -14221,14 +14389,18 @@
 
     function dbeObserveCommands() {
         var needMain = on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') ||
-            on('reveal_selected') || on('context_menu');
+            on('reveal_selected') || on('context_menu') || NEED_NAV_BUTTONS || on('tree_search') ||
+            on('navigator_row_actions');
         dbeObserveChrome('commands-top', (on('command_palette') || on('save_split_button')) ? dbeQuery('topPanel') : null, {
             childList: true,
             subtree: true
         });
         dbeObserveChrome('commands-main', needMain ? dbeQuery('mainPanel') : null, {
             childList: true,
-            subtree: true
+            subtree: true,
+            characterData: on('tree_search'),
+            attributes: true,
+            attributeFilter: ['class', 'style']
         });
     }
 
@@ -14241,6 +14413,15 @@
             ensureKeyboardIframeBridge();
         }
         if (on('context_menu')) { decorateClassChips(); }
+        if (NEED_NAV_BUTTONS) {
+            ensureCollapseButton();
+            ensureExpandAllButton();
+        }
+        if (on('tree_search')) {
+            ensureTreeSearch();
+            applyTreeFilter();
+        }
+        if (on('navigator_row_actions')) { ensureRowActions(); }
         if (on('reveal_selected')) {
             revealActiveInTree();
             dbeSyncSelectionContext();
@@ -14253,6 +14434,7 @@
         dbeObserveChrome('commands-main', null);
         dbeDestroyOwnedHooks(DBE_COMMANDS_OWNER);
         dbeReleaseCommandFrameDocuments(null);
+        if (raBox) { raHide(); }
         dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
         dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
         removeSubmenus();
@@ -14264,13 +14446,29 @@
         document.querySelectorAll(
             '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
             '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +
-            '.dbe-canvas-selection-context'
+            '.dbe-canvas-selection-context, .dbe-collapse-subtrees, .dbe-expand-all, ' +
+            '.dbe-tree-search, .dbe-row-actions'
         ).forEach(function (node) { node.remove(); });
+        document.querySelectorAll('.dbe-tree-filtered-out, .dbe-tree-dim').forEach(function (row) {
+            row.classList.remove('dbe-tree-filtered-out', 'dbe-tree-dim');
+        });
+        raUnstamp();
         if (dbeVarMenuAnchorBtn) { dbeVarMenuAnchorBtn.style.removeProperty('anchor-name'); }
         dbeVarMenuAnchorBtn = null;
         dbePasteCtxRow = null;
         dbeKeyboardFrame = null;
         dbeSaveMenuEl = null;
+        treeSearchDebounce = null;
+        treeQuery = '';
+        raBox = null;
+        raDup = null;
+        raDel = null;
+        raId = null;
+        raHideT = null;
+        raSuppressed = false;
+        raScrollQueued = false;
+        raDelArmed = false;
+        raDelArmT = null;
         dbeLastRevealedId = null;
         dbeSelectionContextState = '';
     }
@@ -14315,7 +14513,8 @@
         }
     }, NEED_CTX_MENU || on('footer_toolbar') || on('context_menu') || on('navigator_paste') ||
         on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
-        on('navigator_keyboard') || on('reveal_selected') || on('save_split_button'));
+        on('navigator_keyboard') || on('reveal_selected') || on('save_split_button') ||
+        NEED_NAV_BUTTONS || on('tree_search') || on('navigator_row_actions'));
 
     var DBE_STYLES_OWNER = 'styles';
     var dbeStylesControllerActive = false;
@@ -14598,26 +14797,6 @@
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
             dbeScheduleReason = 'scheduled';
-            if (NEED_TREE) { try { decorateTree(); } catch (e) {} }
-            if (NEED_NAV_BUTTONS) {
-                try { ensureCollapseButton(); } catch (e) {}
-                try { ensureExpandAllButton(); } catch (e) {}
-            }
-            if (on('theme_switcher')) { try { ensureThemeButton(); } catch (e) {} }
-            if (on('density_toggle')) { try { ensureDensityButton(); } catch (e) {} }
-            if (on('tree_search')) {
-                try { ensureTreeSearch(); } catch (e) {}
-                try { applyTreeFilter(); } catch (e) {}
-            }
-            if (on('navigator_keyboard') || on('element_moves')) { try { ensureNavKeyboard(); } catch (e) {} }
-            if (on('navigator_row_actions')) { try { ensureRowActions(); } catch (e) {} }
-            if (on('condition_helpers')) { try { ensureConditionHelpers(); } catch (e) {} }
-            if (on('favourites_reorder')) {
-                try { ensureFavouritesReorder(); } catch (e) {}
-                try { applyFavouritesOrder(); } catch (e) {}
-            }
-            if (on('properties_reorder')) { try { ensurePropertiesReorder(); } catch (e) {} }
-            if (on('attr_helpers')) { try { ensureBlankAttrRow(); } catch (e) {} }
             dbeControllers.refresh(refreshReason);
     });
     function schedule(reason) {
@@ -14631,48 +14810,6 @@
         if (!panel) { return void setTimeout(boot, 500); }
         dbeControllers.init();
         schedule('boot');
-
-        // Route the stable builder-chrome roots through one MutationObserver.
-        // The main panel contains the Navigator, so when both are needed it
-        // absorbs the Navigator's character-data/class requirements rather than
-        // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tree_search') || on('favourites_reorder') || on('navigator_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers');
-        var needMainObservation = NEED_LEFT_PANEL || on('condition_helpers');
-
-        // Remaining left-panel helpers and condition controls share this legacy
-        // main observation. The styles controller owns CSS/editor observation.
-        // .uniMainPanel is a stable parent of both panels and canvas wrappers.
-        if (needMainObservation) {
-            var main = dbeQuery('mainPanel') || panel.parentElement;
-            if (main) {
-                dbeObserveChrome('main-panel', main, {
-                    childList: true,
-                    subtree: true,
-                    characterData: needNavigatorObservation,
-                    attributes: true,
-                    attributeFilter: ['class', 'style']
-                });
-            }
-        } else if (needNavigatorObservation) {
-            dbeObserveChrome('navigator', panel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
-        }
-
-        // Top bar too — the remaining legacy theme and density buttons must
-        // reach it when React re-renders. Controllers own the palette and save
-        // surfaces; a11y/chrome owns the tooltip requirement.
-        if (on('theme_switcher') || on('density_toggle')) {
-            var top = dbeQuery('topPanel');
-            if (top) {
-                dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
-            }
-        }
-        // Multi-select (Cmd/Ctrl+click, Shift+click) in the Navigator tree —
-        // temporarily withdrawn (the multi-row drag never reliably carried the
-        // whole selection). The 'multi_select' registry entry is removed, so
-        // on('multi_select') is always false; bindMultiSelect / bindMultiDrag
-        // stay parked below for when the drag is fixed.
-        if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
-
     }
 
     dbeRuntime.whenReady(boot);

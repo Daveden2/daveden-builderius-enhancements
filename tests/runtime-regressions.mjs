@@ -46,6 +46,46 @@ assert.match(
     /var dbeScheduleRefresh = dbeRuntime\.createScheduler\([\s\S]+function schedule\(reason\) \{[\s\S]+dbeScheduleRefresh\(\)/,
     'The feature refresh pass must run through the shared scheduler.'
 );
+const sharedRefresh = builder.slice(
+    builder.indexOf('var dbeScheduleRefresh = dbeRuntime.createScheduler'),
+    builder.indexOf('function schedule(reason)')
+);
+assert.match(
+    sharedRefresh,
+    /dbeControllers\.refresh\(refreshReason\)/,
+    'The shared refresh pass must delegate feature work to lifecycle controllers.'
+);
+assert.doesNotMatch(
+    sharedRefresh,
+    /ensure|decorateTree|applyTreeFilter|applyFavouritesOrder/,
+    'The shared refresh pass must not retain feature-specific work.'
+);
+const boot = builder.slice(builder.indexOf('function boot()'), builder.indexOf('dbeRuntime.whenReady(boot)'));
+assert.doesNotMatch(
+    boot,
+    /dbeObserveChrome\(|main-panel|top-panel|needNavigatorObservation|needMainObservation/,
+    'Boot must not retain legacy feature observation roots outside controllers.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshA11yComposites\(\)[\s\S]+decorateTree\(\)[\s\S]+ensureNavKeyboard\(\)[\s\S]+ensureFavouritesReorder\(\)[\s\S]+function destroyA11yComposites\(\)[\s\S]+dbeResetFavouritesReorder\(\)[\s\S]+dbeRestoreTreeDecorations\(\)/,
+    'Tree semantics and favourites must refresh and tear down through the composite controller.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshWorkspace\(\)[\s\S]+ensureThemeButton\(\)[\s\S]+ensureDensityButton\(\)[\s\S]+function dbeRestoreWorkspaceState\(\)[\s\S]+dbe-theme-btn[\s\S]+dbe-density-btn/,
+    'Theme and density controls must refresh and tear down through the workspace controller.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshEditing\(\)[\s\S]+ensureConditionHelpers\(\)[\s\S]+ensurePropertiesReorder\(\)[\s\S]+ensureBlankAttrRow\(\)[\s\S]+function destroyEditing\(\)[\s\S]+dbeResetEditingHelpers\(\)/,
+    'Condition, property and attribute helpers must refresh and tear down through the editing controller.'
+);
+assert.match(
+    builder,
+    /function dbeRefreshCommands\(\)[\s\S]+ensureCollapseButton\(\)[\s\S]+ensureTreeSearch\(\)[\s\S]+ensureRowActions\(\)[\s\S]+function destroyCommands\(\)[\s\S]+dbe-tree-search[\s\S]+dbe-row-actions/,
+    'Navigator command surfaces must refresh and tear down through the commands controller.'
+);
 assert.match(
     coreRuntime,
     /function createMutationRouter\(refresh\)[\s\S]+observe: observe[\s\S]+disconnect: disconnect/,

@@ -67,8 +67,13 @@ assert.match(
 );
 assert.match(
     builder,
-    /function boot\(\) \{[\s\S]{0,180}dbeQuery\('navigatorPanel'\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+dbeQuery\('topPanel'\)/,
-    'The shared runtime observer roots must resolve through the adapter.'
+    /function dbeObserveA11yComposites\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+function dbeObserveWorkspace\(\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+dbeQuery\('topPanel'\)/,
+    'Controller-owned composite and workspace observer roots must resolve through the adapter.'
+);
+assert.match(
+    builder,
+    /function dbeObserveEditing\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)[\s\S]+function dbeObserveCommands\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
+    'Controller-owned editing and command observer roots must resolve through the adapter.'
 );
 assert.match(
     coreRuntime,
