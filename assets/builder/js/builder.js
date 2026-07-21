@@ -104,6 +104,8 @@
     var dbeOpenStyleEditor = function () {};
     var entityScopeLabel = function () { return ''; };
     var dbePresenceDirtyChanged = function () {};
+    var dbeRegisterTerminalIntegration = function () {};
+    var dbeRegisterPresenceIntegration = function () {};
 
     /* The site's breakpoints, [{name:'--tablet', label:'Tablet', width:991}]
        in top-bar button order (base first, width:null for the base entry).
@@ -812,232 +814,6 @@
         dbeObserveChrome(owner + '-scope-content', null);
     }
 
-    /* (at) Sense AI terminal tabs. When a remote agent (Claude Code, Gemini CLI…)
-       is connected, the Sense AI panel shows a strip of session tabs above the
-       terminal. Natively they are bare <button>s with no tab semantics, so a
-       screen reader cannot tell which session is active, the set has no
-       single-tab-stop keyboard model, and the "new session" button carries only a
-       "+" glyph as its name. This wires the strip as an APG tab list:
-         - the list = role="tablist" with roving arrow-key navigation;
-         - each tab = role="tab" + aria-selected (mirrored from the native
-           --active class) + aria-controls on the terminal panel; arrows move and
-           switch the session (native owns the switch, driven by selectOnMove's
-           click on the tab the arrows land on);
-         - the terminal = role="tabpanel", named by the active tab;
-         - the "+" button gets a real accessible name and, with its agent picker,
-           becomes a menu button (aria-haspopup/expanded, role=menu/menuitem,
-           focus moves in on open, arrow/Home/End roam, Escape/Tab close it).
-       The strip lives in the footer, which the main panel observation does not
-       watch (like footer_toolbar), and native re-renders it on every switch. Two
-       narrow roots feed the shared chrome mutation router: the always-present
-       footer bar (fires when Sense AI is opened) and the .uniAiChat panel (fires
-       on connect and every tab switch). Neither spans a Monaco editor. The "+"
-       sits inside the list as a labelled button (as a browser tab strip's does);
-       it is not a tab, so the roving set (matched on .uniAiChat__terminalTab)
-       skips it. */
-    var DBE_TERMINAL_OWNER = 'integrations/terminal';
-    var dbeTermAiNode = null;
-    var dbeTerminalControllerActive = false;
-    var dbeTerminalFooterAttempts = 0;
-    var dbeTerminalFrameDocuments = [];
-    var dbeTerminalEscapeHintNode = null;
-    var dbeTerminalEscapeHintOwned = false;
-    function dbeObserveTerminalBar() {
-        // Same bar, same options as the footer toolbar — share its observer.
-        dbeObserveFooter(dbeQuery('footerBar'), 'integrations-terminal-footer');
-    }
-    function dbeObserveTerminalPanel(ai) {
-        if (!window.MutationObserver || ai === dbeTermAiNode) { return; }
-        if (!ai) {
-            dbeTermAiNode = null;
-            dbeObserveChrome('integrations-terminal-panel', null);
-            return;
-        }
-        dbeTermAiNode = ai;
-        dbeObserveChrome('integrations-terminal-panel', ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    }
-    var DBE_AI_MENU_ID = 'dbe-ai-agent-menu';
-    var dbeAgentMenuWasOpen = false;
-    function dbeAgentMenuItems() {
-        var m = document.querySelector('.uniAiChat__agentPicker');
-        return m ? [].slice.call(m.querySelectorAll('.uniAiChat__agentPickerItem')).filter(function (el) { return el.offsetParent !== null; }) : [];
-    }
-    /* The picker is a toggle: clicking the "+" while it is open closes it. */
-    function dbeCloseAgentMenu(add) {
-        if (document.querySelector('.uniAiChat__agentPicker') && add) { try { add.click(); } catch (e) {} }
-        if (add) { add.focus(); }
-    }
-    /* Wire the "+" as a menu button and the picker it opens as a role="menu".
-       Natively the picker is a bare div of <button>s with no roles, no focus
-       management and no Escape — reachable but not a menu. Add the menu-button
-       semantics and, when it opens from the button, move focus to the first item. */
-    function dbeEnsureAgentPicker(add) {
-        if (!add) { return; }
-        dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, add, ['aria-haspopup', 'aria-expanded', 'aria-controls']);
-        if (add.getAttribute('aria-haspopup') !== 'menu') { add.setAttribute('aria-haspopup', 'menu'); }
-        var menu = document.querySelector('.uniAiChat__agentPicker');
-        var open = !!menu;
-        if (add.getAttribute('aria-expanded') !== String(open)) { add.setAttribute('aria-expanded', String(open)); }
-        if (open) {
-            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, menu, ['id', 'role', 'aria-label']);
-            if (!menu.id) { menu.id = DBE_AI_MENU_ID; }
-            if (add.getAttribute('aria-controls') !== menu.id) { add.setAttribute('aria-controls', menu.id); }
-            if (menu.getAttribute('role') !== 'menu') { menu.setAttribute('role', 'menu'); }
-            if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('terminalAgentMenu', 'Choose an agent')); }
-            [].slice.call(menu.querySelectorAll('.uniAiChat__agentPickerItem')).forEach(function (it) {
-                dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, it, ['role', 'tabindex']);
-                if (it.getAttribute('role') !== 'menuitem') { it.setAttribute('role', 'menuitem'); }
-                if (it.getAttribute('tabindex') !== '-1') { it.setAttribute('tabindex', '-1'); }
-            });
-            // Just opened from the "+" (keyboard, or a click that focused it): move
-            // focus to the first item, the menu-button convention.
-            if (!dbeAgentMenuWasOpen && document.activeElement === add) {
-                var first = dbeAgentMenuItems()[0];
-                if (first) { first.focus(); }
-            }
-        } else if (add.getAttribute('aria-controls')) {
-            add.removeAttribute('aria-controls');
-        }
-        dbeAgentMenuWasOpen = open;
-    }
-    /* Keyboard model for the "+" menu button and its menu. Down/Up on
-       the button opens the menu and dives to the first/last item; inside the menu,
-       Up/Down/Home/End roam (wrapping) and Escape/Tab close it and return focus to
-       the button. Enter/Space on an item is left to the native <button>. */
-    function dbeBindAgentPickerKeys() {
-        dbeBindOwnedEvent(DBE_TERMINAL_OWNER, document, 'terminal-agent-picker-keys', 'keydown', function (e) {
-            var addBtn = e.target && e.target.closest ? e.target.closest('.uniAiChat__terminalAddTabBtn') : null;
-            if (addBtn) {
-                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') { return; }
-                e.preventDefault();
-                var last = e.key === 'ArrowUp';
-                if (!document.querySelector('.uniAiChat__agentPicker')) { try { addBtn.click(); } catch (err) {} }
-                var tries = 0;
-                (function focusItem() {
-                    if (!dbeTerminalControllerActive) { return; }
-                    var opts = dbeAgentMenuItems();
-                    if (opts.length) { (last ? opts[opts.length - 1] : opts[0]).focus(); }
-                    else if (tries++ < 10) { dbeSetOwnedTimeout(DBE_TERMINAL_OWNER, focusItem, 20); }
-                })();
-                return;
-            }
-            var inMenu = e.target && e.target.closest ? e.target.closest('.uniAiChat__agentPicker') : null;
-            if (!inMenu) { return; }
-            var items = dbeAgentMenuItems();
-            if (!items.length) { return; }
-            var add = document.querySelector('.uniAiChat__terminalAddTabBtn');
-            var i = items.indexOf(document.activeElement);
-            if (e.key === 'ArrowDown') { e.preventDefault(); items[i < 0 ? 0 : (i + 1) % items.length].focus(); }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); items[i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length].focus(); }
-            else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
-            else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
-            else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); dbeCloseAgentMenu(add); }
-        });
-    }
-    var DBE_AI_PANEL_ID = 'dbe-ai-terminal-panel';
-    var DBE_AI_ESCAPE_HINT_ID = 'dbe-ai-terminal-escape-hint';
-
-    function dbeTerminalEscapeHint() {
-        var hint = document.getElementById(DBE_AI_ESCAPE_HINT_ID);
-        if (!hint) {
-            hint = document.createElement('span');
-            hint.id = DBE_AI_ESCAPE_HINT_ID;
-            hint.className = 'dbe-visually-hidden';
-            hint.textContent = dbeT('terminalEscapeHint', 'Press Control and the grave accent key to move focus out of the terminal');
-            document.body.appendChild(hint);
-            dbeTerminalEscapeHintOwned = true;
-        }
-        dbeTerminalEscapeHintNode = hint;
-        return hint;
-    }
-
-    function dbeTerminalEscapeKeydown(e) {
-        if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== 'Backquote') { return; }
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        var tab = document.querySelector('.uniAiChat__terminalTab--active') || document.querySelector('.uniAiChat__terminalTab');
-        var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
-        var target = tab || panel;
-        if (target) { try { target.focus(); } catch (err) {} }
-    }
-
-    function dbePruneTerminalFrameDocuments() {
-        dbeTerminalFrameDocuments = dbeTerminalFrameDocuments.filter(function (record) {
-            if (record.frame.isConnected) { return true; }
-            dbeUnbindOwnedEvent(DBE_TERMINAL_OWNER, record.doc, 'terminal-escape-keys');
-            return false;
-        });
-    }
-
-    function dbeBindTerminalEscape(frame) {
-        if (!frame) { return; }
-        var doc;
-        try { doc = frame.contentDocument; } catch (e) { doc = null; }
-        var record = dbeTerminalFrameDocuments.filter(function (item) { return item.frame === frame; })[0];
-        if (record && record.doc !== doc) {
-            dbeUnbindOwnedEvent(DBE_TERMINAL_OWNER, record.doc, 'terminal-escape-keys');
-            dbeTerminalFrameDocuments = dbeTerminalFrameDocuments.filter(function (item) { return item !== record; });
-            record = null;
-        }
-        if (doc && !record) {
-            dbeBindOwnedEvent(DBE_TERMINAL_OWNER, doc, 'terminal-escape-keys', 'keydown', dbeTerminalEscapeKeydown, true);
-            dbeTerminalFrameDocuments.push({ frame: frame, doc: doc });
-            var hint = dbeTerminalEscapeHint();
-            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, frame, ['aria-describedby']);
-            if (frame.getAttribute('aria-describedby') !== hint.id) { frame.setAttribute('aria-describedby', hint.id); }
-        }
-        dbeBindOwnedEvent(DBE_TERMINAL_OWNER, frame, 'terminal-frame-load', 'load', function () {
-            if (dbeTerminalControllerActive) { dbeBindTerminalEscape(frame); }
-        });
-    }
-
-    function ensureTerminalEscapeKeys() {
-        dbePruneTerminalFrameDocuments();
-        document.querySelectorAll('.uniAiChat__terminalFrame').forEach(dbeBindTerminalEscape);
-    }
-
-    function ensureTerminalTabs() {
-        var list = document.querySelector('.uniAiChat__terminalTabList');
-        if (!list) { return; }
-        var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
-        if (panel) {
-            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, panel, ['id', 'role', 'tabindex', 'aria-labelledby']);
-            if (!panel.id) { panel.id = DBE_AI_PANEL_ID; }
-            if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
-            if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
-        }
-        ensureTerminalEscapeKeys();
-        var active = null;
-        [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
-            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, t, ['id', 'aria-controls']);
-            if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
-            if (panel && t.getAttribute('aria-controls') !== panel.id) { t.setAttribute('aria-controls', panel.id); }
-            if (t.classList.contains('uniAiChat__terminalTab--active')) { active = t; }
-        });
-        // Name the panel after whichever session is showing.
-        if (panel && active && panel.getAttribute('aria-labelledby') !== active.id) {
-            panel.setAttribute('aria-labelledby', active.id);
-        }
-        // The "+" button's only content is a "+", so give it a real name, and wire
-        // it + its agent picker as a proper menu button (roles, focus, Escape).
-        var add = list.querySelector('.uniAiChat__terminalAddTabBtn');
-        if (add) {
-            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, add, ['aria-label']);
-            var al = dbeT('terminalNewTab', 'New chat session');
-            if (add.getAttribute('aria-label') !== al) { add.setAttribute('aria-label', al); }
-        }
-        dbeEnsureAgentPicker(add);
-        dbeBindAgentPickerKeys();
-        // Tab-list semantics + roving arrow-key navigation.
-        dbeEnsureGroup(list, dbeT('terminalTablist', 'AI chat sessions'), '.uniAiChat__terminalTab', {
-            role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
-            selectOnMove: true, activeClass: 'uniAiChat__terminalTab--active',
-            owner: DBE_TERMINAL_OWNER
-        });
-    }
-
-
     /* Which feature groups need which wiring. */
     var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
@@ -1141,52 +917,42 @@
         }
     }
 
-    function dbeRefreshTerminalIntegration() {
-        if (!dbeTerminalControllerActive) { return; }
-        dbeObserveTerminalBar();
-        dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
-        ensureTerminalTabs();
-    }
-    function dbeRetryTerminalFooter() {
-        if (!dbeTerminalControllerActive || dbeQuery('footerBar') || dbeTerminalFooterAttempts >= 30) { return; }
-        dbeTerminalFooterAttempts++;
-        dbeSetOwnedTimeout(DBE_TERMINAL_OWNER, function () {
-            if (!dbeTerminalControllerActive) { return; }
-            dbeRefreshTerminalIntegration();
-            dbeRetryTerminalFooter();
-        }, 500);
-    }
-    function destroyTerminalIntegration() {
-        dbeTerminalControllerActive = false;
-        dbeTerminalFooterAttempts = 0;
-        dbeAgentMenuWasOpen = false;
-        dbeUnobserveFooter('integrations-terminal-footer');
-        dbeObserveChrome('integrations-terminal-panel', null);
-        dbeDestroyOwnedActivity(DBE_TERMINAL_OWNER);
-        dbeDestroyOwnedGroups(DBE_TERMINAL_OWNER);
-        dbeTerminalFrameDocuments = [];
-        dbeTermAiNode = null;
-        if (dbeTerminalEscapeHintOwned && dbeTerminalEscapeHintNode && dbeTerminalEscapeHintNode.parentNode) {
-            dbeTerminalEscapeHintNode.parentNode.removeChild(dbeTerminalEscapeHintNode);
+    var dbeIntegrationsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.integrations;
+    if (typeof dbeIntegrationsChunk === 'function') {
+        dbeIntegrationsChunk(Object.freeze({
+            on: on,
+            config: CFG,
+            translate: dbeT,
+            query: dbeQuery,
+            controllers: dbeControllers,
+            observe: dbeObserveChrome,
+            observeFooter: dbeObserveFooter,
+            unobserveFooter: dbeUnobserveFooter,
+            ensureGroup: function () { return dbeEnsureGroup.apply(null, arguments); },
+            rememberOwnedAttributes: dbeRememberOwnedAttributes,
+            bindOwnedEvent: dbeBindOwnedEvent,
+            unbindOwnedEvent: dbeUnbindOwnedEvent,
+            setOwnedTimeout: dbeSetOwnedTimeout,
+            setOwnedInterval: dbeSetOwnedInterval,
+            destroyOwnedActivity: dbeDestroyOwnedActivity,
+            destroyOwnedGroups: dbeDestroyOwnedGroups,
+            editing: Object.freeze({
+                hasUnsavedChanges: function () { return dbeHasUnsavedChanges(); }
+            }),
+            setIntegrationsApi: function (api) {
+                dbeRegisterTerminalIntegration = api.registerTerminal;
+                dbeRegisterPresenceIntegration = api.registerPresence;
+                dbePresenceDirtyChanged = api.presenceDirtyChanged;
+            }
+        }));
+    } else {
+        document.documentElement.dataset.dbeChunkError = 'integrations:missing';
+        if (window.console && console.error) {
+            console.error('[DBE] Integrations chunk failed to load; terminal and presence enhancements were not started.');
         }
-        dbeTerminalEscapeHintNode = null;
-        dbeTerminalEscapeHintOwned = false;
     }
-    dbeControllers.register(DBE_TERMINAL_OWNER, {
-        init: function (context) {
-            if (!context || !context.builderius) { return; }
-            dbeTerminalControllerActive = true;
-            dbeBindAgentPickerKeys();
-            dbeRefreshTerminalIntegration();
-            dbeRetryTerminalFooter();
-        },
-        refresh: function (reason) {
-            if (reason) { dbeRefreshTerminalIntegration(); }
-        },
-        destroy: function () {
-            destroyTerminalIntegration();
-        }
-    }, on('ai_terminal_tabs'));
+    dbeRegisterTerminalIntegration();
+
 
     var dbeWorkspaceChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.workspace;
     if (typeof dbeWorkspaceChunk === 'function') {
@@ -1459,184 +1225,7 @@
         }
     }
 
-    /* Presence has two audiences: the front-end admin-bar guard reads a local
-       heartbeat before opening a second builder tab, while server-side agent
-       abilities read the REST heartbeat before committing changes. Keep both
-       resources under one controller so pagehide reliably stops its intervals,
-       removes only this tab's local record and clears its server record. */
-    var DBE_PRESENCE_OWNER = 'integrations/presence';
-    var dbePresenceActive = false;
-    var dbePresenceHeartbeat = null;
-    var dbePresenceServer = null;
-    var dbePresenceTabId = '';
-    var dbePresenceServerLastDirty = null;
-    var dbePresenceServerLastSent = 0;
-
-    function dbePresenceLocalRecords() {
-        var records = {};
-        if (!dbePresenceHeartbeat) { return records; }
-        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
-        var staleAfter = dbePresenceHeartbeat.staleAfter || 8000;
-        var stored = null;
-        try { stored = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
-        if (stored && stored.tabs && typeof stored.tabs === 'object' && !Array.isArray(stored.tabs)) {
-            records = stored.tabs;
-        } else if (stored && typeof stored.t === 'number') {
-            // Preserve one old-format beat during an in-place plugin update.
-            records.legacy = { t: stored.t, title: stored.title || '' };
-        }
-        Object.keys(records).forEach(function (id) {
-            var record = records[id];
-            if (!record || typeof record.t !== 'number' || (Date.now() - record.t) > staleAfter) {
-                delete records[id];
-            }
-        });
-        return records;
-    }
-
-    function dbePresenceCreateTabId() {
-        var id = '';
-        try {
-            var records = dbePresenceLocalRecords();
-            id = sessionStorage.getItem('dbeBuilderiusTabId') || '';
-            // Browsers may clone sessionStorage when a tab is duplicated. A
-            // fresh record with the same id proves that this is a second tab,
-            // not a reload whose pagehide teardown has already removed it.
-            if (id && records[id]) { id = ''; }
-            if (!id) {
-                var random = new Uint32Array(4);
-                crypto.getRandomValues(random);
-                id = 'tab-' + [].map.call(random, function (number) {
-                    return number.toString(16).padStart(8, '0');
-                }).join('');
-                sessionStorage.setItem('dbeBuilderiusTabId', id);
-            }
-        } catch (e) {
-            id = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
-        }
-        return id;
-    }
-
-    function dbePresenceWriteLocalBeat() {
-        if (!dbePresenceActive || !dbePresenceHeartbeat || !dbePresenceTabId) { return; }
-        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
-        var records = dbePresenceLocalRecords();
-        records[dbePresenceTabId] = { t: Date.now(), title: document.title };
-        try { localStorage.setItem(key, JSON.stringify({ version: 2, tabs: records })); } catch (e) {}
-    }
-
-    function dbePresenceClearLocalBeat() {
-        if (!dbePresenceHeartbeat || !dbePresenceTabId) { return; }
-        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
-        var records = dbePresenceLocalRecords();
-        delete records[dbePresenceTabId];
-        try {
-            if (Object.keys(records).length) {
-                localStorage.setItem(key, JSON.stringify({ version: 2, tabs: records }));
-            } else {
-                localStorage.removeItem(key);
-            }
-        } catch (e) {}
-    }
-
-    function dbePresenceSlug() {
-        try { return new URLSearchParams(location.search).get('builderius_template') || ''; }
-        catch (e) { return ''; }
-    }
-
-    function dbePresenceDirty() {
-        return dbeHasUnsavedChanges();
-    }
-
-    function dbePresenceSendServerBeat(force, clear, knownDirty) {
-        var server = dbePresenceServer || {};
-        var slug = dbePresenceSlug();
-        if (!server.url || !server.nonce || !slug || !dbePresenceTabId) { return; }
-        var dirty = clear ? false : (typeof knownDirty === 'boolean' ? knownDirty : dbePresenceDirty());
-        var now = Date.now();
-        if (!force && dirty === dbePresenceServerLastDirty &&
-            (now - dbePresenceServerLastSent) < (server.interval || 20000)) { return; }
-        dbePresenceServerLastDirty = dirty;
-        dbePresenceServerLastSent = now;
-        try {
-            fetch(server.url, {
-                method: 'POST',
-                credentials: 'same-origin',
-                keepalive: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-WP-Nonce': server.nonce
-                },
-                body: JSON.stringify({ entity: slug, tab: dbePresenceTabId, dirty: dirty })
-            }).catch(function () {});
-        } catch (e) {}
-    }
-
-    function dbePresenceInit() {
-        dbePresenceActive = true;
-        dbePresenceHeartbeat = CFG.heartbeat || {};
-        dbePresenceServer = CFG.presence || {};
-        dbePresenceTabId = dbePresenceCreateTabId();
-        dbePresenceServerLastDirty = null;
-        dbePresenceServerLastSent = 0;
-
-        dbePresenceWriteLocalBeat();
-        dbeSetOwnedInterval(
-            DBE_PRESENCE_OWNER,
-            dbePresenceWriteLocalBeat,
-            dbePresenceHeartbeat.interval || 2500
-        );
-
-        if (dbePresenceServer.url && dbePresenceServer.nonce) {
-            /* The save cue already calculates dirty state whenever the
-               Builderius history/settings signals change. Reuse that result
-               for immediate transition beats; do not serialise the same
-               snapshot again on another normal-config polling cadence. */
-            dbePresenceDirtyChanged = function (dirty) {
-                dbePresenceSendServerBeat(false, false, dirty);
-            };
-            dbePresenceSendServerBeat(true);
-
-            // Clean state has no server record to renew. Only a dirty tab needs
-            // the slow keep-alive that prevents its 60-second record expiring.
-            dbeSetOwnedInterval(DBE_PRESENCE_OWNER, function () {
-                if (dbePresenceServerLastDirty === true) {
-                    dbePresenceSendServerBeat(true, false, true);
-                }
-            }, dbePresenceServer.interval || 20000);
-
-            // Without the visible save cue there is no transition publisher,
-            // so retain a small fallback scanner for that configuration only.
-            if (!on('save_state_cue')) {
-                dbeSetOwnedInterval(DBE_PRESENCE_OWNER, function () {
-                    dbePresenceSendServerBeat(false);
-                }, dbePresenceServer.transitionInterval || 2500);
-            }
-        }
-    }
-
-    function dbePresenceDestroy() {
-        dbePresenceActive = false;
-        dbePresenceDirtyChanged = function () {};
-        dbeDestroyOwnedActivity(DBE_PRESENCE_OWNER);
-        dbePresenceClearLocalBeat();
-        dbePresenceSendServerBeat(true, true);
-        dbePresenceHeartbeat = null;
-        dbePresenceServer = null;
-        dbePresenceServerLastDirty = null;
-        dbePresenceServerLastSent = 0;
-    }
-
-    dbeControllers.register(DBE_PRESENCE_OWNER, {
-        init: function (context) {
-            if (!context || !context.builderius) { return; }
-            dbePresenceInit();
-        },
-        refresh: function () {},
-        destroy: function () {
-            dbePresenceDestroy();
-        }
-    }, on('presence_heartbeat'));
+    dbeRegisterPresenceIntegration();
 
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {

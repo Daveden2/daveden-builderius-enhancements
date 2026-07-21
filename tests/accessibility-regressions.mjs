@@ -20,6 +20,7 @@ const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
+const integrations = read('assets/builder/js/chunks/integrations.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
@@ -231,32 +232,32 @@ assert.doesNotMatch(
     'The Builderius menu must not leave an irreversible boot-time document listener.'
 );
 assert.match(
-    builder,
+    integrations,
     /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyTerminalIntegration\(\)/,
     'Sense AI terminal accessibility must participate in the shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    integrations,
     /function ensureTerminalTabs\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_TERMINAL_OWNER, panel[\s\S]+dbeRememberOwnedAttributes\(DBE_TERMINAL_OWNER, t[\s\S]+owner: DBE_TERMINAL_OWNER/,
     'Terminal tabs, their panel and roving group must declare terminal-controller ownership.'
 );
 assert.match(
-    builder,
+    integrations,
     /function dbeBindAgentPickerKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, document, 'terminal-agent-picker-keys'[\s\S]+dbeSetOwnedTimeout\(DBE_TERMINAL_OWNER, focusItem/,
     'The terminal agent picker must own its delegated keyboard listener and delayed focus retries.'
 );
 assert.match(
-    builder,
+    integrations,
     /function dbeBindTerminalEscape\(frame\)[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, doc, 'terminal-escape-keys'[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, frame, 'terminal-frame-load'/,
     'Terminal iframes must own both the inner-document escape bridge and frame load listener.'
 );
 assert.match(
-    builder,
+    integrations,
     /function destroyTerminalIntegration\(\)[\s\S]+dbeUnobserveFooter\('integrations-terminal-footer'\)[\s\S]+dbeObserveChrome\('integrations-terminal-panel', null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_TERMINAL_OWNER\)[\s\S]+dbeDestroyOwnedGroups\(DBE_TERMINAL_OWNER\)[\s\S]+removeChild\(dbeTerminalEscapeHintNode\)/,
     'Destroying the terminal controller must release observation roots, listeners, timers, ARIA and its hidden hint.'
 );
 assert.doesNotMatch(
-    builder,
+    integrations,
     /dbeAgentKeysBound|dbeTerminalEscapeKeyBound|dbeTerminalEscapeLoadBound|terminalBoot|dbeFooterBarNode/,
     'Terminal accessibility must not rely on irreversible flags or an unmanaged boot retry.'
 );
@@ -531,7 +532,7 @@ assert.doesNotMatch(
     'Dirty state must not return to a timing-based selection hold that can absorb real edits.'
 );
 assert.match(
-    builder,
+    integrations,
     /function dbePresenceDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
     'Server presence must use the same corrected dirty-state contract as the visible save cue.'
 );
@@ -546,27 +547,27 @@ assert.match(
     'Controller-owned intervals must be cancelled with their lifecycle.'
 );
 assert.match(
-    builder,
+    integrations,
     /dbePresenceServerLastDirty === true[\s\S]{0,180}dbePresenceServer\.interval \|\| 20000/,
     'Server presence must renew only a dirty record on the slow cadence.'
 );
 assert.match(
-    builder,
+    integrations,
     /if \(!on\('save_state_cue'\)\)[\s\S]{0,240}dbePresenceServer\.transitionInterval \|\| 2500/,
     'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
 );
 assert.match(
-    builder,
+    integrations,
     /records\[dbePresenceTabId\] = \{ t: Date\.now\(\), title: document\.title \}[\s\S]+delete records\[dbePresenceTabId\]/,
     'Local presence must add and remove only the current tab in its shared registry.'
 );
 assert.match(
-    builder,
+    integrations,
     /dbeControllers\.register\(DBE_PRESENCE_OWNER,[\s\S]+dbePresenceInit\(\)[\s\S]+dbePresenceDestroy\(\)[\s\S]+on\('presence_heartbeat'\)/,
     'Presence resources must participate in the shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    integrations,
     /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)[\s\S]+dbePresenceSendServerBeat\(true, true\)/,
     'Presence teardown must release its publisher, intervals and per-tab records.'
 );

@@ -18,13 +18,14 @@ const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
+const integrations = read('assets/builder/js/chunks/integrations.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-integrations-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
     'The core runtime and feature chunks must load synchronously before the feature host.'
 );
 assert.match(
@@ -51,6 +52,11 @@ assert.match(
     outputBuilder,
     /filemtime\( \$styles_path \)[\s\S]+assets\/builder\/js\/chunks\/styles\.js/,
     'The styles chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$integrations_path \)[\s\S]+assets\/builder\/js\/chunks\/integrations\.js/,
+    'The integrations chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
@@ -166,6 +172,26 @@ assert.match(
     builder,
     /dataset\.dbeChunkError = 'styles:missing'[\s\S]+Styles chunk failed to load/,
     'A missing styles chunk must fail soft with a persistent diagnostic.'
+);
+assert.match(
+    integrations,
+    /chunks\.integrations = function \(host\)[\s\S]+function registerTerminalIntegration\(\)[\s\S]+function registerPresenceIntegration\(\)[\s\S]+host\.setIntegrationsApi\(Object\.freeze\(/,
+    'The integrations chunk must expose separate registrars so the host can preserve controller order.'
+);
+assert.match(
+    builder,
+    /var dbeIntegrationsChunk = window\.dbeBuilderChunks[\s\S]+dbeIntegrationsChunk\(Object\.freeze\([\s\S]+observeFooter:[\s\S]+editing: Object\.freeze[\s\S]+setIntegrationsApi[\s\S]+dbeRegisterTerminalIntegration\(\)[\s\S]+dbeRegisterPresenceIntegration\(\)/,
+    'The feature host must provide integrations shared services and invoke both lifecycle registrars.'
+);
+assert.doesNotMatch(
+    builder,
+    /function ensureTerminalTabs\(|function dbePresenceInit\(|function dbePresenceSendServerBeat\(/,
+    'The feature host must not duplicate terminal or presence implementations.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'integrations:missing'[\s\S]+Integrations chunk failed to load/,
+    'A missing integrations chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
     commands,
@@ -295,6 +321,7 @@ assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must re
 assert.ok(gzipSync(workspace).length < 25 * 1024, 'The workspace chunk must remain within a 25 KB compressed budget.');
 assert.ok(gzipSync(editing).length < 65 * 1024, 'The editing chunk must remain within a 65 KB compressed budget.');
 assert.ok(gzipSync(styles).length < 35 * 1024, 'The styles chunk must remain within a 35 KB compressed budget.');
+assert.ok(gzipSync(integrations).length < 15 * 1024, 'The integrations chunk must remain within a 15 KB compressed budget.');
 assert.ok(gzipSync(commands).length < 55 * 1024, 'The commands chunk must remain within a 55 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the
