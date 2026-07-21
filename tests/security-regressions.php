@@ -44,6 +44,8 @@ if ( $admins ) {
 dbe_test_assert( function_exists( 'dbe_ability_parse_fragment' ), 'The subtree ability parser is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The template ability registrar is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
+dbe_test_assert( function_exists( 'dbe_register_component_abilities' ), 'The component ability registrar is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_create_component' ), 'The component ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_css_blocks_parse' ), 'The shared CSS block parser is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_presence_beat' ), 'The presence service is not loaded.' );
 
@@ -52,6 +54,37 @@ if ( function_exists( 'dbe_ability_serialize_apply_rules' ) ) {
 	dbe_test_assert(
 		is_wp_error( $invalid_apply_rules ) && 'dbe_bad_apply_rules' === $invalid_apply_rules->get_error_code(),
 		'The extracted template domain changed apply-rule validation.'
+	);
+}
+
+if ( function_exists( 'dbe_ability_validate_prop_def' ) && function_exists( 'dbe_ability_sync_component_props' ) ) {
+	$invalid_property = dbe_ability_validate_prop_def(
+		array(
+			'name' => 'HeadingText',
+			'type' => 'text',
+		)
+	);
+	dbe_test_assert(
+		is_wp_error( $invalid_property ) && 'dbe_bad_prop_name' === $invalid_property->get_error_code(),
+		'The extracted component domain changed property-name validation.'
+	);
+
+	$synchronised = dbe_ability_sync_component_props(
+		array( 'template' => array( 'settings' => array() ) ),
+		array(
+			array(
+				'name'        => 'heading_text',
+				'type'        => 'text',
+				'label'       => 'Heading text',
+				'placeholder' => 'Example',
+			),
+		)
+	);
+	$settings     = wp_list_pluck( $synchronised['template']['settings'], 'value', 'name' );
+	dbe_test_assert(
+		'Example' === ( $settings['dataVars'][0]['c1']['heading_text'] ?? null )
+			&& 'heading_text' === ( $settings['componentTmplProperties'][0]['name'] ?? null ),
+		'The extracted component domain no longer synchronises declarations and derived defaults.'
 	);
 }
 
