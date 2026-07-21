@@ -223,6 +223,41 @@ assert.doesNotMatch(
     /document\.addEventListener\('keydown', dbeMenuKeydown, true\)/,
     'The Builderius menu must not leave an irreversible boot-time document listener.'
 );
+assert.match(
+    builder,
+    /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyTerminalIntegration\(\)/,
+    'Sense AI terminal accessibility must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function ensureTerminalTabs\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_TERMINAL_OWNER, panel[\s\S]+dbeRememberOwnedAttributes\(DBE_TERMINAL_OWNER, t[\s\S]+owner: DBE_TERMINAL_OWNER/,
+    'Terminal tabs, their panel and roving group must declare terminal-controller ownership.'
+);
+assert.match(
+    builder,
+    /function dbeBindAgentPickerKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, document, 'terminal-agent-picker-keys'[\s\S]+dbeSetOwnedTimeout\(DBE_TERMINAL_OWNER, focusItem/,
+    'The terminal agent picker must own its delegated keyboard listener and delayed focus retries.'
+);
+assert.match(
+    builder,
+    /function dbeBindTerminalEscape\(frame\)[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, doc, 'terminal-escape-keys'[\s\S]+dbeBindOwnedEvent\(DBE_TERMINAL_OWNER, frame, 'terminal-frame-load'/,
+    'Terminal iframes must own both the inner-document escape bridge and frame load listener.'
+);
+assert.match(
+    builder,
+    /function destroyTerminalIntegration\(\)[\s\S]+dbeUnobserveFooter\('integrations-terminal-footer'\)[\s\S]+dbeObserveChrome\('integrations-terminal-panel', null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_TERMINAL_OWNER\)[\s\S]+dbeDestroyOwnedGroups\(DBE_TERMINAL_OWNER\)[\s\S]+removeChild\(dbeTerminalEscapeHintNode\)/,
+    'Destroying the terminal controller must release observation roots, listeners, timers, ARIA and its hidden hint.'
+);
+assert.doesNotMatch(
+    builder,
+    /dbeAgentKeysBound|dbeTerminalEscapeKeyBound|dbeTerminalEscapeLoadBound|terminalBoot|dbeFooterBarNode/,
+    'Terminal accessibility must not rely on irreversible flags or an unmanaged boot retry.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('ai_terminal_tabs'\)\) \{ try \{ ensureTerminalTabs\(\)/,
+    'The shared refresh pass must not bypass the terminal integration controller.'
+);
 assert.doesNotMatch(
     builder,
     /if \(on\('tooltips'\)\) \{ try \{ labelChromeIcons\(\)/,

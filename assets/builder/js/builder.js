@@ -7098,6 +7098,16 @@
             options: options
         });
     }
+    function dbeUnbindOwnedEvent(owner, node, key) {
+        dbeOwnedEventBindings.filter(function (binding) {
+            return binding.owner === owner && binding.node === node && binding.key === key;
+        }).forEach(function (binding) {
+            binding.node.removeEventListener(binding.type, binding.handler, binding.options);
+        });
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) {
+            return binding.owner !== owner || binding.node !== node || binding.key !== key;
+        });
+    }
     function dbeSetOwnedTimeout(owner, callback, delay) {
         var timer = { owner: owner, id: 0 };
         timer.id = setTimeout(function () {
@@ -7603,8 +7613,7 @@
 
     /* Shared by footer_toolbar and ai_terminal_tabs. Each owner uses distinct
        router keys, so overlapping roots merge while either lifecycle remains
-       active. Keep the bar reference only for the terminal's bounded boot retry. */
-    var dbeFooterBarNode = null;
+       active. */
     var DBE_FOOTER_SCOPE_PANEL_ID = 'dbe-footer-scope-panel';
     function dbeObserveFooter(bar, owner) {
         if (!window.MutationObserver) { return; }
@@ -7612,7 +7621,6 @@
         if (bar) {
             // Bar: button active/locked class + add/remove (small subtree).
             dbeObserveChrome(prefix + '-bar', bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-            dbeFooterBarNode = bar;
         }
         // Panel: open/collapse (content mounts/unmounts, height/style change).
         // Shallow — no subtree — so the Monaco editors inside do not spam it.
@@ -8331,19 +8339,29 @@
        sits inside the list as a labelled button (as a browser tab strip's does);
        it is not a tab, so the roving set (matched on .uniAiChat__terminalTab)
        skips it. */
+    var DBE_TERMINAL_OWNER = 'integrations/terminal';
     var dbeTermAiNode = null;
+    var dbeTerminalControllerActive = false;
+    var dbeTerminalFooterAttempts = 0;
+    var dbeTerminalFrameDocuments = [];
+    var dbeTerminalEscapeHintNode = null;
+    var dbeTerminalEscapeHintOwned = false;
     function dbeObserveTerminalBar() {
         // Same bar, same options as the footer toolbar — share its observer.
-        dbeObserveFooter(dbeQuery('footerBar'), 'a11y-terminal-footer');
+        dbeObserveFooter(dbeQuery('footerBar'), 'integrations-terminal-footer');
     }
     function dbeObserveTerminalPanel(ai) {
-        if (!ai || ai === dbeTermAiNode || !window.MutationObserver) { return; }
+        if (!window.MutationObserver || ai === dbeTermAiNode) { return; }
+        if (!ai) {
+            dbeTermAiNode = null;
+            dbeObserveChrome('integrations-terminal-panel', null);
+            return;
+        }
         dbeTermAiNode = ai;
-        dbeObserveChrome('terminal-panel', ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        dbeObserveChrome('integrations-terminal-panel', ai, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
     var DBE_AI_MENU_ID = 'dbe-ai-agent-menu';
     var dbeAgentMenuWasOpen = false;
-    var dbeAgentKeysBound = false;
     function dbeAgentMenuItems() {
         var m = document.querySelector('.uniAiChat__agentPicker');
         return m ? [].slice.call(m.querySelectorAll('.uniAiChat__agentPickerItem')).filter(function (el) { return el.offsetParent !== null; }) : [];
@@ -8359,16 +8377,19 @@
        semantics and, when it opens from the button, move focus to the first item. */
     function dbeEnsureAgentPicker(add) {
         if (!add) { return; }
+        dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, add, ['aria-haspopup', 'aria-expanded', 'aria-controls']);
         if (add.getAttribute('aria-haspopup') !== 'menu') { add.setAttribute('aria-haspopup', 'menu'); }
         var menu = document.querySelector('.uniAiChat__agentPicker');
         var open = !!menu;
         if (add.getAttribute('aria-expanded') !== String(open)) { add.setAttribute('aria-expanded', String(open)); }
         if (open) {
+            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, menu, ['id', 'role', 'aria-label']);
             if (!menu.id) { menu.id = DBE_AI_MENU_ID; }
             if (add.getAttribute('aria-controls') !== menu.id) { add.setAttribute('aria-controls', menu.id); }
             if (menu.getAttribute('role') !== 'menu') { menu.setAttribute('role', 'menu'); }
             if (!menu.getAttribute('aria-label')) { menu.setAttribute('aria-label', dbeT('terminalAgentMenu', 'Choose an agent')); }
             [].slice.call(menu.querySelectorAll('.uniAiChat__agentPickerItem')).forEach(function (it) {
+                dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, it, ['role', 'tabindex']);
                 if (it.getAttribute('role') !== 'menuitem') { it.setAttribute('role', 'menuitem'); }
                 if (it.getAttribute('tabindex') !== '-1') { it.setAttribute('tabindex', '-1'); }
             });
@@ -8383,14 +8404,12 @@
         }
         dbeAgentMenuWasOpen = open;
     }
-    /* Keyboard model for the "+" menu button and its menu (bound once). Down/Up on
+    /* Keyboard model for the "+" menu button and its menu. Down/Up on
        the button opens the menu and dives to the first/last item; inside the menu,
        Up/Down/Home/End roam (wrapping) and Escape/Tab close it and return focus to
        the button. Enter/Space on an item is left to the native <button>. */
     function dbeBindAgentPickerKeys() {
-        if (dbeAgentKeysBound) { return; }
-        dbeAgentKeysBound = true;
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_TERMINAL_OWNER, document, 'terminal-agent-picker-keys', 'keydown', function (e) {
             var addBtn = e.target && e.target.closest ? e.target.closest('.uniAiChat__terminalAddTabBtn') : null;
             if (addBtn) {
                 if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') { return; }
@@ -8399,9 +8418,10 @@
                 if (!document.querySelector('.uniAiChat__agentPicker')) { try { addBtn.click(); } catch (err) {} }
                 var tries = 0;
                 (function focusItem() {
+                    if (!dbeTerminalControllerActive) { return; }
                     var opts = dbeAgentMenuItems();
                     if (opts.length) { (last ? opts[opts.length - 1] : opts[0]).focus(); }
-                    else if (tries++ < 10) { setTimeout(focusItem, 20); }
+                    else if (tries++ < 10) { dbeSetOwnedTimeout(DBE_TERMINAL_OWNER, focusItem, 20); }
                 })();
                 return;
             }
@@ -8429,46 +8449,64 @@
             hint.className = 'dbe-visually-hidden';
             hint.textContent = dbeT('terminalEscapeHint', 'Press Control and the grave accent key to move focus out of the terminal');
             document.body.appendChild(hint);
+            dbeTerminalEscapeHintOwned = true;
         }
+        dbeTerminalEscapeHintNode = hint;
         return hint;
+    }
+
+    function dbeTerminalEscapeKeydown(e) {
+        if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== 'Backquote') { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        var tab = document.querySelector('.uniAiChat__terminalTab--active') || document.querySelector('.uniAiChat__terminalTab');
+        var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
+        var target = tab || panel;
+        if (target) { try { target.focus(); } catch (err) {} }
+    }
+
+    function dbePruneTerminalFrameDocuments() {
+        dbeTerminalFrameDocuments = dbeTerminalFrameDocuments.filter(function (record) {
+            if (record.frame.isConnected) { return true; }
+            dbeUnbindOwnedEvent(DBE_TERMINAL_OWNER, record.doc, 'terminal-escape-keys');
+            return false;
+        });
     }
 
     function dbeBindTerminalEscape(frame) {
         if (!frame) { return; }
         var doc;
         try { doc = frame.contentDocument; } catch (e) { doc = null; }
-        if (doc && !doc.dbeTerminalEscapeKeyBound) {
-            doc.dbeTerminalEscapeKeyBound = true;
-            doc.addEventListener('keydown', function (e) {
-                if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== 'Backquote') { return; }
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                var tab = document.querySelector('.uniAiChat__terminalTab--active') || document.querySelector('.uniAiChat__terminalTab');
-                var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
-                var target = tab || panel;
-                if (target) { try { target.focus(); } catch (err) {} }
-            }, true);
+        var record = dbeTerminalFrameDocuments.filter(function (item) { return item.frame === frame; })[0];
+        if (record && record.doc !== doc) {
+            dbeUnbindOwnedEvent(DBE_TERMINAL_OWNER, record.doc, 'terminal-escape-keys');
+            dbeTerminalFrameDocuments = dbeTerminalFrameDocuments.filter(function (item) { return item !== record; });
+            record = null;
+        }
+        if (doc && !record) {
+            dbeBindOwnedEvent(DBE_TERMINAL_OWNER, doc, 'terminal-escape-keys', 'keydown', dbeTerminalEscapeKeydown, true);
+            dbeTerminalFrameDocuments.push({ frame: frame, doc: doc });
             var hint = dbeTerminalEscapeHint();
+            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, frame, ['aria-describedby']);
             if (frame.getAttribute('aria-describedby') !== hint.id) { frame.setAttribute('aria-describedby', hint.id); }
         }
-        if (!frame.dbeTerminalEscapeLoadBound) {
-            frame.dbeTerminalEscapeLoadBound = true;
-            frame.addEventListener('load', function () { dbeBindTerminalEscape(frame); });
-        }
+        dbeBindOwnedEvent(DBE_TERMINAL_OWNER, frame, 'terminal-frame-load', 'load', function () {
+            if (dbeTerminalControllerActive) { dbeBindTerminalEscape(frame); }
+        });
     }
 
     function ensureTerminalEscapeKeys() {
+        dbePruneTerminalFrameDocuments();
         document.querySelectorAll('.uniAiChat__terminalFrame').forEach(dbeBindTerminalEscape);
     }
 
     function ensureTerminalTabs() {
-        dbeObserveTerminalBar();
-        dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
         var list = document.querySelector('.uniAiChat__terminalTabList');
         if (!list) { return; }
         var panel = document.querySelector('.uniAiChat__terminalFrameWrap');
         if (panel) {
+            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, panel, ['id', 'role', 'tabindex', 'aria-labelledby']);
             if (!panel.id) { panel.id = DBE_AI_PANEL_ID; }
             if (panel.getAttribute('role') !== 'tabpanel') { panel.setAttribute('role', 'tabpanel'); }
             if (panel.getAttribute('tabindex') !== '0') { panel.setAttribute('tabindex', '0'); }
@@ -8476,6 +8514,7 @@
         ensureTerminalEscapeKeys();
         var active = null;
         [].slice.call(list.querySelectorAll('.uniAiChat__terminalTab')).forEach(function (t, i) {
+            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, t, ['id', 'aria-controls']);
             if (!t.id) { t.id = 'dbe-ai-terminal-tab-' + i; }
             if (panel && t.getAttribute('aria-controls') !== panel.id) { t.setAttribute('aria-controls', panel.id); }
             if (t.classList.contains('uniAiChat__terminalTab--active')) { active = t; }
@@ -8488,6 +8527,7 @@
         // it + its agent picker as a proper menu button (roles, focus, Escape).
         var add = list.querySelector('.uniAiChat__terminalAddTabBtn');
         if (add) {
+            dbeRememberOwnedAttributes(DBE_TERMINAL_OWNER, add, ['aria-label']);
             var al = dbeT('terminalNewTab', 'New chat session');
             if (add.getAttribute('aria-label') !== al) { add.setAttribute('aria-label', al); }
         }
@@ -8496,7 +8536,8 @@
         // Tab-list semantics + roving arrow-key navigation.
         dbeEnsureGroup(list, dbeT('terminalTablist', 'AI chat sessions'), '.uniAiChat__terminalTab', {
             role: 'tablist', itemRole: 'tab', selectAttr: 'aria-selected',
-            selectOnMove: true, activeClass: 'uniAiChat__terminalTab--active'
+            selectOnMove: true, activeClass: 'uniAiChat__terminalTab--active',
+            owner: DBE_TERMINAL_OWNER
         });
     }
     function dbeSSActiveIndex(items, id) {
@@ -13690,6 +13731,53 @@
         }
     }, on('topbar_toolbar') || on('footer_toolbar') || on('inserter_keyboard') || on('panel_tabs') || on('select_combobox') || on('settings_accordions') || on('builderius_menu'));
 
+    function dbeRefreshTerminalIntegration() {
+        if (!dbeTerminalControllerActive) { return; }
+        dbeObserveTerminalBar();
+        dbeObserveTerminalPanel(document.querySelector('.uniAiChat'));
+        ensureTerminalTabs();
+    }
+    function dbeRetryTerminalFooter() {
+        if (!dbeTerminalControllerActive || dbeQuery('footerBar') || dbeTerminalFooterAttempts >= 30) { return; }
+        dbeTerminalFooterAttempts++;
+        dbeSetOwnedTimeout(DBE_TERMINAL_OWNER, function () {
+            if (!dbeTerminalControllerActive) { return; }
+            dbeRefreshTerminalIntegration();
+            dbeRetryTerminalFooter();
+        }, 500);
+    }
+    function destroyTerminalIntegration() {
+        dbeTerminalControllerActive = false;
+        dbeTerminalFooterAttempts = 0;
+        dbeAgentMenuWasOpen = false;
+        dbeUnobserveFooter('integrations-terminal-footer');
+        dbeObserveChrome('integrations-terminal-panel', null);
+        dbeDestroyOwnedActivity(DBE_TERMINAL_OWNER);
+        dbeDestroyOwnedGroups(DBE_TERMINAL_OWNER);
+        dbeTerminalFrameDocuments = [];
+        dbeTermAiNode = null;
+        if (dbeTerminalEscapeHintOwned && dbeTerminalEscapeHintNode && dbeTerminalEscapeHintNode.parentNode) {
+            dbeTerminalEscapeHintNode.parentNode.removeChild(dbeTerminalEscapeHintNode);
+        }
+        dbeTerminalEscapeHintNode = null;
+        dbeTerminalEscapeHintOwned = false;
+    }
+    dbeControllers.register(DBE_TERMINAL_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbeTerminalControllerActive = true;
+            dbeBindAgentPickerKeys();
+            dbeRefreshTerminalIntegration();
+            dbeRetryTerminalFooter();
+        },
+        refresh: function (reason) {
+            if (reason) { dbeRefreshTerminalIntegration(); }
+        },
+        destroy: function () {
+            destroyTerminalIntegration();
+        }
+    }, on('ai_terminal_tabs'));
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -13722,7 +13810,6 @@
             }
             if (on('keyboard_shortcuts')) { try { ensureCanvasModeControl(); } catch (e) {} }
             if (on('save_split_button')) { try { ensureSaveMenuButton(); } catch (e) {} }
-            if (on('ai_terminal_tabs')) { try { ensureTerminalTabs(); } catch (e) {} }
             if (on('tree_search')) {
                 try { ensureTreeSearch(); } catch (e) {}
                 try { applyTreeFilter(); } catch (e) {}
@@ -13804,17 +13891,6 @@
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
         }
-        // The Sense AI session tabs live in that same footer. Nudge schedule()
-        // until ensureTerminalTabs() has wired its own observer to the footer bar,
-        // so the tabs are reachable even when this is the only feature enabled.
-        if (on('ai_terminal_tabs')) {
-            (function terminalBoot(n) {
-                if (dbeFooterBarNode || n <= 0) { return; }
-                schedule();
-                setTimeout(function () { terminalBoot(n - 1); }, 500);
-            })(30);
-        }
-
         // Remember which row was right-clicked (target for wrap/rename/expand).
         // Right-clicking OUTSIDE the multi-selection resets it to a single-row
         // menu (the convention in comparable tools); auto-driven menus are exempt.
