@@ -444,6 +444,26 @@ if ( function_exists( 'dbe_ability_render_url' ) ) {
 $ability_defaults = dbe_default_options();
 $js_ability_key   = dbe_ability_option_key( 'dbe/manage-js-snippet' );
 dbe_test_assert( empty( $ability_defaults[ $js_ability_key ] ), 'The raw-JavaScript ability is not off by default.' );
+dbe_test_assert( function_exists( 'dbe_register_data_abilities' ), 'The dynamic-data registrar was not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_get_data_variables' ), 'The dynamic-data read callback was not loaded.' );
+
+$data_var_row = dbe_ability_data_var_row(
+	array(
+		'a1' => 'json',
+		'b1' => 'test_data',
+		'c1' => array( 'ready' => true ),
+	)
+);
+dbe_test_assert(
+	'test_data' === $data_var_row['name'] && 'json' === $data_var_row['type'] && '{"ready":true}' === $data_var_row['value'] && false === $data_var_row['system'],
+	'The dynamic-data row projection changed during domain extraction.'
+);
+
+if ( class_exists( '\\Builderius\\GraphQL\\Language\\Parser' ) ) {
+	dbe_test_assert( true === dbe_ability_validate_graphql_syntax( 'query DbeDataDomain { __typename }' ), 'A valid GraphQL document failed syntax validation.' );
+	$bad_graphql = dbe_ability_validate_graphql_syntax( 'query {' );
+	dbe_test_assert( is_wp_error( $bad_graphql ) && 'dbe_bad_graphql' === $bad_graphql->get_error_code(), 'An invalid GraphQL document passed syntax validation.' );
+}
 
 dbe_test_assert(
 	'dbe_css_too_large' === dbe_ability_patch_global_css(
