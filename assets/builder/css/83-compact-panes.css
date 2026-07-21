@@ -44,8 +44,7 @@
     html.dbe-compact-panes .uniTopPanel__rightCol .uniApplicantsSelect,
     html.dbe-compact-panes .uniTopPanel__rightCol .uniPanelButton,
     html.dbe-compact-panes .uniTopPanel__rightCol .dbe-theme-btn,
-    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-density-btn,
-    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-save-menu-btn {
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-density-btn {
         display: none !important;
     }
 
@@ -64,6 +63,23 @@
         z-index: 2147482000 !important;
         display: flex !important;
         min-inline-size: 80px !important;
+    }
+
+    /* Preserve the complete Save split button when that feature is enabled.
+       Hiding only the injected disclosure also hides the native nested caret,
+       which would remove Publish entirely at compact widths. */
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-save-menu-btn {
+        position: fixed !important;
+        inset-block-start: 4px !important;
+        inset-inline-end: 4px !important;
+        z-index: 2147482000 !important;
+        display: flex !important;
+        margin-inline-start: 0 !important;
+    }
+
+    html.dbe-compact-panes .uniTopPanel__rightCol:has(> .dbe-save-menu-btn) .saveBtn {
+        inset-inline-end: 31px !important;
+        min-inline-size: 64px !important;
     }
 
     /* Keep save state available to assistive technology without spending the

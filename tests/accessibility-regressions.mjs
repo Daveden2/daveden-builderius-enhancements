@@ -26,9 +26,11 @@ const treeRows = read('assets/builder/css/14-tree-rows.css');
 const previewResize = read('assets/builder/css/74-preview-resize.css');
 const panelResize = read('assets/builder/css/75-panel-resize.css');
 const compactPanes = read('assets/builder/css/83-compact-panes.css');
+const saveMenu = read('assets/builder/css/35-save-menu.css');
 const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
+const features = read('includes/features.php');
 
 assert.match(
     builder,
@@ -127,6 +129,35 @@ assert.match(
     controls,
     /saveBtn\.comboBtn \.actions[\s\S]+min-inline-size:\s*24px[\s\S]+min-block-size:\s*24px/,
     'The native Save disclosure target must meet the 24px target minimum.'
+);
+assert.match(
+    builder,
+    /dbe-save-menu-btn[\s\S]+aria-haspopup[\s\S]+aria-expanded[\s\S]+ArrowDown[\s\S]+dbeOpenSaveMenu/,
+    'The replacement Save disclosure must retain the APG menu-button contract.'
+);
+assert.match(
+    builder,
+    /function dbeStampSaveMenu\(menu\)[\s\S]+role', 'menuitem'[\s\S]+tabindex', '-1'[\s\S]+aria-disabled/,
+    'Save menu items must remain focusable, named menu items with truthful unavailable states.'
+);
+assert.match(
+    saveMenu,
+    /\.dbe-save-menu-btn[\s\S]+inline-size:\s*28px[\s\S]+min-inline-size:\s*28px/,
+    'The replacement Save disclosure must exceed the WCAG 2.2 target-size minimum.'
+);
+assert.match(
+    compactPanes,
+    /\.dbe-save-menu-btn[\s\S]+display:\s*flex !important[\s\S]+:has\(> \.dbe-save-menu-btn\) \.saveBtn/,
+    'Compact mode must preserve both halves of the Save split button.'
+);
+const saveFeature = features.slice(
+    features.indexOf("'save_split_button'     => array("),
+    features.indexOf("'css_block_guard'", features.indexOf("'save_split_button'     => array("))
+);
+assert.doesNotMatch(
+    saveFeature,
+    /'experimental'\s*=>\s*true/,
+    'The live-verified Save menu retrofit should remain a default accessibility feature.'
 );
 assert.doesNotMatch(
     builder,

@@ -8760,9 +8760,9 @@
         }, true);
     }
 
-    /* (k3) Save split button (save_split_button — EXPERIMENTAL, off by
-       default). The native Save button wraps its dropdown trigger INSIDE the
-       <button> — a <div class="actions"> caret strip that opens a small menu
+    /* (k3) Save split button (save_split_button). The native Save button
+       wraps its dropdown trigger INSIDE the <button> — a
+       <div class="actions"> caret strip that opens a small menu
        dialog (Save to Development / Publish to Live). A control inside a
        control cannot be exposed correctly to keyboard or assistive tech; the
        proper fix belongs in Builderius (REPORTED UPSTREAM — retire this
@@ -13478,7 +13478,7 @@
         // Confirm save-state transitions from Builderius's completion hook.
         if (on('save_state_cue')) { hookSaveStatus(); }
 
-        // Save split-button menu (experimental, off by default).
+        // Save split-button menu.
         if (on('save_split_button')) { bindSaveMenuKeys(); }
 
         // Keyboard shortcuts overlay (?).

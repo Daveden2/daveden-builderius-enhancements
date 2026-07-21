@@ -1,4 +1,4 @@
-/* Save split button (topbar_toolbar). The native Save button wraps its
+/* Save split button (save_split_button). The native Save button wraps its
    dropdown caret INSIDE the <button> (div.actions) — unreachable by keyboard
    and impossible to expose correctly (a control inside a control). builder.js
    injects a REAL sibling menu button (.dbe-save-menu-btn) and these rules
