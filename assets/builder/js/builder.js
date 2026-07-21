@@ -7170,6 +7170,7 @@
     var dbeGroupBindings = [];
     var dbeOwnedEventBindings = [];
     var dbeOwnedTimers = [];
+    var dbeOwnedIntervals = [];
     var dbeOwnedFrames = [];
     var dbeOwnedHookBindings = [];
     var dbeOwnedHookApi = null;
@@ -7261,6 +7262,11 @@
             return timer.owner !== owner || timer.id !== id;
         });
     }
+    function dbeSetOwnedInterval(owner, callback, delay) {
+        var interval = { owner: owner, id: setInterval(callback, delay) };
+        dbeOwnedIntervals.push(interval);
+        return interval.id;
+    }
     function dbeSetOwnedFrame(owner, callback) {
         var frame = { owner: owner, id: 0 };
         frame.id = requestAnimationFrame(function () {
@@ -7279,6 +7285,10 @@
             clearTimeout(timer.id);
         });
         dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) { return timer.owner !== owner; });
+        dbeOwnedIntervals.filter(function (interval) { return interval.owner === owner; }).forEach(function (interval) {
+            clearInterval(interval.id);
+        });
+        dbeOwnedIntervals = dbeOwnedIntervals.filter(function (interval) { return interval.owner !== owner; });
         dbeOwnedFrames.filter(function (frame) { return frame.owner === owner; }).forEach(function (frame) {
             cancelAnimationFrame(frame.id);
         });
@@ -14332,6 +14342,185 @@
         }
     }, NEED_STYLES);
 
+    /* Presence has two audiences: the front-end admin-bar guard reads a local
+       heartbeat before opening a second builder tab, while server-side agent
+       abilities read the REST heartbeat before committing changes. Keep both
+       resources under one controller so pagehide reliably stops its intervals,
+       removes only this tab's local record and clears its server record. */
+    var DBE_PRESENCE_OWNER = 'integrations/presence';
+    var dbePresenceActive = false;
+    var dbePresenceHeartbeat = null;
+    var dbePresenceServer = null;
+    var dbePresenceTabId = '';
+    var dbePresenceServerLastDirty = null;
+    var dbePresenceServerLastSent = 0;
+
+    function dbePresenceLocalRecords() {
+        var records = {};
+        if (!dbePresenceHeartbeat) { return records; }
+        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
+        var staleAfter = dbePresenceHeartbeat.staleAfter || 8000;
+        var stored = null;
+        try { stored = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+        if (stored && stored.tabs && typeof stored.tabs === 'object' && !Array.isArray(stored.tabs)) {
+            records = stored.tabs;
+        } else if (stored && typeof stored.t === 'number') {
+            // Preserve one old-format beat during an in-place plugin update.
+            records.legacy = { t: stored.t, title: stored.title || '' };
+        }
+        Object.keys(records).forEach(function (id) {
+            var record = records[id];
+            if (!record || typeof record.t !== 'number' || (Date.now() - record.t) > staleAfter) {
+                delete records[id];
+            }
+        });
+        return records;
+    }
+
+    function dbePresenceCreateTabId() {
+        var id = '';
+        try {
+            var records = dbePresenceLocalRecords();
+            id = sessionStorage.getItem('dbeBuilderiusTabId') || '';
+            // Browsers may clone sessionStorage when a tab is duplicated. A
+            // fresh record with the same id proves that this is a second tab,
+            // not a reload whose pagehide teardown has already removed it.
+            if (id && records[id]) { id = ''; }
+            if (!id) {
+                var random = new Uint32Array(4);
+                crypto.getRandomValues(random);
+                id = 'tab-' + [].map.call(random, function (number) {
+                    return number.toString(16).padStart(8, '0');
+                }).join('');
+                sessionStorage.setItem('dbeBuilderiusTabId', id);
+            }
+        } catch (e) {
+            id = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
+        }
+        return id;
+    }
+
+    function dbePresenceWriteLocalBeat() {
+        if (!dbePresenceActive || !dbePresenceHeartbeat || !dbePresenceTabId) { return; }
+        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
+        var records = dbePresenceLocalRecords();
+        records[dbePresenceTabId] = { t: Date.now(), title: document.title };
+        try { localStorage.setItem(key, JSON.stringify({ version: 2, tabs: records })); } catch (e) {}
+    }
+
+    function dbePresenceClearLocalBeat() {
+        if (!dbePresenceHeartbeat || !dbePresenceTabId) { return; }
+        var key = dbePresenceHeartbeat.key || 'dbeBuilderiusOpen';
+        var records = dbePresenceLocalRecords();
+        delete records[dbePresenceTabId];
+        try {
+            if (Object.keys(records).length) {
+                localStorage.setItem(key, JSON.stringify({ version: 2, tabs: records }));
+            } else {
+                localStorage.removeItem(key);
+            }
+        } catch (e) {}
+    }
+
+    function dbePresenceSlug() {
+        try { return new URLSearchParams(location.search).get('builderius_template') || ''; }
+        catch (e) { return ''; }
+    }
+
+    function dbePresenceDirty() {
+        return dbeHasUnsavedChanges();
+    }
+
+    function dbePresenceSendServerBeat(force, clear, knownDirty) {
+        var server = dbePresenceServer || {};
+        var slug = dbePresenceSlug();
+        if (!server.url || !server.nonce || !slug || !dbePresenceTabId) { return; }
+        var dirty = clear ? false : (typeof knownDirty === 'boolean' ? knownDirty : dbePresenceDirty());
+        var now = Date.now();
+        if (!force && dirty === dbePresenceServerLastDirty &&
+            (now - dbePresenceServerLastSent) < (server.interval || 20000)) { return; }
+        dbePresenceServerLastDirty = dirty;
+        dbePresenceServerLastSent = now;
+        try {
+            fetch(server.url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': server.nonce
+                },
+                body: JSON.stringify({ entity: slug, tab: dbePresenceTabId, dirty: dirty })
+            }).catch(function () {});
+        } catch (e) {}
+    }
+
+    function dbePresenceInit() {
+        dbePresenceActive = true;
+        dbePresenceHeartbeat = CFG.heartbeat || {};
+        dbePresenceServer = CFG.presence || {};
+        dbePresenceTabId = dbePresenceCreateTabId();
+        dbePresenceServerLastDirty = null;
+        dbePresenceServerLastSent = 0;
+
+        dbePresenceWriteLocalBeat();
+        dbeSetOwnedInterval(
+            DBE_PRESENCE_OWNER,
+            dbePresenceWriteLocalBeat,
+            dbePresenceHeartbeat.interval || 2500
+        );
+
+        if (dbePresenceServer.url && dbePresenceServer.nonce) {
+            /* The save cue already calculates dirty state whenever the
+               Builderius history/settings signals change. Reuse that result
+               for immediate transition beats; do not serialise the same
+               snapshot again on another normal-config polling cadence. */
+            dbePresenceDirtyChanged = function (dirty) {
+                dbePresenceSendServerBeat(false, false, dirty);
+            };
+            dbePresenceSendServerBeat(true);
+
+            // Clean state has no server record to renew. Only a dirty tab needs
+            // the slow keep-alive that prevents its 60-second record expiring.
+            dbeSetOwnedInterval(DBE_PRESENCE_OWNER, function () {
+                if (dbePresenceServerLastDirty === true) {
+                    dbePresenceSendServerBeat(true, false, true);
+                }
+            }, dbePresenceServer.interval || 20000);
+
+            // Without the visible save cue there is no transition publisher,
+            // so retain a small fallback scanner for that configuration only.
+            if (!on('save_state_cue')) {
+                dbeSetOwnedInterval(DBE_PRESENCE_OWNER, function () {
+                    dbePresenceSendServerBeat(false);
+                }, dbePresenceServer.transitionInterval || 2500);
+            }
+        }
+    }
+
+    function dbePresenceDestroy() {
+        dbePresenceActive = false;
+        dbePresenceDirtyChanged = function () {};
+        dbeDestroyOwnedActivity(DBE_PRESENCE_OWNER);
+        dbePresenceClearLocalBeat();
+        dbePresenceSendServerBeat(true, true);
+        dbePresenceHeartbeat = null;
+        dbePresenceServer = null;
+        dbePresenceServerLastDirty = null;
+        dbePresenceServerLastSent = 0;
+    }
+
+    dbeControllers.register(DBE_PRESENCE_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            dbePresenceInit();
+        },
+        refresh: function () {},
+        destroy: function () {
+            dbePresenceDestroy();
+        }
+    }, on('presence_heartbeat'));
+
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
             var refreshReason = dbeScheduleReason;
@@ -14429,101 +14618,6 @@
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
 
-    }
-
-    /* Presence heartbeat for the admin-bar "Edit template" link (see
-       includes/admin-bar.php): it warns before opening a second builder tab.
-       Key and cadence come from the shared PHP config so writer and reader
-       cannot drift; cleared on pagehide, and the reader treats an old beat
-       as stale so a crashed tab can't warn forever. */
-    if (on('presence_heartbeat')) {
-        (function () {
-            var hb = CFG.heartbeat || {};
-            var key = hb.key || 'dbeBuilderiusOpen';
-            function beat() {
-                try {
-                    localStorage.setItem(key, JSON.stringify({
-                        t: Date.now(),
-                        title: document.title
-                    }));
-                } catch (e) {}
-            }
-            beat();
-            setInterval(beat, hb.interval || 2500);
-            window.addEventListener('pagehide', function () {
-                try { localStorage.removeItem(key); } catch (e) {}
-            });
-
-            /* Server-side presence: agent abilities commit server-side and
-               cannot see localStorage, but they must not commit under a tab
-               that would autosave a stale snapshot over them. Post the
-               template slug + dirty state as a short-lived transient: on
-               every dirty-state TRANSITION, plus a slow keep-alive while the
-               state holds (the server record expires at ~3× this cadence).
-               Builderius's own shouldSaveData flag covers module history and
-               settings-only edits, and only clears after a successful save. */
-            var pr = CFG.presence || {};
-            if (pr.url && pr.nonce) {
-                var prTabId = '';
-                try {
-                    prTabId = sessionStorage.getItem('dbeBuilderiusTabId') || '';
-                    if (!prTabId) {
-                        var random = new Uint32Array(4);
-                        crypto.getRandomValues(random);
-                        prTabId = 'tab-' + [].map.call(random, function (n) { return n.toString(16).padStart(8, '0'); }).join('');
-                        sessionStorage.setItem('dbeBuilderiusTabId', prTabId);
-                    }
-                } catch (e) {
-                    prTabId = 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 18);
-                }
-                var prLastDirty = null;
-                var prLastSent = 0;
-                function prSlug() {
-                    try {
-                        return new URLSearchParams(location.search).get('builderius_template') || '';
-                    } catch (e) { return ''; }
-                }
-                function prDirty() {
-                    return dbeHasUnsavedChanges();
-                }
-                function sendBeat(force, clear, knownDirty) {
-                    var slug = prSlug();
-                    if (!slug) { return; }
-                    var dirty = clear ? false : (typeof knownDirty === 'boolean' ? knownDirty : prDirty());
-                    var now = Date.now();
-                    if (!force && dirty === prLastDirty && (now - prLastSent) < (pr.interval || 20000)) { return; }
-                    prLastDirty = dirty;
-                    prLastSent = now;
-                    try {
-                        fetch(pr.url, {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            keepalive: true,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-WP-Nonce': pr.nonce
-                            },
-                            body: JSON.stringify({ entity: slug, tab: prTabId, dirty: dirty })
-                        }).catch(function () {});
-                    } catch (e) {}
-                }
-                /* The save cue already calculates dirty state whenever the
-                   Builderius history/settings signals change. Reuse that result
-                   for immediate transition beats; do not run a second 2.5s
-                   snapshot comparison beside it. */
-                dbePresenceDirtyChanged = function (dirty) { sendBeat(false, false, dirty); };
-                sendBeat(true);
-                /* Server keep-alive has its own deliberately slow cadence. If
-                   the visible save cue is disabled, retain a small transition
-                   scanner so presence still discovers edits promptly; that is
-                   a fallback, not a second timer in the normal configuration. */
-                setInterval(function () { sendBeat(true); }, pr.interval || 20000);
-                if (!on('save_state_cue')) {
-                    setInterval(function () { sendBeat(false); }, pr.transitionInterval || 2500);
-                }
-                window.addEventListener('pagehide', function () { sendBeat(true, true); });
-            }
-        })();
     }
 
     dbeRuntime.whenReady(boot);

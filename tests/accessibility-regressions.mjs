@@ -32,6 +32,7 @@ const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
+const adminBar = read('includes/admin-bar.php');
 
 assert.match(
     builder,
@@ -475,7 +476,7 @@ assert.doesNotMatch(
 );
 assert.match(
     builder,
-    /function prDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
+    /function dbePresenceDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
     'Server presence must use the same corrected dirty-state contract as the visible save cue.'
 );
 assert.match(
@@ -485,13 +486,38 @@ assert.match(
 );
 assert.match(
     builder,
-    /setInterval\(function \(\) \{ sendBeat\(true\); \}, pr\.interval \|\| 20000\)/,
-    'Server presence keep-alive must use the slow server cadence.'
+    /function dbeSetOwnedInterval\(owner, callback, delay\)[\s\S]+function dbeDestroyOwnedActivity\(owner\)[\s\S]+clearInterval\(interval\.id\)/,
+    'Controller-owned intervals must be cancelled with their lifecycle.'
 );
 assert.match(
     builder,
-    /if \(!on\('save_state_cue'\)\)[\s\S]{0,160}pr\.transitionInterval \|\| 2500/,
+    /dbePresenceServerLastDirty === true[\s\S]{0,180}dbePresenceServer\.interval \|\| 20000/,
+    'Server presence must renew only a dirty record on the slow cadence.'
+);
+assert.match(
+    builder,
+    /if \(!on\('save_state_cue'\)\)[\s\S]{0,240}dbePresenceServer\.transitionInterval \|\| 2500/,
     'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
+);
+assert.match(
+    builder,
+    /records\[dbePresenceTabId\] = \{ t: Date\.now\(\), title: document\.title \}[\s\S]+delete records\[dbePresenceTabId\]/,
+    'Local presence must add and remove only the current tab in its shared registry.'
+);
+assert.match(
+    builder,
+    /dbeControllers\.register\(DBE_PRESENCE_OWNER,[\s\S]+dbePresenceInit\(\)[\s\S]+dbePresenceDestroy\(\)[\s\S]+on\('presence_heartbeat'\)/,
+    'Presence resources must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)[\s\S]+dbePresenceSendServerBeat\(true, true\)/,
+    'Presence teardown must release its publisher, intervals and per-tab records.'
+);
+assert.match(
+    adminBar,
+    /function freshestBeat\(value\)[\s\S]+value\.tabs[\s\S]+sort\(function \(a, b\)[\s\S]+var beat = freshestBeat\(stored\)/,
+    'The admin-bar warning must accept legacy beats and choose the freshest v2 tab record.'
 );
 assert.match(
     coreRuntime,

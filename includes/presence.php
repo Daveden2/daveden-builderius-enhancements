@@ -20,9 +20,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Beat lifetime in seconds. Twice the keep-alive interval, so one missed
- * beat does not read as "tab closed" but a genuinely closed tab expires
- * quickly.
+ * Beat lifetime in seconds. Three times the keep-alive interval, so a couple
+ * of missed beats do not read as "tab closed" but a genuinely closed tab
+ * expires quickly.
  *
  * @return int
  */
