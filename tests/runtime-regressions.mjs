@@ -60,8 +60,18 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+setEnsureGroup/,
-    'The feature host must provide the composites chunk a frozen service surface.'
+    /var dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+setNavigatorApi[\s\S]+setEnsureGroup/,
+    'The feature host must provide the composites chunk grouped frozen services and receive its shared Navigator API.'
+);
+assert.doesNotMatch(
+    builder,
+    /decorateTree:|restoreTreeDecorations:|bindMultiSelect:|bindMultiDrag:|ensureNavKeyboard:|ensureFavouritesReorder:|applyFavouritesOrder:|resetFavouritesReorder:/,
+    'The host contract must not retain feature-level composites callbacks.'
+);
+assert.match(
+    composites,
+    /host\.setNavigatorApi\(Object\.freeze\([\s\S]+rowById: navRowById[\s\S]+visibleRows: navVisibleRows[\s\S]+toggleExpand: navToggleExpand/,
+    'The composites chunk must export its shared Navigator interactions without duplicating their implementation.'
 );
 assert.match(
     builder,

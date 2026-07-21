@@ -24,9 +24,20 @@
     var activeId = dbeBuilderius.activeId;
     var dbeControllers = dbeRuntime.createControllerRegistry(dbeRuntime);
 
-    var KEEP_ICON = /Collection|Template/i; // module .name values whose icon we keep
     var lastCtxId = null;
     var dbeRememberChromeAttributes = function () {};
+    var NAV_ROW_SEL = 'button.uniModTree__item';
+    var navRootList = function () { return null; };
+    var navRowId = function () { return null; };
+    var navRowById = function () { return null; };
+    var navRowLi = function () { return null; };
+    var navRowExpandable = function () { return false; };
+    var navRowExpanded = function () { return false; };
+    var navParentRow = function () { return null; };
+    var navVisibleRows = function () { return []; };
+    var navFocus = function () {};
+    var navSelect = function () {};
+    var navToggleExpand = function () {};
 
     /* The site's breakpoints, [{name:'--tablet', label:'Tablet', width:991}]
        in top-bar button order (base first, width:null for the base entry).
@@ -94,100 +105,6 @@
         } catch (e) { return null; }
     }
 
-    /* (a) tag + label, (b) keep-icon flag, (c) selected-row accent flag —
-       each part gated on its own toggle. */
-    var dbeTreeBadgeRecords = [];
-    function decorateTree() {
-        var iframe = dbeQuery('previewFrame');
-        var idoc = iframe && iframe.contentDocument;
-        var mods = modules();
-        var sel = activeId();
-
-        // id → tag map, built lazily with ONE canvas pass per call. Without it
-        // every badge-less row (templates, components, not-yet-painted nodes)
-        // fired its own querySelector into the iframe on every tick, forever.
-        var tagById = null;
-        function canvasTag(id) {
-            if (!idoc) { return null; }
-            if (!tagById) {
-                tagById = {};
-                idoc.querySelectorAll('[class*="uni-node-"]').forEach(function (el) {
-                    // getAttribute, not className: SVG className is an object.
-                    var m = (el.getAttribute('class') || '').match(/uni-node-(\w+)/);
-                    // Looped templates paint N instances per id — first wins.
-                    if (m && !(m[1] in tagById)) { tagById[m[1]] = el.tagName.toLowerCase(); }
-                });
-            }
-            return tagById[id] || null;
-        }
-
-        dbeQueryAll('navigatorRows').forEach(function (btn) {
-            var idMatch = btn.className.toString().match(/uni-tree-node-(\w+)/);
-            if (!idMatch) { return; }
-            var id = idMatch[1];
-
-            // Selected-row accent treatment (see .dbe-tree-selected in the CSS).
-            if (on('tree_row_styling')) {
-                btn.classList.toggle('dbe-tree-selected', !!sel && id === sel);
-            }
-            if (on('multi_select')) {
-                btn.classList.toggle('dbe-multi-selected', dbeMultiSel.has(id));
-            }
-
-            // Keep-icon flag for Collection / Template module types
-            if (on('icon_declutter')) {
-                if (mods && mods[id] && KEEP_ICON.test(mods[id].name || '')) {
-                    btn.classList.add('dbe-keep-icon');
-                } else {
-                    btn.classList.remove('dbe-keep-icon');
-                }
-            }
-
-            // Tag badge (only for elements that map to a canvas node with a real tag)
-            if (!on('tag_badges')) { return; }
-            var span = btn.querySelector('span');
-            if (!span || span.querySelector('.dbe-tag-badge')) { return; }
-            var tag = canvasTag(id);
-            if (!tag) { return; }
-            var raw = span.textContent.trim();
-            var idx = raw.indexOf(' .');
-            var label = idx >= 0 ? raw.slice(0, idx) : raw;
-
-            dbeTreeBadgeRecords = dbeTreeBadgeRecords.filter(function (record) { return record.node.isConnected; });
-            if (!dbeTreeBadgeRecords.some(function (record) { return record.node === span; })) {
-                dbeTreeBadgeRecords.push({ node: span, html: span.innerHTML });
-            }
-
-            var badge = document.createElement('span');
-            badge.className = 'dbe-tag-badge';
-            badge.textContent = '<' + tag + '>';
-            badge.setAttribute('aria-hidden', 'true');
-            span.textContent = '';
-            span.appendChild(badge);
-            if (label && label.toLowerCase() !== tag) {
-                var visibleLabel = document.createElement('span');
-                visibleLabel.setAttribute('aria-hidden', 'true');
-                visibleLabel.textContent = ' ' + label;
-                span.appendChild(visibleLabel);
-            }
-            // The badge is a visual scan aid, not a rename. Preserve the native
-            // row label verbatim for screen readers and voice-control matching.
-            var spokenLabel = document.createElement('span');
-            spokenLabel.className = 'dbe-visually-hidden';
-            spokenLabel.textContent = raw;
-            span.appendChild(spokenLabel);
-        });
-    }
-
-    function dbeRestoreTreeDecorations() {
-        dbeTreeBadgeRecords.forEach(function (record) {
-            if (record.node.isConnected) { record.node.innerHTML = record.html; }
-        });
-        dbeTreeBadgeRecords = [];
-        dbeQueryAll('navigatorRows').forEach(function (row) {
-            row.classList.remove('dbe-tree-selected', 'dbe-multi-selected', 'dbe-keep-icon');
-        });
-    }
 
     /* (d) Wrap the target element(s) in a new parent of the given type, through
        the builder's OWN add + move store actions — the same channel duplicate
@@ -1618,147 +1535,6 @@
         setTimeout(next, 300);
     }
 
-    /* Multi-drag: dragging one row of a multi-selection brings the rest along.
-       The builder's own drag-and-drop is a REAL move channel — a synthetic
-       dragstart → dragover → drop sequence with a shared DataTransfer goes
-       through the native drop handler exactly like a hand drag (repaints tree
-       + canvas, keeps ids, persists on Save). So: let the hand-dragged row
-       land wherever the user dropped it, then walk each remaining selected
-       row into place directly after it, preserving Navigator order. */
-    var dbeMultiDrag = null;
-    var dbeAutoDragging = false;
-
-    /* The selection in Navigator order, minus the dragged row and minus rows a
-       selected ancestor already carries along. */
-    function multiDragIds(draggedId) {
-        var mods = modules() || {};
-        function carried(id) {
-            var p = mods[id] ? mods[id].parent : '';
-            while (p) {
-                if (dbeMultiSel.has(p)) { return true; }
-                p = mods[p] ? mods[p].parent : '';
-            }
-            return false;
-        }
-        return domRowIds().filter(function (id) {
-            return dbeMultiSel.has(id) && id !== draggedId && !carried(id);
-        });
-    }
-
-    /* Bring the rest of the selection in beside the hand-dragged row. An earlier
-       build drove a synthetic drag per follower and read Builderius's drop
-       indicator to place it — but that indicator only ever resolves to
-       DROP_INSIDE on a container row and DROP_AFTER on a leaf row (probed against
-       1.3.5-beta, 6 Jul 2026); DROP_BEFORE never appears, so "place before the
-       next sibling" could not match and the follower silently stayed put — the
-       "drag into another parent leaves the rest behind" bug. The move store
-       action places by parent + index directly, with no drop-zone guessing, so
-       every follower lands deterministically wherever the dragged row ended up. */
-    function moveRestOfSelection(st) {
-        var sf = store();
-        var mods = modules() || {};
-        var dragged = mods[st.draggedId];
-        if (!sf || !dragged) { return; }
-        var newParent = dragged.parent || '';
-        var order = sf.storeGet('indexes') || {};
-        var siblings = order[newParent || 'root'] ? [].concat(order[newParent || 'root']) : [];
-        var base = siblings.indexOf(st.draggedId);
-        if (base < 0) { base = siblings.length - 1; }
-
-        var moved = 0, failed = 0;
-        // st.ids is in Navigator order; drop each just after the dragged row,
-        // keeping their relative order (base+1, base+2, …).
-        st.ids.forEach(function (id, k) {
-            if (!mods[id]) { failed += 1; return; }
-            try { storeMoveModule(sf, id, newParent, base + 1 + k); moved += 1; }
-            catch (e) { failed += 1; }
-        });
-
-        clearMultiSel();
-        var total = moved + 1; // + the hand-dragged row
-        undoToast(failed
-            ? dbeFmt(dbeTn(total,
-                'movedSomeFailedOne', 'Moved %1$s element (%2$s could not follow)',
-                'movedSomeFailedMany', 'Moved %1$s elements (%2$s could not follow)'), total, failed)
-            : dbeFmt(dbeT('movedTogether', 'Moved %s elements together'), total));
-    }
-
-    function bindMultiDrag() {
-        document.addEventListener('dragstart', function (e) {
-            if (dbeAutoDragging) { return; }
-            dbeMultiDrag = null;
-            if (dbeMultiSel.size < 2) { return; }
-            // dragstart fires on the row's <li.uniModTree__itemDrag> (the react-dnd
-            // drag source); the .uniModTree__item button that carries the
-            // uni-tree-node-<id> class is a DESCENDANT of it, so closest() walking
-            // UP the tree never reaches it. Take the button off the drag source's
-            // own subtree instead (its own row button is first in document order,
-            // ahead of any nested child rows).
-            var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
-            if (!btn) {
-                var src = e.target.closest && e.target.closest('.uniRightPanel li.uniModTree__itemDrag');
-                btn = src && src.querySelector('.uniModTree__item');
-            }
-            if (!btn) { return; }
-            var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
-            if (!m || !dbeMultiSel.has(m[1])) { return; }
-            var mods = modules() || {};
-            dbeMultiDrag = {
-                draggedId: m[1],
-                ids: multiDragIds(m[1]),
-                dropped: false,
-                // Where the row started — if the drop leaves it unmoved (or the
-                // builder rejected it), don't gather the others around it.
-                fromParent: mods[m[1]] ? mods[m[1]].parent : '',
-                fromIndex: domRowIds().indexOf(m[1])
-            };
-        }, true);
-        document.addEventListener('drop', function (e) {
-            if (dbeAutoDragging || !dbeMultiDrag) { return; }
-            dbeMultiDrag.dropped = !!(e.target.closest && e.target.closest('.uniRightPanel'));
-        }, true);
-        document.addEventListener('dragend', function () {
-            if (dbeAutoDragging) { return; }
-            var st = dbeMultiDrag;
-            dbeMultiDrag = null;
-            if (!st || !st.dropped || !st.ids.length) { return; }
-            // Let the builder finish the hand-dragged row's own move first.
-            setTimeout(function () {
-                var mods = modules() || {};
-                var parentNow = mods[st.draggedId] ? mods[st.draggedId].parent : null;
-                if (parentNow === null) { return; } // row gone — bail
-                if (parentNow === st.fromParent && domRowIds().indexOf(st.draggedId) === st.fromIndex) { return; }
-                moveRestOfSelection(st);
-            }, 350);
-        }, true);
-    }
-
-    function bindMultiSelect() {
-        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-            document.addEventListener(t, function (e) {
-                var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
-                if (!btn) { return; }
-                var mod = dbeIsMac ? e.metaKey : (e.ctrlKey || e.metaKey), sh = e.shiftKey;
-                if (!mod && !sh) {
-                    if (t === 'click') { clearMultiSel(); } // plain click = single selection again
-                    return;
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                if (t !== 'pointerdown') { return; } // act once per gesture, swallow the rest
-                var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
-                if (!m) { return; }
-                if (sh && !mod) { rangeMultiSel(m[1]); } else { toggleMultiSel(m[1]); }
-            }, true);
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key !== 'Escape' || !dbeMultiSel.size) { return; }
-            if (document.querySelector('dialog.uniBuilderContextMenu[open]') || renameActive()) { return; }
-            var t = e.target;
-            if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
-            clearMultiSel();
-        }, true);
-    }
 
     /* (d3) Undo/redo — Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z — for element adds,
        deletes and DBE structural moves. Builderius records history but consumes none of it, and a raw
@@ -10441,238 +10217,6 @@
         syncDetachButton();
     }
 
-    /* Favourites bar reorder (favourites_reorder). The bar is the vertical
-       ul.uniModTree__favouritesList beside the tree; each li holds a hidden
-       remove button (shown by the native edit mode) and a tooltipItem wrapper
-       whose tooltipId__favModule_<Type> class is a stable identity. A
-       rearrange toggle at the top of the bar enters drag mode — outside it
-       nothing is draggable and clicks insert elements as normal. The order
-       persists in localStorage and is re-applied (idempotently — mutating
-       only when the order differs, which is what stops an observer feedback
-       loop) after every React re-render. */
-    var DBE_FAV_KEY = 'dbeFavouritesOrder';
-    var dbeFavStatus = null;
-
-    function favList() { return document.querySelector('.uniModTree__favouritesList'); }
-
-    function favItems() {
-        var list = favList();
-        return list ? [].slice.call(list.children).filter(function (li) {
-            return li.classList.contains('uniModTree__favouritesListItem');
-        }) : [];
-    }
-
-    function favKey(li) {
-        var t = li.querySelector('[class*="tooltipId__favModule_"]');
-        var m = t && t.className.toString().match(/tooltipId__favModule_(\S+)/);
-        if (m) { return m[1]; }
-        var tc = li.querySelector('[data-tooltip-content]');
-        if (tc) { return 'label:' + tc.getAttribute('data-tooltip-content'); }
-        var p = li.querySelector('.modIcon svg path');
-        return p ? 'glyph:' + (p.getAttribute('d') || '').slice(0, 24) : null;
-    }
-
-    function favLabel(li) {
-        var tc = li.querySelector('[data-tooltip-content]');
-        return (tc && tc.getAttribute('data-tooltip-content')) || 'favourite';
-    }
-
-    function favAnnounce(msg) {
-        if (!dbeFavStatus || !document.body.contains(dbeFavStatus)) {
-            dbeFavStatus = document.createElement('div');
-            dbeFavStatus.className = 'dbe-visually-hidden';
-            dbeFavStatus.setAttribute('role', 'status');
-            document.body.appendChild(dbeFavStatus);
-        }
-        dbeFavStatus.textContent = msg;
-    }
-
-    function favPersistOrder() {
-        try { localStorage.setItem(DBE_FAV_KEY, JSON.stringify(favItems().map(favKey).filter(Boolean))); } catch (e) {}
-    }
-
-    function favSavedOrder() {
-        try {
-            var v = JSON.parse(localStorage.getItem(DBE_FAV_KEY) || 'null');
-            return Array.isArray(v) && v.length ? v : null;
-        } catch (e) { return null; }
-    }
-
-    function applyFavouritesOrder() {
-        var list = favList();
-        var saved = favSavedOrder();
-        if (!list || !saved) { return; }
-        // Never fight the user mid-rearrange or the native edit mode.
-        if (list.classList.contains('dbe-fav-reordering')) { return; }
-        if (list.querySelector('.uniModTree__favouritesListItem.editting')) { return; }
-        var items = favItems();
-        if (items.length < 2) { return; }
-        var pos = {};
-        saved.forEach(function (k, i) { pos[k] = i; });
-        // Known icons sort by their saved position; new/unknown ones keep
-        // their native relative order after the known ones.
-        var target = items.map(function (li, i) {
-            var k = favKey(li);
-            return { li: li, i: i, saved: (k && pos[k] !== undefined) ? pos[k] : saved.length + i };
-        }).sort(function (a, b) { return (a.saved - b.saved) || (a.i - b.i); }).map(function (d) { return d.li; });
-        var differs = target.some(function (li, i) { return items[i] !== li; });
-        if (!differs) { return; }
-        target.forEach(function (li) { list.appendChild(li); });
-    }
-
-    function setFavMode(list, onMode) {
-        var btn = list.querySelector('.dbe-fav-reorder-btn');
-        list.classList.toggle('dbe-fav-reordering', onMode);
-        if (btn) { btn.setAttribute('aria-pressed', onMode ? 'true' : 'false'); }
-        favItems().forEach(function (li) {
-            var icon = li.querySelector('button.modIcon');
-            if (!icon) { return; }
-            if (onMode) {
-                icon.setAttribute('data-dbe-fav-label', icon.getAttribute('aria-label') || '');
-                icon.setAttribute('aria-label', dbeFmt(dbeT('favArrowHint', '%s (press up or down arrow to move, Escape to finish)'), favLabel(li)));
-            } else {
-                var prev = icon.getAttribute('data-dbe-fav-label');
-                if (prev) { icon.setAttribute('aria-label', prev); } else { icon.removeAttribute('aria-label'); }
-                icon.removeAttribute('data-dbe-fav-label');
-            }
-        });
-        if (onMode) {
-            favAnnounce(dbeT('favModeOn', 'Rearrange mode on: drag the icons, or focus one and use the arrow keys'));
-        } else {
-            favPersistOrder();
-            favAnnounce(dbeT('modeOffSaved', 'Rearrange mode off: order saved'));
-        }
-    }
-
-    function bindFavDrag(list) {
-        var drag = null;
-
-        // In drag mode clicks must not insert elements or open native UI.
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-click', 'click', function (ev) {
-            if (!list.classList.contains('dbe-fav-reordering')) { return; }
-            if (ev.target.closest && ev.target.closest('.dbe-fav-reorder')) { return; }
-            ev.preventDefault();
-            ev.stopPropagation();
-        }, true);
-
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointerdown', 'pointerdown', function (ev) {
-            if (!list.classList.contains('dbe-fav-reordering')) { return; }
-            var li = ev.target.closest && ev.target.closest('li.uniModTree__favouritesListItem');
-            if (!li) { return; }
-            ev.preventDefault();
-            ev.stopPropagation();
-            drag = { li: li };
-            li.classList.add('dbe-fav-dragging');
-            try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
-        }, true);
-
-        // rAF-gated like the panel/preview drags: pointermove can fire several
-        // times per frame, and each hit-test reads rects (layout) and may
-        // insertBefore (write) — unthrottled, that interleaving thrashes.
-        var favRaf = 0, favY = 0;
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointermove', 'pointermove', function (ev) {
-            if (!drag) { return; }
-            favY = ev.clientY;
-            if (favRaf) { return; }
-            favRaf = dbeSetOwnedFrame('a11y/composites', function () {
-                favRaf = 0;
-                if (!drag) { return; } // drag ended before the frame
-                var items = favItems().filter(function (it) { return it !== drag.li; });
-                for (var i = 0; i < items.length; i++) {
-                    var r = items[i].getBoundingClientRect();
-                    if (favY >= r.top && favY <= r.bottom) {
-                        var before = favY < r.top + r.height / 2;
-                        list.insertBefore(drag.li, before ? items[i] : items[i].nextSibling);
-                        break;
-                    }
-                }
-            });
-        }, true);
-
-        function endFavDrag() {
-            if (!drag) { return; }
-            var li = drag.li;
-            li.classList.remove('dbe-fav-dragging');
-            drag = null;
-            favPersistOrder();
-            var items = favItems();
-            favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), items.indexOf(li) + 1, items.length));
-        }
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointerup', 'pointerup', endFavDrag, true);
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-pointercancel', 'pointercancel', endFavDrag, true);
-
-        dbeBindOwnedEvent('a11y/composites', list, 'favourites-reorder-keys', 'keydown', function (ev) {
-            if (!list.classList.contains('dbe-fav-reordering')) { return; }
-            if (ev.key === 'Escape') {
-                ev.preventDefault();
-                ev.stopPropagation();
-                setFavMode(list, false);
-                var b = list.querySelector('.dbe-fav-reorder-btn');
-                if (b) { b.focus(); }
-                return;
-            }
-            if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') { return; }
-            var li = ev.target.closest && ev.target.closest('li.uniModTree__favouritesListItem');
-            if (!li) { return; }
-            ev.preventDefault();
-            ev.stopPropagation();
-            var sib = ev.key === 'ArrowUp' ? li.previousElementSibling : li.nextElementSibling;
-            if (!sib || !sib.classList.contains('uniModTree__favouritesListItem')) { return; }
-            list.insertBefore(li, ev.key === 'ArrowUp' ? sib : sib.nextSibling);
-            favPersistOrder();
-            var items = favItems();
-            favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), items.indexOf(li) + 1, items.length));
-            var focusTarget = li.querySelector('button.modIcon');
-            if (focusTarget) { focusTarget.focus(); }
-        }, true);
-    }
-
-    function dbeResetFavouritesReorder() {
-        document.querySelectorAll('.dbe-fav-reorder').forEach(function (node) { node.remove(); });
-        document.querySelectorAll('.dbe-fav-reordering').forEach(function (list) {
-            list.classList.remove('dbe-fav-reordering');
-            favItems().forEach(function (li) {
-                li.classList.remove('dbe-fav-dragging');
-                var icon = li.querySelector('button.modIcon');
-                if (!icon) { return; }
-                var previous = icon.getAttribute('data-dbe-fav-label');
-                if (previous) { icon.setAttribute('aria-label', previous); }
-                else if (icon.hasAttribute('data-dbe-fav-label')) { icon.removeAttribute('aria-label'); }
-                icon.removeAttribute('data-dbe-fav-label');
-            });
-        });
-        if (dbeFavStatus) { dbeFavStatus.remove(); }
-        dbeFavStatus = null;
-    }
-
-    function ensureFavouritesReorder() {
-        var list = favList();
-        if (!list) { return; }
-        bindFavDrag(list);
-        // The native edit-favourites mode owns the bar while active.
-        if (list.classList.contains('dbe-fav-reordering') &&
-            list.querySelector('.uniModTree__favouritesListItem.editting')) {
-            setFavMode(list, false);
-        }
-        if (list.querySelector('.dbe-fav-reorder')) { return; }
-        var li = document.createElement('li');
-        li.className = 'dbe-fav-reorder';
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dbe-fav-reorder-btn';
-        btn.setAttribute('aria-pressed', 'false');
-        btn.setAttribute('aria-label', dbeT('rearrangeFavourites', 'Rearrange favourites'));
-        btn.setAttribute('data-dbe-tip', dbeT('rearrangeFavourites', 'Rearrange favourites'));
-        btn.innerHTML = '<svg width="10" height="14" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-            '<circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="7" cy="2.5" r="1.3" fill="currentColor"/>' +
-            '<circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/>' +
-            '<circle cx="3" cy="11.5" r="1.3" fill="currentColor"/><circle cx="7" cy="11.5" r="1.3" fill="currentColor"/></svg>';
-        btn.addEventListener('click', function () {
-            setFavMode(list, btn.getAttribute('aria-pressed') !== 'true');
-        });
-        li.appendChild(btn);
-        list.insertBefore(li, list.firstChild);
-    }
 
     /* ---- HTML attribute helpers (attr_helpers) -----------------------------
        Two conveniences on the Advanced panel's HTML-attributes control:
@@ -11850,266 +11394,6 @@
         try { dbeSyncSelectionContext(); } catch (e) {}
     }
 
-    /* (nk) Navigator keyboard tree (navigator_keyboard). The element Navigator is
-       a nested <ul>/<li> of plain <button> rows: every one of the 100+ rows is a
-       tab stop, there is no arrow-key model, and a screen reader hears "button",
-       not "level 2, expanded". Wire it as an APG tree with the WordPress
-       list-view keys — Up/Down move (and select, so the canvas follows), Right
-       opens a branch then steps into its first child, Left closes it then steps
-       out to the parent, Home/End jump to the ends.
-
-       A row's child <ul> is a SIBLING of its button, not a descendant, so DOM
-       nesting cannot express treeitem ownership; the flat aria-level form is used
-       (level + setsize + posinset on each row) with the intervening wrappers
-       marked presentational so the tree owns every treeitem directly. Selection
-       and expand/collapse go through the proven channels: clickSeq(button)
-       selects, clickSeq(chevron <i>) toggles — both async re-renders, so focus is
-       re-asserted by node id afterwards. */
-    var NAV_ROW_SEL = 'button.uniModTree__item';
-
-    function navRootList() {
-        // Outermost element list — querySelector returns the first in document
-        // order (favourites live in a separate list, the footer outside it).
-        return dbeQuery('navigatorTree');
-    }
-    function navRowId(btn) {
-        var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
-        return m ? m[1] : null;
-    }
-    function navRowById(id) {
-        return dbeNavigatorRow(id);
-    }
-    function navRowLi(btn) { return btn.closest('li.uniModTree__itemDrag'); }
-    function navRowExpandable(btn) { return !!btn.querySelector('i'); }
-    function navRowExpanded(btn) { return btn.classList.contains('expanded'); }
-    function navParentRow(btn) {
-        var li = navRowLi(btn);
-        var pli = li && li.parentElement && li.parentElement.closest('li.uniModTree__itemDrag');
-        // The parent li's OWN row is the first tree button inside it (its content
-        // wrapper precedes the nested child <ul>).
-        return pli ? pli.querySelector(NAV_ROW_SEL) : null;
-    }
-    // Rows currently on screen — a collapsed branch's <ul> is display:none, so its
-    // rows have no offsetParent and drop out of the flattened visible order.
-    function navVisibleRows(root) {
-        root = root || navRootList();
-        if (!root) { return []; }
-        return [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).filter(function (b) {
-            return b.offsetParent !== null;
-        });
-    }
-
-    // Move the single tab stop onto `target`, focus it, scroll it into view.
-    function navFocus(target) {
-        if (!target) { return; }
-        var root = navRootList();
-        if (root) {
-            [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).forEach(function (b) {
-                var t = b === target ? '0' : '-1';
-                if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
-            });
-        }
-        target.focus();
-        try { scrollRowIntoTree(target); } catch (e) {}
-    }
-
-    // Select the row's element (canvas + settings follow), then re-assert focus on
-    // it after the async re-render — re-queried by id in case the node moved.
-    function navSelect(target) {
-        var id = navRowId(target);
-        navFocus(target);
-        if (!id) { return; }
-        clickSeq(target);
-        dbeSetOwnedFrame('a11y/composites', function () {
-            var row = navRowById(id);
-            if (row && document.activeElement !== row) { navFocus(row); }
-        });
-    }
-
-    // Expand/collapse a branch without changing the selection (chevron channel).
-    function navToggleExpand(btn) {
-        var chev = btn.querySelector('i');
-        if (chev) { clickSeq(chev); }
-    }
-
-    /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
-       so it is cheap to re-run every schedule() tick, keeping level/expanded/
-       selected/roving in sync through Builderius' React re-renders.
-
-       ONE top-down traversal: levels derive from the parent's level + 1,
-       sibling position/count are computed once per <ul>, and each wrapper is
-       stamped role="none" exactly once. The per-row form of this (climb the
-       ancestors for level, re-scan siblings for posinset, walk to root for
-       ownership — for every one of 100+ rows) was the hottest code on the
-       busiest observer. Visibility is derived structurally too — a branch list
-       is hidden exactly when its parent row is collapsed — so the roving-stop
-       pass needs no offsetParent reads, which would force layout between the
-       attribute writes above. */
-    function navSyncAria() {
-        var root = navRootList();
-        if (!root) { return; }
-        dbeRememberOwnedAttributes('a11y/composites', root, ['role', 'aria-label']);
-        if (root.getAttribute('role') !== 'tree') { root.setAttribute('role', 'tree'); }
-        var label = dbeT('elementsTree', 'Elements');
-        if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
-
-        var sel = activeId();
-        var rows = [], visRows = [];
-
-        function stampRow(btn, level, pos, size, visible) {
-            dbeRememberOwnedAttributes('a11y/composites', btn, [
-                'role', 'aria-level', 'aria-posinset', 'aria-setsize',
-                'aria-expanded', 'aria-selected', 'tabindex'
-            ]);
-            if (btn.getAttribute('role') !== 'treeitem') { btn.setAttribute('role', 'treeitem'); }
-            var lvl = String(level);
-            if (btn.getAttribute('aria-level') !== lvl) { btn.setAttribute('aria-level', lvl); }
-            if (btn.getAttribute('aria-posinset') !== pos) { btn.setAttribute('aria-posinset', pos); }
-            if (btn.getAttribute('aria-setsize') !== size) { btn.setAttribute('aria-setsize', size); }
-            if (navRowExpandable(btn)) {
-                var ex = navRowExpanded(btn) ? 'true' : 'false';
-                if (btn.getAttribute('aria-expanded') !== ex) { btn.setAttribute('aria-expanded', ex); }
-            } else if (btn.hasAttribute('aria-expanded')) {
-                btn.removeAttribute('aria-expanded');
-            }
-            var s = (sel && navRowId(btn) === sel) ? 'true' : 'false';
-            if (btn.getAttribute('aria-selected') !== s) { btn.setAttribute('aria-selected', s); }
-            rows.push(btn);
-            if (visible) { visRows.push(btn); }
-        }
-
-        function stampLi(li, level, pos, size, visible) {
-            dbeRememberOwnedAttributes('a11y/composites', li, ['role']);
-            if (li.getAttribute('role') !== 'none') { li.setAttribute('role', 'none'); }
-            var btn = null, childLists = [];
-            (function scan(parent) {
-                for (var node = parent.firstElementChild; node; node = node.nextElementSibling) {
-                    if (node.nodeName === 'UL') { childLists.push(node); continue; }   // nested branch
-                    if (node.matches && node.matches(NAV_ROW_SEL)) {
-                        // The li's OWN row is its first tree button in document order.
-                        if (!btn) { btn = node; }
-                        continue; // never descend into a button (chevron/label live there)
-                    }
-                    dbeRememberOwnedAttributes('a11y/composites', node, ['role']);
-                    if (node.getAttribute('role') !== 'none') { node.setAttribute('role', 'none'); }
-                    scan(node);
-                }
-            })(li);
-            if (btn) { stampRow(btn, level, pos, size, visible); }
-            // A collapsed row's child <ul> stays mounted but display:none, so
-            // child visibility is structural: parent visible AND expanded.
-            var childVis = !!(visible && btn && navRowExpanded(btn));
-            childLists.forEach(function (ul) { walkList(ul, level + 1, childVis); });
-        }
-
-        function walkList(ul, level, visible) {
-            if (ul !== root) {
-                dbeRememberOwnedAttributes('a11y/composites', ul, ['role']);
-                if (ul.getAttribute('role') !== 'none') { ul.setAttribute('role', 'none'); }
-            }
-            var lis = [];
-            for (var el = ul.firstElementChild; el; el = el.nextElementSibling) {
-                if (el.matches && el.matches('li.uniModTree__itemDrag')) { lis.push(el); }
-            }
-            var size = String(lis.length);
-            for (var i = 0; i < lis.length; i++) {
-                stampLi(lis[i], level, String(i + 1), size, visible);
-            }
-        }
-
-        walkList(root, 1, true);
-
-        // Roving tab stop: keep the row that already holds it (so a keyboard
-        // user's position survives a re-render), else the selected row, else the
-        // first visible one.
-        if (!visRows.length) { return; }
-        var current = visRows.filter(function (b) { return b.getAttribute('tabindex') === '0'; })[0];
-        var selRow = sel ? visRows.filter(function (b) { return navRowId(b) === sel; })[0] : null;
-        var keep = current || selRow || visRows[0];
-        rows.forEach(function (b) {
-            var t = b === keep ? '0' : '-1';
-            if (b.getAttribute('tabindex') !== t) { b.setAttribute('tabindex', t); }
-        });
-    }
-
-    function navOnKeydown(e) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
-        var btn = e.target.closest && e.target.closest(NAV_ROW_SEL);
-        var root = navRootList();
-        if (!btn || !root || !root.contains(btn)) { return; }
-        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && on('element_moves') && /^Arrow/.test(e.key)) {
-            var id = navRowId(btn);
-            if (!id) { return; }
-            e.preventDefault();
-            e.stopPropagation();
-            var moved = false;
-            if (e.key === 'ArrowUp') { moved = moveSibling(id, -1); }
-            else if (e.key === 'ArrowDown') { moved = moveSibling(id, 1); }
-            else if (e.key === 'ArrowLeft') { moved = outdentElement(id); }
-            else if (e.key === 'ArrowRight') { moved = indentElement(id); }
-            if (!moved) {
-                undoToast(e.key === 'ArrowLeft'
-                    ? dbeT('cannotMoveOut', 'Already at the outermost available level')
-                    : (e.key === 'ArrowRight'
-                        ? dbeT('cannotMoveIn', 'Needs a previous sibling that can contain elements')
-                        : (e.key === 'ArrowUp'
-                            ? dbeT('cannotMoveUp', 'Already first among its siblings')
-                            : dbeT('cannotMoveDown', 'Already last among its siblings'))));
-            }
-            return;
-        }
-        if (!on('navigator_keyboard')) { return; }
-        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) { return; } // leave other modified combos to the builder
-        var rows = navVisibleRows(root);
-        var i = rows.indexOf(btn);
-        if (i === -1) { return; }
-        e.preventDefault();
-        e.stopPropagation();
-
-        switch (e.key) {
-            case 'ArrowDown':
-                if (i < rows.length - 1) { navSelect(rows[i + 1]); }
-                break;
-            case 'ArrowUp':
-                if (i > 0) { navSelect(rows[i - 1]); }
-                break;
-            case 'Home':
-                navSelect(rows[0]);
-                break;
-            case 'End':
-                navSelect(rows[rows.length - 1]);
-                break;
-            case 'ArrowRight':
-                if (navRowExpandable(btn) && !navRowExpanded(btn)) {
-                    navToggleExpand(btn); // open the branch in place
-                } else if (navRowExpandable(btn) && navRowExpanded(btn)) {
-                    // Already open: the next visible row is this branch's first
-                    // child (guard that it really is a descendant).
-                    var child = rows[i + 1];
-                    if (child && navRowLi(btn).contains(child)) { navSelect(child); }
-                }
-                break;
-            case 'ArrowLeft':
-                if (navRowExpandable(btn) && navRowExpanded(btn)) {
-                    navToggleExpand(btn); // close the branch in place
-                } else {
-                    var parent = navParentRow(btn);
-                    if (parent) { navSelect(parent); }
-                }
-                break;
-        }
-    }
-
-    function ensureNavKeyboard() {
-        var root = navRootList();
-        if (!root) { return; }
-        if (on('navigator_keyboard')) { navSyncAria(); }
-        var panel = document.querySelector('.uniRightPanel');
-        if (!panel) { return; }
-        // Bound on the stable panel (the tree lists are replaced on re-render),
-        // while the controller registry keeps the binding reversible.
-        dbeBindOwnedEvent('a11y/composites', panel, 'navigator-keys', 'keydown', navOnKeydown);
-    }
 
     /* (ra) Navigator row quick actions (navigator_row_actions). Duplicate and
        Delete buttons on the hovered/focused Navigator row, without opening the
@@ -12539,7 +11823,16 @@
             on: on,
             translate: dbeT,
             format: dbeFmt,
+            plural: dbeTn,
             query: dbeQuery,
+            builderius: Object.freeze({
+                queryAll: dbeQueryAll,
+                navigatorRow: dbeNavigatorRow,
+                modules: modules,
+                activeId: activeId,
+                store: store,
+                moveModule: storeMoveModule
+            }),
             breakpoints: dbeBreakpoints,
             breakpointLabels: DBE_BP_LABELS,
             click: clickSeq,
@@ -12557,15 +11850,37 @@
             setOwnedFrame: dbeSetOwnedFrame,
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             destroyOwnedGroups: dbeDestroyOwnedGroups,
+            multiSelection: Object.freeze({
+                state: dbeMultiSel,
+                isMac: dbeIsMac,
+                clear: clearMultiSel,
+                rowIds: domRowIds,
+                toggle: toggleMultiSel,
+                range: rangeMultiSel,
+                renameActive: renameActive
+            }),
+            navigator: Object.freeze({
+                moveSibling: moveSibling,
+                indent: indentElement,
+                outdent: outdentElement,
+                scrollIntoView: scrollRowIntoTree
+            }),
+            feedback: Object.freeze({ undo: undoToast }),
             needTree: NEED_TREE,
-            decorateTree: decorateTree,
-            restoreTreeDecorations: dbeRestoreTreeDecorations,
-            bindMultiSelect: bindMultiSelect,
-            bindMultiDrag: bindMultiDrag,
-            ensureNavKeyboard: ensureNavKeyboard,
-            ensureFavouritesReorder: ensureFavouritesReorder,
-            applyFavouritesOrder: applyFavouritesOrder,
-            resetFavouritesReorder: dbeResetFavouritesReorder,
+            setNavigatorApi: function (api) {
+                NAV_ROW_SEL = api.rowSelector;
+                navRootList = api.rootList;
+                navRowId = api.rowId;
+                navRowById = api.rowById;
+                navRowLi = api.rowListItem;
+                navRowExpandable = api.rowExpandable;
+                navRowExpanded = api.rowExpanded;
+                navParentRow = api.parentRow;
+                navVisibleRows = api.visibleRows;
+                navFocus = api.focus;
+                navSelect = api.select;
+                navToggleExpand = api.toggleExpand;
+            },
             setEnsureGroup: function (callback) { dbeEnsureGroup = callback; }
         }));
     } else {

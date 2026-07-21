@@ -669,9 +669,24 @@ assert.match(
     'Favourite controls must expose an action-led accessible name without changing tree rows.'
 );
 assert.match(
-    builder,
+    composites,
     /badge\.setAttribute\('aria-hidden', 'true'\)[\s\S]+spokenLabel\.textContent = raw/,
     'Visual tag badges must preserve the native Navigator row name verbatim.'
+);
+assert.match(
+    composites,
+    /function navSyncAria\(\)[\s\S]+aria-level[\s\S]+aria-posinset[\s\S]+aria-setsize[\s\S]+function ensureNavKeyboard\(\)[\s\S]+navigator-keys/,
+    'The composites chunk must own the APG Navigator tree structure and keyboard binding.'
+);
+assert.match(
+    composites,
+    /function bindMultiDrag\(\)[\s\S]+multi-drag-start[\s\S]+multi-drag-drop[\s\S]+multi-drag-end[\s\S]+function bindMultiSelect\(\)[\s\S]+'multi-select-' \+ t[\s\S]+multi-select-escape/,
+    'Dormant multi-selection listeners must be reversible through composite-controller ownership.'
+);
+assert.match(
+    composites,
+    /function applyFavouritesOrder\(\)[\s\S]+function bindFavDrag\(list\)[\s\S]+function dbeResetFavouritesReorder\(\)[\s\S]+function ensureFavouritesReorder\(\)/,
+    'Favourites ordering, interaction and teardown must remain in one composite boundary.'
 );
 assert.match(
     builder,
