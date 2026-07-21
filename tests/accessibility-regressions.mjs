@@ -77,13 +77,13 @@ assert.match(
 );
 assert.match(
     builder,
-    /function dbeArmSelectionCleanBaseline\(\)[\s\S]+dbeHasUnsavedChanges\(\)[\s\S]+beforeActive = activeId\(\)[\s\S]+activeId\(\) === beforeActive[\s\S]+saveBaseline = len/,
-    'Selection-only navigation must rebaseline only from a previously clean state after activeModule changes.'
+    /function dbeSaveableSnapshotSignature\(\)[\s\S]+history\[history\.length - 1\][\s\S]+JSON\.stringify\(item\.snapshot\)[\s\S]+snapshotSignature !== saveBaselineSnapshot/,
+    'Dirty state must compare saveable snapshots instead of relying on capped history length.'
 );
-assert.match(
+assert.doesNotMatch(
     builder,
-    /pointerdown', dbeCancelSelectionOnUserInput[\s\S]+keydown', dbeCancelSelectionOnUserInput[\s\S]+input', dbeCancelSelectionOnUserInput[\s\S]+change', dbeCancelSelectionOnUserInput/,
-    'Real pointer, keyboard and form actions must cancel a pending selection-only baseline hold.'
+    /dbeSaveSelectionTimer|dbeArmSelectionCleanBaseline/,
+    'Dirty state must not return to a timing-based selection hold that can absorb real edits.'
 );
 assert.match(
     builder,
