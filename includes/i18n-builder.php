@@ -381,10 +381,13 @@ function dbe_builder_strings() {
 
 		// Save cue.
 		'saveClean'                     => __( 'All changes saved', 'daveden-builderius-enhancements' ),
+		'saveCleanShort'                => __( 'Saved', 'daveden-builderius-enhancements' ),
 		'unsaved'                       => __( 'Unsaved changes', 'daveden-builderius-enhancements' ),
+		'unsavedShort'                  => __( 'Unsaved', 'daveden-builderius-enhancements' ),
 		'saving'                        => __( 'Saving…', 'daveden-builderius-enhancements' ),
 		'saved'                         => __( 'Changes saved', 'daveden-builderius-enhancements' ),
 		'saveFailed'                    => __( 'Save failed. Your changes are still unsaved. Try again.', 'daveden-builderius-enhancements' ),
+		'saveFailedShort'               => __( 'Save failed', 'daveden-builderius-enhancements' ),
 
 		// Save shortcut.
 		'scSave'                        => __( 'Save the template', 'daveden-builderius-enhancements' ),

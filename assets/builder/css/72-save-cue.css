@@ -29,6 +29,30 @@
 }
 .dbe-save-cue.is-error::before { background: var(--dbe-danger); }
 
+.dbe-save-cue__short { display: none; }
+
+/* The full sentence remains the live-region content at every width. Between
+   1024px and 1599px a concise visual equivalent preserves top-bar space while
+   the full text is clipped visually rather than removed from the accessibility
+   tree. Below 1024px the existing status dot is the only visual cue. */
+@media (max-width: 1599px) {
+    .dbe-save-cue__full {
+        position: absolute !important;
+        inline-size: 1px !important;
+        block-size: 1px !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        clip-path: inset(50%) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+    }
+
+    .dbe-save-cue__short {
+        display: inline;
+    }
+}
+
 @media (forced-colors: active) {
     .dbe-save-cue::before {
         background: Canvas !important;

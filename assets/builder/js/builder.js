@@ -8540,7 +8540,24 @@
                 : state === 'error' ? dbeT('saveFailed', 'Save failed. Your changes are still unsaved. Try again.')
                     : state === 'dirty' ? dbeT('unsaved', 'Unsaved changes')
                         : dbeT('saveClean', 'All changes saved');
-        cue.textContent = text;
+        var shortText = state === 'saving' ? dbeT('saving', 'Saving…')
+            : state === 'error' ? dbeT('saveFailedShort', 'Save failed')
+                : state === 'dirty' ? dbeT('unsavedShort', 'Unsaved')
+                    : dbeT('saveCleanShort', 'Saved');
+        var full = cue.querySelector('.dbe-save-cue__full');
+        var short = cue.querySelector('.dbe-save-cue__short');
+        if (!full || !short) {
+            cue.textContent = '';
+            full = document.createElement('span');
+            full.className = 'dbe-save-cue__full';
+            short = document.createElement('span');
+            short.className = 'dbe-save-cue__short';
+            short.setAttribute('aria-hidden', 'true');
+            cue.appendChild(full);
+            cue.appendChild(short);
+        }
+        if (full.textContent !== text) { full.textContent = text; }
+        if (short.textContent !== shortText) { short.textContent = shortText; }
         ['clean', 'dirty', 'saving', 'saved', 'error'].forEach(function (name) {
             cue.classList.toggle('is-' + name, state === name);
         });
@@ -8624,6 +8641,7 @@
             cue = document.createElement('span');
             cue.className = 'dbe-save-cue';
             cue.setAttribute('role', 'status');
+            cue.setAttribute('aria-atomic', 'true');
             save.parentNode.insertBefore(cue, save);
         }
         dbeRenderSaveCue();
@@ -9696,7 +9714,9 @@
                 return;
             }
             if (e.key === 'Escape') {
-                if (mode) { e.preventDefault(); exitInput(); } // list mode: native dialog Escape closes
+                e.preventDefault();
+                if (mode) { exitInput(); }
+                else { dlg.close(); }
                 return;
             }
             if (mode || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) { return; }

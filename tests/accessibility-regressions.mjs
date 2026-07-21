@@ -15,6 +15,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const builder = read('assets/builder/js/builder.js');
+const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
 const palette = read('assets/builder/css/82-command-palette.css');
 const saveCue = read('assets/builder/css/72-save-cue.css');
@@ -75,10 +76,26 @@ assert.match(
 );
 assert.match(saveCue, /\.dbe-save-cue\.is-clean/, 'The clean save state must be visible.');
 assert.match(strings, /'saveClean'\s+=> __\( 'All changes saved'/, 'Clean save copy must remain truthful.');
+assert.match(strings, /'saveCleanShort'\s+=> __\( 'Saved'/, 'The responsive clean-state copy must remain concise.');
+assert.match(
+    builder,
+    /dbe-save-cue__full[\s\S]+dbe-save-cue__short[\s\S]+aria-hidden', 'true'/,
+    'The save cue must retain full live-region copy alongside its concise visual label.'
+);
+assert.match(
+    topbar,
+    /@media \(max-width: 1599px\)/,
+    'The fluid top-bar layout must cover the measured DBE/native-control collision range.'
+);
 assert.match(
     palette,
     /\.dbe-palette__input:focus-visible\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\)/,
     'Palette search must retain a visible focus indicator.'
+);
+assert.match(
+    builder,
+    /if \(e\.key === 'Escape'\) \{[\s\S]{0,180}else \{ dlg\.close\(\); \}/,
+    'Palette Escape must close explicitly instead of relying only on browser dialog defaults.'
 );
 assert.doesNotMatch(
     palette,
