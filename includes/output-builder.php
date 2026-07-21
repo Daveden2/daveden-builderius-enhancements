@@ -236,9 +236,10 @@ function dbe_print_builder_footer() {
 	$a11y_path            = DBE_DIR . 'assets/builder/js/chunks/a11y.js';
 	$a11y_composites_path = DBE_DIR . 'assets/builder/js/chunks/a11y-composites.js';
 	$workspace_path       = DBE_DIR . 'assets/builder/js/chunks/workspace.js';
+	$editing_path         = DBE_DIR . 'assets/builder/js/chunks/editing.js';
 	$commands_path        = DBE_DIR . 'assets/builder/js/chunks/commands.js';
 	$builder_path         = DBE_DIR . 'assets/builder/js/builder.js';
-	if ( ! is_readable( $runtime_path ) || ! is_readable( $a11y_path ) || ! is_readable( $a11y_composites_path ) || ! is_readable( $workspace_path ) || ! is_readable( $commands_path ) || ! is_readable( $builder_path ) ) {
+	if ( ! is_readable( $runtime_path ) || ! is_readable( $a11y_path ) || ! is_readable( $a11y_composites_path ) || ! is_readable( $workspace_path ) || ! is_readable( $editing_path ) || ! is_readable( $commands_path ) || ! is_readable( $builder_path ) ) {
 		return;
 	}
 
@@ -284,6 +285,7 @@ function dbe_print_builder_footer() {
 	$a11y_src            = add_query_arg( 'ver', (string) filemtime( $a11y_path ), DBE_URL . 'assets/builder/js/chunks/a11y.js' );
 	$a11y_composites_src = add_query_arg( 'ver', (string) filemtime( $a11y_composites_path ), DBE_URL . 'assets/builder/js/chunks/a11y-composites.js' );
 	$workspace_src       = add_query_arg( 'ver', (string) filemtime( $workspace_path ), DBE_URL . 'assets/builder/js/chunks/workspace.js' );
+	$editing_src         = add_query_arg( 'ver', (string) filemtime( $editing_path ), DBE_URL . 'assets/builder/js/chunks/editing.js' );
 	$commands_src        = add_query_arg( 'ver', (string) filemtime( $commands_path ), DBE_URL . 'assets/builder/js/chunks/commands.js' );
 	$builder_src         = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
 
@@ -292,6 +294,7 @@ function dbe_print_builder_footer() {
 	echo '<script id="dbe-builder-a11y-js" src="' . esc_url( $a11y_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers the accessibility chunk before builder.js supplies its host services.
 	echo '<script id="dbe-builder-a11y-composites-js" src="' . esc_url( $a11y_composites_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers APG composite controllers before builder.js supplies its host services.
 	echo '<script id="dbe-builder-workspace-js" src="' . esc_url( $workspace_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers responsive workspace controllers before builder.js supplies its host services.
+	echo '<script id="dbe-builder-editing-js" src="' . esc_url( $editing_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers editing controllers before builder.js supplies its host and late-bound command services.
 	echo '<script id="dbe-builder-commands-js" src="' . esc_url( $commands_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers command and Navigator interaction controllers before builder.js supplies its host services.
 	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
 }

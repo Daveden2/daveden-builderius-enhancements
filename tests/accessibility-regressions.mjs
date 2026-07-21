@@ -18,6 +18,7 @@ const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
+const editing = read('assets/builder/js/chunks/editing.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
@@ -74,7 +75,7 @@ assert.match(
     'The command-palette button must expose its configured shortcut.'
 );
 assert.match(
-    builder,
+    editing,
     /save\.setAttribute\('aria-keyshortcuts'/,
     'The Save button must expose Cmd/Ctrl+S when the shortcut is enabled.'
 );
@@ -354,67 +355,67 @@ assert.match(
     'Command teardown must release observations, hooks, iframe activity and generated interfaces.'
 );
 assert.match(
-    builder,
+    editing,
     /dbeControllers\.register\(DBE_EDITING_OWNER,[\s\S]+hookHistoryCapture\(\)[\s\S]+bindUndoKeys\(\)[\s\S]+hookImageDefaults\(\)[\s\S]+bindDblclickRename\(\)[\s\S]+destroyEditing\(\)/,
     'Editing hooks and global keys must participate in the shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    editing,
     /function hookHistoryCapture\(\)[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.deleted'[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.added'/,
     'History capture must use removable editing-owned hooks.'
 );
 assert.match(
-    builder,
+    editing,
     /function hookImageDefaults\(\)[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.added'/,
     'Image defaults must use a removable editing-owned hook.'
 );
 assert.match(
-    builder,
+    editing,
     /function bindUndoKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'history-key'[\s\S]+function bindDblclickRename\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'double-click-rename'/,
     'Undo and double-click rename listeners must be removable with the editing controller.'
 );
 assert.match(
-    builder,
+    editing,
     /function hookSaveStatus\(\)[\s\S]+dbeBindOwnedHook\([\s\S]+DBE_EDITING_OWNER[\s\S]+builderius\.storeAction\.afterSaveAllSettings[\s\S]+function bindSaveShortcut\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'save-shortcut'/,
     'Save completion and shortcut handling must use editing-owned hooks and listeners.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeShowSavedState\(stamp\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER[\s\S]+function dbeBeginSave\(\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER/,
     'Saved and failed-state timers must be cancelled with the editing controller.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeObserveEditing\(\)[\s\S]+editing-top[\s\S]+editing-main[\s\S]+function dbeRefreshEditing\(\)[\s\S]+dbeEnsureSaveShortcutMetadata\(\)[\s\S]+ensureSaveCue\(\)/,
     'Save metadata and status must refresh through editing-owned observation roots.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeEnsureSaveShortcutMetadata\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_EDITING_OWNER, save, \['aria-keyshortcuts'\]\)[\s\S]+function destroyEditing\(\)[\s\S]+dbeRestoreOwnedAttributes\(DBE_EDITING_OWNER\)[\s\S]+\.dbe-save-cue/,
     'Editing teardown must restore native Save metadata and remove its generated status.'
 );
 assert.match(
-    builder,
+    editing,
     /function closeRename\(commit, restoreFocus\)[\s\S]+dbeRestoreRenameFocus\(st\.id, st\.focusReturn\)[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
     'Committing or cancelling inline rename from the keyboard must return focus to its tree row.'
 );
 assert.match(
-    builder,
+    editing,
     /function openEditHtmlDialog\(rootId\)[\s\S]+restoreFocusOnClose[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER, updatePreview[\s\S]+dbeEditingDialogFocusReturn\(focusReturn\)[\s\S]+function openImportHtmlDialog\(targetId\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER, refreshPreview[\s\S]+dbeEditingDialogFocusReturn\(focusReturn\)/,
     'HTML editing dialogs must own debounce work and restore focus when dismissed without applying.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeBindEditingDialogEscape\(dlg, surface\)[\s\S]+\(surface \|\| dlg\)\.addEventListener\('keydown'[\s\S]+e\.key !== 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeBindEditingDialogEscape\(dlg, editor\.el\)/,
     'Editing dialogs must close explicitly on Escape before embedded editors can consume the key.'
 );
 assert.match(
-    builder,
+    editing,
     /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape: function \(\) \{ dlg\.close\(\); \}/,
     'Monaco editing dialogs must handle Escape through the editor event and command APIs.'
 );
 assert.match(
-    builder,
+    editing,
     /function destroyEditing\(\)[\s\S]+closeRename\(false, true\)[\s\S]+dbeRemovePriorHtmlDialog\(\)[\s\S]+dbeRemovePriorBemDialog\(\)[\s\S]+undoStack = \[\][\s\S]+dbeDestroyOwnedHooks\(DBE_EDITING_OWNER\)[\s\S]+dbeDestroyOwnedActivity\(DBE_EDITING_OWNER\)/,
     'Editing teardown must remove transient interfaces, history, hooks and owned activity.'
 );
@@ -509,17 +510,17 @@ assert.match(
     'The region-navigation copy must include the Footer bar.'
 );
 assert.match(
-    builder,
+    editing,
     /dbeSaveInitialisingUntil[\s\S]+state = dbeSaveState \|\| \(dirty \? 'dirty' : 'clean'\)/,
     'The save cue must baseline Builderius hydration and retain an explicit clean state.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeSaveableSnapshotSignature\(\)[\s\S]+history\[history\.length - 1\][\s\S]+JSON\.stringify\(item\.snapshot\)[\s\S]+snapshotSignature !== saveBaselineSnapshot/,
     'Dirty state must compare saveable snapshots instead of relying on capped history length.'
 );
 assert.doesNotMatch(
-    builder,
+    editing,
     /dbeSaveSelectionTimer|dbeArmSelectionCleanBaseline/,
     'Dirty state must not return to a timing-based selection hold that can absorb real edits.'
 );
@@ -529,8 +530,8 @@ assert.match(
     'Server presence must use the same corrected dirty-state contract as the visible save cue.'
 );
 assert.match(
-    builder,
-    /var dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
+    editing,
+    /var dbePresenceDirtyChanged = host\.presenceDirtyChanged[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
     'The visible save cue must publish its computed dirty transition to server presence.'
 );
 assert.match(
@@ -592,7 +593,7 @@ assert.match(saveCue, /\.dbe-save-cue\.is-clean/, 'The clean save state must be 
 assert.match(strings, /'saveClean'\s+=> __\( 'All changes saved'/, 'Clean save copy must remain truthful.');
 assert.match(strings, /'saveCleanShort'\s+=> __\( 'Saved'/, 'The responsive clean-state copy must remain concise.');
 assert.match(
-    builder,
+    editing,
     /dbe-save-cue__full[\s\S]+dbe-save-cue__short[\s\S]+aria-hidden', 'true'/,
     'The save cue must retain full live-region copy alongside its concise visual label.'
 );
@@ -696,7 +697,7 @@ assert.match(
     'Favourites ordering, interaction and teardown must remain in one composite boundary.'
 );
 assert.match(
-    builder,
+    editing,
     /dbe-cond-desc-[\s\S]+Has display conditions[\s\S]+aria-describedby/,
     'Navigator condition state must be exposed as a description rather than renaming the row.'
 );

@@ -17,6 +17,7 @@ const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
+const editing = read('assets/builder/js/chunks/editing.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
@@ -80,7 +81,7 @@ assert.match(
     'Controller-owned workspace observer roots must resolve through the adapter.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeObserveEditing\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
     'Controller-owned editing observer roots must resolve through the adapter.'
 );

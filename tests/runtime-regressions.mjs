@@ -16,13 +16,14 @@ const coreRuntime = read('assets/builder/js/core-runtime.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
+const editing = read('assets/builder/js/chunks/editing.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
     'The core runtime and feature chunks must load synchronously before the feature host.'
 );
 assert.match(
@@ -39,6 +40,11 @@ assert.match(
     outputBuilder,
     /filemtime\( \$workspace_path \)[\s\S]+assets\/builder\/js\/chunks\/workspace\.js/,
     'The workspace chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$editing_path \)[\s\S]+assets\/builder\/js\/chunks\/editing\.js/,
+    'The editing chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
@@ -116,6 +122,26 @@ assert.match(
     'A missing workspace chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
+    editing,
+    /chunks\.editing = function \(host\)[\s\S]+dbeControllers\.register\(DBE_EDITING_OWNER[\s\S]+host\.setEditingApi\(Object\.freeze\(/,
+    'The editing chunk must register through an explicit host contract and export its shared actions.'
+);
+assert.match(
+    builder,
+    /var dbeEditingChunk = window\.dbeBuilderChunks[\s\S]+dbeEditingChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setEditingApi/,
+    'The feature host must provide grouped editing services and receive its narrow shared API.'
+);
+assert.doesNotMatch(
+    builder,
+    /function dbeRefreshEditing\(|function openEditHtmlDialog\(|function hookHistoryCapture\(|function ensureSaveCue\(/,
+    'The feature host must not duplicate editing implementations behind its shared API.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'editing:missing'[\s\S]+Editing chunk failed to load/,
+    'A missing editing chunk must fail soft with a persistent diagnostic.'
+);
+assert.match(
     commands,
     /chunks\.commands = function \(host\)[\s\S]+dbeControllers\.register\(DBE_COMMANDS_OWNER[\s\S]+host\.setCommandsApi\(Object\.freeze\(/,
     'The commands chunk must register through an explicit host contract and export only shared actions.'
@@ -191,7 +217,7 @@ assert.match(
     'Theme and density controls must refresh and tear down through the workspace controller.'
 );
 assert.match(
-    builder,
+    editing,
     /function dbeRefreshEditing\(\)[\s\S]+ensureConditionHelpers\(\)[\s\S]+ensurePropertiesReorder\(\)[\s\S]+ensureBlankAttrRow\(\)[\s\S]+function destroyEditing\(\)[\s\S]+dbeResetEditingHelpers\(\)/,
     'Condition, property and attribute helpers must refresh and tear down through the editing controller.'
 );
@@ -236,6 +262,7 @@ assert.ok(gzipSync(coreRuntime).length < 35 * 1024, 'The core runtime must remai
 assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must remain within an 8 KB compressed budget.');
 assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must remain within a 35 KB compressed budget.');
 assert.ok(gzipSync(workspace).length < 25 * 1024, 'The workspace chunk must remain within a 25 KB compressed budget.');
+assert.ok(gzipSync(editing).length < 65 * 1024, 'The editing chunk must remain within a 65 KB compressed budget.');
 assert.ok(gzipSync(commands).length < 55 * 1024, 'The commands chunk must remain within a 55 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the

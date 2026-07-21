@@ -136,7 +136,7 @@ if ( function_exists( 'dbe_ability_parse_fragment' ) ) {
 }
 
 // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local bundled source fixture, never a URL.
-$builder_js  = file_get_contents( dirname( __DIR__ ) . '/assets/builder/js/builder.js' );
+$editing_js  = file_get_contents( dirname( __DIR__ ) . '/assets/builder/js/chunks/editing.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local bundled source fixture, never a URL.
 $commands_js = file_get_contents( dirname( __DIR__ ) . '/assets/builder/js/chunks/commands.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local bundled source fixture, never a URL.
 if ( false !== $commands_js ) {
 	dbe_test_assert(
@@ -144,13 +144,13 @@ if ( false !== $commands_js ) {
 		'The command-palette attribute storage sink no longer applies dbeAttrBlocked().'
 	);
 }
-if ( false !== $builder_js ) {
+if ( false !== $editing_js ) {
 	dbe_test_assert(
-		false !== strpos( $builder_js, 'value: dbeEscapeRawText(opts.text)' ),
+		false !== strpos( $editing_js, 'value: dbeEscapeRawText(opts.text)' ),
 		'The Emmet text storage sink no longer encodes raw content.'
 	);
 	dbe_test_assert(
-		false !== strpos( $builder_js, 'var t = dbeEscapeRawText(ch.textContent' ),
+		false !== strpos( $editing_js, 'var t = dbeEscapeRawText(ch.textContent' ),
 		'The browser HTML parser no longer encodes DOM text nodes.'
 	);
 }
