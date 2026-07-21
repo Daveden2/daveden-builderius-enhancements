@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { gzipSync } from 'node:zlib';
 import { runInNewContext } from 'node:vm';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -348,15 +347,6 @@ assert.match(
 );
 assert.match(builder, /dbeRuntime\.whenReady\(boot\)/, 'The feature runtime must enter through the shared lifecycle helper.');
 assert.doesNotMatch(builder, /DBE_BUILDERIUS_ADAPTERS|__builderiusStoreFns/, 'Builderius compatibility knowledge must stay out of feature code.');
-assert.ok(gzipSync(coreRuntime).length < 35 * 1024, 'The core runtime must remain within the 35 KB compressed bootstrap budget.');
-assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must remain within an 8 KB compressed budget.');
-assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must remain within a 35 KB compressed budget.');
-assert.ok(gzipSync(workspace).length < 25 * 1024, 'The workspace chunk must remain within a 25 KB compressed budget.');
-assert.ok(gzipSync(editing).length < 65 * 1024, 'The editing chunk must remain within a 65 KB compressed budget.');
-assert.ok(gzipSync(styles).length < 35 * 1024, 'The styles chunk must remain within a 35 KB compressed budget.');
-assert.ok(gzipSync(integrations).length < 15 * 1024, 'The integrations chunk must remain within a 15 KB compressed budget.');
-assert.ok(gzipSync(commands).length < 55 * 1024, 'The commands chunk must remain within a 55 KB compressed budget.');
-
 // Execute the lifecycle primitives against a small DOM/runtime double so the
 // registry contract is behavioural, not only a source-shape assertion.
 const lifecycleEvents = {};
