@@ -9117,7 +9117,13 @@
        settings panel and the quick-insert bar fall back to their container (given
        a -1 tabindex) when they have no focusable control mounted; the canvas is
        the preview iframe itself. */
-    function dbeFocusArea(which) {
+    function dbeFocusArea(which, compactReady) {
+        if (!compactReady && on('compact_panes') && dbeCompactActive()) {
+            if (dbeSetCompactPane(which, { announce: true, focus: false })) {
+                setTimeout(function () { dbeFocusArea(which, true); }, which === 'inserter' || which === 'settings' ? 140 : 0);
+            }
+            return;
+        }
         var wrappers = dbePanelWrappers();
         var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
         if (side && dbePanelSideHidden(side, wrappers[side])) {
@@ -9467,13 +9473,19 @@
                 { group: 'goto', label: dbeT('goToSettings', 'Go to settings'), accel: dbeAccel('S', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('settings'); }); } }
             );
         }
-        var panelWrappers = dbePanelWrappers();
-        var leftPanelHidden = dbePanelSideHidden('left', panelWrappers.left);
-        var rightPanelHidden = dbePanelSideHidden('right', panelWrappers.right);
-        var panelsHidden = leftPanelHidden && rightPanelHidden;
         commands.push(
             { group: 'workspace', icon: 'pointer', label: dbeCanvasInteractive() ? dbeT('exitInteractiveCanvas', 'Select elements') : dbeT('enterInteractiveCanvas', 'Interact with page'),
-                run: function () { runClose(function () { dbeSetCanvasInteractive(!dbeCanvasInteractive()); }); } },
+                run: function () { runClose(function () { dbeSetCanvasInteractive(!dbeCanvasInteractive()); }); } }
+        );
+        /* The compact selector owns visibility below 720px. Persisted wide-view
+           panel commands would appear to do nothing there, so expose them only
+           when they can truthfully affect the current layout. */
+        if (!dbeCompactActive()) {
+            var panelWrappers = dbePanelWrappers();
+            var leftPanelHidden = dbePanelSideHidden('left', panelWrappers.left);
+            var rightPanelHidden = dbePanelSideHidden('right', panelWrappers.right);
+            var panelsHidden = leftPanelHidden && rightPanelHidden;
+            commands.push(
             { group: 'workspace', icon: 'panels', label: panelsHidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'),
                 run: function () { runClose(function () {
                     dbeToggleSidePanels(function (changed) {
@@ -9483,7 +9495,10 @@
             { group: 'workspace', icon: 'panel-left', label: leftPanelHidden ? dbeT('showSettingsPanel', 'Show settings panel') : dbeT('hideSettingsPanel', 'Hide settings panel'),
                 run: function () { runClose(function () { dbeSetPanelVisibility('left', !leftPanelHidden); }); } },
             { group: 'workspace', icon: 'panel-right', label: rightPanelHidden ? dbeT('showNavigatorPanel', 'Show Navigator panel') : dbeT('hideNavigatorPanel', 'Hide Navigator panel'),
-                run: function () { runClose(function () { dbeSetPanelVisibility('right', !rightPanelHidden); }); } },
+                run: function () { runClose(function () { dbeSetPanelVisibility('right', !rightPanelHidden); }); } }
+            );
+        }
+        commands.push(
             { group: 'goto', label: dbeT('goToNavigator', 'Go to Navigator'), accel: dbeAccel('O', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('navigator'); }); } },
             { group: 'goto', label: dbeT('goToCanvas', 'Go to canvas'), accel: dbeAccel('P', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('canvas'); }); } },
             { group: 'goto', label: dbeT('openInserterCmd', 'Open Inserter'), accel: dbeAccel('N', { cmd: true, alt: true }), run: function () { runClose(function () { dbeFocusArea('inserter'); }); } },
@@ -10452,6 +10467,188 @@
     }
 
     var DBE_PANEL_VISIBILITY_KEY = 'dbeBuilderPanelVisibility';
+    var DBE_COMPACT_QUERY = '(max-width: 720px)';
+    var dbeCompactMql = null;
+    var dbeCompactPane = 'canvas';
+
+    function dbeCompactMedia() {
+        if (!dbeCompactMql) {
+            try {
+                dbeCompactMql = window.matchMedia(DBE_COMPACT_QUERY);
+                dbeCompactMql.addEventListener('change', schedule);
+            } catch (e) {}
+        }
+        return dbeCompactMql;
+    }
+
+    function dbeCompactActive() {
+        var mq = dbeCompactMedia();
+        return !!(mq && mq.matches && document.documentElement.classList.contains('dbe-compact-panes'));
+    }
+
+    function dbeCompactPaneLabel(pane) {
+        return {
+            inserter: dbeT('regionInserter', 'Element library'),
+            settings: dbeT('regionSettings', 'Element settings'),
+            canvas: dbeT('regionCanvas', 'Canvas'),
+            navigator: dbeT('regionNavigator', 'Navigator')
+        }[pane] || dbeT('regionCanvas', 'Canvas');
+    }
+
+    function dbeCompactElementsButton() {
+        /* Compact CSS deliberately hides this native toggle. It still owns the
+           Builderius state transition between the library and settings, so find
+           it by structure rather than rendered visibility. */
+        return document.querySelector(
+            '.uniTopPanel__leftCol > .uniPanelButton:not(.uniPanelButton--builderiusMenu)'
+        );
+    }
+
+    function dbeCompactLeftMode() {
+        var left = document.querySelector('.uniLeftPanel');
+        return left && left.querySelector('.uniModList') ? 'inserter' : 'settings';
+    }
+
+    function dbeEnsureCompactLeftMode(pane) {
+        if (pane !== 'inserter' && pane !== 'settings') { return true; }
+        if (pane === 'settings' && !activeId()) {
+            dbeModeAnnounce(dbeT('compactSelectElement', 'Select an element before opening Element settings'));
+            return false;
+        }
+        if (dbeCompactLeftMode() === pane) { return true; }
+        var button = dbeCompactElementsButton();
+        if (button) {
+            clickSeq(button);
+            setTimeout(schedule, 0);
+        }
+        return true;
+    }
+
+    function dbeCompactSelect() {
+        return document.querySelector('.dbe-compact-pane-switcher select');
+    }
+
+    function dbeSyncCompactSelect() {
+        var select = dbeCompactSelect();
+        if (!select) { return; }
+        var settings = select.querySelector('option[value="settings"]');
+        if (settings) { settings.disabled = !activeId(); }
+        if (select.value !== dbeCompactPane) { select.value = dbeCompactPane; }
+    }
+
+    function dbeEnsureCompactSwitcher() {
+        var col = document.querySelector('.uniTopPanel__leftCol');
+        if (!col) { return null; }
+        var existing = col.querySelector('.dbe-compact-pane-switcher');
+        if (existing) { return existing; }
+        var label = document.createElement('label');
+        label.className = 'dbe-compact-pane-switcher';
+        var select = document.createElement('select');
+        select.setAttribute('aria-label', dbeT('compactView', 'Builder view'));
+        ['inserter', 'settings', 'canvas', 'navigator'].forEach(function (pane) {
+            var option = document.createElement('option');
+            option.value = pane;
+            option.textContent = dbeCompactPaneLabel(pane);
+            select.appendChild(option);
+        });
+        select.addEventListener('change', function () {
+            dbeSetCompactPane(select.value, { announce: true, focus: true });
+        });
+        label.appendChild(select);
+        var menu = col.querySelector('.uniPanelButton--builderiusMenu');
+        col.insertBefore(label, menu ? menu.nextSibling : col.firstChild);
+        return label;
+    }
+
+    function dbeSetCompactPane(pane, opts) {
+        opts = opts || {};
+        if (['inserter', 'settings', 'canvas', 'navigator'].indexOf(pane) === -1) { pane = 'canvas'; }
+        if (!dbeEnsureCompactLeftMode(pane)) {
+            dbeSyncCompactSelect();
+            return false;
+        }
+        dbeCompactPane = pane;
+        document.documentElement.dataset.dbeCompactPane = pane;
+        dbeSyncCompactSelect();
+        dbeSyncPanelsHidden();
+        if (opts.announce) {
+            dbeModeAnnounce(dbeFmt(
+                dbeT('compactViewChanged', '%s view shown'),
+                dbeCompactPaneLabel(pane)
+            ));
+        }
+        if (opts.focus) {
+            setTimeout(function () { dbeFocusArea(pane, true); }, pane === 'inserter' || pane === 'settings' ? 140 : 0);
+        }
+        return true;
+    }
+
+    function dbeSetCompactAccessibility() {
+        var wrappers = dbePanelWrappers();
+        var canvas = document.querySelector('.uniIframePanel');
+        var iframe = document.getElementById('builderInner');
+        var tabs = document.querySelector('.uniIframeTabs');
+        var leftShown = dbeCompactPane === 'inserter' || dbeCompactPane === 'settings';
+        var canvasShown = dbeCompactPane === 'canvas';
+        var navigatorShown = dbeCompactPane === 'navigator';
+        var active = document.activeElement;
+        var hidingFocus = active && (
+            (!leftShown && wrappers.left && wrappers.left.contains(active))
+            || (!canvasShown && iframe && iframe === active)
+            || (!navigatorShown && wrappers.right && wrappers.right.contains(active))
+        );
+        dbeSetPanelHiddenState(wrappers.left, !leftShown);
+        dbeSetPanelHiddenState(wrappers.right, !navigatorShown);
+        dbeSetPanelHiddenState(iframe, !canvasShown);
+        dbeSetPanelHiddenState(tabs, !canvasShown);
+        if (canvas) {
+            if (leftShown) {
+                dbeSetPanelHiddenState(canvas, true);
+            } else {
+                dbeSetPanelHiddenState(canvas, false);
+            }
+            if (navigatorShown) {
+                canvas.setAttribute('role', 'presentation');
+                canvas.removeAttribute('aria-label');
+            } else if (canvasShown) {
+                canvas.setAttribute('role', 'region');
+                canvas.setAttribute('aria-label', dbeT('regionCanvas', 'Canvas'));
+            }
+        }
+        document.documentElement.classList.toggle('dbe-panels-hidden', canvasShown);
+        if (hidingFocus) {
+            var select = dbeCompactSelect();
+            if (select) { try { select.focus(); } catch (e) {} }
+        }
+        return canvasShown;
+    }
+
+    function ensureCompactPanes() {
+        var mq = dbeCompactMedia();
+        var root = document.documentElement;
+        if (!mq || !mq.matches) {
+            root.classList.remove('dbe-compact-panes');
+            delete root.dataset.dbeCompactPane;
+            dbeSetPanelHiddenState(document.querySelector('.uniIframePanel'), false);
+            dbeSetPanelHiddenState(document.getElementById('builderInner'), false);
+            dbeSetPanelHiddenState(document.querySelector('.uniIframeTabs'), false);
+            return false;
+        }
+        root.classList.add('dbe-compact-panes');
+        var seeded = root.dataset.dbeCompactPane;
+        if (['inserter', 'settings', 'canvas', 'navigator'].indexOf(seeded) !== -1) {
+            dbeCompactPane = seeded;
+        }
+        if ((dbeCompactPane === 'inserter' || dbeCompactPane === 'settings') && dbeCompactLeftMode() !== dbeCompactPane) {
+            dbeCompactPane = dbeCompactLeftMode();
+            root.dataset.dbeCompactPane = dbeCompactPane;
+        } else if (!root.dataset.dbeCompactPane) {
+            root.dataset.dbeCompactPane = dbeCompactPane;
+        }
+        dbeEnsureCompactSwitcher();
+        dbeSyncCompactSelect();
+        return true;
+    }
 
     function dbePanelVisibility() {
         var state = {};
@@ -10494,6 +10691,10 @@
     }
 
     function dbePanelSideHidden(side, wrapper) {
+        if (on('compact_panes') && dbeCompactActive()) {
+            if (side === 'left') { return dbeCompactPane !== 'inserter' && dbeCompactPane !== 'settings'; }
+            if (side === 'right') { return dbeCompactPane !== 'navigator'; }
+        }
         return document.documentElement.classList.contains('dbe-' + side + '-panel-hidden') || dbePanelCollapsed(wrapper);
     }
 
@@ -10535,6 +10736,11 @@
 
     function dbeSyncPanelsHidden() {
         if (on('command_palette')) { dbeApplyPanelVisibility(); }
+        if (on('compact_panes') && dbeCompactActive()) {
+            var compactCanvas = dbeSetCompactAccessibility();
+            if (on('reveal_selected')) { try { dbeSyncSelectionContext(); } catch (e) {} }
+            return compactCanvas;
+        }
         var wrappers = dbePanelWrappers();
         var leftHidden = dbePanelSideHidden('left', wrappers.left);
         var rightHidden = !wrappers.right || dbePanelSideHidden('right', wrappers.right);
@@ -13002,6 +13208,7 @@
             if (on('chrome_landmarks')) { try { ensureChromeLandmarks(); } catch (e) {} }
             if (on('save_state_cue')) { try { ensureSaveCue(); } catch (e) {} }
             if (on('preview_resize')) { try { ensurePreviewHandles(); } catch (e) {} }
+            if (on('compact_panes')) { try { ensureCompactPanes(); } catch (e) {} }
             try { dbeSyncPanelsHidden(); } catch (e) {}
             if (on('panel_resize')) { try { ensurePanelHandles(); } catch (e) {} }
             if (on('panel_detach')) { try { ensureNavDetach(); } catch (e) {} }
@@ -13042,7 +13249,7 @@
         // .uniMainPanel is a stable parent of both panels (and of the canvas
         // wrappers the preview + panel handles live in); the rAF debounce in
         // schedule() coalesces the busier stream of mutations.
-        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('condition_helpers')) {
+        if (NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('compact_panes') || on('condition_helpers')) {
             var main = document.querySelector('.uniMainPanel') || panel.parentElement;
             if (main) {
                 new MutationObserver(schedule).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
@@ -13052,7 +13259,7 @@
         // Top bar too — breakpoint buttons and the breakpoints modal mount
         // there; labelChromeIcons(), the theme/density/palette buttons and the
         // save cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu')) {
+        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
             var top = document.querySelector('.uniTopPanel');
             if (top) {
                 new MutationObserver(schedule).observe(top, { childList: true, subtree: true });

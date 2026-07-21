@@ -1,0 +1,169 @@
+/* Compact workspace views (compact_panes).
+   Builderius keeps both 320px side panels at narrow viewport widths, which
+   collapses the canvas to zero and layers the panels over one another. DBE's
+   Builder view selector presents one destination at a time below 720px while
+   leaving the wider layout and its persisted panel choices untouched. */
+
+.dbe-compact-pane-switcher {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    html.dbe-compact-panes .dbe-compact-pane-switcher {
+        position: fixed;
+        inset-block-start: 4px;
+        inset-inline-start: 75px;
+        z-index: 2147482000;
+        display: flex;
+        inline-size: 112px;
+        block-size: 35px;
+    }
+
+    html.dbe-compact-panes .dbe-compact-pane-switcher select {
+        inline-size: 100%;
+        min-inline-size: 0;
+        block-size: 35px;
+        padding-inline: 8px 24px;
+        border: 1px solid var(--dbe-line-hi);
+        border-radius: var(--dbe-r-sm);
+        background: var(--dbe-l2);
+        color: var(--dbe-text);
+        font: 600 12px/1 var(--dbe-ui-font);
+    }
+
+    html.dbe-compact-panes .dbe-compact-pane-switcher select:focus-visible {
+        outline: 2px solid var(--dbe-focus);
+        outline-offset: 1px;
+    }
+
+    /* Keep the four essential top-bar controls visible: Builderius menu,
+       Builder view, command palette and Save. The hidden native Elements button
+       is represented by the explicit Element library option. */
+    html.dbe-compact-panes .uniTopPanel__leftCol > .uniPanelButton:not(.uniPanelButton--builderiusMenu),
+    html.dbe-compact-panes .uniTopPanel__middleColWrapper,
+    html.dbe-compact-panes .uniTopPanel__rightCol .uniApplicantsSelect,
+    html.dbe-compact-panes .uniTopPanel__rightCol .uniPanelButton,
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-theme-btn,
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-density-btn,
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-save-menu-btn {
+        display: none !important;
+    }
+
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-palette-btn {
+        position: fixed !important;
+        inset-block-start: 4px !important;
+        inset-inline-end: 94px !important;
+        z-index: 2147482000 !important;
+        display: flex !important;
+    }
+
+    html.dbe-compact-panes .uniTopPanel__rightCol .saveBtn {
+        position: fixed !important;
+        inset-block-start: 4px !important;
+        inset-inline-end: 4px !important;
+        z-index: 2147482000 !important;
+        display: flex !important;
+        min-inline-size: 80px !important;
+    }
+
+    /* Keep save state available to assistive technology without spending the
+       compact top bar's scarce visible width. */
+    html.dbe-compact-panes .dbe-save-cue {
+        position: absolute !important;
+        inline-size: 1px !important;
+        block-size: 1px !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        clip-path: inset(50%) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+    }
+
+    html.dbe-compact-panes .uniMainPanel {
+        overflow: hidden !important;
+    }
+
+    /* Start with both side panels collapsed and the canvas filling the main
+       workspace. The view-specific rules below open exactly one destination. */
+    html.dbe-compact-panes .uniLeftPanelOuter {
+        inline-size: 0 !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 0 !important;
+        flex: 0 0 0 !important;
+        overflow: hidden !important;
+    }
+
+    html.dbe-compact-panes .uniIframePanel:has(.uniRightPanel) {
+        inline-size: 100% !important;
+        margin-inline-end: 0 !important;
+    }
+
+    html.dbe-compact-panes .uniMainPanel div:has(> .uniRightPanel) {
+        inline-size: 0 !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 0 !important;
+        overflow: hidden !important;
+    }
+
+    html.dbe-compact-panes[data-dbe-compact-pane="inserter"] .uniLeftPanelOuter,
+    html.dbe-compact-panes[data-dbe-compact-pane="settings"] .uniLeftPanelOuter {
+        inline-size: 100% !important;
+        min-inline-size: 100% !important;
+        max-inline-size: 100% !important;
+        flex-basis: 100% !important;
+        overflow: visible !important;
+    }
+
+    html.dbe-compact-panes[data-dbe-compact-pane="inserter"] .uniIframePanel,
+    html.dbe-compact-panes[data-dbe-compact-pane="settings"] .uniIframePanel {
+        inline-size: 0 !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 0 !important;
+        overflow: hidden !important;
+    }
+
+    html.dbe-compact-panes[data-dbe-compact-pane="navigator"] .uniMainPanel div:has(> .uniRightPanel) {
+        inset-inline-end: 0 !important;
+        inline-size: 100% !important;
+        min-inline-size: 100% !important;
+        max-inline-size: 100% !important;
+        overflow: visible !important;
+    }
+
+    html.dbe-compact-panes[data-dbe-compact-pane="navigator"] .uniRightPanel {
+        inline-size: 100% !important;
+        max-inline-size: 100% !important;
+    }
+
+    /* Navigator is mounted inside the canvas wrapper. Hide the actual preview
+       surfaces while leaving the Navigator subtree available. */
+    html.dbe-compact-panes[data-dbe-compact-pane="navigator"] #builderInner,
+    html.dbe-compact-panes[data-dbe-compact-pane="navigator"] .uniIframeTabs,
+    html.dbe-compact-panes[data-dbe-compact-pane="navigator"] .uniIframeTabs__wrapper {
+        display: none !important;
+    }
+
+    html.dbe-compact-panes .dbe-panel-handle,
+    html.dbe-compact-panes .dbe-preview-handle {
+        display: none !important;
+    }
+
+    /* The footer remains a secondary, horizontally scrollable tool shelf rather
+       than increasing the document width or silently clipping later tools. */
+    html.dbe-compact-panes .uniFooterPanelBar {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: thin;
+    }
+}
+
+@media (forced-colors: active) {
+    .dbe-compact-pane-switcher select {
+        border-color: CanvasText !important;
+    }
+
+    .dbe-compact-pane-switcher select:focus-visible {
+        outline-color: Highlight !important;
+    }
+}

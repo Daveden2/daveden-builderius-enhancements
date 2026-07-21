@@ -24,7 +24,9 @@ const focus = read('assets/builder/css/13-focus.css');
 const treeRows = read('assets/builder/css/14-tree-rows.css');
 const previewResize = read('assets/builder/css/74-preview-resize.css');
 const panelResize = read('assets/builder/css/75-panel-resize.css');
+const compactPanes = read('assets/builder/css/83-compact-panes.css');
 const strings = read('includes/i18n-builder.php');
+const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     builder,
@@ -123,8 +125,44 @@ assert.match(
     /'footerComingSoon'\s+=> __\( '%s \(coming soon\)'/,
     'Unavailable-tool copy must describe availability rather than an unexplained lock.'
 );
+assert.match(
+    outputBuilder,
+    /matchMedia\('\(max-width: 720px\)'\)[\s\S]+dbeCompactPane = 'canvas'/,
+    'Compact sessions must receive a pre-paint canvas view before Builderius mounts.'
+);
+assert.match(
+    builder,
+    /function dbeEnsureCompactSwitcher\(\)[\s\S]+select\.setAttribute\('aria-label', dbeT\('compactView', 'Builder view'\)\)[\s\S]+\['inserter', 'settings', 'canvas', 'navigator'\]/,
+    'Compact mode must expose all four builder destinations through a named native select.'
+);
+assert.match(
+    builder,
+    /function dbeSetCompactAccessibility\(\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.left, !leftShown\)[\s\S]+dbeSetPanelHiddenState\(wrappers\.right, !navigatorShown\)[\s\S]+dbeSetPanelHiddenState\(iframe, !canvasShown\)/,
+    'Compact mode must remove every hidden workspace destination from the accessibility tree.'
+);
+assert.match(
+    builder,
+    /compactViewChanged[\s\S]+setTimeout\(function \(\) \{ dbeFocusArea\(pane, true\); \}/,
+    'Compact view changes must be announced and move focus to the chosen destination.'
+);
+assert.match(
+    builder,
+    /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
+    'Wide-view panel visibility commands must not masquerade as compact-view controls.'
+);
+assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');
+assert.match(
+    compactPanes,
+    /data-dbe-compact-pane="inserter"[\s\S]+data-dbe-compact-pane="settings"[\s\S]+data-dbe-compact-pane="navigator"/,
+    'Compact CSS must provide explicit Element library, Element settings and Navigator views.'
+);
+assert.doesNotMatch(
+    compactPanes,
+    /max-width:\s*359px/,
+    'The command palette must remain visibly voice-addressable at 320 CSS pixels.'
+);
 
-[tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize].forEach((css) => {
+[tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize, compactPanes].forEach((css) => {
     assert.match(css, /@media \(forced-colors: active\)/, 'Accessibility CSS must retain a forced-colours treatment.');
 });
 assert.match(tokens, /--dbe-focus:\s*Highlight/, 'The focus token must resolve to a system colour in forced-colour mode.');

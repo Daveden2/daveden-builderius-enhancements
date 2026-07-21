@@ -48,7 +48,7 @@ function dbe_feature_sections() {
 			array(
 				'title'       => __( 'Builder chrome', 'daveden-builderius-enhancements' ),
 				'description' => __( 'Layout and scanning improvements for the top bar, tabs, searches and side panels.', 'daveden-builderius-enhancements' ),
-				'features'    => array( 'panel_resize', 'topbar_toolbar', 'tab_styling', 'search_affordance', 'tree_row_styling' ),
+				'features'    => array( 'panel_resize', 'compact_panes', 'topbar_toolbar', 'tab_styling', 'search_affordance', 'tree_row_styling' ),
 			),
 		),
 		'navigator'  => array(
@@ -125,12 +125,12 @@ function dbe_feature_presets() {
 		'accessibility' => array(
 			'title'       => __( 'Accessibility essentials', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Keyboard routes, screen-reader structure, visible focus and clearer controls across the builder.', 'daveden-builderius-enhancements' ),
-			'features'    => array( 'focus_visibility', 'controls_styling', 'topbar_toolbar', 'footer_toolbar', 'select_combobox', 'ai_terminal_tabs', 'panel_tabs', 'settings_accordions', 'chrome_landmarks', 'navigator_keyboard', 'inserter_keyboard', 'builderius_menu', 'tooltips', 'overlay_contrast' ),
+			'features'    => array( 'focus_visibility', 'controls_styling', 'compact_panes', 'topbar_toolbar', 'footer_toolbar', 'select_combobox', 'ai_terminal_tabs', 'panel_tabs', 'settings_accordions', 'chrome_landmarks', 'navigator_keyboard', 'inserter_keyboard', 'builderius_menu', 'tooltips', 'overlay_contrast' ),
 		),
 		'keyboard'      => array(
 			'title'       => __( 'Keyboard workflow', 'daveden-builderius-enhancements' ),
 			'description' => __( 'Fast movement, element actions, command search, shortcuts and reliable saving without leaving the keyboard.', 'daveden-builderius-enhancements' ),
-			'features'    => array( 'navigator_keyboard', 'inserter_keyboard', 'panel_tabs', 'settings_accordions', 'footer_toolbar', 'context_menu', 'element_moves', 'inline_rename', 'keyboard_shortcuts', 'command_palette', 'shortcuts_overlay', 'save_shortcut', 'focus_visibility' ),
+			'features'    => array( 'compact_panes', 'navigator_keyboard', 'inserter_keyboard', 'panel_tabs', 'settings_accordions', 'footer_toolbar', 'context_menu', 'element_moves', 'inline_rename', 'keyboard_shortcuts', 'command_palette', 'shortcuts_overlay', 'save_shortcut', 'focus_visibility' ),
 		),
 		'visual'        => array(
 			'title'       => __( 'Visual polish', 'daveden-builderius-enhancements' ),
@@ -682,6 +682,15 @@ function dbe_features() {
 			'css'          => array( '74-preview-resize.css' ),
 			'js'           => true,
 			'experimental' => true,
+		),
+		'compact_panes'         => array(
+			'title'       => __( 'Compact workspace views', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Keeps one usable builder view on narrow screens.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Below 720 CSS pixels, replaces overlapping panels and a zero-width canvas with a compact Builder view selector. Element library, Element settings, Canvas and Navigator are presented one at a time; changing view is announced, keyboard focus follows the chosen view, and the wider workspace layout returns unchanged when space is available again.', 'daveden-builderius-enhancements' ),
+			'tab'         => 'appearance',
+			'css'         => array( '83-compact-panes.css' ),
+			'shared_css'  => array( '03-topbar-layout.css' ),
+			'js'          => true,
 		),
 		'panel_resize'          => array(
 			'title'       => __( 'Resizable side panels', 'daveden-builderius-enhancements' ),

@@ -126,12 +126,13 @@ function dbe_print_builder_head() {
 		return;
 	}
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) || dbe_enabled( 'compact_panes' ) ) {
 		$bootstrap = array(
 			'theme'           => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
 			'density'         => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
 			'panelWidth'      => dbe_enabled( 'panel_resize' ),
 			'panelVisibility' => dbe_enabled( 'command_palette' ),
+			'compactPanes'    => dbe_enabled( 'compact_panes' ),
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
@@ -186,6 +187,17 @@ function dbe_print_builder_head() {
 					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
 					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
 					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
+				} catch (e) {}
+			}
+			/* Default narrow sessions to the primary editing surface before the
+			 * builder mounts. builder.js replaces this seed with the user's chosen
+			 * compact view and removes it when the breakpoint clears. */
+			if (cfg.compactPanes) {
+				try {
+					if (matchMedia('(max-width: 720px)').matches) {
+						d.classList.add('dbe-compact-panes');
+						d.dataset.dbeCompactPane = 'canvas';
+					}
 				} catch (e) {}
 			}
 		})(document.documentElement);

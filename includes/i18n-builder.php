@@ -374,6 +374,10 @@ function dbe_builder_strings() {
 		'canvasPreview'                 => __( 'Canvas preview', 'daveden-builderius-enhancements' ),
 		'regionNavigator'               => __( 'Navigator', 'daveden-builderius-enhancements' ),
 		'regionFooter'                  => __( 'Footer bar', 'daveden-builderius-enhancements' ),
+		'compactView'                   => __( 'Builder view', 'daveden-builderius-enhancements' ),
+		/* translators: %s: compact builder view name, such as Canvas or Navigator. */
+		'compactViewChanged'            => __( '%s view shown', 'daveden-builderius-enhancements' ),
+		'compactSelectElement'          => __( 'Select an element before opening Element settings', 'daveden-builderius-enhancements' ),
 
 		// Save cue.
 		'saveClean'                     => __( 'All changes saved', 'daveden-builderius-enhancements' ),
