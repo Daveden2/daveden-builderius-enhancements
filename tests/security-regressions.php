@@ -41,29 +41,40 @@ if ( $admins ) {
 	wp_set_current_user( (int) $admins[0] );
 }
 
-dbe_test_assert( function_exists( 'dbe_ability_parse_fragment' ), 'The subtree ability parser is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_structure_abilities' ), 'The structure ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_subtree_html' ), 'The subtree HTML read callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_tree_outline' ), 'The tree-outline callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_apply_subtree_html' ), 'The subtree HTML write callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_publishing_abilities' ), 'The publishing ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_status' ), 'The save/publish status callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_publish' ), 'The publish callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_extract_release' ), 'The release-extraction callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_verify_abilities' ), 'The verification ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_check_rendered_output' ), 'The rendered-output verification callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_check_render_scenarios' ), 'The render-scenario verification callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_dynamic_data_schema' ), 'The dynamic-data schema callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_resolve_data_variable' ), 'The data-variable resolution callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_inspect_binding_value' ), 'The binding-value inspection callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_resolve_metabox_field' ), 'The Meta Box field-resolution callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_rendered_styles' ), 'The rendered-style diagnostics callback is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The template ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_component_abilities' ), 'The component ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_create_component' ), 'The component ability callbacks are not loaded.' );
-dbe_test_assert( function_exists( 'dbe_register_css_abilities' ), 'The CSS ability registrar is not loaded.' );
-dbe_test_assert( function_exists( 'dbe_ability_get_global_css' ), 'The CSS ability callbacks are not loaded.' );
+$ability_functions   = array(
+	'dbe_ability_parse_fragment',
+	'dbe_register_structure_abilities',
+	'dbe_ability_get_subtree_html',
+	'dbe_ability_get_tree_outline',
+	'dbe_ability_apply_subtree_html',
+	'dbe_register_publishing_abilities',
+	'dbe_ability_status',
+	'dbe_ability_publish',
+	'dbe_ability_extract_release',
+	'dbe_register_verify_abilities',
+	'dbe_ability_check_rendered_output',
+	'dbe_ability_check_render_scenarios',
+	'dbe_ability_get_dynamic_data_schema',
+	'dbe_ability_resolve_data_variable',
+	'dbe_ability_inspect_binding_value',
+	'dbe_ability_resolve_metabox_field',
+	'dbe_ability_get_rendered_styles',
+	'dbe_register_template_abilities',
+	'dbe_ability_create_template',
+	'dbe_register_component_abilities',
+	'dbe_ability_create_component',
+	'dbe_register_css_abilities',
+	'dbe_ability_get_global_css',
+);
+$abilities_available = dbe_release_feature_available( 'agent_abilities' );
+foreach ( $ability_functions as $ability_function ) {
+	dbe_test_assert(
+		function_exists( $ability_function ) === $abilities_available,
+		$abilities_available
+			? 'The release-available ability callback is not loaded: ' . $ability_function . '.'
+			: 'An Agent ability callback loaded before the 2.1 release line: ' . $ability_function . '.'
+	);
+}
 dbe_test_assert( function_exists( 'dbe_css_blocks_parse' ), 'The shared CSS block parser is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_presence_beat' ), 'The presence service is not loaded.' );
 
