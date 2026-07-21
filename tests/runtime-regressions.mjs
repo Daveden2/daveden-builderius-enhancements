@@ -21,7 +21,40 @@ const styles = read('assets/builder/js/chunks/styles.js');
 const integrations = read('assets/builder/js/chunks/integrations.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
+const cssCache = read('includes/builder-css-cache.php');
 const outputBuilder = read('includes/output-builder.php');
+const uninstall = read('uninstall.php');
+
+assert.match(
+    outputBuilder,
+    /require_once DBE_DIR \. 'includes\/builder-css-cache\.php'[\s\S]+dbe_builder_css_bundle\(\)[\s\S]+data-dbe-css-delivery="external"[\s\S]+data-dbe-css-delivery="inline"/,
+    'Builder CSS must prefer a direct external bundle and retain an explicit inline fallback.'
+);
+assert.match(
+    cssCache,
+    /function dbe_builder_css_cache_signature\( \$files \)[\s\S]+DBE_VERSION[\s\S]+filemtime\( \$path \)[\s\S]+filesize\( \$path \)[\s\S]+hash\( 'sha256'/,
+    'The CSS bundle key must cover the plugin version and ordered source-file signature without rereading file bodies.'
+);
+assert.match(
+    cssCache,
+    /wp_upload_dir\( null, false, \$refresh \)[\s\S]+dbe-builder-css[\s\S]+builder-' \. \$hash \. '\.css'/,
+    'Generated CSS must use a site-specific uploads directory and a content-addressed file name.'
+);
+assert.match(
+    cssCache,
+    /wp_tempnam\( \$filename, \$directory \)[\s\S]+file_put_contents\( \$temporary, \$css, LOCK_EX \)[\s\S]+rename\( \$temporary, \$path \)/,
+    'A cache miss must publish through a locked temporary file and atomic rename.'
+);
+assert.match(
+    cssCache,
+    /count\( \$matches \) <= 8[\s\S]+\^builder-\[a-f0-9\]\{64\}[\s\S]+wp_delete_file\( \$path \)/,
+    'Cache pruning must retain a bounded set and delete only strict plugin-owned bundle names.'
+);
+assert.match(
+    uninstall,
+    /dbe-builder-css[\s\S]+\^builder-\[a-f0-9\]\{64\}[\s\S]+wp_delete_file\( \$cache_file \)/,
+    'Uninstall must remove content-addressed CSS bundles from every site cache.'
+);
 
 assert.match(
     outputBuilder,

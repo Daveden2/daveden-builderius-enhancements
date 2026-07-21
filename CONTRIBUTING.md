@@ -31,8 +31,10 @@ native equivalent lands in core Builderius.
 > contain an allowlisted plugin name. Rename the folder and every feature
 > silently vanishes.
 
-There is no build step: PHP, CSS and JavaScript ship as-is, and the builder
-assets are printed inline, so a plain reload of the builder picks up changes.
+There is no compile step: PHP, CSS and JavaScript ship as-is. Builder CSS is
+assembled into a content-addressed uploads bundle on first use, so editing a
+source file changes its signature and a plain builder reload picks up the new
+bundle.
 
 ## How the code is organised
 
@@ -40,12 +42,15 @@ assets are printed inline, so a plain reload of the builder picks up changes.
   Every toggle is declared here once; the settings page, option defaults,
   sanitisation, CSS concatenation and the JS config object are all derived
   from it.
-- `includes/output-builder.php` — prints the enabled CSS files (from
-  `assets/builder/css/`, concatenated in numeric-prefix order) in `wp_head`
-  and the config object + `assets/builder/js/builder.js` in `wp_footer`.
-- `assets/builder/js/builder.js` — one IIFE. Helpers are defined
-  unconditionally; *wiring* (observers, listeners, DOM writes) is gated per
-  feature via `on('feature_id')` inside `schedule()` and `boot()`.
+- `includes/output-builder.php` — resolves enabled CSS files from the registry,
+  links their cacheable bundle in `wp_head`, and prints the config plus ordered
+  JavaScript prerequisites in `wp_footer`. Inline CSS is the filesystem-failure
+  fallback.
+- `includes/builder-css-cache.php` — signatures, atomically writes and prunes
+  the site-specific generated CSS bundles under uploads.
+- `assets/builder/js/builder.js` — the small shared host. Physical chunks under
+  `assets/builder/js/chunks/` own the accessibility, workspace, editing, styles,
+  integrations and commands domains.
 
 ## Conventions
 

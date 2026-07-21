@@ -3,16 +3,17 @@
  * Builder-mode output: the chrome CSS and JS injected into the Builderius
  * builder page (a front-end request carrying `?builderius`).
  *
- * CSS is concatenated from per-feature files and printed inline in wp_head —
- * inline is deliberate: it is guaranteed to be in the document before the
- * builder SPA paints (no flash of stock chrome), the payload varies with the
- * saved toggles so there is nothing to cache-bust, and inline printing is the
- * only delivery proven to survive builder mode.
+ * CSS is concatenated from per-feature files into a content-addressed uploads
+ * bundle and linked directly in wp_head. This preserves render-blocking order
+ * without adding the enabled CSS to every HTML response. If the uploads cache
+ * cannot be written, the same trusted CSS falls back to inline delivery.
  *
  * @package Daveden_Builder_Enhancements
  */
 
 defined( 'ABSPATH' ) || exit;
+
+require_once DBE_DIR . 'includes/builder-css-cache.php';
 
 /**
  * Whether the current request is a builder-mode page view.
@@ -102,11 +103,13 @@ function dbe_builder_css_files() {
 /**
  * Concatenate the enabled CSS files.
  *
+ * @param string[]|null $files Optional pre-resolved ordered file list.
  * @return string
  */
-function dbe_builder_css() {
-	$css = '';
-	foreach ( dbe_builder_css_files() as $file ) {
+function dbe_builder_css( $files = null ) {
+	$css   = '';
+	$files = is_array( $files ) ? $files : dbe_builder_css_files();
+	foreach ( $files as $file ) {
 		$path = DBE_DIR . 'assets/builder/css/' . $file;
 		if ( is_readable( $path ) ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a bundled plugin CSS file, not a remote URL.
@@ -205,10 +208,17 @@ function dbe_print_builder_head() {
 		<?php
 	}
 
+	$bundle = dbe_builder_css_bundle();
+	if ( false !== $bundle ) {
+		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- direct head output is required because Builderius strips normal plugin enqueue hooks in builder mode.
+		echo '<link id="dbe-builder-enhancements" rel="stylesheet" href="' . esc_url( $bundle['url'] ) . '" data-dbe-css-delivery="external">' . "\n";
+		return;
+	}
+
 	$css = dbe_builder_css();
 	if ( '' !== trim( $css ) ) {
-		// Trusted plugin asset files — printed verbatim.
-		echo '<style id="dbe-builder-enhancements">' . "\n" . $css . '</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		// Trusted plugin asset files — printed verbatim as a fail-soft fallback.
+		echo '<style id="dbe-builder-enhancements" data-dbe-css-delivery="inline">' . "\n" . $css . '</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
