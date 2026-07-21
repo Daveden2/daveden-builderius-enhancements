@@ -42,8 +42,18 @@ if ( $admins ) {
 }
 
 dbe_test_assert( function_exists( 'dbe_ability_parse_fragment' ), 'The subtree ability parser is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_register_template_abilities' ), 'The template ability registrar is not loaded.' );
+dbe_test_assert( function_exists( 'dbe_ability_create_template' ), 'The template ability callbacks are not loaded.' );
 dbe_test_assert( function_exists( 'dbe_css_blocks_parse' ), 'The shared CSS block parser is not loaded.' );
 dbe_test_assert( function_exists( 'dbe_presence_beat' ), 'The presence service is not loaded.' );
+
+if ( function_exists( 'dbe_ability_serialize_apply_rules' ) ) {
+	$invalid_apply_rules = dbe_ability_serialize_apply_rules( array() );
+	dbe_test_assert(
+		is_wp_error( $invalid_apply_rules ) && 'dbe_bad_apply_rules' === $invalid_apply_rules->get_error_code(),
+		'The extracted template domain changed apply-rule validation.'
+	);
+}
 
 if ( function_exists( 'dbe_ability_parse_fragment' ) ) {
 	$type_mismatch = dbe_ability_parse_fragment(
