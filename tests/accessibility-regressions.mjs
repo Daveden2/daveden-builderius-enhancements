@@ -300,8 +300,8 @@ assert.match(
 );
 assert.match(
     builder,
-    /function dbeCommandHooksApi\(\)[\s\S]+dbeCommandHookApi = window\.Builderius\.API\.hooks[\s\S]+function dbeBindCommandHook\(hook, namespace, callback\)[\s\S]+api\.addAction\(hook, namespace, callback\)[\s\S]+function dbeDestroyCommandHooks\(\)[\s\S]+api\.removeAction\(item\.hook, item\.namespace\)/,
-    'Builderius context-menu subscriptions must retain their startup API and unsubscribe during teardown.'
+    /function dbeOwnedHooksApi\(\)[\s\S]+dbeOwnedHookApi = window\.Builderius\.API\.hooks[\s\S]+function dbeBindOwnedHook\(owner, hook, namespace, callback\)[\s\S]+api\.addAction\(hook, namespace, callback\)[\s\S]+function dbeDestroyOwnedHooks\(owner\)[\s\S]+api\.removeAction\(item\.hook, item\.namespace\)/,
+    'Controller-owned Builderius subscriptions must retain their startup API and unsubscribe during teardown.'
 );
 assert.match(
     builder,
@@ -340,8 +340,53 @@ assert.match(
 );
 assert.match(
     builder,
-    /function destroyCommands\(\)[\s\S]+dbeObserveChrome\('commands-top', null\)[\s\S]+dbeDestroyCommandHooks\(\)[\s\S]+dbeReleaseCommandFrameDocuments\(null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_COMMANDS_OWNER\)[\s\S]+dialog\.dbe-palette[\s\S]+dbeKeyboardFrame = null/,
+    /function destroyCommands\(\)[\s\S]+dbeObserveChrome\('commands-top', null\)[\s\S]+dbeDestroyOwnedHooks\(DBE_COMMANDS_OWNER\)[\s\S]+dbeReleaseCommandFrameDocuments\(null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_COMMANDS_OWNER\)[\s\S]+dialog\.dbe-palette[\s\S]+dbeKeyboardFrame = null/,
     'Command teardown must release observations, hooks, iframe activity and generated interfaces.'
+);
+assert.match(
+    builder,
+    /dbeControllers\.register\(DBE_EDITING_OWNER,[\s\S]+hookHistoryCapture\(\)[\s\S]+bindUndoKeys\(\)[\s\S]+hookImageDefaults\(\)[\s\S]+bindDblclickRename\(\)[\s\S]+destroyEditing\(\)/,
+    'Editing hooks and global keys must participate in the shared controller lifecycle.'
+);
+assert.match(
+    builder,
+    /function hookHistoryCapture\(\)[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.deleted'[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.added'/,
+    'History capture must use removable editing-owned hooks.'
+);
+assert.match(
+    builder,
+    /function hookImageDefaults\(\)[\s\S]+dbeBindOwnedHook\(DBE_EDITING_OWNER, 'builderius\.Module\.added'/,
+    'Image defaults must use a removable editing-owned hook.'
+);
+assert.match(
+    builder,
+    /function bindUndoKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'history-key'[\s\S]+function bindDblclickRename\(\)[\s\S]+dbeBindOwnedEvent\(DBE_EDITING_OWNER, document, 'double-click-rename'/,
+    'Undo and double-click rename listeners must be removable with the editing controller.'
+);
+assert.match(
+    builder,
+    /function closeRename\(commit, restoreFocus\)[\s\S]+dbeRestoreRenameFocus\(st\.id, st\.focusReturn\)[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
+    'Committing or cancelling inline rename from the keyboard must return focus to its tree row.'
+);
+assert.match(
+    builder,
+    /function openEditHtmlDialog\(rootId\)[\s\S]+restoreFocusOnClose[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER, updatePreview[\s\S]+dbeEditingDialogFocusReturn\(focusReturn\)[\s\S]+function openImportHtmlDialog\(targetId\)[\s\S]+dbeSetOwnedTimeout\(DBE_EDITING_OWNER, refreshPreview[\s\S]+dbeEditingDialogFocusReturn\(focusReturn\)/,
+    'HTML editing dialogs must own debounce work and restore focus when dismissed without applying.'
+);
+assert.match(
+    builder,
+    /function dbeBindEditingDialogEscape\(dlg, surface\)[\s\S]+\(surface \|\| dlg\)\.addEventListener\('keydown'[\s\S]+e\.key !== 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeBindEditingDialogEscape\(dlg, editor\.el\)/,
+    'Editing dialogs must close explicitly on Escape before embedded editors can consume the key.'
+);
+assert.match(
+    builder,
+    /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape: function \(\) \{ dlg\.close\(\); \}/,
+    'Monaco editing dialogs must handle Escape through the editor event and command APIs.'
+);
+assert.match(
+    builder,
+    /function destroyEditing\(\)[\s\S]+closeRename\(false, true\)[\s\S]+dbeRemovePriorHtmlDialog\(\)[\s\S]+dbeRemovePriorBemDialog\(\)[\s\S]+undoStack = \[\][\s\S]+dbeDestroyOwnedHooks\(DBE_EDITING_OWNER\)[\s\S]+dbeDestroyOwnedActivity\(DBE_EDITING_OWNER\)/,
+    'Editing teardown must remove transient interfaces, history, hooks and owned activity.'
 );
 assert.doesNotMatch(
     builder,

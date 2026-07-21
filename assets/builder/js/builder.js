@@ -742,15 +742,14 @@
         } finally { dbeUndoBusy = wasBusy; }
     }
     function hookImageDefaults() {
-        try {
-            window.Builderius.API.hooks.addAction('builderius.Module.added', 'dbeImageDefaults', function (p) {
-                if (dbeUndoBusy || !p || !p.id) { return; }
-                // Defer out of the dispatch so the add settles first. The
-                // upsert re-fires this hook, but by then src and alt exist and
-                // the second pass is a no-op, so it cannot loop.
-                setTimeout(function () { try { dbeApplyImageDefaults(p.id); } catch (e) {} }, 0);
-            });
-        } catch (e) {}
+        dbeBindOwnedHook(DBE_EDITING_OWNER, 'builderius.Module.added', 'dbeImageDefaults', function (p) {
+            if (dbeUndoBusy || !p || !p.id) { return; }
+            // Defer out of the dispatch so the add settles first. The upsert
+            // re-fires this hook, but the second pass is a no-op.
+            dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+                try { dbeApplyImageDefaults(p.id); } catch (e) {}
+            }, 0);
+        });
     }
 
     /* (d1) Structural moves all use Builderius' own move action (the repaint-and-
@@ -923,7 +922,13 @@
         return tag && typeof tag.value === 'string' ? tag.value : '';
     }
 
-    function closeRename(commit) {
+    function dbeRestoreRenameFocus(id, preferred) {
+        var target = preferred && preferred.isConnected
+            ? preferred : document.querySelector('.uniRightPanel .uni-tree-node-' + id);
+        if (target) { try { target.focus(); } catch (e) {} }
+    }
+
+    function closeRename(commit, restoreFocus) {
         var st = renameState;
         if (!st) { return; }
         renameState = null;
@@ -931,12 +936,16 @@
         st.input.remove();
         st.wrapper.classList.remove('dbe-renaming');
         if (st.li) { st.li.setAttribute('draggable', st.prevDraggable); }
-        if (!commit) { return; }
+        if (!commit) {
+            if (restoreFocus) { dbeRestoreRenameFocus(st.id, st.focusReturn); }
+            return;
+        }
         if (!next) { next = defaultLabelFor(st.id); } // emptied field = reset to default
-        if (next && next !== st.oldLabel) { commitRename(st.id, next); }
+        if (next && next !== st.oldLabel) { commitRename(st.id, next, restoreFocus ? st.focusReturn : null); }
+        else if (restoreFocus) { dbeRestoreRenameFocus(st.id, st.focusReturn); }
     }
 
-    function commitRename(id, label) {
+    function commitRename(id, label, focusReturn) {
         var row = document.querySelector('.uniRightPanel .uni-tree-node-' + id);
         if (activeId() !== id) {
             if (!row) { return; }
@@ -954,6 +963,7 @@
             document.execCommand('selectAll', false, null);
             document.execCommand('insertText', false, label);
             ed.blur();
+            if (focusReturn) { dbeRestoreRenameFocus(id, focusReturn); }
         });
     }
 
@@ -974,6 +984,7 @@
 
         renameState = {
             id: id, input: input, wrapper: wrapper, li: li, oldLabel: oldLabel,
+            focusReturn: row,
             prevDraggable: li ? (li.getAttribute('draggable') || 'true') : 'true'
         };
 
@@ -981,8 +992,8 @@
         // module!), and pointer events must not select the row or start a drag.
         input.addEventListener('keydown', function (ev) {
             ev.stopPropagation();
-            if (ev.key === 'Enter') { ev.preventDefault(); closeRename(true); }
-            else if (ev.key === 'Escape') { ev.preventDefault(); closeRename(false); }
+            if (ev.key === 'Enter') { ev.preventDefault(); closeRename(true, true); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); closeRename(false, true); }
         });
         ['keyup', 'keypress', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick']
             .forEach(function (t) { input.addEventListener(t, function (ev) { ev.stopPropagation(); }); });
@@ -1113,13 +1124,21 @@
 
     var BEM_CLASS_RE = /^-?[A-Za-z_][A-Za-z0-9_-]*$/;
 
+    function dbeRemovePriorBemDialog() {
+        var old = document.querySelector('dialog.dbe-bem');
+        if (!old) { return; }
+        if (old.open) { try { old.close(); } catch (e) {} }
+        if (old.isConnected) { old.remove(); }
+    }
+
     function openAutoBemDialog(rootId) {
         if (dbeBemBusy) { return; }
         var rows = bemCollectRows(rootId);
         if (!rows.length || !rows[0].supported) { return; }
 
-        var old = document.querySelector('dialog.dbe-bem');
-        if (old) { old.remove(); }
+        dbeRemovePriorBemDialog();
+        var focusReturn = document.activeElement;
+        var restoreFocusOnClose = true;
         var dlg = document.createElement('dialog');
         dlg.className = 'dbe-bem';
         dlg.setAttribute('aria-label', dbeT('autoBem', 'Auto-BEM'));
@@ -1249,6 +1268,7 @@
             }
             // The dialog is showModal(): everything outside it is inert, so it
             // MUST close before the queue can click tree rows and the picker.
+            restoreFocusOnClose = false;
             dlg.close();
             applyBemQueue(jobs);
         });
@@ -1266,11 +1286,15 @@
         // Stopping propagation at the dialog leaves the inner controls' own
         // target-phase handlers (Apply/Cancel, the checkboxes) working while the
         // builder never sees the event.
+        dbeBindEditingDialogEscape(dlg);
         dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { dlg.remove(); });
+        dlg.addEventListener('close', function () {
+            dlg.remove();
+            if (restoreFocusOnClose) { dbeEditingDialogFocusReturn(focusReturn); }
+        });
         document.body.appendChild(dlg);
         dlg.showModal();
         blockInput.focus();
@@ -1741,7 +1765,8 @@
     }
 
     function dbeHideToast(t) {
-        clearTimeout(toastTimer);
+        dbeClearOwnedTimeout(DBE_EDITING_OWNER, toastTimer);
+        toastTimer = null;
         t.classList.remove('is-visible');
         t.setAttribute('aria-hidden', 'true');
         var action = t.querySelector('.dbe-undo-toast__action');
@@ -1749,8 +1774,8 @@
     }
 
     function dbeScheduleToast(t) {
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { dbeHideToast(t); }, toastDuration);
+        dbeClearOwnedTimeout(DBE_EDITING_OWNER, toastTimer);
+        toastTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () { dbeHideToast(t); }, toastDuration);
     }
 
     function undoToast(msg, action) {
@@ -1758,11 +1783,11 @@
         if (!t) {
             t = document.createElement('div');
             t.className = 'dbe-undo-toast';
-            t.addEventListener('mouseenter', function () { clearTimeout(toastTimer); });
+            t.addEventListener('mouseenter', function () { dbeClearOwnedTimeout(DBE_EDITING_OWNER, toastTimer); });
             t.addEventListener('mouseleave', function () { dbeScheduleToast(t); });
-            t.addEventListener('focusin', function () { clearTimeout(toastTimer); });
+            t.addEventListener('focusin', function () { dbeClearOwnedTimeout(DBE_EDITING_OWNER, toastTimer); });
             t.addEventListener('focusout', function () {
-                setTimeout(function () {
+                dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
                     if (!t.contains(document.activeElement)) { dbeScheduleToast(t); }
                 }, 0);
             });
@@ -1833,43 +1858,38 @@
     }
 
     function hookHistoryCapture() {
-        try {
-            var api = window.Builderius.API.hooks;
-            // DELETE: the element is already gone from the live store, so rebuild
-            // its subtree from the most recent history snapshot that still holds
-            // it. Undo re-adds it, hence op:'restore'.
-            api.addAction('builderius.Module.deleted', 'dbeUndoCaptureDel', function (p) {
-                if (dbeUndoBusy || !p || !p.id) { return; }
-                var hist;
-                try { hist = store().storeGet('history') || []; } catch (e) { return; }
-                var snapMods = null;
-                for (var i = hist.length - 1; i >= 0; i--) {
-                    var sm = hist[i].snapshot && hist[i].snapshot.modules;
-                    if (sm && sm[p.id]) { snapMods = sm; break; }
-                }
-                if (!snapMods) { return; }
-                dbeHistoryPush({
-                    op: 'restore',
-                    id: p.id,
-                    label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
-                    parentId: snapMods[p.id].parent || '',
-                    subtree: dbeCollectSubtree(snapMods, p.id)
-                });
+        // DELETE: the element is already gone from the live store, so rebuild
+        // its subtree from the most recent history snapshot that still holds it.
+        dbeBindOwnedHook(DBE_EDITING_OWNER, 'builderius.Module.deleted', 'dbeUndoCaptureDel', function (p) {
+            if (dbeUndoBusy || !p || !p.id) { return; }
+            var hist;
+            try { hist = store().storeGet('history') || []; } catch (e) { return; }
+            var snapMods = null;
+            for (var i = hist.length - 1; i >= 0; i--) {
+                var sm = hist[i].snapshot && hist[i].snapshot.modules;
+                if (sm && sm[p.id]) { snapMods = sm; break; }
+            }
+            if (!snapMods) { return; }
+            dbeHistoryPush({
+                op: 'restore',
+                id: p.id,
+                label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
+                parentId: snapMods[p.id].parent || '',
+                subtree: dbeCollectSubtree(snapMods, p.id)
             });
-            // ADD: undo removes it, hence op:'remove'. The subtree needed to
-            // re-add it on redo is snapshotted from the live store at undo time
-            // (the element still exists then), so only the id + label are stored.
-            api.addAction('builderius.Module.added', 'dbeUndoCaptureAdd', function (p) {
-                if (dbeUndoBusy || !p || !p.id) { return; }
-                var m = (modules() || {})[p.id];
-                dbeHistoryPush({
-                    op: 'remove',
-                    id: p.id,
-                    label: (m && (m.label || m.name)) || dbeT('element', 'element'),
-                    parentId: (m && m.parent) || ''
-                });
+        });
+        // ADD: undo removes it, hence op:'remove'. The subtree needed to re-add
+        // it on redo is snapshotted from the live store at undo time.
+        dbeBindOwnedHook(DBE_EDITING_OWNER, 'builderius.Module.added', 'dbeUndoCaptureAdd', function (p) {
+            if (dbeUndoBusy || !p || !p.id) { return; }
+            var m = (modules() || {})[p.id];
+            dbeHistoryPush({
+                op: 'remove',
+                id: p.id,
+                label: (m && (m.label || m.name)) || dbeT('element', 'element'),
+                parentId: (m && m.parent) || ''
             });
-        } catch (e) {}
+        });
     }
 
     /* ============================ Edit as HTML ============================
@@ -2542,6 +2562,28 @@
                 });
             } catch (e) { ed = null; }
             if (ed) {
+                var escapeKeyListener = null;
+                var escapeAction = null;
+                if (opts.onEscape && typeof ed.onKeyDown === 'function') {
+                    escapeKeyListener = ed.onKeyDown(function (event) {
+                        var browserEvent = event && event.browserEvent;
+                        if (!browserEvent || browserEvent.key !== 'Escape') { return; }
+                        event.preventDefault();
+                        event.stopPropagation();
+                        opts.onEscape();
+                    });
+                }
+                if (opts.onEscape && api.KeyCode && typeof ed.addCommand === 'function') {
+                    ed.addCommand(api.KeyCode.Escape, opts.onEscape);
+                }
+                if (opts.onEscape && api.KeyCode && typeof ed.addAction === 'function') {
+                    escapeAction = ed.addAction({
+                        id: 'dbe-close-editing-dialog',
+                        label: dbeT('close', 'Close'),
+                        keybindings: [api.KeyCode.Escape],
+                        run: opts.onEscape
+                    });
+                }
                 /* Recede the data-dbe-id markers. They must stay on every
                    element for identity, but they are machine ids, not content
                    — dimming them lets the real markup (tags, classes, text)
@@ -2561,8 +2603,8 @@
                 }
                 decorateMarkers();
                 ed.onDidChangeModelContent(function () {
-                    if (decoTimer) { clearTimeout(decoTimer); }
-                    decoTimer = setTimeout(decorateMarkers, 120);
+                    dbeClearOwnedTimeout(DBE_EDITING_OWNER, decoTimer);
+                    decoTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, decorateMarkers, 120);
                 });
                 return {
                     el: host,
@@ -2574,7 +2616,12 @@
                     cursorStart: function () { try { ed.setPosition({ lineNumber: 1, column: 1 }); } catch (e) {} },
                     onChange: function (cb) { ed.onDidChangeModelContent(cb); },
                     layout: function () { try { ed.layout(); } catch (e) {} },
-                    dispose: function () { if (decoTimer) { clearTimeout(decoTimer); } try { ed.dispose(); } catch (e) {} }
+                    dispose: function () {
+                        dbeClearOwnedTimeout(DBE_EDITING_OWNER, decoTimer);
+                        if (escapeKeyListener) { try { escapeKeyListener.dispose(); } catch (e) {} }
+                        if (escapeAction) { try { escapeAction.dispose(); } catch (e) {} }
+                        try { ed.dispose(); } catch (e) {}
+                    }
                 };
             }
             host.remove();
@@ -2606,6 +2653,34 @@
         return warning;
     }
 
+    function dbeEditingDialogFocusReturn(preferred) {
+        var target = preferred && preferred.isConnected ? preferred : null;
+        if (!target) {
+            target = document.querySelector('.uniRightPanel .uniModTree__item[tabindex="0"]')
+                || document.querySelector('.dbe-palette-btn');
+        }
+        if (target) { try { target.focus(); } catch (e) {} }
+    }
+
+    function dbeBindEditingDialogEscape(dlg, surface) {
+        // Monaco consumes Escape at its editor surface, before the browser can
+        // perform native <dialog> cancellation. Capture only Escape here; all
+        // other keys must still reach the editor and form controls normally.
+        (surface || dlg).addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            dlg.close();
+        }, true);
+    }
+
+    function dbeRemovePriorHtmlDialog() {
+        var old = document.querySelector('dialog.dbe-html');
+        if (!old) { return; }
+        if (old.open) { try { old.close(); } catch (e) {} }
+        if (old.isConnected) { old.remove(); }
+    }
+
     function openEditHtmlDialog(rootId) {
         if (dbeHtmlBusy) { return; }
         var mods = modules() || {};
@@ -2619,8 +2694,9 @@
             ((store().storeGet('indexes') || {})[id] || []).forEach(collect);
         })(rootId);
 
-        var old = document.querySelector('dialog.dbe-html');
-        if (old) { old.remove(); }
+        dbeRemovePriorHtmlDialog();
+        var focusReturn = document.activeElement;
+        var restoreFocusOnClose = true;
         var dlg = document.createElement('dialog');
         dlg.className = 'dbe-html';
         dlg.setAttribute('aria-label', dbeT('editAsHtml', 'Edit as HTML'));
@@ -2644,13 +2720,14 @@
         hint.className = 'dbe-html__hint';
         var hintText = document.createElement('span');
         hintText.textContent = dbeT('editAsHtmlHint',
-            'Keep an element’s data-dbe-id marker and its label, conditions and other settings survive the edit; elements without one are created fresh, and removed markers remove their elements. Scripts, event handlers and unknown tags are stripped.');
+            'Keep an element’s data-dbe-id to preserve its settings. Components use <dbe-component>; unsupported modules use <dbe-keep>. Review what will be updated, added, removed or sanitised before applying.');
         hint.appendChild(hintText);
         dlg.appendChild(hint);
 
         var editor = dbeMakeCodeEditor({
             value: dbeSerializeSubtree(rootId),
-            ariaLabel: dbeT('editAsHtmlEditor', 'HTML markup')
+            ariaLabel: dbeT('editAsHtmlEditor', 'HTML markup'),
+            onEscape: function () { dlg.close(); }
         });
         dlg.appendChild(editor.el);
 
@@ -2695,6 +2772,7 @@
             }
             // The dialog is showModal(): it must close before the apply queue
             // can drive tree rows and the native Remove menu.
+            restoreFocusOnClose = false;
             dlg.close();
             dbeHtmlBusy = true;
             expandSubtree(rootId); // removal drives need reachable rows
@@ -2762,20 +2840,26 @@
         }
         var previewTimer = null;
         editor.onChange(function () {
-            if (previewTimer) { clearTimeout(previewTimer); }
+            dbeClearOwnedTimeout(DBE_EDITING_OWNER, previewTimer);
             reviewedHtml = null;
             apply.textContent = dbeT('reviewChanges', 'Review changes');
-            previewTimer = setTimeout(updatePreview, 150);
+            previewTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, updatePreview, 150);
         });
 
         // Same isolation as the Auto-BEM dialog: keys and pointer events must
         // not reach the builder's global handlers (Delete removes the selected
         // element; an outside click handler reverts native control toggles).
+        dbeBindEditingDialogEscape(dlg, editor.el);
         dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { if (previewTimer) { clearTimeout(previewTimer); } editor.dispose(); dlg.remove(); });
+        dlg.addEventListener('close', function () {
+            dbeClearOwnedTimeout(DBE_EDITING_OWNER, previewTimer);
+            editor.dispose();
+            dlg.remove();
+            if (restoreFocusOnClose) { dbeEditingDialogFocusReturn(focusReturn); }
+        });
         document.body.appendChild(dlg);
         dlg.showModal();
         editor.layout(); // Monaco was created in the pre-show (0-size) dialog
@@ -3073,8 +3157,9 @@
         var mods = modules() || {};
         if (!mods[targetId]) { return; }
 
-        var old = document.querySelector('dialog.dbe-html');
-        if (old) { old.remove(); }
+        dbeRemovePriorHtmlDialog();
+        var focusReturn = document.activeElement;
+        var restoreFocusOnClose = true;
         var dlg = document.createElement('dialog');
         dlg.className = 'dbe-html dbe-html--import';
         dlg.setAttribute('aria-label', dbeT('importHtml', 'Import HTML'));
@@ -3105,7 +3190,10 @@
             'Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label="…" to any element to name it in the Navigator, or insert a component with <dbe-component name="slug">.');
         dlg.appendChild(hint);
 
-        var editor = dbeMakeCodeEditor({ ariaLabel: dbeT('importHtmlEditor', 'HTML to import') });
+        var editor = dbeMakeCodeEditor({
+            ariaLabel: dbeT('importHtmlEditor', 'HTML to import'),
+            onEscape: function () { dlg.close(); }
+        });
         dlg.appendChild(editor.el);
 
         // Repetition offer — shown only when the parsed markup contains
@@ -3221,8 +3309,8 @@
             insert.disabled = false;
         }
         editor.onChange(function () {
-            clearTimeout(previewTimer);
-            previewTimer = setTimeout(refreshPreview, 250);
+            dbeClearOwnedTimeout(DBE_EDITING_OWNER, previewTimer);
+            previewTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, refreshPreview, 250);
         });
         collapseCheck.addEventListener('change', refreshPreview);
         wireCheck.addEventListener('change', refreshPreview);
@@ -3235,6 +3323,7 @@
             // A Collection target accepts static elements as well as templates
             // (the <template> child is the repeatable, the rest render once), so
             // no root-type restriction is applied here.
+            restoreFocusOnClose = false;
             dlg.close();
             var wasBusy = dbeUndoBusy;
             dbeUndoBusy = true;
@@ -3263,11 +3352,17 @@
             }
         });
 
+        dbeBindEditingDialogEscape(dlg, editor.el);
         dlg.addEventListener('keydown', function (e) { e.stopPropagation(); });
         ['pointerdown', 'mousedown', 'click'].forEach(function (t) {
             dlg.addEventListener(t, function (e) { e.stopPropagation(); });
         });
-        dlg.addEventListener('close', function () { editor.dispose(); dlg.remove(); });
+        dlg.addEventListener('close', function () {
+            dbeClearOwnedTimeout(DBE_EDITING_OWNER, previewTimer);
+            editor.dispose();
+            dlg.remove();
+            if (restoreFocusOnClose) { dbeEditingDialogFocusReturn(focusReturn); }
+        });
         document.body.appendChild(dlg);
         dlg.showModal();
         editor.layout(); // Monaco was created in the pre-show (0-size) dialog
@@ -3638,7 +3733,7 @@
             var m = btn && btn.className.toString().match(/uni-tree-node-(\w+)/);
             dbePasteCtxRow = m ? m[1] : null;
         }, true);
-        dbeBindCommandHook('builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; });
+        dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.hide', 'dbePasteCtx', function () { dbePasteCtxRow = null; });
         // Swallow the whole activation sequence: the native item may act on
         // any of these, and the menu keyboard model activates through the
         // same synthetic chain (clickSeq); the flow itself runs on click.
@@ -3676,7 +3771,7 @@
     }
 
     function bindUndoKeys() {
-        document.addEventListener('keydown', function (e) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'history-key', 'keydown', function (e) {
             if (!(e.metaKey || e.ctrlKey) || (e.key || '').toLowerCase() !== 'z') { return; }
             // Leave text-editing undo alone: inputs, contenteditables (settings
             // header rename), Monaco code editors, and our inline rename field.
@@ -7033,6 +7128,8 @@
     var dbeOwnedEventBindings = [];
     var dbeOwnedTimers = [];
     var dbeOwnedFrames = [];
+    var dbeOwnedHookBindings = [];
+    var dbeOwnedHookApi = null;
     function dbePruneGroupState() {
         dbeGroupBindings = dbeGroupBindings.filter(function (binding) {
             if (binding.node.isConnected) { return true; }
@@ -7114,6 +7211,13 @@
         dbeOwnedTimers.push(timer);
         return timer.id;
     }
+    function dbeClearOwnedTimeout(owner, id) {
+        if (!id) { return; }
+        clearTimeout(id);
+        dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) {
+            return timer.owner !== owner || timer.id !== id;
+        });
+    }
     function dbeSetOwnedFrame(owner, callback) {
         var frame = { owner: owner, id: 0 };
         frame.id = requestAnimationFrame(function () {
@@ -7136,6 +7240,30 @@
             cancelAnimationFrame(frame.id);
         });
         dbeOwnedFrames = dbeOwnedFrames.filter(function (frame) { return frame.owner !== owner; });
+    }
+    function dbeOwnedHooksApi() {
+        if (dbeOwnedHookApi) { return dbeOwnedHookApi; }
+        try { dbeOwnedHookApi = window.Builderius.API.hooks; } catch (e) { dbeOwnedHookApi = null; }
+        return dbeOwnedHookApi;
+    }
+    function dbeBindOwnedHook(owner, hook, namespace, callback) {
+        var api = dbeOwnedHooksApi();
+        if (!owner || !api || typeof api.addAction !== 'function' || dbeOwnedHookBindings.some(function (item) {
+            return item.owner === owner && item.hook === hook && item.namespace === namespace;
+        })) { return; }
+        api.addAction(hook, namespace, callback);
+        dbeOwnedHookBindings.push({ owner: owner, hook: hook, namespace: namespace });
+    }
+    function dbeDestroyOwnedHooks(owner) {
+        var api = dbeOwnedHooksApi();
+        if (api && typeof api.removeAction === 'function') {
+            dbeOwnedHookBindings.filter(function (item) { return item.owner === owner; }).forEach(function (item) {
+                api.removeAction(item.hook, item.namespace);
+            });
+        }
+        dbeOwnedHookBindings = dbeOwnedHookBindings.filter(function (item) { return item.owner !== owner; });
+        // Builderius removes window.Builderius after boot. Retain only this API
+        // reference so controllers can unsubscribe and later initialise again.
     }
 
     function dbeEnsureGroup(container, label, sel, opts) {
@@ -10145,35 +10273,8 @@
        into that document. */
     var DBE_COMMANDS_OWNER = 'commands';
     var dbeCommandsControllerActive = false;
-    var dbeCommandHooks = [];
-    var dbeCommandHookApi = null;
     var dbeKeyboardFrame = null;
     var dbeCommandFrameDocuments = [];
-
-    function dbeCommandHooksApi() {
-        if (dbeCommandHookApi) { return dbeCommandHookApi; }
-        try { dbeCommandHookApi = window.Builderius.API.hooks; } catch (e) { dbeCommandHookApi = null; }
-        return dbeCommandHookApi;
-    }
-
-    function dbeBindCommandHook(hook, namespace, callback) {
-        var api = dbeCommandHooksApi();
-        if (!api || typeof api.addAction !== 'function' || dbeCommandHooks.some(function (item) {
-            return item.hook === hook && item.namespace === namespace;
-        })) { return; }
-        api.addAction(hook, namespace, callback);
-        dbeCommandHooks.push({ hook: hook, namespace: namespace });
-    }
-
-    function dbeDestroyCommandHooks() {
-        var api = dbeCommandHooksApi();
-        if (api && typeof api.removeAction === 'function') {
-            dbeCommandHooks.forEach(function (item) { api.removeAction(item.hook, item.namespace); });
-        }
-        dbeCommandHooks = [];
-        // Builderius removes window.Builderius after boot. Retain only this API
-        // reference so a later controller re-init can subscribe again.
-    }
 
     function dbeCanvasTextEditingKeydown(e) {
         if (e.key !== 'Escape') { return; }
@@ -12824,7 +12925,7 @@
        field styling, so the feature ships that CSS whether or not inline_rename
        (the context-menu entry point) is also on. */
     function bindDblclickRename() {
-        document.addEventListener('dblclick', function (e) {
+        dbeBindOwnedEvent(DBE_EDITING_OWNER, document, 'double-click-rename', 'dblclick', function (e) {
             var btn = e.target.closest && e.target.closest('.uniRightPanel .uniModTree__item');
             if (!btn) { return; }
             var m = btn.className.toString().match(/uni-tree-node-(\w+)/);
@@ -13921,6 +14022,43 @@
         on('panel_detach') || on('keyboard_shortcuts') || on('command_palette') ||
         on('css_code_default') || on('panel_tabs') || on('reveal_selected'));
 
+    var DBE_EDITING_OWNER = 'editing';
+    var NEED_EDITING = on('undo_delete') || on('image_defaults') || on('inline_rename') ||
+        on('dblclick_rename') || on('keyboard_shortcuts') || on('command_palette') ||
+        on('edit_as_html') || on('import_html') || on('auto_bem') || on('tag_change') ||
+        on('wrap_in') || on('element_moves') || on('navigator_paste');
+
+    function destroyEditing() {
+        closeRename(false, true);
+        dbeRemovePriorHtmlDialog();
+        dbeRemovePriorBemDialog();
+        var toast = document.querySelector('.dbe-undo-toast');
+        if (toast && toast.contains(document.activeElement)) { dbeEditingDialogFocusReturn(null); }
+        if (toast) { toast.remove(); }
+        toastTimer = null;
+        toastDuration = 2600;
+        undoStack = [];
+        redoStack = [];
+        dbeDestroyOwnedHooks(DBE_EDITING_OWNER);
+        dbeDestroyOwnedActivity(DBE_EDITING_OWNER);
+    }
+
+    dbeControllers.register(DBE_EDITING_OWNER, {
+        init: function (context) {
+            if (!context || !context.builderius) { return; }
+            if (on('undo_delete')) {
+                hookHistoryCapture();
+                bindUndoKeys();
+            }
+            if (on('image_defaults')) { hookImageDefaults(); }
+            if (on('dblclick_rename')) { bindDblclickRename(); }
+        },
+        refresh: function () {},
+        destroy: function () {
+            destroyEditing();
+        }
+    }, NEED_EDITING);
+
     function dbeRememberContextTarget(e) {
         var btn = e.target.closest && e.target.closest('.uniModTree__item');
         if (!btn) { return; }
@@ -13976,7 +14114,7 @@
         dbeCommandsControllerActive = false;
         dbeObserveChrome('commands-top', null);
         dbeObserveChrome('commands-main', null);
-        dbeDestroyCommandHooks();
+        dbeDestroyOwnedHooks(DBE_COMMANDS_OWNER);
         dbeReleaseCommandFrameDocuments(null);
         dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
         dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
@@ -14002,14 +14140,14 @@
             dbeCommandsControllerActive = true;
             if (NEED_CTX_MENU) {
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'context-target', 'contextmenu', dbeRememberContextTarget, true);
-                dbeBindCommandHook('builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow);
-                dbeBindCommandHook('builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus);
+                dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow);
+                dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus);
             }
             if (NEED_CTX_MENU || on('navigator_paste') || on('navigator_keyboard')) {
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key', 'keydown', dbeNavigatorContextMenuKeydown, true);
             }
             if (on('footer_toolbar')) {
-                dbeBindCommandHook('builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow);
+                dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow);
             }
             if (on('context_menu')) { bindChipMenu(); }
             if (on('navigator_paste')) {
@@ -14134,15 +14272,6 @@
         // stay parked below for when the drag is fixed.
         if (on('multi_select')) { bindMultiSelect(); bindMultiDrag(); }
 
-        // Undo/redo element adds & deletes (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z).
-        if (on('undo_delete')) {
-            hookHistoryCapture();
-            bindUndoKeys();
-        }
-
-        // Seed new Image elements with a placeholder src and an empty alt.
-        if (on('image_defaults')) { hookImageDefaults(); }
-
         // Cmd/Ctrl+S saves the template.
         if (on('save_shortcut')) { bindSaveShortcut(); }
 
@@ -14151,9 +14280,6 @@
 
         // Save split-button menu.
         if (on('save_split_button')) { bindSaveMenuKeys(); }
-
-        // Double-click a Navigator row to rename it inline.
-        if (on('dblclick_rename')) { bindDblclickRename(); }
 
         // Follow the preview selection: expand + scroll the active row into view.
         if (on('reveal_selected')) { bindRevealActive(); }
