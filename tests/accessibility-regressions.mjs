@@ -18,6 +18,7 @@ const builder = read('assets/builder/js/builder.js');
 const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
+const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
@@ -68,7 +69,7 @@ assert.match(
     'Panel resize handles must expose a human-readable width.'
 );
 assert.match(
-    builder,
+    commands,
     /setAttribute\('aria-keyshortcuts', dbePaletteAriaShortcut\(\)\)/,
     'The command-palette button must expose its configured shortcut.'
 );
@@ -78,7 +79,7 @@ assert.match(
     'The Save button must expose Cmd/Ctrl+S when the shortcut is enabled.'
 );
 assert.match(
-    builder,
+    commands,
     /var AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
     'Area-jump shortcuts must run before editable targets suppress element commands.'
 );
@@ -293,12 +294,12 @@ assert.doesNotMatch(
     'The shared refresh pass must not bypass the workspace controller.'
 );
 assert.match(
-    builder,
+    commands,
     /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyCommands\(\)/,
     'Command interfaces must participate in the shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeRefreshCommands\(\)[\s\S]+dbeObserveCommands\(\)[\s\S]+ensurePaletteButton\(\)[\s\S]+ensureKeyboardIframeBridge\(\)[\s\S]+decorateClassChips\(\)/,
     'The commands controller must refresh its top-bar, iframe and class-chip surfaces.'
 );
@@ -308,9 +309,14 @@ assert.match(
     'Controller-owned Builderius subscriptions must retain their startup API and unsubscribe during teardown.'
 );
 assert.match(
-    builder,
+    commands,
     /input\.setAttribute\('aria-label', dbeT\('searchCommandsLabel', 'Search commands'\)\)/,
     'The command search field must use concise spoken copy independently of its visual placeholder.'
+);
+assert.match(
+    commands,
+    /function openShortcutsDialog\(\)[\s\S]+e\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeShortcutFocusReturn[\s\S]+target\.focus\(\)/,
+    'Shortcut help must close explicitly on Escape and return focus to its invoker.'
 );
 assert.match(
     strings,
@@ -318,32 +324,32 @@ assert.match(
     'Command search must provide a dedicated translatable accessible label.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeBindKeyboardFrameDocument\(frame\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'palette-key'[\s\S]+canvas-text-editing-key[\s\S]+canvas-navigation-key[\s\S]+reveal-selection-click/,
     'The preview bridge must own every inner-document keyboard and selection listener.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeReleaseCommandFrameDocuments\(keepDoc\)[\s\S]+dbeUnbindOwnedEvent\(DBE_COMMANDS_OWNER, record\.doc[\s\S]+record\.observer\.disconnect\(\)[\s\S]+function ensureKeyboardIframeBridge\(\)[\s\S]+canvas-frame-load/,
     'Reloaded preview documents must release listeners and observers before the new bridge binds.'
 );
 assert.match(
-    builder,
+    commands,
     /function setupMenuKeyboard\(container\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, dialog, 'context-menu-keys'/,
     'Native context-menu keyboard handling must be removable with the commands controller.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeNavigatorContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+row\.dispatchEvent\(new MouseEvent\('contextmenu'[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key'/,
     'Navigator rows must explicitly open their context menu from Shift+F10 and the Menu key.'
 );
 assert.match(
-    builder,
+    commands,
     /function decorateClassChips\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_COMMANDS_OWNER, li, \['tabindex'\]\)/,
     'Class-chip focusability must restore the native tabindex on teardown.'
 );
 assert.match(
-    builder,
+    commands,
     /function destroyCommands\(\)[\s\S]+dbeObserveChrome\('commands-top', null\)[\s\S]+dbeDestroyOwnedHooks\(DBE_COMMANDS_OWNER\)[\s\S]+dbeReleaseCommandFrameDocuments\(null\)[\s\S]+dbeDestroyOwnedActivity\(DBE_COMMANDS_OWNER\)[\s\S]+dialog\.dbe-palette[\s\S]+dbeKeyboardFrame = null/,
     'Command teardown must release observations, hooks, iframe activity and generated interfaces.'
 );
@@ -413,17 +419,17 @@ assert.match(
     'Editing teardown must remove transient interfaces, history, hooks and owned activity.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeStampSaveMenu\(menu\)[\s\S]+dbeRememberOwnedAttributes\(DBE_COMMANDS_OWNER, menu[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, dlg, 'save-menu-close'[\s\S]+function bindSaveMenuKeys\(\)[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'save-menu-keys'/,
     'The Save menu must give its generated semantics and document keys to the commands controller.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeWatchSaveMenuOpen\(focusFirst\)[\s\S]+40, DBE_COMMANDS_OWNER[\s\S]+function revealActiveInTree\(\)[\s\S]+60, DBE_COMMANDS_OWNER/,
     'Save-menu mount polling and selection reveal must use cancellable commands-owned work.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeRefreshCommands\(\)[\s\S]+ensureSaveMenuButton\(\)[\s\S]+revealActiveInTree\(\)[\s\S]+dbeSyncSelectionContext\(\)[\s\S]+function destroyCommands\(\)[\s\S]+\.dbe-save-menu-btn[\s\S]+\.dbe-canvas-selection-context/,
     'Save-menu and selection-reveal interfaces must refresh and tear down through commands.'
 );
@@ -473,7 +479,7 @@ assert.match(
     'Styles navigation and selector polling must use controller-owned delayed work.'
 );
 assert.doesNotMatch(
-    builder,
+    commands,
     /dbeShortcutKeyBound|dbePaletteKeyBound|dbeChipDismissBound|dbeChipDecorated|dbeCanvasTextEditingKeyBound|dbeCanvasNavigationKeyBound|dbeRevealSelectionBound|dbeCanvasTextEditingObserver/,
     'Command and iframe listeners must not rely on irreversible flags.'
 );
@@ -573,7 +579,7 @@ assert.match(
     'Feature controllers must register chrome roots through the core observer router.'
 );
 assert.equal(
-    ((builder + workspace + coreRuntime).match(/new MutationObserver/g) || []).length,
+    ((builder + workspace + commands + coreRuntime).match(/new MutationObserver/g) || []).length,
     3,
     'Only the shared chrome router, preview-document bridge and temporary preview-width guard may construct observers.'
 );
@@ -601,7 +607,7 @@ assert.match(
     'Palette search must retain a visible focus indicator.'
 );
 assert.match(
-    builder,
+    commands,
     /if \(e\.key === 'Escape'\) \{[\s\S]{0,180}else \{ dlg\.close\(\); \}/,
     'Palette Escape must close explicitly instead of relying only on browser dialog defaults.'
 );
@@ -621,12 +627,12 @@ assert.match(
     'The native Save disclosure target must meet the 24px target minimum.'
 );
 assert.match(
-    builder,
+    commands,
     /dbe-save-menu-btn[\s\S]+aria-haspopup[\s\S]+aria-expanded[\s\S]+ArrowDown[\s\S]+dbeOpenSaveMenu/,
     'The replacement Save disclosure must retain the APG menu-button contract.'
 );
 assert.match(
-    builder,
+    commands,
     /function dbeStampSaveMenu\(menu\)[\s\S]+role', 'menuitem'[\s\S]+tabindex', '-1'[\s\S]+aria-disabled/,
     'Save menu items must remain focusable, named menu items with truthful unavailable states.'
 );
@@ -650,12 +656,12 @@ assert.doesNotMatch(
     'The live-verified Save menu retrofit should remain a default accessibility feature.'
 );
 assert.doesNotMatch(
-    builder,
+    commands,
     /dbeRevealTimer|setInterval\(function \(\) \{[\s\S]{0,300}revealActiveInTree/,
     'Selection reveal must not return to permanent interval polling.'
 );
 assert.match(
-    builder,
+    commands,
     /dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'reveal-selection-click', 'click'[\s\S]+schedule\('canvas-selection'\)/,
     'Canvas selection changes must schedule the controller-owned event-driven reveal path.'
 );
@@ -745,7 +751,7 @@ assert.match(
     'Compact view changes must be announced and move focus to the chosen destination.'
 );
 assert.match(
-    builder,
+    commands,
     /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
     'Wide-view panel visibility commands must not masquerade as compact-view controls.'
 );
