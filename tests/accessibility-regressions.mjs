@@ -127,6 +127,21 @@ assert.match(
     /function prDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
     'Server presence must use the same corrected dirty-state contract as the visible save cue.'
 );
+assert.match(
+    builder,
+    /var dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
+    'The visible save cue must publish its computed dirty transition to server presence.'
+);
+assert.match(
+    builder,
+    /setInterval\(function \(\) \{ sendBeat\(true\); \}, pr\.interval \|\| 20000\)/,
+    'Server presence keep-alive must use the slow server cadence.'
+);
+assert.match(
+    builder,
+    /if \(!on\('save_state_cue'\)\)[\s\S]{0,160}pr\.transitionInterval \|\| 2500/,
+    'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
+);
 assert.match(saveCue, /\.dbe-save-cue\.is-clean/, 'The clean save state must be visible.');
 assert.match(strings, /'saveClean'\s+=> __\( 'All changes saved'/, 'Clean save copy must remain truthful.');
 assert.match(strings, /'saveCleanShort'\s+=> __\( 'Saved'/, 'The responsive clean-state copy must remain concise.');

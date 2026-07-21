@@ -8560,6 +8560,11 @@
     var dbeSaveLastStamp = 0;
     var dbeSaveSnapshotItem = null;
     var dbeSaveSnapshotSignature = null;
+    /* Assigned by the optional server-presence controller below. Keeping the
+       hand-off here lets the visible save-state calculation publish an already
+       computed dirty value instead of making presence serialise the same
+       snapshot again on its own polling cadence. */
+    var dbePresenceDirtyChanged = function () {};
     function historyLen() {
         try { return (store().storeGet('history') || []).length; } catch (e) { return null; }
     }
@@ -8627,6 +8632,7 @@
         // detectable for the rest of the session.
         if (saveSettingsBaseline === true && !shouldSave) { saveSettingsBaseline = false; }
         var dirty = dbeHasUnsavedChanges(len, shouldSave, snapshotSignature);
+        dbePresenceDirtyChanged(dirty);
         if (dbeSaveState === 'saved' && dirty) { dbeSaveState = ''; }
         var state = dbeSaveState || (dirty ? 'dirty' : 'clean');
         var text = state === 'saving' ? dbeT('saving', 'Saving…')
@@ -13603,10 +13609,10 @@
                 function prDirty() {
                     return dbeHasUnsavedChanges();
                 }
-                function sendBeat(force, clear) {
+                function sendBeat(force, clear, knownDirty) {
                     var slug = prSlug();
                     if (!slug) { return; }
-                    var dirty = clear ? false : prDirty();
+                    var dirty = clear ? false : (typeof knownDirty === 'boolean' ? knownDirty : prDirty());
                     var now = Date.now();
                     if (!force && dirty === prLastDirty && (now - prLastSent) < (pr.interval || 20000)) { return; }
                     prLastDirty = dirty;
@@ -13624,8 +13630,20 @@
                         }).catch(function () {});
                     } catch (e) {}
                 }
+                /* The save cue already calculates dirty state whenever the
+                   Builderius history/settings signals change. Reuse that result
+                   for immediate transition beats; do not run a second 2.5s
+                   snapshot comparison beside it. */
+                dbePresenceDirtyChanged = function (dirty) { sendBeat(false, false, dirty); };
                 sendBeat(true);
-                setInterval(function () { sendBeat(false); }, hb.interval || 2500);
+                /* Server keep-alive has its own deliberately slow cadence. If
+                   the visible save cue is disabled, retain a small transition
+                   scanner so presence still discovers edits promptly; that is
+                   a fallback, not a second timer in the normal configuration. */
+                setInterval(function () { sendBeat(true); }, pr.interval || 20000);
+                if (!on('save_state_cue')) {
+                    setInterval(function () { sendBeat(false); }, pr.transitionInterval || 2500);
+                }
                 window.addEventListener('pagehide', function () { sendBeat(true, true); });
             }
         })();
