@@ -17,13 +17,14 @@ const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
+const styles = read('assets/builder/js/chunks/styles.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
     'The core runtime and feature chunks must load synchronously before the feature host.'
 );
 assert.match(
@@ -45,6 +46,11 @@ assert.match(
     outputBuilder,
     /filemtime\( \$editing_path \)[\s\S]+assets\/builder\/js\/chunks\/editing\.js/,
     'The editing chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$styles_path \)[\s\S]+assets\/builder\/js\/chunks\/styles\.js/,
+    'The styles chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
@@ -142,6 +148,26 @@ assert.match(
     'A missing editing chunk must fail soft with a persistent diagnostic.'
 );
 assert.match(
+    styles,
+    /chunks\.styles = function \(host\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER[\s\S]+host\.setStylesApi\(Object\.freeze\(/,
+    'The styles chunk must register through an explicit host contract and export its shared actions.'
+);
+assert.match(
+    builder,
+    /var dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setStylesApi/,
+    'The feature host must provide grouped styles services and receive its narrow shared API.'
+);
+assert.doesNotMatch(
+    builder,
+    /function dbeRefreshStyles\(|function openStyleInspector\(|function openCssHintDialog\(|function dbeDisableMinimap\(/,
+    'The feature host must not duplicate styles implementations behind its shared API.'
+);
+assert.match(
+    builder,
+    /dataset\.dbeChunkError = 'styles:missing'[\s\S]+Styles chunk failed to load/,
+    'A missing styles chunk must fail soft with a persistent diagnostic.'
+);
+assert.match(
     commands,
     /chunks\.commands = function \(host\)[\s\S]+dbeControllers\.register\(DBE_COMMANDS_OWNER[\s\S]+host\.setCommandsApi\(Object\.freeze\(/,
     'The commands chunk must register through an explicit host contract and export only shared actions.'
@@ -222,6 +248,11 @@ assert.match(
     'Condition, property and attribute helpers must refresh and tear down through the editing controller.'
 );
 assert.match(
+    styles,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+refreshOpenStyleInspector\(\)[\s\S]+function destroyStyles\(\)[\s\S]+dbeRestoreMinimap\(\)/,
+    'CSS editing interfaces must refresh and tear down through the styles controller.'
+);
+assert.match(
     commands,
     /function dbeRefreshCommands\(\)[\s\S]+ensureCollapseButton\(\)[\s\S]+ensureTreeSearch\(\)[\s\S]+ensureRowActions\(\)[\s\S]+function destroyCommands\(\)[\s\S]+dbe-tree-search[\s\S]+dbe-row-actions/,
     'Navigator command surfaces must refresh and tear down through the commands controller.'
@@ -263,6 +294,7 @@ assert.ok(gzipSync(a11y).length < 8 * 1024, 'The first accessibility chunk must 
 assert.ok(gzipSync(composites).length < 35 * 1024, 'The composites chunk must remain within a 35 KB compressed budget.');
 assert.ok(gzipSync(workspace).length < 25 * 1024, 'The workspace chunk must remain within a 25 KB compressed budget.');
 assert.ok(gzipSync(editing).length < 65 * 1024, 'The editing chunk must remain within a 65 KB compressed budget.');
+assert.ok(gzipSync(styles).length < 35 * 1024, 'The styles chunk must remain within a 35 KB compressed budget.');
 assert.ok(gzipSync(commands).length < 55 * 1024, 'The commands chunk must remain within a 55 KB compressed budget.');
 
 // Execute the lifecycle primitives against a small DOM/runtime double so the

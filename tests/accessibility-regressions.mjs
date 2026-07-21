@@ -19,6 +19,7 @@ const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
+const styles = read('assets/builder/js/chunks/styles.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
@@ -441,41 +442,46 @@ assert.doesNotMatch(
 );
 assert.match(
     builder,
-    /var NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
+    /var NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)/,
+    'The host must compute one toggle gate for the styles domain.'
+);
+assert.match(
+    styles,
+    /var NEED_STYLES = host\.needStyles[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
     'Style features must participate in one shared controller lifecycle.'
 );
 assert.match(
-    builder,
+    styles,
     /function dbeObserveStyles\(\)[\s\S]+dbeObserveChrome\('styles-main'[\s\S]+function destroyStyles\(\)[\s\S]+dbeObserveChrome\('styles-main', null\)/,
     'The styles controller must own and release its main-panel observation.'
 );
 assert.match(
-    builder,
+    styles,
     /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)[\s\S]+refreshOpenStyleInspector\(\)/,
     'Style interfaces must refresh through their controller rather than the global scheduler.'
 );
 assert.match(
-    builder,
+    styles,
     /function dbeRestoreMinimap\(\)[\s\S]+dbeMinimapCreateListener\.dispose\(\)[\s\S]+item\.editor\.updateOptions\(\{ minimap: \{ enabled: item\.enabled \} \}\)[\s\S]+dbeMinimapDone = false/,
     'Minimap teardown must dispose the Monaco subscription and restore prior editor state.'
 );
 assert.match(
-    builder,
+    styles,
     /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-style-inspector[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
     'Style teardown must settle transitions, cancel work, remove generated UI and restore Monaco.'
 );
 assert.match(
-    builder,
+    styles,
     /function dbeCloseStyleInspector\(panel\)[\s\S]+preferred && preferred\.isConnected[\s\S]+target\.focus\(\)/,
     'Style inspector dismissal must return focus to a stable invoking control.'
 );
 assert.match(
-    builder,
+    styles,
     /function openCssHintDialog\(\)[\s\S]+dbeCssHintFocusReturn = document\.activeElement[\s\S]+aria-labelledby', 'dbe-css-hint-dialog-title'[\s\S]+title\.id = 'dbe-css-hint-dialog-title'[\s\S]+e\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dlg\.addEventListener\('close'[\s\S]+target\.focus\(\)/,
     'Style help must be named, close explicitly on Escape and return focus to its invoking control.'
 );
 assert.match(
-    builder,
+    styles,
     /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, function \(\) \{ clickSelectorUntilLoaded/,
     'Styles navigation and selector polling must use controller-owned delayed work.'
 );

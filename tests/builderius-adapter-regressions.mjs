@@ -18,6 +18,7 @@ const a11y = read('assets/builder/js/chunks/a11y.js');
 const composites = read('assets/builder/js/chunks/a11y-composites.js');
 const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
+const styles = read('assets/builder/js/chunks/styles.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
@@ -84,6 +85,11 @@ assert.match(
     editing,
     /function dbeObserveEditing\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
     'Controller-owned editing observer roots must resolve through the adapter.'
+);
+assert.match(
+    styles,
+    /function dbeObserveStyles\(\)[\s\S]+dbeQuery\('mainPanel'\)/,
+    'The controller-owned styles observer root must resolve through the adapter.'
 );
 assert.match(
     commands,
