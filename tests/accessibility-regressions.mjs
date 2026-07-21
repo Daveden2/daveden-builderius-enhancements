@@ -100,13 +100,28 @@ assert.match(
 );
 assert.match(
     builder,
-    /dbeControllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyChromeLandmarks\(\)/,
+    /dbeControllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yChrome\(\)/,
     'Builder landmarks must participate in the shared init, refresh and destroy lifecycle.'
 );
 assert.match(
     builder,
-    /function destroyChromeLandmarks\(\)[\s\S]+record\.node\.removeAttribute\(name\)[\s\S]+record\.node\.setAttribute\(name, value\)/,
+    /function destroyA11yChrome\(\)[\s\S]+record\.node\.removeAttribute\(name\)[\s\S]+record\.node\.setAttribute\(name, value\)/,
     'Destroying the chrome controller must restore the native landmark and iframe attributes.'
+);
+assert.match(
+    builder,
+    /function bindTooltips\(\)[\s\S]+addEventListener\('mouseover', dbeTooltipMouseover\)[\s\S]+function unbindTooltips\(\)[\s\S]+removeEventListener\('mouseover', dbeTooltipMouseover\)/,
+    'The chrome controller must own reversible tooltip event listeners.'
+);
+assert.match(
+    builder,
+    /function dbeObserveA11yChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
+    'The chrome controller must declare its own shared observation roots.'
+);
+assert.doesNotMatch(
+    builder,
+    /if \(on\('tooltips'\)\) \{ try \{ labelChromeIcons\(\)/,
+    'The shared feature refresh pass must not bypass controller-owned chrome labels.'
 );
 assert.doesNotMatch(
     builder,

@@ -4693,11 +4693,15 @@
        self-heals after a React re-render re-adds the attribute. */
     function setTip(el, label) {
         if (!el) { return; }
+        if (on('tooltips')) {
+            dbeRememberChromeAttributes(el, ['data-dbe-tip', 'aria-label', 'title', 'data-tooltip-content']);
+        }
         if (el.getAttribute('data-dbe-tip') !== label) { el.setAttribute('data-dbe-tip', label); }
         if (!el.getAttribute('aria-label')) { el.setAttribute('aria-label', label); }
         if (el.hasAttribute('title')) { el.removeAttribute('title'); }
         if (el.hasAttribute('data-tooltip-content')) { el.removeAttribute('data-tooltip-content'); }
         el.querySelectorAll('[data-tooltip-content]').forEach(function (a) {
+            if (on('tooltips')) { dbeRememberChromeAttributes(a, ['data-tooltip-content']); }
             a.removeAttribute('data-tooltip-content');
         });
     }
@@ -4722,6 +4726,7 @@
             // its copy has moved onto the control, disable the duplicate native
             // tooltip on the wrapper too.
             if (control && control !== a) {
+                dbeRememberChromeAttributes(a, ['data-tooltip-content', 'title']);
                 a.removeAttribute('data-tooltip-content');
                 if (a.hasAttribute('title')) { a.removeAttribute('title'); }
             }
@@ -4795,7 +4800,10 @@
             setTip(btn, title
                 ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
                 : dbeT('tipItemActionsFallback', 'Item actions'));
-            if (btn.getAttribute('aria-haspopup') !== 'menu') { btn.setAttribute('aria-haspopup', 'menu'); }
+            if (btn.getAttribute('aria-haspopup') !== 'menu') {
+                dbeRememberChromeAttributes(btn, ['aria-haspopup']);
+                btn.setAttribute('aria-haspopup', 'menu');
+            }
         });
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
@@ -4912,20 +4920,39 @@
         tipTarget = null;
         if (tipEl) { tipEl.classList.remove('is-visible'); }
     }
+    var dbeTooltipsBound = false;
+    function dbeTooltipMouseover(e) {
+        var t = e.target.closest && e.target.closest('[data-dbe-tip]');
+        if (t) { if (t !== tipTarget) { showTip(t, false); } }
+        else if (tipTarget) { hideTip(); }
+    }
+    function dbeTooltipFocusin(e) {
+        var t = e.target.closest && e.target.closest('[data-dbe-tip]');
+        if (t) { showTip(t, true); }
+    }
+    function dbeTooltipKeydown(e) { if (e.key === 'Escape') { hideTip(); } }
     function bindTooltips() {
-        document.addEventListener('mouseover', function (e) {
-            var t = e.target.closest && e.target.closest('[data-dbe-tip]');
-            if (t) { if (t !== tipTarget) { showTip(t, false); } }
-            else if (tipTarget) { hideTip(); }
-        });
-        document.addEventListener('focusin', function (e) {
-            var t = e.target.closest && e.target.closest('[data-dbe-tip]');
-            if (t) { showTip(t, true); }
-        });
+        if (dbeTooltipsBound) { return; }
+        dbeTooltipsBound = true;
+        document.addEventListener('mouseover', dbeTooltipMouseover);
+        document.addEventListener('focusin', dbeTooltipFocusin);
         document.addEventListener('focusout', hideTip);
-        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hideTip(); } }, true);
+        document.addEventListener('keydown', dbeTooltipKeydown, true);
         document.addEventListener('pointerdown', hideTip, true);
         document.addEventListener('scroll', hideTip, true);
+    }
+    function unbindTooltips() {
+        if (!dbeTooltipsBound) { return; }
+        dbeTooltipsBound = false;
+        document.removeEventListener('mouseover', dbeTooltipMouseover);
+        document.removeEventListener('focusin', dbeTooltipFocusin);
+        document.removeEventListener('focusout', hideTip);
+        document.removeEventListener('keydown', dbeTooltipKeydown, true);
+        document.removeEventListener('pointerdown', hideTip, true);
+        document.removeEventListener('scroll', hideTip, true);
+        hideTip();
+        if (tipEl) { tipEl.remove(); }
+        tipEl = null;
     }
 
     function clickSeq(el) {
@@ -13251,12 +13278,12 @@
        its label is re-read from what it currently holds on every tick.
        Attributes are only written when they differ, so the ticks stay free
        under the MutationObservers that drive schedule(). */
-    var dbeChromeLandmarkRecords = [];
+    var dbeA11yChromeRecords = [];
     function dbeRememberChromeAttributes(el, attributes) {
-        var record = dbeChromeLandmarkRecords.filter(function (item) { return item.node === el; })[0];
+        var record = dbeA11yChromeRecords.filter(function (item) { return item.node === el; })[0];
         if (!record) {
             record = { node: el, attributes: {} };
-            dbeChromeLandmarkRecords.push(record);
+            dbeA11yChromeRecords.push(record);
         }
         attributes.forEach(function (name) {
             if (Object.prototype.hasOwnProperty.call(record.attributes, name)) { return; }
@@ -13296,27 +13323,58 @@
         stamp(dbeQuery('navigatorPanel'), dbeT('regionNavigator', 'Navigator'), 'O');
         stamp(dbeQuery('footerPanel'), dbeT('regionFooter', 'Footer bar'), 'B');
     }
-    function destroyChromeLandmarks() {
-        dbeChromeLandmarkRecords.forEach(function (record) {
+    function dbeObserveA11yChrome() {
+        var main = dbeQuery('mainPanel');
+        if (main) {
+            dbeObserveChrome('a11y-chrome-main', main, {
+                childList: true,
+                subtree: true,
+                characterData: on('tooltips'),
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
+        }
+        var top = dbeQuery('topPanel');
+        if (top) { dbeObserveChrome('a11y-chrome-top', top, { childList: true, subtree: true }); }
+        var footer = dbeQuery('footerPanel');
+        if (footer && on('tooltips')) {
+            dbeObserveChrome('a11y-chrome-footer', footer, { childList: true, subtree: true });
+        }
+    }
+    function destroyA11yChrome() {
+        dbeObserveChrome('a11y-chrome-main', null);
+        dbeObserveChrome('a11y-chrome-top', null);
+        dbeObserveChrome('a11y-chrome-footer', null);
+        unbindTooltips();
+        dbeA11yChromeRecords.forEach(function (record) {
             Object.keys(record.attributes).forEach(function (name) {
                 var value = record.attributes[name];
                 if (value === null) { record.node.removeAttribute(name); }
                 else { record.node.setAttribute(name, value); }
             });
         });
-        dbeChromeLandmarkRecords = [];
+        dbeA11yChromeRecords = [];
     }
     dbeControllers.register('a11y/chrome', {
         init: function (context) {
-            if (context && context.builderius) { ensureChromeLandmarks(); }
+            if (!context || !context.builderius) { return; }
+            dbeObserveA11yChrome();
+            if (on('chrome_landmarks')) { ensureChromeLandmarks(); }
+            if (on('tooltips')) {
+                bindTooltips();
+                labelChromeIcons();
+            }
         },
         refresh: function (reason) {
-            if (reason) { ensureChromeLandmarks(); }
+            if (!reason) { return; }
+            dbeObserveA11yChrome();
+            if (on('chrome_landmarks')) { ensureChromeLandmarks(); }
+            if (on('tooltips')) { labelChromeIcons(); }
         },
         destroy: function () {
-            destroyChromeLandmarks();
+            destroyA11yChrome();
         }
-    }, on('chrome_landmarks'));
+    }, on('chrome_landmarks') || on('tooltips'));
 
     var dbeScheduleReason = 'scheduled';
     var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
@@ -13327,7 +13385,6 @@
                 try { ensureCollapseButton(); } catch (e) {}
                 try { ensureExpandAllButton(); } catch (e) {}
             }
-            if (on('tooltips')) { try { labelChromeIcons(); } catch (e) {} }
             if (on('css_code_default')) {
                 try { ensureCssCodeDefault(); } catch (e) {}
                 try { ensureCodeModeTabs(); } catch (e) {}
@@ -13412,8 +13469,8 @@
         // The main panel contains the Navigator, so when both are needed it
         // absorbs the Navigator's character-data/class requirements rather than
         // registering an overlapping second root.
-        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('tooltips') || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
-        var needMainObservation = NEED_LEFT_PANEL || on('tooltips') || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('chrome_landmarks') || on('compact_panes') || on('condition_helpers');
+        var needNavigatorObservation = NEED_TREE || NEED_NAV_BUTTONS || on('scope_bar') || on('style_inspector') || on('tree_search') || on('save_state_cue') || on('favourites_reorder') || on('panel_detach') || on('panel_tabs') || on('navigator_keyboard') || on('inserter_keyboard') || on('element_moves') || on('navigator_row_actions') || on('condition_helpers') || on('reveal_selected');
+        var needMainObservation = NEED_LEFT_PANEL || on('inserter_keyboard') || on('panel_tabs') || on('settings_accordions') || on('preview_resize') || on('panel_resize') || on('panel_detach') || on('builderius_menu') || on('compact_panes') || on('condition_helpers');
 
         // Also watch the settings panel area (left) so the CSS-code default
         // reacts to element selection, tab switches, and the CSS-mode toggle.
@@ -13435,26 +13492,14 @@
         }
 
         // Top bar too — breakpoint buttons and the breakpoints modal mount
-        // there; labelChromeIcons(), the theme/density/palette buttons and the
-        // save cue must reach it when it re-renders.
-        if (on('tooltips') || on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
+        // there; the theme/density/palette buttons and save cue must reach it
+        // when it re-renders. a11y/chrome owns the tooltip requirement.
+        if (on('theme_switcher') || on('density_toggle') || on('command_palette') || on('save_state_cue') || on('topbar_toolbar') || on('builderius_menu') || on('compact_panes')) {
             var top = dbeQuery('topPanel');
             if (top) {
                 dbeObserveChrome('top-panel', top, { childList: true, subtree: true });
             }
         }
-        // Footer bar sits outside uniMainPanel/uniTopPanel, so it needs its own
-        // watch for adoptNativeTips() to re-take the footer tooltips if the bar
-        // re-renders. childList only (no attributes) so our own data-dbe-tip /
-        // aria-label edits don't retrigger it.
-        if (on('tooltips')) {
-            var footer = dbeQuery('footerPanel');
-            if (footer) {
-                dbeObserveChrome('footer-tooltips', footer, { childList: true, subtree: true });
-            }
-        }
-        if (on('tooltips')) { bindTooltips(); }
-
         // Select comboboxes: bind the additive arrow/Enter handling, and watch
         // <body> (where the popover portals) so roles are applied when it opens.
         if (on('select_combobox')) {

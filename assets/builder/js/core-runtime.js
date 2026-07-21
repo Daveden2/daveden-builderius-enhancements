@@ -139,14 +139,41 @@
         var observer = null;
         var observations = {};
 
+        function mergeOptions(target, source) {
+            var targetHasUnfilteredAttributes = target.attributes && !target.attributeFilter;
+            ['childList', 'subtree', 'characterData', 'attributes', 'characterDataOldValue', 'attributeOldValue'].forEach(function (name) {
+                if (source[name]) { target[name] = true; }
+            });
+            if (source.attributes) {
+                if (!source.attributeFilter || targetHasUnfilteredAttributes) {
+                    delete target.attributeFilter;
+                } else {
+                    target.attributeFilter = (target.attributeFilter || []).concat(source.attributeFilter).filter(function (name, index, values) {
+                        return values.indexOf(name) === index;
+                    });
+                }
+            }
+            return target;
+        }
+        function mergedObservations() {
+            var merged = [];
+            Object.keys(observations).forEach(function (key) {
+                var observation = observations[key];
+                var existing = merged.filter(function (item) { return item.node === observation.node; })[0];
+                if (existing) { mergeOptions(existing.options, observation.options); }
+                else { merged.push({ node: observation.node, options: mergeOptions({}, observation.options) }); }
+            });
+            return merged;
+        }
         function rebuild() {
             if (!window.MutationObserver) { return; }
             if (!observer) { observer = new MutationObserver(refresh); }
             else { observer.disconnect(); }
-            Object.keys(observations).forEach(function (key) {
-                var observation = observations[key];
+            var merged = mergedObservations();
+            merged.forEach(function (observation) {
                 try { observer.observe(observation.node, observation.options); } catch (error) {}
             });
+            document.documentElement.dataset.dbeObserverRoots = String(merged.length);
         }
         function observe(key, node, options) {
             var current = observations[key];
@@ -164,6 +191,7 @@
             observations = {};
             if (observer) { observer.disconnect(); }
             observer = null;
+            document.documentElement.dataset.dbeObserverRoots = '0';
         }
 
         return Object.freeze({
