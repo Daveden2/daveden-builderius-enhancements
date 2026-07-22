@@ -136,6 +136,10 @@ function dbe_builder_css_bundle() {
 		return false;
 	}
 
+	if ( ! function_exists( 'wp_tempnam' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+
 	$temporary = wp_tempnam( $filename, $directory );
 	if ( ! $temporary ) {
 		return false;

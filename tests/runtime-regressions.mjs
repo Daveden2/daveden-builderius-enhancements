@@ -41,8 +41,8 @@ assert.match(
 );
 assert.match(
     cssCache,
-    /wp_tempnam\( \$filename, \$directory \)[\s\S]+file_put_contents\( \$temporary, \$css, LOCK_EX \)[\s\S]+rename\( \$temporary, \$path \)/,
-    'A cache miss must publish through a locked temporary file and atomic rename.'
+    /function_exists\( 'wp_tempnam' \)[\s\S]+require_once ABSPATH \. 'wp-admin\/includes\/file\.php';[\s\S]+wp_tempnam\( \$filename, \$directory \)[\s\S]+file_put_contents\( \$temporary, \$css, LOCK_EX \)[\s\S]+rename\( \$temporary, \$path \)/,
+    'A cache miss must load the WordPress file API before publishing through a locked temporary file and atomic rename.'
 );
 assert.match(
     cssCache,
