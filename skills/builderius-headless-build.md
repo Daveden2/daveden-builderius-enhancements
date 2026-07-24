@@ -74,12 +74,18 @@ yours — the dirty-tab preflight blocks that unless you pass `force: true`.
 - `dbe/list-components` / `dbe/create-component` /
   `dbe/manage-component-property` / `dbe/delete-component`; instances are
   placed as `<dbe-component name="slug" prop="value">` in apply-subtree-html.
+- Before authoring repeated UI, run the component decision: reuse an existing
+  semantic component or create one with inferred text/select/boolean props.
+  Repeated static rows should normally become one component Collection backed
+  by a small global JSON variable, not duplicated module trees.
 - `dbe/duplicate-component` — fork a shared component (props included)
   before an experiment; instances keep pointing at the source.
 
 **State & go-live** (see `builderius-save-publish`)
 - `dbe/status` — saved vs published per entity; `dbe/list-commits` — audit
-  trail; `dbe/publish` — go-live, **only on explicit user approval**.
+  trail; `dbe/publish` — select pages/templates, add release tags, preview the
+  automatically included components/global settings, then go live **only on
+  explicit user approval**.
 
 ## The build loop for a new page
 

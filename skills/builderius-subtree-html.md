@@ -1,6 +1,6 @@
 ---
 name: builderius-subtree-html
-description: Build and edit Builderius template structure as plain HTML through the dbe/* abilities — one round trip instead of chains of per-module calls. Activate for any structural work on a Builderius template via MCP (adding sections, restructuring, bulk edits) when the DBE plugin is on the site.
+description: Analyse, build and edit Builderius template structure as plain HTML through the dbe/* abilities — including extracting reusable HTML/CSS parts into components with inferred props and collapsing repeated lists, tables or cards into Collections backed by static JSON. Activate for any structural HTML work, HTML import, section build, restructuring or bulk edit on a Builderius template via MCP when the DBE plugin is on the site.
 ---
 
 # Editing Builderius structure as HTML (dbe/* abilities)
@@ -80,6 +80,35 @@ the smallest subtree that contains your change.
 - Script tags, event handlers and dangerous URLs are always stripped and
   reported in `stripped`.
 
+## Analyse HTML/CSS before creating modules
+
+Before applying new HTML, inspect the proposed structure and its selectors:
+
+1. Mark semantic subtrees that repeat, are likely to appear on another page,
+   or have a stable product-level identity (card, testimonial, pricing tier,
+   callout, navigation, footer).
+2. Read `dbe/list-components`. Reuse a component whose semantic contract fits;
+   do not create a near-duplicate based only on visual similarity.
+3. For a new reusable subtree, create a component and infer only its
+   instance-level props: free values become `text`, a closed stable variant
+   set becomes `select`, and independent on/off states become `boolean`.
+4. Author the subtree inside the component, replace variable values with
+   `[[props.name]]`, and move selectors owned by that subtree into the
+   component's entity CSS. Keep parent grid/flow rules that position component
+   instances in the page template's entity CSS.
+5. Place instances with `<dbe-component name="slug" prop="value">`.
+
+Keep one-off composition local. Do not componentise a generic wrapper or a
+single-use layout merely to reduce module count. Load `builderius-components`
+for the full property and instance contract.
+
+Component and Collection decisions are independent:
+
+- reusable but not repeated internally → component;
+- repeated rows but one-off section → Collection + Template with static JSON;
+- reusable section with repeated rows → component containing the Collection;
+- neither → ordinary semantic HTML modules.
+
 ## Navigator labels for authored elements
 
 When creating or substantially rebuilding markup, add `data-dbe-label` to
@@ -156,11 +185,12 @@ in one apply:
 ## Repeated static markup conversion
 
 When source HTML contains repeated siblings that are structurally alike, treat
-them as a likely dynamic-data opportunity:
+them as a Collection by default:
 
 - Repeated `<li>`, `<tr>`, cards, tiles, gallery figures, navigation items and
-  testimonial blocks should usually become one Collection with one
-  `<template>` child.
+  testimonial blocks should become one Collection with one `<template>` child
+  unless their structures genuinely differ. Start with static JSON when the
+  content is fixed or sample copy; do not preserve duplicated module trees.
 - The Builder UI Import HTML dialog detects these groups and can collapse
   them automatically. If "Extract the repeated content into each collection's
   data source (JSON)" is enabled, DBE lifts copy-to-copy differences into a
