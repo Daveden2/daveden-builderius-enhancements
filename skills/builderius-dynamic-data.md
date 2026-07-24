@@ -1,6 +1,6 @@
 ---
 name: builderius-dynamic-data
-description: Wire WordPress, ACF, Meta Box, relationship, media, request and external data into Builderius templates. Use before building dynamic content, Collections, nested loops, recursive trees, component data props, expressions, meta queries or PHP-backed fields; includes verified fallbacks and render-failure triage.
+description: Wire WordPress, ACF, Meta Box, relationship, media, request and external data into Builderius templates. Use before building dynamic content, Collections, nested loops, recursive trees, component data props, expressions, meta queries or PHP-backed fields; enforces native GraphQL and WordPress APIs before custom PHP or direct database access, with verified fallbacks and render-failure triage.
 ---
 
 # Dynamic data in Builderius
@@ -18,21 +18,25 @@ site-dependent.
    `dbe/get-dynamic-data-schema` (search or expand a type — it reflects this
    site's ACF/Meta Box/Pro fields). Use `list_dynamic_data_helpers` only for
    current-context helpers such as settings pages and menus.
-2. Create one GLOBAL `graphQLQuery` variable per coherent source. Use
+2. Apply the data-access ladder below. Do not propose a PHP function until
+   the live schema has been searched for a native resolver, and do not propose
+   direct database access until the relevant WordPress APIs have been ruled
+   out.
+3. Create one GLOBAL `graphQLQuery` variable per coherent source. Use
    snake_case names. Entity-scoped variables are not dependable rendered
    binding sources and cannot drive Collections.
-3. Verify the query result before building markup. Headless, call
+4. Verify the query result before building markup. Headless, call
    `dbe/resolve-data-variable` with the target page as context — it validates
    against the live schema (naming real unknown-field errors) AND returns the
    runtime value. In a builder session `get_dynamic_data { refresh: true }`
    works too. A successful save proves syntax only.
-4. Before binding a Collection, call `dbe/inspect-binding-value` on the
+5. Before binding a Collection, call `dbe/inspect-binding-value` on the
    intended `data-b-context` path: it classifies the resolved value
    (list/object/scalar) and flags the silent-empty-loop and Mustache-fatal
    shapes before they reach markup.
-5. Build Collection -> Template -> optional SubCollection -> Template. Use
+6. Build Collection -> Template -> optional SubCollection -> Template. Use
    small query limits while proving nested loops.
-6. Prove the render with `dbe/check-rendered-output` (leaked Templates,
+7. Prove the render with `dbe/check-rendered-output` (leaked Templates,
    unresolved bindings, PHP errors, expected text, blank labels) and, for
    URL-driven listings, `dbe/check-render-scenarios` with a matrix of query
    parameters and cookies. Do not treat a clean builder preview or an empty
@@ -41,6 +45,84 @@ site-dependent.
 For headless changes, read `dbe/get-data-variables`, pass its commit as
 `expected_commit` to `dbe/manage-data-variable`, then reload any open builder
 tab. Updating the system `wp` variable requires `allow_system: true`.
+
+## Data-access ladder
+
+Use the first level that can express the result cleanly. Moving down the
+ladder requires evidence that the preceding level is insufficient:
+
+1. **Native Builderius GraphQL.** Search the live Root and relevant nested
+   types for a resolver, including site-provided ACF, Meta Box and Pro fields.
+   Prefer typed resolvers, the guarded `wp` context, aliases,
+   `expression_result` and `@transform`. Resolve a small probe before deciding
+   a field is unavailable; never rely on a remembered schema from another
+   site.
+2. **Native WordPress functions through `php_function_output`.** If the schema
+   has no suitable field, look for a side-effect-free core API such as
+   `get_previous_post()`, `get_next_post()`, `get_permalink()`, `get_posts()`,
+   `get_terms()`, `get_post_meta()`, `get_option()`, `get_users()` or the
+   attachment APIs. Use a fixed function name. Call the core function directly
+   when its return value can be consumed; write a small prefixed wrapper only
+   when arguments or results need validation, normalisation or reshaping.
+3. **Native PHP functions.** Use general PHP functions only for computation or
+   reshaping that Builderius expressions cannot perform. Prefer
+   `expression_result` for supported string, array, date and numeric
+   operations. General PHP functions are not a substitute for WordPress APIs
+   when retrieving WordPress data.
+4. **Direct database access.** Treat `$wpdb` and raw SQL as the last resort,
+   normally for a custom table or an aggregate the public WordPress APIs
+   cannot express. Keep it inside a fixed, prefixed, read-only wrapper; bound
+   the query and result size, use `$wpdb->prepare()` for values and account for
+   table prefixes and multisite. Never accept SQL, table names, column names or
+   ordering from a binding. Do not perform writes during rendering.
+
+Before using levels 3 or 4, state briefly which schema fields and WordPress
+APIs were considered and why they cannot provide the result. Do not reach for
+`$wpdb` merely because the exact GraphQL field or core function is unfamiliar.
+In particular, do not use direct SQL for ordinary adjacent-post navigation,
+post queries, taxonomies, metadata, users, media, options, comments, menus or
+permalinks.
+
+### Adjacent post navigation
+
+First check whether the live schema exposes previous and next post fields. If
+it does not, use WordPress's context-aware adjacent-post functions directly;
+do not recreate their ordering, status and taxonomy behaviour with SQL:
+
+```graphql
+{
+  post {
+    prev_post: php_function_output(function: "get_previous_post") @private
+    prev_permalink: php_function_output(
+      function: "get_permalink"
+      arguments: ["{{{prev_post}}}"]
+    ) @private
+    prev_title: expression_result(
+      expression: "prev_post ? prev_post.post_title : ''"
+    )
+    prev_url: expression_result(
+      expression: "prev_post ? prev_permalink : ''"
+    )
+
+    next_post: php_function_output(function: "get_next_post") @private
+    next_permalink: php_function_output(
+      function: "get_permalink"
+      arguments: ["{{{next_post}}}"]
+    ) @private
+    next_title: expression_result(
+      expression: "next_post ? next_post.post_title : ''"
+    )
+    next_url: expression_result(
+      expression: "next_post ? next_permalink : ''"
+    )
+  }
+}
+```
+
+This is level 2: Builderius still owns the GraphQL query and private/derived
+fields, while WordPress owns the adjacent-post semantics and permalink
+generation. Resolve it against a single-post page and verify both boundary
+cases, where either adjacent post legitimately does not exist.
 
 ## Known-good bindings
 
@@ -323,8 +405,10 @@ source type before binding a Collection.
 
 ## PHP escape hatch
 
-Use `php_function_output` only for small, prefixed, allowlisted wrappers that
-return plain scalars or arrays. Keep render-time functions pure. Builderius
+Use `php_function_output` only with a fixed, trusted function name. Prefer a
+side-effect-free WordPress core function directly. When no native function
+returns the required shape, use a small, prefixed, allowlisted wrapper that
+returns plain scalars or arrays. Keep render-time functions pure. Builderius
 forbids database writes during resolution, so option updates, post writes and
 `set_transient()` can force the resolver to return its fallback. Cache outside
 the render-time function when needed.
