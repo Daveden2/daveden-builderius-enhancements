@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-24T09:00:52+00:00\n"
+"POT-Creation-Date: 2026-07-24T12:44:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -1765,11 +1765,11 @@ msgid "Edit an element and its children as HTML markup."
 msgstr ""
 
 #: includes/features.php:601
-msgid "Adds Edit as HTML to the right-click menu. Existing data-dbe-id markers preserve labels, conditions and other settings; components use <dbe-component>, while unsupported modules use <dbe-keep> and remain unchanged. A review step shows updated, added, removed and sanitised items before anything is applied, with a clear warning that the complete operation cannot be undone. Scripts, event handlers, dangerous URLs and unknown elements are removed. Experimental, and requires Builderius Pro."
+msgid "Adds Edit as HTML to the right-click menu. Its code editor auto-closes non-void tags and suggests HTML tags, attributes and existing Builderius classes. Existing data-dbe-id markers preserve labels, conditions and other settings; components use <dbe-component>, while unsupported modules use <dbe-keep> and remain unchanged. A review step shows updated, added, removed and sanitised items before anything is applied, with a clear warning that the complete operation cannot be undone. Scripts, event handlers, dangerous URLs and unknown elements are removed. Experimental, and requires Builderius Pro."
 msgstr ""
 
 #: includes/features.php:611
-#: includes/i18n-builder.php:647
+#: includes/i18n-builder.php:648
 msgid "Import HTML"
 msgstr ""
 
@@ -1778,7 +1778,7 @@ msgid "Paste HTML and turn it into real elements."
 msgstr ""
 
 #: includes/features.php:613
-msgid "Adds Import HTML to the right-click menu: paste markup into a dialog, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Pasted <template> elements become Template modules, and an element carrying a data-b-context attribute (or data-dbe-module=\"collection\") becomes a Collection, so dynamic lists can be imported ready to bind. Add data-dbe-label=\"…\" to any element to name it in the Navigator. Script tags, event-handler attributes, javascript:, vbscript: and script-bearing data: URLs, and unknown elements are stripped before anything is created. The dialog warns that a complete import cannot be undone as one action. Experimental, and requires Builderius Pro."
+msgid "Adds Import HTML to the right-click menu: paste markup into a code editor that auto-closes non-void tags and suggests HTML tags, attributes and existing Builderius classes, check the live preview of the elements it will create, and insert them into the chosen element (or after it, when that element cannot hold children). Several top-level elements are fine. Pasted <template> elements become Template modules, and an element carrying a data-b-context attribute (or data-dbe-module=\"collection\") becomes a Collection, so dynamic lists can be imported ready to bind. Add data-dbe-label=\"…\" to any element to name it in the Navigator. Script tags, event-handler attributes, javascript:, vbscript: and script-bearing data: URLs, and unknown elements are stripped before anything is created. The dialog warns that a complete import cannot be undone as one action. Experimental, and requires Builderius Pro."
 msgstr ""
 
 #: includes/features.php:623
@@ -4118,263 +4118,267 @@ msgid "HTML markup"
 msgstr ""
 
 #: includes/i18n-builder.php:611
-msgid "This element can’t be edited as HTML — try one inside or around it"
+msgid "Existing Builderius class"
 msgstr ""
 
 #: includes/i18n-builder.php:612
-msgid "Apply HTML"
+msgid "This element can’t be edited as HTML — try one inside or around it"
 msgstr ""
 
 #: includes/i18n-builder.php:613
-msgid "Review changes"
+msgid "Apply HTML"
 msgstr ""
 
 #: includes/i18n-builder.php:614
-msgid "Apply changes"
+msgid "Review changes"
 msgstr ""
 
 #: includes/i18n-builder.php:615
-msgid "Review complete."
+msgid "Apply changes"
 msgstr ""
 
 #: includes/i18n-builder.php:616
-msgid "The HTML must have exactly one root element"
+msgid "Review complete."
 msgstr ""
 
 #: includes/i18n-builder.php:617
-msgid "The root element can’t be a preserved (<dbe-keep>) placeholder"
+msgid "The HTML must have exactly one root element"
 msgstr ""
 
 #: includes/i18n-builder.php:618
+msgid "The root element can’t be a preserved (<dbe-keep>) placeholder"
+msgstr ""
+
+#: includes/i18n-builder.php:619
 msgid "Could not parse the HTML"
 msgstr ""
 
 #. translators: 1: submitted bytes, 2: maximum bytes.
-#: includes/i18n-builder.php:620
+#: includes/i18n-builder.php:621
 #, php-format
 msgid "The HTML is too large (%1$s bytes; maximum %2$s)."
 msgstr ""
 
 #. translators: 1: submitted elements, 2: maximum elements.
-#: includes/i18n-builder.php:622
+#: includes/i18n-builder.php:623
 #, php-format
 msgid "The HTML contains too many elements (%1$s; maximum %2$s)."
 msgstr ""
 
 #. translators: %s: maximum nesting depth.
-#: includes/i18n-builder.php:624
+#: includes/i18n-builder.php:625
 #, php-format
 msgid "The HTML nesting exceeds the maximum depth of %s."
 msgstr ""
 
 #. translators: 1: module ID, 2: saved module type, 3: submitted module type.
-#: includes/i18n-builder.php:626
+#: includes/i18n-builder.php:627
 #, php-format
 msgid "Marked element %1$s is a %2$s but was submitted as %3$s."
 msgstr ""
 
 #. translators: 1: module ID, 2: submitted component slug.
-#: includes/i18n-builder.php:628
+#: includes/i18n-builder.php:629
 #, php-format
 msgid "Marked element %1$s uses the unknown component “%2$s”. Choose an available component or restore the original name."
 msgstr ""
 
-#: includes/i18n-builder.php:629
+#: includes/i18n-builder.php:630
 msgid "blank"
 msgstr ""
 
 #. translators: 1: saved root module type, 2: submitted root module type.
-#: includes/i18n-builder.php:631
+#: includes/i18n-builder.php:632
 #, php-format
 msgid "The subtree root is a %1$s and cannot be submitted as %2$s."
 msgstr ""
 
 #. translators: %s: number of root elements found.
-#: includes/i18n-builder.php:633
+#: includes/i18n-builder.php:634
 #, php-format
 msgid "The HTML must have exactly one root element (found %s)."
 msgstr ""
 
 #. translators: 1: elements updated, 2: elements added, 3: elements removed.
-#: includes/i18n-builder.php:635
+#: includes/i18n-builder.php:636
 #, php-format
 msgid "Will apply: %1$s updated, %2$s added, %3$s removed"
 msgstr ""
 
 #. translators: %s: comma-separated list of unrecognised data-dbe-id markers.
-#: includes/i18n-builder.php:637
+#: includes/i18n-builder.php:638
 #, php-format
 msgid "Unrecognised marker(s): %s. A new element will be created and the original removed."
 msgstr ""
 
 #. translators: 1: elements updated, 2: elements added, 3: elements removed.
-#: includes/i18n-builder.php:639
+#: includes/i18n-builder.php:640
 #, php-format
 msgid "HTML applied: %1$s updated, %2$s added, %3$s removed"
 msgstr ""
 
-#: includes/i18n-builder.php:640
+#: includes/i18n-builder.php:641
 msgid "Applying these changes can’t be undone. Cancel keeps the current element unchanged."
 msgstr ""
 
-#: includes/i18n-builder.php:641
+#: includes/i18n-builder.php:642
 msgid "Edit as HTML can’t be undone. Edit the element again to correct it."
 msgstr ""
 
-#: includes/i18n-builder.php:642
+#: includes/i18n-builder.php:643
 msgid "This import can’t be undone as one action. Delete the new elements to remove them."
 msgstr ""
 
-#: includes/i18n-builder.php:643
+#: includes/i18n-builder.php:644
 msgid "Import HTML can’t be undone as one action. Delete the imported elements to remove them."
 msgstr ""
 
 #. translators: %s: comma-separated list of stripped tags/attributes.
-#: includes/i18n-builder.php:645
+#: includes/i18n-builder.php:646
 #, php-format
 msgid "(stripped: %s)"
 msgstr ""
 
-#: includes/i18n-builder.php:648
+#: includes/i18n-builder.php:649
 msgid "Import HTML…"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:650
+#: includes/i18n-builder.php:651
 #, php-format
 msgid "Import HTML into %s"
 msgstr ""
 
 #. translators: %s: element label.
-#: includes/i18n-builder.php:652
+#: includes/i18n-builder.php:653
 #, php-format
 msgid "Import HTML after %s"
 msgstr ""
 
-#: includes/i18n-builder.php:653
+#: includes/i18n-builder.php:654
 msgid "Paste HTML below; the preview shows the elements it will create. Scripts, event handlers and unknown tags are stripped, and several top-level elements are fine. Add data-dbe-label=\"…\" to any element to name it in the Navigator, or insert a component with <dbe-component name=\"slug\">."
 msgstr ""
 
-#: includes/i18n-builder.php:654
+#: includes/i18n-builder.php:655
 msgid "HTML to import"
 msgstr ""
 
-#: includes/i18n-builder.php:655
+#: includes/i18n-builder.php:656
 msgid "Preview"
 msgstr ""
 
-#: includes/i18n-builder.php:656
+#: includes/i18n-builder.php:657
 msgid "Nothing to preview yet."
 msgstr ""
 
-#: includes/i18n-builder.php:657
+#: includes/i18n-builder.php:658
 msgid "HTML can only be imported into a plain element"
 msgstr ""
 
-#: includes/i18n-builder.php:658
+#: includes/i18n-builder.php:659
 msgid "The target element no longer exists"
 msgstr ""
 
-#: includes/i18n-builder.php:659
+#: includes/i18n-builder.php:660
 msgid "Insert"
 msgstr ""
 
-#: includes/i18n-builder.php:660
+#: includes/i18n-builder.php:661
 msgid "No usable elements found in that HTML"
 msgstr ""
 
 #. translators: %s: number of elements to be created.
-#: includes/i18n-builder.php:662
+#: includes/i18n-builder.php:663
 #, php-format
 msgid "%s element will be created."
 msgstr ""
 
 #. translators: %s: number of elements to be created.
-#: includes/i18n-builder.php:664
+#: includes/i18n-builder.php:665
 #, php-format
 msgid "%s elements will be created."
 msgstr ""
 
 #. translators: %s: number of repeated groups detected.
-#: includes/i18n-builder.php:666
+#: includes/i18n-builder.php:667
 #, php-format
 msgid "Collapse %s repeated group into a collection"
 msgstr ""
 
 #. translators: %s: number of repeated groups detected.
-#: includes/i18n-builder.php:668
+#: includes/i18n-builder.php:669
 #, php-format
 msgid "Collapse %s repeated groups into collections"
 msgstr ""
 
-#: includes/i18n-builder.php:669
+#: includes/i18n-builder.php:670
 msgid "New collections still need their data binding."
 msgstr ""
 
-#: includes/i18n-builder.php:670
+#: includes/i18n-builder.php:671
 msgid "Extract the repeated content into each collection’s data source (JSON)"
 msgstr ""
 
-#: includes/i18n-builder.php:671
+#: includes/i18n-builder.php:672
 msgid "Each collection stores its items as JSON in its data-b-context attribute."
 msgstr ""
 
-#: includes/i18n-builder.php:672
+#: includes/i18n-builder.php:673
 msgid "SVGs or components that differ between copies keep the first copy’s version."
 msgstr ""
 
 #. translators: %s: number of data items on a collection.
-#: includes/i18n-builder.php:674
+#: includes/i18n-builder.php:675
 #, php-format
 msgid "(%s item)"
 msgstr ""
 
 #. translators: %s: number of data items on a collection.
-#: includes/i18n-builder.php:676
+#: includes/i18n-builder.php:677
 #, php-format
 msgid "(%s items)"
 msgstr ""
 
 #. translators: %s: number of elements imported.
-#: includes/i18n-builder.php:678
+#: includes/i18n-builder.php:679
 #, php-format
 msgid "Imported %s element"
 msgstr ""
 
 #. translators: %s: number of elements imported.
-#: includes/i18n-builder.php:680
+#: includes/i18n-builder.php:681
 #, php-format
 msgid "Imported %s elements"
 msgstr ""
 
-#: includes/i18n-builder.php:682
+#: includes/i18n-builder.php:683
 msgid "Change tag…"
 msgstr ""
 
 #. translators: %s: the new HTML tag.
-#: includes/i18n-builder.php:684
+#: includes/i18n-builder.php:685
 #, php-format
 msgid "Tag changed to <%s>"
 msgstr ""
 
-#: includes/i18n-builder.php:685
+#: includes/i18n-builder.php:686
 msgid "Change tag"
 msgstr ""
 
 #. translators: %s: the element's current HTML tag.
-#: includes/i18n-builder.php:687
+#: includes/i18n-builder.php:688
 #, php-format
 msgid "section, h2, figure…  (now <%s>)"
 msgstr ""
 
 #. translators: %s: what the user typed.
-#: includes/i18n-builder.php:689
+#: includes/i18n-builder.php:690
 #, php-format
 msgid "Not a usable HTML tag: %s"
 msgstr ""
 
 #. translators: %s: the element's current HTML tag.
-#: includes/i18n-builder.php:691
+#: includes/i18n-builder.php:692
 #, php-format
 msgid "Already <%s>"
 msgstr ""

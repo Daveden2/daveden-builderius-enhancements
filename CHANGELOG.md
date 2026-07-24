@@ -35,7 +35,11 @@ measured performance budgets and a set of opt-in HTML authoring tools.
 * Added: **Edit as HTML**. Right-click an element to open its subtree as
   readable HTML in a code editor (Monaco where the builder provides it, a
   textarea otherwise), edit tags, ids, classes, attributes and text, and
-  apply the markup back. Every serialised element carries a `data-dbe-id`
+  apply the markup back. The editor auto-closes non-void opening tags, keeps
+  the caret between the pair and avoids duplicate or malformed closures.
+  Monaco suggests HTML tags and attributes plus existing classes gathered
+  from Builderius modules and the preview's global/entity stylesheets. Every
+  serialised element carries a `data-dbe-id`
   marker: elements whose marker survives keep their module, so labels,
   rendering conditions, interactive-mode and other non-HTML settings ride
   along while the HTML-expressible parts update in place; unmarked elements

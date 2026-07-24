@@ -1533,6 +1533,114 @@
     var DBE_HTML_KNOWN_TAGS = ('a abbr address area article aside audio b bdi bdo blockquote br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr i img input ins kbd label legend li main mark menu meter nav ol optgroup option output p picture pre progress q rp rt ruby s samp search section select small source span strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul var video wbr')
         .split(' ').reduce(function (m, t) { m[t] = 1; return m; }, {});
 
+    /* Return the tag to close when `>` is typed at a collapsed caret. Keep
+       this independent of Monaco so the textarea fallback behaves identically.
+       The quote scan prevents an angle bracket typed inside an attribute value
+       from being mistaken for the end of the opening tag. */
+    function dbeHtmlAutoCloseTag(value, start, end) {
+        if (typeof value !== 'string' || start !== end || start < 1) { return ''; }
+        var before = value.slice(0, start);
+        var after = value.slice(end);
+        var openAt = -1;
+        var scanningQuote = '';
+        for (var scanAt = 0; scanAt < before.length; scanAt++) {
+            var scanChar = before.charAt(scanAt);
+            if (openAt < 0) {
+                if (scanChar === '<') { openAt = scanAt; }
+            } else if (scanningQuote) {
+                if (scanChar === scanningQuote) { scanningQuote = ''; }
+            } else if (scanChar === '"' || scanChar === "'") {
+                scanningQuote = scanChar;
+            } else if (scanChar === '>') {
+                openAt = -1;
+            } else if (scanChar === '<') {
+                openAt = scanAt;
+            }
+        }
+        if (openAt < 0) { return ''; }
+
+        var inside = before.slice(openAt + 1);
+        if (!inside || /^[\s]*[!/?]/.test(inside) || /\/\s*$/.test(inside)) { return ''; }
+
+        var quote = '';
+        for (var i = 0; i < inside.length; i++) {
+            var ch = inside.charAt(i);
+            if (!quote && (ch === '"' || ch === "'")) {
+                quote = ch;
+            } else if (quote === ch) {
+                quote = '';
+            }
+        }
+        if (quote) { return ''; }
+
+        var match = inside.match(/^\s*([A-Za-z][A-Za-z0-9:-]*)(?:\s|$)/);
+        if (!match || DBE_HTML_VOID[match[1].toLowerCase()]) { return ''; }
+
+        var nextClosing = after.match(/^\s*<\/\s*([A-Za-z][A-Za-z0-9:-]*)\s*>/);
+        if (nextClosing && nextClosing[1].toLowerCase() === match[1].toLowerCase()) { return ''; }
+        return match[1];
+    }
+
+    /* Class completions combine classes already assigned to Builderius modules
+       with selectors from the preview's global/entity stylesheets. CSSOM is
+       authoritative here and includes adopted stylesheets used by Builderius;
+       inaccessible cross-origin sheets are ignored. */
+    function dbeHtmlClassNames(editorValue) {
+        var names = {};
+        var currentModules = modules() || {};
+        Object.keys(currentModules).forEach(function (id) {
+            moduleClasses(currentModules[id]).forEach(function (name) {
+                if (typeof name === 'string' && name) { names[name] = true; }
+            });
+        });
+        String(editorValue || '').replace(/\bclass(?:Name)?\s*=\s*["']([^"']*)["']/gi, function (all, value) {
+            value.trim().split(/\s+/).forEach(function (name) {
+                if (name) { names[name] = true; }
+            });
+            return all;
+        });
+
+        var frame = dbeQuery('previewFrame');
+        var previewDocument = frame && frame.contentDocument;
+        function collectFromRules(rules) {
+            for (var i = 0; rules && i < rules.length; i++) {
+                var rule = rules[i];
+                if (rule.selectorText) {
+                    var matches = rule.selectorText.matchAll(/\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)/g);
+                    for (var match of matches) { names[match[1]] = true; }
+                }
+                if (rule.cssRules) {
+                    try { collectFromRules(rule.cssRules); } catch (e) {}
+                }
+            }
+        }
+        if (previewDocument) {
+            var sheets = [].slice.call(previewDocument.styleSheets || [])
+                .concat([].slice.call(previewDocument.adoptedStyleSheets || []));
+            sheets.filter(function (sheet, index) { return sheets.indexOf(sheet) === index; }).forEach(function (sheet) {
+                try { collectFromRules(sheet.cssRules); } catch (e) {}
+            });
+        }
+        return Object.keys(names).sort();
+    }
+
+    function dbeHtmlClassCompletionContext(model, position) {
+        var line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+        var openAt = line.lastIndexOf('<');
+        if (openAt < 0 || line.lastIndexOf('>') > openAt) { return null; }
+        var match = line.slice(openAt).match(/\bclass(?:Name)?\s*=\s*(["'])([^"']*)$/i);
+        if (!match) { return null; }
+        var partial = match[2].split(/\s+/).pop() || '';
+        return {
+            range: {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: position.column - partial.length,
+                endColumn: position.column
+            }
+        };
+    }
+
     function dbeSettingVal(mod, name) {
         var s = ((mod && mod.settings) || []).filter(function (x) { return x.name === name; })[0];
         return s ? s.value : undefined;
@@ -2157,12 +2265,19 @@
                     tabSize: 2,
                     scrollBeyondLastLine: false,
                     fixedOverflowWidgets: true,
+                    quickSuggestions: { other: true, comments: false, strings: true },
+                    suggestOnTriggerCharacters: true,
+                    tabCompletion: 'on',
                     ariaLabel: opts.ariaLabel || ''
                 });
             } catch (e) { ed = null; }
             if (ed) {
                 var escapeKeyListener = null;
                 var escapeAction = null;
+                var autoCloseChangeListener = null;
+                var autoCloseTimer = null;
+                var classCompletionProvider = null;
+                var classCompletionNames = null;
                 if (opts.onEscape && typeof ed.onKeyDown === 'function') {
                     escapeKeyListener = ed.onKeyDown(function (event) {
                         var browserEvent = event && event.browserEvent;
@@ -2181,6 +2296,70 @@
                         label: dbeT('close', 'Close'),
                         keybindings: [api.KeyCode.Escape],
                         run: opts.onEscape
+                    });
+                }
+                if (typeof ed.onDidChangeModelContent === 'function') {
+                    autoCloseChangeListener = ed.onDidChangeModelContent(function (event) {
+                        var changes = event && event.changes;
+                        if (!changes || changes.length !== 1 || changes[0].text !== '>' || changes[0].rangeLength) { return; }
+                        var cursorOffset = changes[0].rangeOffset + 1;
+                        dbeClearOwnedTimeout(DBE_EDITING_OWNER, autoCloseTimer);
+                        autoCloseTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+                            autoCloseTimer = null;
+                            var model = ed.getModel();
+                            var selection = ed.getSelection();
+                            if (!model || !selection ||
+                                (typeof selection.isEmpty === 'function' && !selection.isEmpty())) { return; }
+                            var liveCursorOffset = model.getOffsetAt({
+                                lineNumber: selection.startLineNumber,
+                                column: selection.startColumn
+                            });
+                            if (liveCursorOffset !== cursorOffset) { return; }
+                            var value = model.getValue();
+                            var tagStart = cursorOffset - 1;
+                            if (value.charAt(tagStart) !== '>') { return; }
+                            var withoutTypedBracket = value.slice(0, tagStart) + value.slice(cursorOffset);
+                            var tag = dbeHtmlAutoCloseTag(withoutTypedBracket, tagStart, tagStart);
+                            if (!tag) { return; }
+                            ed.executeEdits('dbe-html-auto-close', [{
+                                range: {
+                                    startLineNumber: selection.startLineNumber,
+                                    startColumn: selection.startColumn,
+                                    endLineNumber: selection.endLineNumber,
+                                    endColumn: selection.endColumn
+                                },
+                                text: '</' + tag + '>',
+                                forceMoveMarkers: true
+                            }]);
+                            ed.setPosition(model.getPositionAt(cursorOffset));
+                        }, 0);
+                    });
+                }
+                if (api.languages && typeof api.languages.registerCompletionItemProvider === 'function') {
+                    classCompletionProvider = api.languages.registerCompletionItemProvider('html', {
+                        triggerCharacters: ['"', "'", ' ', '-'],
+                        provideCompletionItems: function (model, position) {
+                            if (model !== ed.getModel()) { return { suggestions: [] }; }
+                            var context = dbeHtmlClassCompletionContext(model, position);
+                            if (!context) { return { suggestions: [] }; }
+                            var valueKind = api.languages.CompletionItemKind
+                                ? api.languages.CompletionItemKind.Value
+                                : 12;
+                            if (!classCompletionNames) {
+                                classCompletionNames = dbeHtmlClassNames(model.getValue());
+                            }
+                            return {
+                                suggestions: classCompletionNames.map(function (name) {
+                                    return {
+                                        label: name,
+                                        kind: valueKind,
+                                        detail: dbeT('existingBuilderiusClass', 'Existing Builderius class'),
+                                        insertText: name,
+                                        range: context.range
+                                    };
+                                })
+                            };
+                        }
                     });
                 }
                 /* Recede the data-dbe-id markers. They must stay on every
@@ -2217,8 +2396,11 @@
                     layout: function () { try { ed.layout(); } catch (e) {} },
                     dispose: function () {
                         dbeClearOwnedTimeout(DBE_EDITING_OWNER, decoTimer);
+                        dbeClearOwnedTimeout(DBE_EDITING_OWNER, autoCloseTimer);
                         if (escapeKeyListener) { try { escapeKeyListener.dispose(); } catch (e) {} }
                         if (escapeAction) { try { escapeAction.dispose(); } catch (e) {} }
+                        if (autoCloseChangeListener) { try { autoCloseChangeListener.dispose(); } catch (e) {} }
+                        if (classCompletionProvider) { try { classCompletionProvider.dispose(); } catch (e) {} }
                         try { ed.dispose(); } catch (e) {}
                     }
                 };
@@ -2231,6 +2413,18 @@
         ta.spellcheck = false;
         if (opts.ariaLabel) { ta.setAttribute('aria-label', opts.ariaLabel); }
         ta.value = opts.value || '';
+        function autoCloseTextareaTag(event) {
+            if (event.key !== '>' || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) { return; }
+            var start = ta.selectionStart;
+            var end = ta.selectionEnd;
+            var tag = dbeHtmlAutoCloseTag(ta.value, start, end);
+            if (!tag) { return; }
+            event.preventDefault();
+            ta.setRangeText('></' + tag + '>', start, end, 'end');
+            ta.setSelectionRange(start + 1, start + 1);
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        ta.addEventListener('keydown', autoCloseTextareaTag);
         return {
             el: ta,
             isMonaco: false,
@@ -2240,7 +2434,7 @@
             cursorStart: function () { try { ta.setSelectionRange(0, 0); } catch (e) {} },
             onChange: function (cb) { ta.addEventListener('input', cb); },
             layout: function () {},
-            dispose: function () {}
+            dispose: function () { ta.removeEventListener('keydown', autoCloseTextareaTag); }
         };
     }
 

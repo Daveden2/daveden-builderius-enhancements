@@ -8,10 +8,11 @@
     "lint": "npm run lint:js && npm run lint:css",
     "test:a11y": "node tests/accessibility-regressions.mjs",
     "test:adapter": "node tests/builderius-adapter-regressions.mjs",
+    "test:html-editor": "node tests/html-editor-regressions.mjs",
     "test:runtime": "node tests/runtime-regressions.mjs",
     "test:performance": "node tests/performance-budgets.mjs",
     "test:release": "php tests/release-availability-regressions.php",
-    "test": "npm run test:a11y && npm run test:adapter && npm run test:runtime && npm run test:performance && npm run test:release"
+    "test": "npm run test:a11y && npm run test:adapter && npm run test:html-editor && npm run test:runtime && npm run test:performance && npm run test:release"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

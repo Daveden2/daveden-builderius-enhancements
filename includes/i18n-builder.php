@@ -608,6 +608,7 @@ function dbe_builder_strings() {
 		'editAsHtmlTitle'               => __( 'Edit as HTML — %s', 'daveden-builderius-enhancements' ),
 		'editAsHtmlHint'                => __( 'Keep an element’s data-dbe-id to preserve its settings. Components use <dbe-component>; unsupported modules use <dbe-keep>. Review what will be updated, added, removed or sanitised before applying.', 'daveden-builderius-enhancements' ),
 		'editAsHtmlEditor'              => __( 'HTML markup', 'daveden-builderius-enhancements' ),
+		'existingBuilderiusClass'       => __( 'Existing Builderius class', 'daveden-builderius-enhancements' ),
 		'editAsHtmlOnlyElements'        => __( 'This element can’t be edited as HTML — try one inside or around it', 'daveden-builderius-enhancements' ),
 		'applyHtml'                     => __( 'Apply HTML', 'daveden-builderius-enhancements' ),
 		'reviewChanges'                 => __( 'Review changes', 'daveden-builderius-enhancements' ),
