@@ -117,6 +117,58 @@ if ( function_exists( 'dbe_ability_validate_prop_def' ) && function_exists( 'dbe
 	);
 }
 
+if ( function_exists( 'dbe_ability_release_tags' ) && function_exists( 'dbe_ability_release_component_slugs' ) ) {
+	$release_tags = dbe_ability_release_tags( array( ' launch ', 'Launch', 'stable' ) );
+	dbe_test_assert(
+		array( 'launch', 'stable' ) === $release_tags,
+		'Release tags are no longer trimmed and de-duplicated case-insensitively.'
+	);
+
+	$reserved_tag = dbe_ability_release_tags( array( 'AUTO' ) );
+	dbe_test_assert(
+		is_wp_error( $reserved_tag ) && 'dbe_reserved_release_tag' === $reserved_tag->get_error_code(),
+		'The Builderius-reserved auto release tag was accepted.'
+	);
+
+	$component_slugs = dbe_ability_release_component_slugs(
+		array(
+			'modules' => array(
+				'a' => array(
+					'name'     => 'Component',
+					'settings' => array(
+						array(
+							'name'  => 'componentName',
+							'value' => 'site_header',
+						),
+					),
+				),
+				'b' => array(
+					'name'     => 'Component',
+					'settings' => array(
+						array(
+							'name'  => 'componentName',
+							'value' => 'site_header',
+						),
+					),
+				),
+				'c' => array(
+					'name'     => 'Component',
+					'settings' => array(
+						array(
+							'name'  => 'componentName',
+							'value' => 'feature_card',
+						),
+					),
+				),
+			),
+		)
+	);
+	dbe_test_assert(
+		array( 'site_header', 'feature_card' ) === $component_slugs,
+		'The release plan no longer discovers component dependencies deterministically.'
+	);
+}
+
 if ( function_exists( 'dbe_ability_css_patch' ) ) {
 	$original_css = ".before { color: inherit; }\n/* @block: test */\n.old { display: block; }\n/* @endblock */\n.after { color: inherit; }\n";
 	$patched_css  = dbe_ability_css_patch( $original_css, 'test', '.new { display: grid; }' );

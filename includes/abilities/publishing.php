@@ -75,7 +75,7 @@ function dbe_register_publishing_abilities( $entity_type_arg, $force_arg ) {
 		'dbe/publish',
 		array(
 			'label'               => __( 'Publish a release', 'daveden-builderius-enhancements' ),
-			'description'         => __( 'Creates and publishes a Builderius release from the templates\' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder\'s Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live for logged-out visitors, replacing the previously published release. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits.', 'daveden-builderius-enhancements' ),
+			'description'         => __( 'Creates and publishes a Builderius release from saved (active) commits — the missing publish half of the save → publish → verify loop. Select page templates separately with pages, and other Builderius templates with templates; omit both to include every saved page/template. This is the same createRelease mutation as the builder\'s Publish action: Builderius always adds every global settings set and recursively adds components used by the selected pages/templates. Those dependencies cannot be excluded. Add release tags with tags. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Always run with dry_run first: it returns the exact grouped inclusion plan and expected_commits for the real publish. Save any pending work first — this publishes saved commits, not unsaved builder edits.', 'daveden-builderius-enhancements' ),
 			'category'            => 'builderius-content',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -83,7 +83,23 @@ function dbe_register_publishing_abilities( $entity_type_arg, $force_arg ) {
 					'templates'        => array(
 						'type'        => 'array',
 						'items'       => array( 'type' => 'string' ),
-						'description' => __( 'Template post IDs or slugs to include. Omit to include every template that has saved work.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Builderius template post IDs or slugs to include. For backwards compatibility this also accepts page-template references; prefer pages for page-bound templates. Omit both templates and pages to include every template that has saved work.', 'daveden-builderius-enhancements' ),
+					),
+					'pages'            => array(
+						'type'        => 'array',
+						'items'       => array( 'type' => 'string' ),
+						'description' => __( 'Builderius page-template post IDs or slugs to include. Every reference must have the Builderius page template type. Omit both pages and templates to include every saved page/template.', 'daveden-builderius-enhancements' ),
+					),
+					'tags'             => array(
+						'type'        => 'array',
+						'maxItems'    => 20,
+						'uniqueItems' => true,
+						'items'       => array(
+							'type'      => 'string',
+							'minLength' => 1,
+							'maxLength' => 64,
+						),
+						'description' => __( 'Up to 20 release tags. Values are trimmed and de-duplicated case-insensitively; "auto" is reserved by Builderius.', 'daveden-builderius-enhancements' ),
 					),
 					'version'          => array(
 						'type'        => 'string',
@@ -100,14 +116,21 @@ function dbe_register_publishing_abilities( $entity_type_arg, $force_arg ) {
 					),
 					'expected_commits' => array(
 						'type'        => 'array',
-						'description' => __( 'Required when publishing. One template/commit pair for every entity returned by the preceding dry run.', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Required when publishing. Pass the complete list returned by the preceding dry run: one entity/entity_type/commit row for every selected page/template, component dependency and global settings set.', 'daveden-builderius-enhancements' ),
 						'items'       => array(
 							'type'                 => 'object',
 							'properties'           => array(
-								'template' => array( 'type' => 'string' ),
-								'commit'   => array( 'type' => 'string' ),
+								'entity'      => array(
+									'type'        => 'string',
+									'description' => __( 'Entity post ID or slug.', 'daveden-builderius-enhancements' ),
+								),
+								'entity_type' => array(
+									'type' => 'string',
+									'enum' => array( 'page', 'template', 'component', 'global_settings_set' ),
+								),
+								'commit'      => array( 'type' => 'string' ),
 							),
-							'required'             => array( 'template', 'commit' ),
+							'required'             => array( 'entity', 'entity_type', 'commit' ),
 							'additionalProperties' => false,
 						),
 					),
@@ -118,17 +141,50 @@ function dbe_register_publishing_abilities( $entity_type_arg, $force_arg ) {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'release'  => array(
+					'release'              => array(
 						'type'        => array( 'object', 'null' ),
 						'description' => __( 'The published release (id, version, status); null on a dry run.', 'daveden-builderius-enhancements' ),
 					),
-					'version'  => array( 'type' => 'string' ),
-					'entities' => array(
+					'version'              => array( 'type' => 'string' ),
+					'tags'                 => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'pages'                => array(
 						'type'        => 'array',
-						'description' => __( 'The templates included (id, slug, saved commit).', 'daveden-builderius-enhancements' ),
+						'description' => __( 'Selected Builderius page templates.', 'daveden-builderius-enhancements' ),
 						'items'       => array( 'type' => 'object' ),
 					),
-					'dry_run'  => array( 'type' => 'boolean' ),
+					'templates'            => array(
+						'type'        => 'array',
+						'description' => __( 'Selected non-page Builderius templates.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'components'           => array(
+						'type'        => 'array',
+						'description' => __( 'Components Builderius will add because the selected pages/templates (or another dependency) use them.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'global_settings_sets' => array(
+						'type'        => 'array',
+						'description' => __( 'All saved global settings sets. Builderius always includes them in a release.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'entities'             => array(
+						'type'        => 'array',
+						'description' => __( 'The complete grouped inclusion plan flattened into one list.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'expected_commits'     => array(
+						'type'        => 'array',
+						'description' => __( 'Pass this list back unchanged for the real publish.', 'daveden-builderius-enhancements' ),
+						'items'       => array( 'type' => 'object' ),
+					),
+					'warnings'             => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'dry_run'              => array( 'type' => 'boolean' ),
 				),
 			),
 			'execute_callback'    => 'dbe_ability_publish',
@@ -422,13 +478,317 @@ function dbe_ability_status( $input ) {
 }
 
 /**
+ * Normalise and validate release tags before either a dry run or mutation.
+ *
+ * Builderius reserves "auto" case-insensitively. The remaining limits keep
+ * the ability contract compact and make the dry run fail in the same place as
+ * the real publish rather than relying on taxonomy coercion later.
+ *
+ * @param mixed $tags Candidate tags.
+ * @return array|WP_Error Normalised tags.
+ */
+function dbe_ability_release_tags( $tags ) {
+	if ( null === $tags ) {
+		return array();
+	}
+	if ( ! is_array( $tags ) ) {
+		return new WP_Error( 'dbe_bad_release_tags', 'Release tags must be an array of strings.' );
+	}
+	if ( count( $tags ) > 20 ) {
+		return new WP_Error( 'dbe_bad_release_tags', 'A release can have at most 20 tags.' );
+	}
+
+	$normalised = array();
+	$seen       = array();
+	foreach ( $tags as $tag ) {
+		if ( ! is_string( $tag ) ) {
+			return new WP_Error( 'dbe_bad_release_tags', 'Every release tag must be a string.' );
+		}
+		$tag = trim( $tag );
+		if ( '' === $tag || strlen( $tag ) > 64 || preg_match( '/[\x00-\x1F\x7F]/', $tag ) ) {
+			return new WP_Error( 'dbe_bad_release_tags', 'Release tags must be 1-64 characters and cannot contain control characters.' );
+		}
+		$key = strtolower( $tag );
+		if ( 'auto' === $key ) {
+			return new WP_Error( 'dbe_reserved_release_tag', 'The release tag "auto" is reserved by Builderius.' );
+		}
+		if ( isset( $seen[ $key ] ) ) {
+			continue;
+		}
+		$seen[ $key ] = true;
+		$normalised[] = $tag;
+	}
+	return $normalised;
+}
+
+/**
+ * Resolve the explicitly selected release pages/templates.
+ *
+ * Omission means "all", while an explicitly empty selection means "none".
+ * Keeping that distinction lets an agent select only pages or only regular
+ * templates without an empty sibling array unexpectedly widening the release.
+ *
+ * @param array $input Ability input.
+ * @return array|null|WP_Error Template refs, null for all, or an error.
+ */
+function dbe_ability_release_template_refs( $input ) {
+	$has_templates = array_key_exists( 'templates', $input );
+	$has_pages     = array_key_exists( 'pages', $input );
+	if ( ! $has_templates && ! $has_pages ) {
+		return null;
+	}
+
+	$refs = array();
+	foreach ( array( 'templates', 'pages' ) as $key ) {
+		if ( ! array_key_exists( $key, $input ) ) {
+			continue;
+		}
+		if ( ! is_array( $input[ $key ] ) ) {
+			return new WP_Error( 'dbe_bad_release_selection', sprintf( '%s must be an array of Builderius template IDs or slugs.', $key ) );
+		}
+		foreach ( $input[ $key ] as $ref ) {
+			if ( ! is_string( $ref ) && ! is_int( $ref ) ) {
+				return new WP_Error( 'dbe_bad_release_selection', sprintf( 'Every %s reference must be a post ID or slug.', $key ) );
+			}
+			$ref = trim( (string) $ref );
+			if ( '' === $ref ) {
+				return new WP_Error( 'dbe_bad_release_selection', sprintf( '%s cannot contain an empty reference.', $key ) );
+			}
+			if ( 'pages' === $key ) {
+				$post = dbe_ability_find_entity_post( $ref, 'template' );
+				if ( is_wp_error( $post ) ) {
+					return $post;
+				}
+				$types = wp_get_object_terms( $post->ID, 'builderius_template_type', array( 'fields' => 'slugs' ) );
+				if ( is_wp_error( $types ) || ! in_array( 'page', $types, true ) ) {
+					return new WP_Error(
+						'dbe_bad_release_page',
+						sprintf( '"%s" is not a Builderius page template. Pass it through templates if it is another template type.', $ref )
+					);
+				}
+			}
+			$refs[] = $ref;
+		}
+	}
+
+	$refs = array_values( array_unique( $refs ) );
+	if ( array() === $refs ) {
+		return new WP_Error( 'dbe_nothing_to_publish', 'The explicit pages/templates selection is empty.' );
+	}
+	return $refs;
+}
+
+/**
+ * Component slugs referenced by one saved Builderius config.
+ *
+ * @param array $config Builderius content config.
+ * @return string[] Unique component slugs.
+ */
+function dbe_ability_release_component_slugs( $config ) {
+	$slugs = array();
+	foreach ( (array) ( $config['modules'] ?? array() ) as $module ) {
+		if ( 'Component' !== ( $module['name'] ?? '' ) ) {
+			continue;
+		}
+		$slug = trim( (string) dbe_ability_setting( $module, 'componentName' ) );
+		if ( '' !== $slug ) {
+			$slugs[ $slug ] = true;
+		}
+	}
+	return array_keys( $slugs );
+}
+
+/**
+ * Standard row for the release inclusion plan.
+ *
+ * @param WP_Post $post             Builderius VCS owner post.
+ * @param string  $entity_type      page, template, component or global_settings_set.
+ * @param WP_Post $commit           Active commit post.
+ * @param string  $included_because Why Builderius includes it.
+ * @param string  $template_type    Optional Builderius template taxonomy slug.
+ * @return array
+ */
+function dbe_ability_release_plan_row( $post, $entity_type, $commit, $included_because, $template_type = '' ) {
+	return array(
+		'id'               => (int) $post->ID,
+		'slug'             => (string) $post->post_name,
+		'title'            => (string) $post->post_title,
+		'entity_type'      => $entity_type,
+		'template_type'    => $template_type,
+		'saved_commit'     => (string) $commit->post_name,
+		'included_because' => $included_because,
+	);
+}
+
+/**
+ * Build the exact release dependency closure Builderius' createRelease
+ * resolver will use: selected pages/templates, their recursively referenced
+ * components, and every global settings set with a saved commit.
+ *
+ * @param array $loaded_templates Loaded rows from dbe_ability_load_templates().
+ * @return array Grouped and flattened release plan.
+ */
+function dbe_ability_release_plan( $loaded_templates ) {
+	$plan = array(
+		'pages'                => array(),
+		'templates'            => array(),
+		'components'           => array(),
+		'global_settings_sets' => array(),
+		'entities'             => array(),
+		'expected_commits'     => array(),
+		'warnings'             => array(),
+	);
+
+	$component_queue = array();
+	foreach ( $loaded_templates as $row ) {
+		$post  = $row['entity_post'];
+		$types = wp_get_object_terms( $post->ID, 'builderius_template_type', array( 'fields' => 'slugs' ) );
+		$type  = ! is_wp_error( $types ) && $types ? (string) $types[0] : '';
+		$key   = 'page' === $type ? 'pages' : 'templates';
+		$kind  = 'page' === $type ? 'page' : 'template';
+		$item  = dbe_ability_release_plan_row( $post, $kind, $row['commit'], 'selected', $type );
+
+		$plan[ $key ][] = $item;
+		foreach ( dbe_ability_release_component_slugs( $row['config'] ) as $slug ) {
+			$component_queue[] = $slug;
+		}
+	}
+
+	$seen_components = array();
+	while ( $component_queue ) {
+		$slug = array_shift( $component_queue );
+		if ( isset( $seen_components[ $slug ] ) ) {
+			continue;
+		}
+		$seen_components[ $slug ] = true;
+		$component                = dbe_ability_find_entity_post( $slug, 'component' );
+		if ( is_wp_error( $component ) ) {
+			$plan['warnings'][] = sprintf( 'Referenced component "%s" was not found and will not be included.', $slug );
+			continue;
+		}
+		$loaded = dbe_ability_load_entity_config( (string) $component->ID, 'component' );
+		if ( is_wp_error( $loaded ) ) {
+			$plan['warnings'][] = sprintf( 'Referenced component "%s" has no readable saved commit and will not be included.', $slug );
+			continue;
+		}
+		$plan['components'][] = dbe_ability_release_plan_row(
+			$component,
+			'component',
+			$loaded['commit'],
+			'component_dependency'
+		);
+		foreach ( dbe_ability_release_component_slugs( $loaded['config'] ) as $nested_slug ) {
+			$component_queue[] = $nested_slug;
+		}
+	}
+
+	$settings_sets = get_posts(
+		array(
+			'post_type'   => 'builderius_sett_set',
+			'post_status' => get_post_stati(),
+			'numberposts' => -1,
+			'orderby'     => 'ID',
+			'order'       => 'ASC',
+		)
+	);
+	foreach ( $settings_sets as $settings_set ) {
+		$resolved = dbe_ability_resolve_commit( $settings_set );
+		if ( is_wp_error( $resolved ) ) {
+			$plan['warnings'][] = sprintf( 'Global settings set "%s" has no readable saved commit and will not be included.', $settings_set->post_name );
+			continue;
+		}
+		$plan['global_settings_sets'][] = dbe_ability_release_plan_row(
+			$settings_set,
+			'global_settings_set',
+			$resolved['commit'],
+			'builderius_required'
+		);
+	}
+
+	$plan['entities'] = array_merge(
+		$plan['pages'],
+		$plan['templates'],
+		$plan['components'],
+		$plan['global_settings_sets']
+	);
+	foreach ( $plan['entities'] as $entity ) {
+		$plan['expected_commits'][] = array(
+			'entity'      => $entity['slug'],
+			'entity_type' => $entity['entity_type'],
+			'commit'      => $entity['saved_commit'],
+		);
+	}
+	return $plan;
+}
+
+/**
+ * Verify the complete dry-run commit list before publishing.
+ *
+ * @param array $plan  Current release plan.
+ * @param array $input Ability input.
+ * @return true|WP_Error
+ */
+function dbe_ability_verify_release_commits( $plan, $input ) {
+	$expected = array();
+	foreach ( (array) ( $input['expected_commits'] ?? array() ) as $pair ) {
+		if ( ! is_array( $pair ) || ! isset( $pair['entity'], $pair['entity_type'], $pair['commit'] ) ) {
+			continue;
+		}
+		$type = trim( (string) $pair['entity_type'] );
+		$ref  = trim( (string) $pair['entity'] );
+		if ( '' === $type || '' === $ref ) {
+			continue;
+		}
+		$expected[ $type . ':' . $ref ] = trim( (string) $pair['commit'] );
+	}
+
+	foreach ( $plan['entities'] as $entity ) {
+		$type = $entity['entity_type'];
+		$want = $expected[ $type . ':' . $entity['slug'] ] ?? $expected[ $type . ':' . $entity['id'] ] ?? '';
+		$have = $entity['saved_commit'];
+		if ( '' === $want ) {
+			return new WP_Error(
+				'dbe_expected_commits_required',
+				sprintf(
+					'Pass the complete expected_commits list from the preceding dry run; %s "%s" is missing.',
+					str_replace( '_', ' ', $type ),
+					$entity['slug']
+				)
+			);
+		}
+		if ( $want !== $have ) {
+			return new WP_Error(
+				'dbe_commit_conflict',
+				sprintf(
+					'Saved state changed for %s "%s": expected commit %s, current commit %s. Run the publish dry run again.',
+					str_replace( '_', ' ', $type ),
+					$entity['slug'],
+					$want,
+					$have
+				)
+			);
+		}
+	}
+	return true;
+}
+
+/**
  * Handle dbe/publish.
  *
  * @param array $input Ability input.
  * @return array|WP_Error Ability result.
  */
 function dbe_ability_publish( $input ) {
-	$refs   = ( ! empty( $input['templates'] ) && is_array( $input['templates'] ) ) ? $input['templates'] : null;
+	$refs = dbe_ability_release_template_refs( $input );
+	if ( is_wp_error( $refs ) ) {
+		return $refs;
+	}
+
+	$tags = dbe_ability_release_tags( $input['tags'] ?? null );
+	if ( is_wp_error( $tags ) ) {
+		return $tags;
+	}
+
 	$result = dbe_ability_load_templates( $refs );
 	if ( ! $result['loaded'] ) {
 		return new WP_Error(
@@ -436,10 +796,18 @@ function dbe_ability_publish( $input ) {
 			'No template with saved work found.' . ( $result['errors'] ? ' ' . wp_json_encode( $result['errors'] ) : '' )
 		);
 	}
+	if ( $result['errors'] ) {
+		return new WP_Error(
+			'dbe_release_selection_incomplete',
+			'Some selected pages/templates could not be loaded: ' . wp_json_encode( $result['errors'] )
+		);
+	}
+
+	$plan = dbe_ability_release_plan( $result['loaded'] );
 	if ( empty( $input['dry_run'] ) ) {
-		foreach ( $result['loaded'] as $row ) {
+		foreach ( $plan['entities'] as $entity ) {
 			if ( function_exists( 'dbe_presence_precondition' ) ) {
-				$presence = dbe_presence_precondition( $row['template_post']->post_name, ! empty( $input['force'] ) );
+				$presence = dbe_presence_precondition( $entity['slug'], ! empty( $input['force'] ) );
 				if ( is_wp_error( $presence ) ) {
 					return $presence;
 				}
@@ -470,53 +838,31 @@ function dbe_ability_publish( $input ) {
 		return new WP_Error( 'dbe_bad_release_version', 'The release version must be 1-64 letters, digits, dots, hyphens or underscores.' );
 	}
 
-	$entities = array();
-	$ids      = array();
+	$ids = array();
 	foreach ( $result['loaded'] as $tid => $row ) {
-		$ids[]      = array( 'id' => $tid );
-		$entities[] = array(
-			'template_id'  => $tid,
-			'slug'         => $row['template_post']->post_name,
-			'saved_commit' => $row['commit']->post_name,
-		);
+		$ids[] = array( 'id' => $tid );
 	}
 
 	if ( ! empty( $input['dry_run'] ) ) {
-		return array(
-			'dry_run'  => true,
-			'release'  => null,
-			'version'  => $version,
-			'entities' => $entities,
+		return array_merge(
+			$plan,
+			array(
+				'dry_run' => true,
+				'release' => null,
+				'version' => $version,
+				'tags'    => $tags,
+			)
 		);
 	}
 
-	$expected = array();
-	foreach ( (array) ( $input['expected_commits'] ?? array() ) as $pair ) {
-		if ( is_array( $pair ) && isset( $pair['template'], $pair['commit'] ) ) {
-			$expected[ (string) $pair['template'] ] = trim( (string) $pair['commit'] );
-		}
-	}
-	foreach ( $result['loaded'] as $tid => $row ) {
-		$slug = $row['template_post']->post_name;
-		$want = $expected[ $slug ] ?? $expected[ (string) $tid ] ?? '';
-		$have = (string) $row['commit']->post_name;
-		if ( '' === $want ) {
-			return new WP_Error(
-				'dbe_expected_commits_required',
-				sprintf( 'Pass expected_commits for every template from the preceding dry run; %s is missing.', $slug )
-			);
-		}
-		if ( $want !== $have ) {
-			return new WP_Error(
-				'dbe_commit_conflict',
-				sprintf( 'Saved state changed for %s: expected commit %s, current commit %s. Run the publish dry run again.', $slug, $want, $have )
-			);
-		}
+	$commits_match = dbe_ability_verify_release_commits( $plan, $input );
+	if ( is_wp_error( $commits_match ) ) {
+		return $commits_match;
 	}
 
 	$description = isset( $input['description'] ) ? substr( (string) $input['description'], 0, 500 ) : 'Published via dbe/publish';
 	$mutation    = 'mutation DbeCreateRelease($input: BuilderiusCreateReleaseInput!) {'
-		. ' createRelease(input: $input) { release { id version status } }'
+		. ' createRelease(input: $input) { release { id version tags status } }'
 		. ' }';
 	$data        = dbe_ability_graphql(
 		'dbePublish',
@@ -524,7 +870,7 @@ function dbe_ability_publish( $input ) {
 		array(
 			'input' => array(
 				'version'                  => $version,
-				'tags'                     => array(),
+				'tags'                     => $tags,
 				'description'              => $description,
 				'serialized_entities_data' => wp_json_encode( $ids ),
 				'publish'                  => true,
@@ -539,11 +885,14 @@ function dbe_ability_publish( $input ) {
 		return new WP_Error( 'dbe_publish_failed', 'createRelease returned no release.' );
 	}
 
-	return array(
-		'dry_run'  => false,
-		'release'  => $release,
-		'version'  => $version,
-		'entities' => $entities,
+	return array_merge(
+		$plan,
+		array(
+			'dry_run' => false,
+			'release' => $release,
+			'version' => $version,
+			'tags'    => $tags,
+		)
 	);
 }
 

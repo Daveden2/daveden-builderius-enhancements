@@ -1097,7 +1097,7 @@ function dbe_abilities() {
 		),
 		'dbe/publish'                        => array(
 			'title'   => __( 'Publish a release', 'daveden-builderius-enhancements' ),
-			'summary' => __( 'Create and publish a release from saved commits. This is go-live for visitors.', 'daveden-builderius-enhancements' ),
+			'summary' => __( 'Publish selected pages/templates with release tags; required components and global settings are included automatically. This is go-live for visitors.', 'daveden-builderius-enhancements' ),
 			'group'   => 'execute',
 			'caution' => true,
 		),

@@ -34,16 +34,22 @@ state you are testing with.**
 2. **Verify saved work**: fetch the real page while authenticated (browser
    with a logged-in session, or curl with a `wordpress_logged_in_*` cookie).
 3. **Publish** (only on explicit approval): `dbe/publish` — the builder's own
-   createRelease mutation. Bundles the listed templates' saved commits
-   (Builderius adds global settings sets and components automatically),
-   auto-increments a semver version, replaces the previous release.
+   createRelease mutation. Select page-bound templates with `pages`, other
+   Builderius templates with `templates`, and add release taxonomy terms with
+   `tags`. Omit both selectors to include every saved page/template.
+   Builderius always adds every global settings set and recursively adds the
+   components used by the selection; these dependencies cannot be excluded.
+   The dry run groups the actual result into `pages`, `templates`,
+   `components` and `global_settings_sets`.
+   The ability auto-increments a semver version and replaces the previous release.
    **Always dry-run first — publishing requires it**: the dry run returns
-   the entity list with each template's commit, and the real publish
-   requires that list back as `expected_commits`
-   (`[{ template, commit }, …]`); it fails if any saved state changed in
-   between. It publishes SAVED commits — save pending work first. A builder
-   tab with unsaved changes blocks publishing (`dbe_builder_tab_conflict`);
-   `force: true` overrides only on explicit user approval.
+   the complete inclusion plan and an `expected_commits` list; pass that list
+   back unchanged for the real publish. It covers selected pages/templates,
+   component dependencies and global settings, and fails if any saved state
+   changed in between. It publishes SAVED commits — save pending work first.
+   A builder tab with unsaved changes blocks publishing
+   (`dbe_builder_tab_conflict`); `force: true` overrides only on explicit user
+   approval.
 4. **Verify public**: a cookie-less fetch of the page, then `dbe/status`
    should show `unpublished_changes: false`.
 

@@ -3,13 +3,13 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Daveden Builder Enhancements 2.0.0-dev-16\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dbe-release-split\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/daveden-builderius-enhancements\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-21T23:29:39+00:00\n"
+"POT-Creation-Date: 2026-07-24T09:00:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -547,71 +547,103 @@ msgid "Publish a release"
 msgstr ""
 
 #: includes/abilities/publishing.php:78
-msgid "Creates and publishes a Builderius release from the templates' saved (active) commits — the missing publish half of the save → publish → verify loop. This is the same createRelease mutation as the builder's Publish action: it bundles the active commit of every listed template (plus all global settings sets and any components they use) and makes the result live for logged-out visitors, replacing the previously published release. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Check dbe/status first; run with dry_run to see what would be released. Save any pending work first — this publishes saved commits, not unsaved builder edits."
+msgid "Creates and publishes a Builderius release from saved (active) commits — the missing publish half of the save → publish → verify loop. Select page templates separately with pages, and other Builderius templates with templates; omit both to include every saved page/template. This is the same createRelease mutation as the builder's Publish action: Builderius always adds every global settings set and recursively adds components used by the selected pages/templates. Those dependencies cannot be excluded. Add release tags with tags. Publishing is go-live, not preview — a logged-in user already sees saved commits, so publish only on explicit user approval. Always run with dry_run first: it returns the exact grouped inclusion plan and expected_commits for the real publish. Save any pending work first — this publishes saved commits, not unsaved builder edits."
 msgstr ""
 
 #: includes/abilities/publishing.php:86
-msgid "Template post IDs or slugs to include. Omit to include every template that has saved work."
+msgid "Builderius template post IDs or slugs to include. For backwards compatibility this also accepts page-template references; prefer pages for page-bound templates. Omit both templates and pages to include every template that has saved work."
 msgstr ""
 
-#: includes/abilities/publishing.php:90
+#: includes/abilities/publishing.php:91
+msgid "Builderius page-template post IDs or slugs to include. Every reference must have the Builderius page template type. Omit both pages and templates to include every saved page/template."
+msgstr ""
+
+#: includes/abilities/publishing.php:102
+msgid "Up to 20 release tags. Values are trimmed and de-duplicated case-insensitively; \"auto\" is reserved by Builderius."
+msgstr ""
+
+#: includes/abilities/publishing.php:106
 msgid "Release version label. Omit to auto-increment the latest release's patch number (1.0.0 when the site has never published)."
 msgstr ""
 
-#: includes/abilities/publishing.php:94
+#: includes/abilities/publishing.php:110
 msgid "Release description shown in the builder's release list."
 msgstr ""
 
-#: includes/abilities/publishing.php:99
+#: includes/abilities/publishing.php:115
 msgid "Preview only: return the version and entities that WOULD be released without publishing."
 msgstr ""
 
-#: includes/abilities/publishing.php:103
-msgid "Required when publishing. One template/commit pair for every entity returned by the preceding dry run."
+#: includes/abilities/publishing.php:119
+msgid "Required when publishing. Pass the complete list returned by the preceding dry run: one entity/entity_type/commit row for every selected page/template, component dependency and global settings set."
 msgstr ""
 
-#: includes/abilities/publishing.php:123
+#: includes/abilities/publishing.php:125
+msgid "Entity post ID or slug."
+msgstr ""
+
+#: includes/abilities/publishing.php:146
 msgid "The published release (id, version, status); null on a dry run."
 msgstr ""
 
-#: includes/abilities/publishing.php:128
-msgid "The templates included (id, slug, saved commit)."
+#: includes/abilities/publishing.php:155
+msgid "Selected Builderius page templates."
 msgstr ""
 
-#: includes/abilities/publishing.php:143
+#: includes/abilities/publishing.php:160
+msgid "Selected non-page Builderius templates."
+msgstr ""
+
+#: includes/abilities/publishing.php:165
+msgid "Components Builderius will add because the selected pages/templates (or another dependency) use them."
+msgstr ""
+
+#: includes/abilities/publishing.php:170
+msgid "All saved global settings sets. Builderius always includes them in a release."
+msgstr ""
+
+#: includes/abilities/publishing.php:175
+msgid "The complete grouped inclusion plan flattened into one list."
+msgstr ""
+
+#: includes/abilities/publishing.php:180
+msgid "Pass this list back unchanged for the real publish."
+msgstr ""
+
+#: includes/abilities/publishing.php:199
 #: includes/features.php:1105
 msgid "Extract a release (work on a release)"
 msgstr ""
 
-#: includes/abilities/publishing.php:144
+#: includes/abilities/publishing.php:200
 msgid "Rebuilds the DEVELOPMENT state from a Builderius release — the builder's \"work on a release\" action, via the same extractRelease mutation. Builderius first DELETES every existing template, component and global settings set (framework CSS and all commit history included), then recreates each entity from the release's bundled configs with a fresh single-commit history. The release itself is untouched and stays published, so logged-out visitors see no change. Use when development state is missing or meaningless while a release exists — the classic case is a migrated site whose builder shows empty templates although the live pages render fine — or to roll development back to what is published. This destroys ALL unpublished work; requires confirm: true after explicit user approval. Always run with dry_run first: it reports the release contents and everything that would be deleted. Close open builder tabs before extracting and reload them afterwards — a stale tab's save would resurrect deleted state."
 msgstr ""
 
-#: includes/abilities/publishing.php:151
+#: includes/abilities/publishing.php:207
 msgid "Builderius release post ID, version/title, or slug to extract. Omit for the latest published release."
 msgstr ""
 
-#: includes/abilities/publishing.php:156
+#: includes/abilities/publishing.php:212
 msgid "Preview only: report the release contents and the current entities that WOULD be deleted, without extracting."
 msgstr ""
 
-#: includes/abilities/publishing.php:161
+#: includes/abilities/publishing.php:217
 msgid "Must be true to extract. Extraction permanently replaces all development state; confirm with the user first."
 msgstr ""
 
-#: includes/abilities/publishing.php:172
+#: includes/abilities/publishing.php:228
 msgid "The release being extracted (id, version, date)."
 msgstr ""
 
-#: includes/abilities/publishing.php:176
+#: includes/abilities/publishing.php:232
 msgid "The release's bundled entities (slug, name, entity_type, type) that extraction recreates."
 msgstr ""
 
-#: includes/abilities/publishing.php:181
+#: includes/abilities/publishing.php:237
 msgid "Slugs of the current templates, components and settings_sets that extraction deletes first."
 msgstr ""
 
-#: includes/abilities/publishing.php:185
+#: includes/abilities/publishing.php:241
 msgid "Slugs of the templates, components and settings_sets present after extraction; null on a dry run."
 msgstr ""
 
@@ -2293,7 +2325,7 @@ msgid "Permanently delete an unused component and its history. Asks for confirma
 msgstr ""
 
 #: includes/features.php:1100
-msgid "Create and publish a release from saved commits. This is go-live for visitors."
+msgid "Publish selected pages/templates with release tags; required components and global settings are included automatically. This is go-live for visitors."
 msgstr ""
 
 #: includes/features.php:1106
