@@ -70,24 +70,26 @@ ladder requires evidence that the preceding level is insufficient:
    operations. General PHP functions are not a substitute for WordPress APIs
    when retrieving WordPress data.
 4. **Direct database access.** Treat `$wpdb` and raw SQL as the last resort,
-   normally for a custom table or an aggregate the public WordPress APIs
-   cannot express. Keep it inside a fixed, prefixed, read-only wrapper; bound
-   the query and result size, use `$wpdb->prepare()` for values and account for
-   table prefixes and multisite. Never accept SQL, table names, column names or
-   ordering from a binding. Do not perform writes during rendering.
+   normally for a custom table, an unsupported aggregate or a documented
+   version/semantics gap in a public API. Keep it inside a fixed, prefixed,
+   read-only wrapper; bound the query and result size, use `$wpdb->prepare()`
+   for values and account for table prefixes and multisite. Never accept SQL,
+   table names, column names or ordering from a binding. Do not perform writes
+   during rendering.
 
 Before using levels 3 or 4, state briefly which schema fields and WordPress
 APIs were considered and why they cannot provide the result. Do not reach for
 `$wpdb` merely because the exact GraphQL field or core function is unfamiliar.
-In particular, do not use direct SQL for ordinary adjacent-post navigation,
-post queries, taxonomies, metadata, users, media, options, comments, menus or
-permalinks.
+Do not use direct SQL for ordinary post navigation, queries, taxonomies,
+metadata, users, media, options, comments, menus or permalinks unless a
+target-version or required-semantics test proves the native API inadequate.
 
 ### Adjacent post navigation
 
-First check whether the live schema exposes previous and next post fields. If
-it does not, use WordPress's context-aware adjacent-post functions directly;
-do not recreate their ordering, status and taxonomy behaviour with SQL:
+First check the live schema, target WordPress version and required ordering.
+WordPress 6.9 added an ID tie-break to `get_adjacent_post()`, so posts sharing
+one `post_date` remain traversable; 6.8 and earlier can skip equal timestamps.
+On 6.9+, prefer the context-aware native functions below:
 
 ```graphql
 {
@@ -122,7 +124,12 @@ do not recreate their ordering, status and taxonomy behaviour with SQL:
 This is level 2: Builderius still owns the GraphQL query and private/derived
 fields, while WordPress owns the adjacent-post semantics and permalink
 generation. Resolve it against a single-post page and verify both boundary
-cases, where either adjacent post legitimately does not exist.
+cases, the current-post context and at least two posts with an identical
+timestamp. On WordPress 6.8 or earlier, a fixed read-only wrapper using
+`(post_date, ID)` ordering is a justified level-4 compatibility fallback when
+equal timestamps must be traversed. Keep its post-type/status rules explicit
+and recognise that a narrow query may not reproduce core taxonomy, private
+status, filter and cache behaviour.
 
 ## Known-good bindings
 
