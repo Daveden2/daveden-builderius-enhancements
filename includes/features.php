@@ -521,7 +521,7 @@ function dbe_features() {
 		'undo_delete'           => array(
 			'title'       => __( 'Undo / redo element changes', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Undo element structure and selected DBE property changes.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored to its previous sibling position, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
 			'shared_css'  => array( '01-infra.css' ),

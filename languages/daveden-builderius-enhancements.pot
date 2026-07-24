@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-24T13:32:46+00:00\n"
+"POT-Creation-Date: 2026-07-24T17:14:51+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: daveden-builderius-enhancements\n"
@@ -1668,7 +1668,7 @@ msgid "Undo element structure and selected DBE property changes."
 msgstr ""
 
 #: includes/features.php:524
-msgid "Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered."
+msgid "Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored to its previous sibling position, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered."
 msgstr ""
 
 #: includes/features.php:541

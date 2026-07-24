@@ -129,6 +129,11 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   settings changes instead of structural additions, so Cmd/Ctrl+Z restores the
   earlier properties rather than removing the existing element or crossing
   into an unrelated older action. Their confirmation messages now offer Undo.
+* Fixed: undo and redo now return a restored element to its recorded sibling
+  position instead of leaving Builderius's native Paste result at the end of
+  the parent. Previous/next sibling anchors preserve batch order even when
+  several deleted siblings are restored in either direction and each receives
+  a regenerated Builderius module ID.
 * Improved: **Save status** now reports **Unsaved**, **Saving…** and confirmed
   **Saved** states. It includes settings-only edits, leaves failed saves marked
   unsaved with a retry instruction, and only clears after Builderius creates a

@@ -1347,13 +1347,17 @@
        Module.deleted feed the two directions; our OWN paste/remove during an
        undo/redo are skipped via dbeUndoBusy so they do not re-enter the stacks.
        Structural moves carry their previous parent and index, so their inverse is
-       immediate and preserves identity. Restored elements get a new id (paste regenerates them) and are appended
-       last, so position is not preserved and a re-add whose parent was itself
-       restored can fail. Property edits are not covered. The user's clipboard is saved/restored around the
-       forgery where the browser allows reading it. */
+       immediate and preserves identity. Restored elements get a new id (paste
+       regenerates them), then move back between their recorded sibling anchors;
+       an old-to-new id map keeps those anchors useful when several deleted
+       siblings are restored in either direction. A re-add whose parent was
+       itself restored can still fail. Property edits are not covered. The user's
+       clipboard is saved/restored around the forgery where the browser allows
+       reading it. */
     var undoStack = [];
     var redoStack = [];
     var dbeUndoBusy = false;
+    var dbeHistoryRestoredIds = {};
     var toastTimer = null;
     var toastDuration = 2600;
 
@@ -1435,6 +1439,61 @@
         return subtree;
     }
 
+    /* Record both the numeric slot and its neighbouring siblings. The anchors
+       matter for a batch delete: if C is restored before A and B, clamping C's
+       old index to the current list length would lose its relationship to B.
+       Once B returns, its `afterId: C` anchor places it correctly before C. */
+    function dbeHistoryPlacement(mods, indexes, id) {
+        var mod = mods && mods[id];
+        var parentId = (mod && mod.parent) || '';
+        var siblings = [].concat((indexes && indexes[parentId || 'root']) || []);
+        var index = siblings.indexOf(id);
+        return {
+            parentId: parentId,
+            index: index,
+            beforeId: index > 0 ? siblings[index - 1] : '',
+            afterId: index >= 0 && index + 1 < siblings.length ? siblings[index + 1] : ''
+        };
+    }
+
+    /* Paste regenerates ids. Follow the short old→new chain so a later sibling
+       can still find an anchor that was itself restored during an earlier Undo
+       or Redo step. */
+    function dbeHistoryLiveId(id, mods) {
+        var current = id;
+        var limit = 20;
+        while (current && limit-- > 0) {
+            if (mods[current]) { return current; }
+            var next = dbeHistoryRestoredIds[current];
+            if (!next || next === current) { return ''; }
+            current = next;
+        }
+        return '';
+    }
+
+    function dbeRestoreTargetIndex(rec, siblings, mods, newId) {
+        var afterId = dbeHistoryLiveId(rec.afterId, mods);
+        var afterAt = afterId && afterId !== newId ? siblings.indexOf(afterId) : -1;
+        if (afterAt >= 0) { return afterAt; }
+        var beforeId = dbeHistoryLiveId(rec.beforeId, mods);
+        var beforeAt = beforeId && beforeId !== newId ? siblings.indexOf(beforeId) : -1;
+        if (beforeAt >= 0) { return beforeAt + 1; }
+        if (typeof rec.index === 'number' && rec.index >= 0) {
+            return Math.min(rec.index, Math.max(0, siblings.length - 1));
+        }
+        return -1;
+    }
+
+    function dbePositionRestoredModule(newId, rec) {
+        dbeHistoryRestoredIds[rec.id] = newId;
+        var location = dbeMoveLocation(newId);
+        if (!location || location.index < 0) { return; }
+        var target = dbeRestoreTargetIndex(rec, location.siblings, location.mods, newId);
+        if (target >= 0 && target !== location.index) {
+            storeMoveModule(location.sf, newId, rec.parentId, target);
+        }
+    }
+
     // Push a user action onto the undo stack; a fresh action invalidates redo.
     function dbeHistoryPush(rec) {
         undoStack.push(rec);
@@ -1463,17 +1522,23 @@
             if (dbeUndoBusy || !p || !p.id) { return; }
             var hist;
             try { hist = store().storeGet('history') || []; } catch (e) { return; }
-            var snapMods = null;
+            var snap = null;
             for (var i = hist.length - 1; i >= 0; i--) {
-                var sm = hist[i].snapshot && hist[i].snapshot.modules;
-                if (sm && sm[p.id]) { snapMods = sm; break; }
+                var candidate = hist[i].snapshot;
+                var sm = candidate && candidate.modules;
+                if (sm && sm[p.id]) { snap = candidate; break; }
             }
-            if (!snapMods) { return; }
+            if (!snap) { return; }
+            var snapMods = snap.modules;
+            var placement = dbeHistoryPlacement(snapMods, snap.indexes || {}, p.id);
             dbeHistoryPush({
                 op: 'restore',
                 id: p.id,
                 label: snapMods[p.id].label || snapMods[p.id].name || dbeT('element', 'element'),
-                parentId: snapMods[p.id].parent || '',
+                parentId: placement.parentId,
+                index: placement.index,
+                beforeId: placement.beforeId,
+                afterId: placement.afterId,
                 subtree: dbeCollectSubtree(snapMods, p.id)
             });
         });
@@ -3913,6 +3978,7 @@
                             }) || null;
                         }, function (newId) {
                             if (prevClip !== null) { navigator.clipboard.writeText(prevClip).catch(function () {}); }
+                            if (newId) { dbePositionRestoredModule(newId, rec); }
                             cb(newId || null, newId ? null : dbeT('undoFailedNotRestored', 'Undo failed: element not restored'));
                         });
                     });
@@ -4029,13 +4095,18 @@
             }
             // Snapshot the live subtree first so the inverse can re-add it.
             var subtree = dbeCollectSubtree(mods, rec.id);
-            var parentId = mods[rec.id].parent || '';
+            var placement = dbeHistoryPlacement(mods, store().storeGet('indexes') || {}, rec.id);
+            var parentId = placement.parentId;
             dbeUndoBusy = true;
             driveContextMenuItem(rec.id, 'Remove', function (ok) {
                 setTimeout(function () {
                     dbeUndoBusy = false;
                     if (!ok) { from.push(rec); undoToast(dbeT('undoFailedRemove', 'Undo failed: could not remove the element')); return; }
-                    to.push({ op: 'restore', id: rec.id, label: rec.label, parentId: parentId, subtree: subtree });
+                    to.push({
+                        op: 'restore', id: rec.id, label: rec.label, parentId: parentId,
+                        index: placement.index, beforeId: placement.beforeId, afterId: placement.afterId,
+                        subtree: subtree
+                    });
                     undoToast(dbeFmt(dbeT('removed', 'Removed “%s”'), rec.label), successAction);
                 }, 300);
             });
@@ -5091,6 +5162,7 @@
         toastDuration = 2600;
         undoStack = [];
         redoStack = [];
+        dbeHistoryRestoredIds = {};
         dbeDestroyOwnedHooks(DBE_EDITING_OWNER);
         dbeDestroyOwnedActivity(DBE_EDITING_OWNER);
         dbeResetEditingHelpers();
