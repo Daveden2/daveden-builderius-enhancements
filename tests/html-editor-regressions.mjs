@@ -65,6 +65,31 @@ assert.equal(
     'A non-collapsed selection must not be replaced by auto-closing.'
 );
 
+const analyseSource = extractFunction(editing, 'dbeHtmlAnalyse');
+const analysisContext = {
+    DBE_HTML_VOID: context.DBE_HTML_VOID,
+    DBE_HTML_OPTIONAL_END: {
+        li: 1, dt: 1, dd: 1, p: 1, rt: 1, rp: 1, option: 1, optgroup: 1,
+        colgroup: 1, thead: 1, tbody: 1, tfoot: 1, tr: 1, td: 1, th: 1
+    },
+    dbeT: (key, fallback) => fallback,
+    dbeFmt: (value, ...replacements) => replacements.reduce(
+        (result, replacement, index) => result
+            .replace(`%${index + 1}$s`, replacement)
+            .replace('%s', replacement),
+        value
+    )
+};
+runInNewContext(`${analyseSource}; result = dbeHtmlAnalyse;`, analysisContext);
+const analyse = analysisContext.result;
+
+assert.equal(analyse('<section><p>Text</p></section>').error, null, 'Balanced markup must pass structural analysis.');
+assert.equal(analyse('<ul><li>One<li>Two</ul>').error, null, 'Optional HTML end tags must not be treated as structural errors.');
+assert.match(analyse('<section><div>Text</section>').error.message, /Expected <\/div>/, 'A mismatched close must identify the expected tag.');
+assert.match(analyse('<section>').error.message, /Missing closing tag <\/section>/, 'An unclosed element must be reported.');
+assert.match(analyse('</section>').error.message, /Unexpected closing tag/, 'An orphan closing tag must be reported.');
+assert.match(analyse('<!-- unfinished').error.message, /Unclosed HTML comment/, 'An unclosed comment must be reported.');
+
 assert.match(
     editing,
     /quickSuggestions:\s*\{\s*other:\s*true,\s*comments:\s*false,\s*strings:\s*true\s*\}[\s\S]+suggestOnTriggerCharacters:\s*true[\s\S]+tabCompletion:\s*'on'/,
@@ -72,13 +97,45 @@ assert.match(
 );
 assert.match(
     editing,
-    /registerCompletionItemProvider\('html'[\s\S]+dbeHtmlClassCompletionContext[\s\S]+dbeHtmlClassNames\(model\.getValue\(\)\)[\s\S]+Existing Builderius class/,
-    'Monaco must suggest existing Builderius classes inside class attributes.'
+    /registerCompletionItemProvider\('html'[\s\S]+dbeHtmlCompletionContext\(model, position\)[\s\S]+dbeHtmlClassItems\(model\.getValue\(\)\)[\s\S]+dbeHtmlCompletionItems\(api, model, position, context, classCompletionItems\)/,
+    'Monaco must provide context-aware Builderius HTML completions.'
 );
 assert.match(
     editing,
     /previewDocument\.styleSheets[\s\S]+previewDocument\.adoptedStyleSheets[\s\S]+collectFromRules\(sheet\.cssRules\)/,
     'Class suggestions must inspect ordinary and adopted preview stylesheets.'
+);
+assert.match(
+    editing,
+    /htmlCompletionComponentName[\s\S]+component\.props[\s\S]+true\[_-\]\?false[\s\S]+prop\.options \|\| prop\.choices/,
+    'Component completions must include declared properties, boolean values and select-like options.'
+);
+assert.ok(
+    editing.includes('data-b-context=\\\'[{"${1:field}":"${2:value}"}]\\\'') &&
+        editing.includes("dbeT('htmlCompletionWpData'") &&
+        editing.includes("dbeT('htmlCompletionPropData'") &&
+        editing.includes("dbeT('htmlCompletionCollectionData'"),
+    'Completions must cover static Collection JSON and Builderius dynamic-data expressions.'
+);
+assert.match(
+    editing,
+    /dbeHtmlAnalyse\(editor\.getValue\(\)\)[\s\S]+authoring\.setIssue\(analysis\.error\)[\s\S]+apply\.disabled = true/,
+    'Edit as HTML must expose structural diagnostics and block invalid markup.'
+);
+assert.match(
+    editing,
+    /htmlRenameTag[\s\S]+analysis\.pairs\[tokenIndex\][\s\S]+editor\.replaceRanges/,
+    'Paired tag rename must update the opening and closing names together.'
+);
+assert.match(
+    editing,
+    /htmlCollectionJson[\s\S]+dbeFindRepeats\(parsed\.roots\)[\s\S]+dbeCollapseRepeats\(parsed\.roots, true\)[\s\S]+htmlCollectionNeedsParent[\s\S]+releaseChangedMarkers/,
+    'A selected repeated pattern must become a replacement Collection with static JSON without changing the edited root type.'
+);
+assert.match(
+    editing,
+    /htmlCreateComponent[\s\S]+root\.existingId[\s\S]+driveContextMenuItem\(componentTargetId, 'Create Component'/,
+    'A selected existing subtree must hand off to Builderius native component creation after Apply.'
 );
 assert.match(
     editing,

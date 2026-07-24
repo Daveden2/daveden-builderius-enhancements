@@ -23,7 +23,9 @@ const assetBudgets = new Map([
     ['assets/builder/js/chunks/a11y.js', 8 * 1024],
     ['assets/builder/js/chunks/a11y-composites.js', 35 * 1024],
     ['assets/builder/js/chunks/workspace.js', 25 * 1024],
-    ['assets/builder/js/chunks/editing.js', 65 * 1024],
+    // Structural HTML analysis, Builderius-aware completions and authoring
+    // transforms intentionally live beside the existing edit/import parser.
+    ['assets/builder/js/chunks/editing.js', 70 * 1024],
     ['assets/builder/js/chunks/styles.js', 35 * 1024],
     ['assets/builder/js/chunks/integrations.js', 15 * 1024],
     ['assets/builder/js/chunks/commands.js', 55 * 1024],

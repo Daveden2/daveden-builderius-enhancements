@@ -37,8 +37,16 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   textarea otherwise), edit tags, ids, classes, attributes and text, and
   apply the markup back. The editor auto-closes non-void opening tags, keeps
   the caret between the pair and avoids duplicate or malformed closures.
-  Monaco suggests HTML tags and attributes plus existing classes gathered
-  from Builderius modules and the preview's global/entity stylesheets. Every
+  Structural diagnostics mark mismatched, unexpected and unclosed tags and
+  provide a direct jump to the issue. Authoring tools format the whole document
+  or current selection and rename matching opening and closing tags together.
+  Monaco suggests HTML tags and attributes, Builderius dynamic-data expressions,
+  registered component slugs and typed properties, plus existing classes
+  gathered from Builderius modules and the preview's global/entity stylesheets;
+  class details show their source, usage and authored CSS rules. A selected
+  repeated pattern can be rewritten as a Collection backed by static JSON, and
+  a selected existing subtree can open Builderius's native component creator
+  after the reviewed markup is applied. Every
   serialised element carries a `data-dbe-id`
   marker: elements whose marker survives keep their module, so labels,
   rendering conditions, interactive-mode and other non-HTML settings ride

@@ -1582,20 +1582,24 @@
     }
 
     /* Class completions combine classes already assigned to Builderius modules
-       with selectors from the preview's global/entity stylesheets. CSSOM is
-       authoritative here and includes adopted stylesheets used by Builderius;
-       inaccessible cross-origin sheets are ignored. */
-    function dbeHtmlClassNames(editorValue) {
-        var names = {};
+       with selectors from the preview's global/entity stylesheets. Each item
+       retains its provenance and a few authored rules for Monaco's detail
+       panel instead of presenting an unexplained flat name list. */
+    function dbeHtmlClassItems(editorValue) {
+        var items = {};
+        function item(name) {
+            if (!items[name]) { items[name] = { name: name, modules: 0, markup: false, rules: [] }; }
+            return items[name];
+        }
         var currentModules = modules() || {};
         Object.keys(currentModules).forEach(function (id) {
             moduleClasses(currentModules[id]).forEach(function (name) {
-                if (typeof name === 'string' && name) { names[name] = true; }
+                if (typeof name === 'string' && name) { item(name).modules += 1; }
             });
         });
         String(editorValue || '').replace(/\bclass(?:Name)?\s*=\s*["']([^"']*)["']/gi, function (all, value) {
             value.trim().split(/\s+/).forEach(function (name) {
-                if (name) { names[name] = true; }
+                if (name) { item(name).markup = true; }
             });
             return all;
         });
@@ -1607,7 +1611,11 @@
                 var rule = rules[i];
                 if (rule.selectorText) {
                     var matches = rule.selectorText.matchAll(/\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)/g);
-                    for (var match of matches) { names[match[1]] = true; }
+                    for (var match of matches) {
+                        var found = item(match[1]);
+                        var summary = rule.selectorText + ' { ' + String(rule.style && rule.style.cssText || '') + ' }';
+                        if (found.rules.length < 3 && found.rules.indexOf(summary) === -1) { found.rules.push(summary); }
+                    }
                 }
                 if (rule.cssRules) {
                     try { collectFromRules(rule.cssRules); } catch (e) {}
@@ -1621,24 +1629,195 @@
                 try { collectFromRules(sheet.cssRules); } catch (e) {}
             });
         }
-        return Object.keys(names).sort();
+        return Object.keys(items).sort().map(function (name) { return items[name]; });
     }
 
-    function dbeHtmlClassCompletionContext(model, position) {
-        var line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-        var openAt = line.lastIndexOf('<');
-        if (openAt < 0 || line.lastIndexOf('>') > openAt) { return null; }
-        var match = line.slice(openAt).match(/\bclass(?:Name)?\s*=\s*(["'])([^"']*)$/i);
-        if (!match) { return null; }
-        var partial = match[2].split(/\s+/).pop() || '';
+    function dbeHtmlCompletionContext(model, position) {
+        var value = model.getValue();
+        var offset = model.getOffsetAt(position);
+        var before = value.slice(0, offset);
+        var dynamic = before.match(/(\[\[|\{\{)([A-Za-z0-9_.-]*)$/);
+        if (dynamic) {
+            return { type: 'dynamic', partial: dynamic[0], start: offset - dynamic[0].length };
+        }
+        var openAt = before.lastIndexOf('<');
+        if (openAt < 0 || before.lastIndexOf('>') > openAt) { return null; }
+        var inside = before.slice(openAt + 1);
+        if (/^\s*[!/?]/.test(inside)) { return null; }
+        var tagMatch = inside.match(/^\s*([A-Za-z][A-Za-z0-9:-]*)?/);
+        var tag = tagMatch && tagMatch[1] ? tagMatch[1].toLowerCase() : '';
+        if (!/\s/.test(inside) && inside.indexOf('=') === -1) {
+            return { type: 'tag', tag: tag, partial: tag, start: offset - tag.length };
+        }
+        var valueMatch = inside.match(/([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(["'])([^"']*)$/);
+        if (valueMatch) {
+            var valuePartial = valueMatch[3].split(/\s+/).pop() || '';
+            return {
+                type: valueMatch[1].toLowerCase() === 'class' ? 'class' : 'value',
+                tag: tag,
+                attribute: valueMatch[1].toLowerCase(),
+                partial: valuePartial,
+                start: offset - valuePartial.length,
+                inside: inside
+            };
+        }
+        var attrMatch = inside.match(/(?:^|\s)([A-Za-z_:][A-Za-z0-9_.:-]*)?$/);
+        if (!attrMatch) { return null; }
+        var partial = attrMatch[1] || '';
+        return { type: 'attribute', tag: tag, partial: partial, start: offset - partial.length, inside: inside };
+    }
+
+    function dbeHtmlCompletionRange(model, position, context) {
+        var start = model.getPositionAt(context.start);
         return {
-            range: {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: position.column - partial.length,
-                endColumn: position.column
-            }
+            startLineNumber: start.lineNumber,
+            startColumn: start.column,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
         };
+    }
+
+    /* A small structural lexer catches errors DOMParser silently repairs,
+       while retaining exact source offsets for diagnostics and paired-tag
+       editing. Optional-end-tag elements are not reported as unclosed. */
+    var DBE_HTML_OPTIONAL_END = {
+        li: 1, dt: 1, dd: 1, p: 1, rt: 1, rp: 1, option: 1, optgroup: 1,
+        colgroup: 1, thead: 1, tbody: 1, tfoot: 1, tr: 1, td: 1, th: 1
+    };
+    function dbeHtmlAnalyse(value) {
+        var tokens = [];
+        var at = 0;
+        while ((at = value.indexOf('<', at)) !== -1) {
+            if (value.slice(at, at + 4) === '<!--') {
+                var commentEnd = value.indexOf('-->', at + 4);
+                if (commentEnd === -1) {
+                    return { tokens: tokens, pairs: {}, error: {
+                        offset: at, length: 4,
+                        message: dbeT('htmlErrUnclosedComment', 'Unclosed HTML comment')
+                    } };
+                }
+                at = commentEnd + 3;
+                continue;
+            }
+            var lead = value.slice(at + 1).match(/^\s*(\/)?\s*([A-Za-z][A-Za-z0-9:-]*)/);
+            if (!lead) { at += 1; continue; }
+            var quote = '';
+            var end = at + 1;
+            for (; end < value.length; end++) {
+                var ch = value.charAt(end);
+                if (quote) {
+                    if (ch === quote) { quote = ''; }
+                } else if (ch === '"' || ch === "'") {
+                    quote = ch;
+                } else if (ch === '>') {
+                    break;
+                }
+            }
+            if (end >= value.length) {
+                return { tokens: tokens, pairs: {}, error: {
+                    offset: at, length: Math.max(1, value.length - at),
+                    message: dbeT('htmlErrUnclosedOpening', 'Opening tag is missing its closing bracket')
+                } };
+            }
+            var raw = value.slice(at, end + 1);
+            var nameOffset = raw.indexOf(lead[2]);
+            tokens.push({
+                start: at, end: end + 1, nameStart: at + nameOffset,
+                nameEnd: at + nameOffset + lead[2].length,
+                name: lead[2].toLowerCase(), rawName: lead[2],
+                closing: !!lead[1], selfClosing: /\/\s*>$/.test(raw)
+            });
+            at = end + 1;
+        }
+
+        var pairs = {};
+        var stack = [];
+        tokens.forEach(function (token, index) {
+            if (!token.closing && !token.selfClosing && !DBE_HTML_VOID[token.name]) {
+                if (stack.length && DBE_HTML_OPTIONAL_END[token.name] && stack[stack.length - 1].token.name === token.name) {
+                    stack.pop();
+                }
+                stack.push({ token: token, index: index });
+                return;
+            }
+            if (!token.closing) { return; }
+            var matchAt = -1;
+            for (var s = stack.length - 1; s >= 0; s--) {
+                if (stack[s].token.name === token.name) { matchAt = s; break; }
+            }
+            if (matchAt === -1) {
+                token.error = dbeFmt(dbeT('htmlErrUnexpectedClose', 'Unexpected closing tag </%s>'), token.rawName);
+                return;
+            }
+            for (var between = stack.length - 1; between > matchAt; between--) {
+                if (!DBE_HTML_OPTIONAL_END[stack[between].token.name]) {
+                    token.error = dbeFmt(
+                        dbeT('htmlErrMismatchedClose', 'Expected </%1$s> before </%2$s>'),
+                        stack[between].token.rawName,
+                        token.rawName
+                    );
+                    return;
+                }
+            }
+            while (stack.length - 1 > matchAt) { stack.pop(); }
+            var opening = stack.pop();
+            pairs[index] = opening.index;
+            pairs[opening.index] = index;
+        });
+        var bad = tokens.filter(function (token) { return !!token.error; })[0];
+        if (bad) {
+            return { tokens: tokens, pairs: pairs, error: {
+                offset: bad.nameStart, length: bad.nameEnd - bad.nameStart, message: bad.error
+            } };
+        }
+        for (var u = stack.length - 1; u >= 0; u--) {
+            if (!DBE_HTML_OPTIONAL_END[stack[u].token.name]) {
+                return { tokens: tokens, pairs: pairs, error: {
+                    offset: stack[u].token.nameStart,
+                    length: stack[u].token.nameEnd - stack[u].token.nameStart,
+                    message: dbeFmt(dbeT('htmlErrUnclosedTag', 'Missing closing tag </%s>'), stack[u].token.rawName)
+                } };
+            }
+        }
+        return { tokens: tokens, pairs: pairs, error: null };
+    }
+
+    function dbeFormatHtml(value) {
+        var template = document.createElement('template');
+        template.innerHTML = String(value || '').trim();
+        var lines = [];
+        function attrs(el) {
+            return [].slice.call(el.attributes || []).map(function (a) {
+                return a.value === '' ? ' ' + a.name : ' ' + a.name + '="' + dbeHtmlEscapeAttr(a.value) + '"';
+            }).join('');
+        }
+        function write(node, depth) {
+            var pad = new Array(depth + 1).join('  ');
+            if (node.nodeType === 3) {
+                if (node.textContent.trim()) { lines.push(pad + node.textContent.trim()); }
+                return;
+            }
+            if (node.nodeType === 8) { lines.push(pad + '<!--' + node.data + '-->'); return; }
+            if (node.nodeType !== 1) { return; }
+            var tag = node.localName || node.tagName.toLowerCase();
+            var open = '<' + tag + attrs(node) + '>';
+            if (DBE_HTML_VOID[tag]) { lines.push(pad + open); return; }
+            var contentNodes = tag === 'template' && node.content
+                ? [].slice.call(node.content.childNodes)
+                : [].slice.call(node.childNodes);
+            var elements = contentNodes.filter(function (child) { return child.nodeType === 1; });
+            var text = contentNodes.filter(function (child) { return child.nodeType === 3; })
+                .map(function (child) { return child.textContent; }).join('');
+            if (!elements.length || text.trim()) {
+                lines.push(pad + open + node.innerHTML + '</' + tag + '>');
+                return;
+            }
+            lines.push(pad + open);
+            contentNodes.forEach(function (child) { write(child, depth + 1); });
+            lines.push(pad + '</' + tag + '>');
+        }
+        [].slice.call(template.content.childNodes).forEach(function (node) { write(node, 0); });
+        return lines.join('\n');
     }
 
     function dbeSettingVal(mod, name) {
@@ -1686,6 +1865,122 @@
             reg[c.name] = { label: c.title || c.name, props: props };
         });
         return reg;
+    }
+
+    function dbeHtmlCompletionItems(api, model, position, context, classItems) {
+        var kinds = api.languages.CompletionItemKind || {};
+        var rules = api.languages.CompletionItemInsertTextRule || {};
+        var range = dbeHtmlCompletionRange(model, position, context);
+        var suggestions = [];
+        function add(label, insertText, detail, kind, documentation, snippet) {
+            var entry = {
+                label: label,
+                insertText: insertText,
+                detail: detail,
+                kind: kind || kinds.Property || 9,
+                range: range
+            };
+            if (documentation) { entry.documentation = documentation; }
+            if (snippet && rules.InsertAsSnippet != null) { entry.insertTextRules = rules.InsertAsSnippet; }
+            suggestions.push(entry);
+        }
+        if (context.type === 'class') {
+            (classItems || []).forEach(function (entry) {
+                var sources = [];
+                if (entry.modules) {
+                    sources.push(dbeFmt(dbeT('htmlClassUsedCount', 'used on %s element(s)'), entry.modules));
+                }
+                if (entry.markup) { sources.push(dbeT('htmlClassCurrentMarkup', 'present in this markup')); }
+                if (entry.rules.length) {
+                    sources.push(dbeFmt(dbeT('htmlClassRuleCount', '%s authored rule(s)'), entry.rules.length));
+                }
+                add(
+                    entry.name,
+                    entry.name,
+                    dbeT('existingBuilderiusClass', 'Existing Builderius class') +
+                        (sources.length ? ' — ' + sources.join(', ') : ''),
+                    kinds.Value || 12,
+                    entry.rules.join('\n\n')
+                );
+            });
+            return suggestions;
+        }
+        if (context.type === 'tag') {
+            add(
+                'dbe-component',
+                'dbe-component name="${1:component_slug}"></dbe-component>',
+                dbeT('htmlCompletionComponent', 'Builderius component instance'),
+                kinds.Class || 6,
+                dbeT('htmlCompletionComponentHelp', 'Choose a registered component slug and add its declared properties as attributes.'),
+                true
+            );
+            add(
+                'dbe-keep',
+                'dbe-keep data-dbe-id="${1:module_id}"></dbe-keep>',
+                dbeT('htmlCompletionKeep', 'Preserved unsupported Builderius module'),
+                kinds.Class || 6,
+                dbeT('htmlCompletionKeepHelp', 'Keeps an existing unsupported module unchanged during the HTML round trip.'),
+                true
+            );
+            return suggestions;
+        }
+        if (context.type === 'dynamic') {
+            add('[[wp.…]]', '[[wp.${1:path}]]', dbeT('htmlCompletionWpData', 'Builderius wp data variable'), kinds.Variable || 5, '', true);
+            add('[[props.…]]', '[[props.${1:property}]]', dbeT('htmlCompletionPropData', 'Builderius component property'), kinds.Variable || 5, '', true);
+            add('{{field}}', '{{${1:field}}}', dbeT('htmlCompletionCollectionData', 'Collection item field'), kinds.Variable || 5, '', true);
+            return suggestions;
+        }
+
+        var registry = dbeComponentRegistry();
+        var componentMatch = (context.inside || '').match(/\bname\s*=\s*["']([^"']+)["']/i);
+        var component = componentMatch && registry[componentMatch[1]];
+        if (context.type === 'attribute') {
+            [
+                ['data-dbe-label', 'data-dbe-label="${1:Navigator label}"', dbeT('htmlCompletionLabel', 'Builderius Navigator label')],
+                ['data-b-context', 'data-b-context=\'[{"${1:field}":"${2:value}"}]\'', dbeT('htmlCompletionContext', 'Collection data source (static JSON)')],
+                ['data-dbe-module', 'data-dbe-module="${1|collection,subcollection,template|}"', dbeT('htmlCompletionModule', 'Builderius module type')]
+            ].forEach(function (def) { add(def[0], def[1], def[2], kinds.Property || 9, '', true); });
+            if (context.tag === 'dbe-component') {
+                add('name', 'name="${1:component_slug}"', dbeT('htmlCompletionComponentName', 'Registered component slug'), kinds.Property || 9, '', true);
+                if (component) {
+                    Object.keys(component.props).forEach(function (name) {
+                        var def = component.props[name];
+                        add(name, name + '="${1:' + (def.placeholder || def.label || name) + '}"',
+                            dbeFmt(dbeT('htmlCompletionComponentProp', 'Component property — %s'), def.type || 'text'),
+                            kinds.Property || 9, '', true);
+                    });
+                }
+            }
+            return suggestions;
+        }
+        if (context.type !== 'value') { return suggestions; }
+        if (context.tag === 'dbe-component' && context.attribute === 'name') {
+            Object.keys(registry).sort().forEach(function (slug) {
+                add(slug, slug, registry[slug].label, kinds.Reference || 18);
+            });
+            return suggestions;
+        }
+        if (context.attribute === 'data-dbe-module') {
+            ['collection', 'subcollection', 'template'].forEach(function (name) {
+                add(name, name, dbeT('htmlCompletionModule', 'Builderius module type'), kinds.EnumMember || 20);
+            });
+            return suggestions;
+        }
+        if (component && component.props[context.attribute]) {
+            var prop = component.props[context.attribute];
+            if (/bool|true[_-]?false|checkbox|switch/i.test(prop.type || '')) {
+                ['true', 'false'].forEach(function (value) {
+                    add(value, value, dbeFmt(dbeT('htmlCompletionComponentProp', 'Component property — %s'), prop.type), kinds.Value || 12);
+                });
+            }
+            var options = prop.options || prop.choices || prop.values || [];
+            if (!Array.isArray(options) && typeof options === 'object') { options = Object.keys(options); }
+            options.forEach(function (option) {
+                var value = typeof option === 'object' ? (option.value || option.name || option.label) : option;
+                if (value != null) { add(String(value), String(value), prop.label || context.attribute, kinds.Value || 12); }
+            });
+        }
+        return suggestions;
     }
 
     /* Editable = the ROOT is a type the dialogs express. Descendants need not
@@ -2277,7 +2572,7 @@
                 var autoCloseChangeListener = null;
                 var autoCloseTimer = null;
                 var classCompletionProvider = null;
-                var classCompletionNames = null;
+                var classCompletionItems = null;
                 if (opts.onEscape && typeof ed.onKeyDown === 'function') {
                     escapeKeyListener = ed.onKeyDown(function (event) {
                         var browserEvent = event && event.browserEvent;
@@ -2337,27 +2632,16 @@
                 }
                 if (api.languages && typeof api.languages.registerCompletionItemProvider === 'function') {
                     classCompletionProvider = api.languages.registerCompletionItemProvider('html', {
-                        triggerCharacters: ['"', "'", ' ', '-'],
+                        triggerCharacters: ['<', '"', "'", ' ', '-', '=', '[', '{'],
                         provideCompletionItems: function (model, position) {
                             if (model !== ed.getModel()) { return { suggestions: [] }; }
-                            var context = dbeHtmlClassCompletionContext(model, position);
+                            var context = dbeHtmlCompletionContext(model, position);
                             if (!context) { return { suggestions: [] }; }
-                            var valueKind = api.languages.CompletionItemKind
-                                ? api.languages.CompletionItemKind.Value
-                                : 12;
-                            if (!classCompletionNames) {
-                                classCompletionNames = dbeHtmlClassNames(model.getValue());
+                            if (context.type === 'class' && !classCompletionItems) {
+                                classCompletionItems = dbeHtmlClassItems(model.getValue());
                             }
                             return {
-                                suggestions: classCompletionNames.map(function (name) {
-                                    return {
-                                        label: name,
-                                        kind: valueKind,
-                                        detail: dbeT('existingBuilderiusClass', 'Existing Builderius class'),
-                                        insertText: name,
-                                        range: context.range
-                                    };
-                                })
+                                suggestions: dbeHtmlCompletionItems(api, model, position, context, classCompletionItems)
                             };
                         }
                     });
@@ -2381,9 +2665,77 @@
                 }
                 decorateMarkers();
                 ed.onDidChangeModelContent(function () {
+                    classCompletionItems = null;
                     dbeClearOwnedTimeout(DBE_EDITING_OWNER, decoTimer);
                     decoTimer = dbeSetOwnedTimeout(DBE_EDITING_OWNER, decorateMarkers, 120);
                 });
+                function selectionOffsets() {
+                    var model = ed.getModel();
+                    var selection = ed.getSelection();
+                    if (!model || !selection) { return { start: 0, end: 0 }; }
+                    return {
+                        start: model.getOffsetAt({
+                            lineNumber: selection.startLineNumber,
+                            column: selection.startColumn
+                        }),
+                        end: model.getOffsetAt({
+                            lineNumber: selection.endLineNumber,
+                            column: selection.endColumn
+                        })
+                    };
+                }
+                function selectOffsets(start, end) {
+                    try {
+                        var model = ed.getModel();
+                        var a = model.getPositionAt(start);
+                        var b = model.getPositionAt(end == null ? start : end);
+                        ed.setSelection({
+                            startLineNumber: a.lineNumber,
+                            startColumn: a.column,
+                            endLineNumber: b.lineNumber,
+                            endColumn: b.column
+                        });
+                        ed.revealLineInCenter(a.lineNumber);
+                        ed.focus();
+                    } catch (e) {}
+                }
+                function replaceOffsets(edits, selectStart, selectEnd) {
+                    var model = ed.getModel();
+                    if (!model) { return; }
+                    ed.executeEdits('dbe-html-authoring', edits.map(function (edit) {
+                        var a = model.getPositionAt(edit.start);
+                        var b = model.getPositionAt(edit.end);
+                        return {
+                            range: {
+                                startLineNumber: a.lineNumber,
+                                startColumn: a.column,
+                                endLineNumber: b.lineNumber,
+                                endColumn: b.column
+                            },
+                            text: edit.text,
+                            forceMoveMarkers: true
+                        };
+                    }));
+                    if (typeof selectStart === 'number') { selectOffsets(selectStart, selectEnd); }
+                }
+                function setDiagnostic(issue) {
+                    var model = ed.getModel();
+                    if (!model || !api.editor || typeof api.editor.setModelMarkers !== 'function') { return; }
+                    var markers = [];
+                    if (issue) {
+                        var start = model.getPositionAt(issue.offset);
+                        var end = model.getPositionAt(issue.offset + Math.max(1, issue.length || 1));
+                        markers.push({
+                            severity: api.MarkerSeverity ? api.MarkerSeverity.Error : 8,
+                            message: issue.message,
+                            startLineNumber: start.lineNumber,
+                            startColumn: start.column,
+                            endLineNumber: end.lineNumber,
+                            endColumn: end.column
+                        });
+                    }
+                    api.editor.setModelMarkers(model, 'dbe-html', markers);
+                }
                 return {
                     el: host,
                     isMonaco: true,
@@ -2392,6 +2744,20 @@
                     setValue: function (v) { if (ed.getValue() !== v) { ed.setValue(v); decorateMarkers(); } },
                     focus: function () { try { ed.focus(); } catch (e) {} },
                     cursorStart: function () { try { ed.setPosition({ lineNumber: 1, column: 1 }); } catch (e) {} },
+                    getSelection: selectionOffsets,
+                    selectedText: function () {
+                        var range = selectionOffsets();
+                        return ed.getValue().slice(range.start, range.end);
+                    },
+                    replaceSelection: function (text, selectInserted) {
+                        var range = selectionOffsets();
+                        replaceOffsets([{ start: range.start, end: range.end, text: text }],
+                            selectInserted ? range.start : range.start + text.length,
+                            selectInserted ? range.start + text.length : undefined);
+                    },
+                    replaceRanges: replaceOffsets,
+                    selectRange: selectOffsets,
+                    setDiagnostic: setDiagnostic,
                     onChange: function (cb) { ed.onDidChangeModelContent(cb); },
                     layout: function () { try { ed.layout(); } catch (e) {} },
                     dispose: function () {
@@ -2401,6 +2767,7 @@
                         if (escapeAction) { try { escapeAction.dispose(); } catch (e) {} }
                         if (autoCloseChangeListener) { try { autoCloseChangeListener.dispose(); } catch (e) {} }
                         if (classCompletionProvider) { try { classCompletionProvider.dispose(); } catch (e) {} }
+                        setDiagnostic(null);
                         try { ed.dispose(); } catch (e) {}
                     }
                 };
@@ -2425,6 +2792,22 @@
             ta.dispatchEvent(new Event('input', { bubbles: true }));
         }
         ta.addEventListener('keydown', autoCloseTextareaTag);
+        function textareaSelection() {
+            return { start: ta.selectionStart || 0, end: ta.selectionEnd || 0 };
+        }
+        function textareaSelect(start, end) {
+            try {
+                ta.setSelectionRange(start, end == null ? start : end);
+                ta.focus();
+            } catch (e) {}
+        }
+        function textareaReplaceRanges(edits, selectStart, selectEnd) {
+            edits.slice().sort(function (a, b) { return b.start - a.start; }).forEach(function (edit) {
+                ta.setRangeText(edit.text, edit.start, edit.end, 'preserve');
+            });
+            if (typeof selectStart === 'number') { textareaSelect(selectStart, selectEnd); }
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         return {
             el: ta,
             isMonaco: false,
@@ -2432,6 +2815,23 @@
             setValue: function (v) { ta.value = v; },
             focus: function () { ta.focus(); },
             cursorStart: function () { try { ta.setSelectionRange(0, 0); } catch (e) {} },
+            getSelection: textareaSelection,
+            selectedText: function () {
+                var range = textareaSelection();
+                return ta.value.slice(range.start, range.end);
+            },
+            replaceSelection: function (text, selectInserted) {
+                var range = textareaSelection();
+                textareaReplaceRanges([{ start: range.start, end: range.end, text: text }],
+                    selectInserted ? range.start : range.start + text.length,
+                    selectInserted ? range.start + text.length : undefined);
+            },
+            replaceRanges: textareaReplaceRanges,
+            selectRange: textareaSelect,
+            setDiagnostic: function (issue) {
+                ta.setAttribute('aria-invalid', issue ? 'true' : 'false');
+                ta.title = issue ? issue.message : '';
+            },
             onChange: function (cb) { ta.addEventListener('input', cb); },
             layout: function () {},
             dispose: function () { ta.removeEventListener('keydown', autoCloseTextareaTag); }
@@ -2444,6 +2844,203 @@
         warning.className = 'dbe-html__undo-warning';
         warning.textContent = text;
         return warning;
+    }
+
+    function dbeParsedNodeHtml(node, depth) {
+        var pad = new Array((depth || 0) + 1).join('  ');
+        if (node.keep) {
+            return pad + '<dbe-keep data-dbe-id="' + dbeHtmlEscapeAttr(node.keep) + '"></dbe-keep>';
+        }
+        if ((node.module || 'HtmlElement') === 'Component') {
+            var component = pad + '<dbe-component name="' + dbeHtmlEscapeAttr(node.componentName) + '"';
+            (node.props || []).forEach(function (prop) {
+                component += ' ' + prop.name + '="' + dbeHtmlEscapeAttr(prop.value) + '"';
+            });
+            if (node.existingId) { component += ' data-dbe-id="' + dbeHtmlEscapeAttr(node.existingId) + '"'; }
+            return component + '></dbe-component>';
+        }
+        if (node.svg) { return pad + node.svg; }
+        var tag = node.tag || 'div';
+        var open = '<' + tag;
+        if (node.tagId) { open += ' id="' + dbeHtmlEscapeAttr(node.tagId) + '"'; }
+        if (node.classes && node.classes.length) {
+            open += ' class="' + dbeHtmlEscapeAttr(node.classes.join(' ')) + '"';
+        }
+        (node.attrs || []).forEach(function (attr) {
+            open += ' ' + attr.name + (attr.value == null || attr.value === ''
+                ? ''
+                : '="' + dbeHtmlEscapeAttr(attr.value) + '"');
+        });
+        if ((node.module || 'HtmlElement') !== 'HtmlElement' &&
+            !(node.attrs || []).some(function (attr) { return attr.name === 'data-dbe-module'; })) {
+            open += ' data-dbe-module="' + String(node.module).toLowerCase() + '"';
+        }
+        if (node.label) { open += ' data-dbe-label="' + dbeHtmlEscapeAttr(node.label) + '"'; }
+        if (node.existingId) { open += ' data-dbe-id="' + dbeHtmlEscapeAttr(node.existingId) + '"'; }
+        open += '>';
+        if (DBE_HTML_VOID[tag]) { return pad + open; }
+        if (!(node.children || []).length) { return pad + open + (node.content || '') + '</' + tag + '>'; }
+        var lines = [pad + open];
+        if (node.content) { lines.push(pad + '  ' + node.content); }
+        (node.children || []).forEach(function (child) { lines.push(dbeParsedNodeHtml(child, (depth || 0) + 1)); });
+        lines.push(pad + '</' + tag + '>');
+        return lines.join('\n');
+    }
+
+    function dbeHtmlAuthoringToolbar(editor, opts) {
+        opts = opts || {};
+        var bar = document.createElement('div');
+        bar.className = 'dbe-html__tools';
+        bar.setAttribute('role', 'toolbar');
+        bar.setAttribute('aria-label', dbeT('htmlTools', 'HTML authoring tools'));
+        var issue = null;
+        var componentTarget = null;
+        function announce(message, warn) {
+            if (opts.announce) { opts.announce(message, warn); }
+        }
+        function tool(label, handler) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'dbe-html__tool';
+            button.textContent = label;
+            button.addEventListener('click', handler);
+            bar.appendChild(button);
+            return button;
+        }
+        tool(dbeT('htmlFormat', 'Format'), function () {
+            var range = editor.getSelection();
+            var selected = range.end > range.start;
+            var source = selected ? editor.selectedText() : editor.getValue();
+            var analysis = dbeHtmlAnalyse(source);
+            if (analysis.error) { announce(analysis.error.message, true); return; }
+            var formatted;
+            try {
+                formatted = dbeFormatHtml(source);
+            } catch (error) {
+                announce(dbeT('htmlErrParse', 'Could not parse the HTML'), true);
+                return;
+            }
+            if (selected) { editor.replaceSelection(formatted, true); }
+            else { editor.setValue(formatted); editor.cursorStart(); }
+            announce(dbeT('htmlFormatted', 'HTML formatted'));
+        });
+        tool(dbeT('htmlRenameTag', 'Rename tag…'), function () {
+            var value = editor.getValue();
+            var analysis = dbeHtmlAnalyse(value);
+            if (analysis.error) { announce(analysis.error.message, true); return; }
+            var caret = editor.getSelection().start;
+            var tokenIndex = -1;
+            analysis.tokens.forEach(function (token, index) {
+                if (caret >= token.start && caret <= token.end) { tokenIndex = index; }
+            });
+            var pairIndex = tokenIndex === -1 ? null : analysis.pairs[tokenIndex];
+            if (pairIndex == null) {
+                announce(dbeT('htmlRenameNeedsPair', 'Place the caret in a paired opening or closing tag'), true);
+                return;
+            }
+            var token = analysis.tokens[tokenIndex];
+            if (token.name === 'dbe-component' || token.name === 'dbe-keep') {
+                announce(dbeT('htmlRenameReserved', 'Builderius component and keep tags cannot be renamed'), true);
+                return;
+            }
+            var entered = window.prompt(dbeT('htmlRenamePrompt', 'Rename the matching tags to:'), token.rawName);
+            if (entered == null) { return; }
+            var name = dbeCleanTagInput(entered);
+            if (!name || DBE_HTML_VOID[name]) {
+                announce(dbeT('htmlRenameInvalid', 'Enter a non-void HTML tag name'), true);
+                return;
+            }
+            var pair = analysis.tokens[pairIndex];
+            editor.replaceRanges([
+                { start: token.nameStart, end: token.nameEnd, text: name },
+                { start: pair.nameStart, end: pair.nameEnd, text: name }
+            ], token.nameStart, token.nameStart + name.length);
+            announce(dbeFmt(dbeT('htmlRenamedTag', 'Renamed both tags to <%s>'), name));
+        });
+        if (opts.collection !== false) {
+            tool(dbeT('htmlCollectionJson', 'Collection + JSON'), function () {
+                var selected = editor.selectedText();
+                if (!selected.trim()) {
+                    announce(dbeT('htmlCollectionSelect', 'Select one container with repeated items first'), true);
+                    return;
+                }
+                var parsed;
+                try {
+                    parsed = dbeParseHtmlFragment(selected, opts.origIds || {});
+                } catch (error) {
+                    announce(typeof error === 'string' ? error : dbeT('htmlErrParse', 'Could not parse the HTML'), true);
+                    return;
+                }
+                if (parsed.roots.length !== 1 || !dbeFindRepeats(parsed.roots).length) {
+                    announce(dbeT('htmlCollectionNoRepeat', 'The selection does not contain a structurally repeated group'), true);
+                    return;
+                }
+                var collapsed = dbeCollapseRepeats(parsed.roots, true);
+                var collapsedRoot = collapsed.roots[0];
+                if (collapsedRoot.existingId === opts.rootId &&
+                    (opts.origIds || {})[collapsedRoot.existingId] !== collapsedRoot.module) {
+                    announce(dbeT('htmlCollectionNeedsParent',
+                        'Open Edit as HTML on the parent, then select this repeated container so it can be replaced by a Collection'), true);
+                    return;
+                }
+                (function releaseChangedMarkers(node) {
+                    if (node.existingId && (opts.origIds || {})[node.existingId] !== (node.module || 'HtmlElement')) {
+                        node.existingId = null;
+                    }
+                    (node.children || []).forEach(releaseChangedMarkers);
+                })(collapsedRoot);
+                editor.replaceSelection(collapsed.roots.map(function (root) {
+                    return dbeParsedNodeHtml(root, 0);
+                }).join('\n'), true);
+                announce(dbeT('htmlCollectionDone', 'Converted the repeated markup to a Collection with static JSON'));
+            });
+        }
+        var componentButton = null;
+        if (opts.component) {
+            componentButton = tool(dbeT('htmlCreateComponent', 'Create component after Apply'), function () {
+                if (componentTarget) {
+                    componentTarget = null;
+                    componentButton.setAttribute('aria-pressed', 'false');
+                    announce(dbeT('htmlComponentCancelled', 'Component extraction cancelled'));
+                    if (opts.setComponentTarget) { opts.setComponentTarget(null); }
+                    return;
+                }
+                var selected = editor.selectedText();
+                if (!selected.trim()) {
+                    announce(dbeT('htmlComponentSelect', 'Select one existing element subtree first'), true);
+                    return;
+                }
+                var parsed;
+                try {
+                    parsed = dbeParseHtmlFragment(selected, opts.origIds || {});
+                } catch (error) {
+                    announce(typeof error === 'string' ? error : dbeT('htmlErrParse', 'Could not parse the HTML'), true);
+                    return;
+                }
+                var root = parsed.roots.length === 1 ? parsed.roots[0] : null;
+                if (!root || !root.existingId || !(opts.origIds || {})[root.existingId]) {
+                    announce(dbeT('htmlComponentNeedsMarker', 'The selection must be one existing element carrying its data-dbe-id'), true);
+                    return;
+                }
+                componentTarget = root.existingId;
+                componentButton.setAttribute('aria-pressed', 'true');
+                if (opts.setComponentTarget) { opts.setComponentTarget(componentTarget); }
+                announce(dbeT('htmlComponentQueued', 'After Apply, Builderius will open its Create Component dialog for this element'));
+            });
+            componentButton.setAttribute('aria-pressed', 'false');
+        }
+        var jump = tool(dbeT('htmlJumpIssue', 'Go to issue'), function () {
+            if (issue) { editor.selectRange(issue.offset, issue.offset + Math.max(1, issue.length || 1)); }
+        });
+        jump.hidden = true;
+        return {
+            el: bar,
+            setIssue: function (nextIssue) {
+                issue = nextIssue || null;
+                jump.hidden = !issue;
+                editor.setDiagnostic(issue);
+            }
+        };
     }
 
     function dbeEditingDialogFocusReturn(preferred) {
@@ -2522,11 +3119,22 @@
             ariaLabel: dbeT('editAsHtmlEditor', 'HTML markup'),
             onEscape: function () { dlg.close(); }
         });
-        dlg.appendChild(editor.el);
-
         var status = document.createElement('p');
         status.className = 'dbe-html__status';
         status.setAttribute('role', 'status');
+        var componentTargetId = null;
+        var authoring = dbeHtmlAuthoringToolbar(editor, {
+            origIds: origIds,
+            rootId: rootId,
+            component: true,
+            setComponentTarget: function (id) { componentTargetId = id; },
+            announce: function (message, warn) {
+                status.textContent = message;
+                status.classList.toggle('dbe-html__status--warn', !!warn);
+            }
+        });
+        dlg.appendChild(authoring.el);
+        dlg.appendChild(editor.el);
         dlg.appendChild(status);
 
         var undoWarning = dbeHtmlUndoWarning('dbe-edit-html-undo-warning',
@@ -2549,6 +3157,13 @@
         apply.addEventListener('click', function () {
             var parsed;
             var currentHtml = editor.getValue();
+            var analysis = dbeHtmlAnalyse(currentHtml);
+            authoring.setIssue(analysis.error);
+            if (analysis.error) {
+                status.textContent = analysis.error.message;
+                status.classList.add('dbe-html__status--warn');
+                return;
+            }
             try {
                 parsed = dbeParseHtmlTree(currentHtml, origIds, rootId);
             } catch (msg) {
@@ -2587,6 +3202,19 @@
                             parsed.unknownMarkers.join(', '));
                     }
                     undoToast(msg);
+                    if (componentTargetId) {
+                        dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+                            if (!(modules() || {})[componentTargetId]) {
+                                undoToast(dbeT('htmlComponentTargetGone', 'The selected element no longer exists, so component creation was not opened.'));
+                                return;
+                            }
+                            driveContextMenuItem(componentTargetId, 'Create Component', function (ok) {
+                                if (!ok) {
+                                    undoToast(dbeT('htmlComponentOpenFailed', 'Builderius could not open Create Component for the selected element.'));
+                                }
+                            });
+                        }, 250);
+                    }
                 });
             }, 120);
         });
@@ -2601,6 +3229,14 @@
            blind. Debounced so a Monaco/textarea keystroke storm stays cheap. */
         function updatePreview() {
             var parsed;
+            var analysis = dbeHtmlAnalyse(editor.getValue());
+            authoring.setIssue(analysis.error);
+            if (analysis.error) {
+                status.textContent = analysis.error.message;
+                status.classList.add('dbe-html__status--warn');
+                apply.disabled = true;
+                return;
+            }
             try {
                 parsed = dbeParseHtmlTree(editor.getValue(), origIds, rootId);
             } catch (e) {
@@ -2987,6 +3623,18 @@
             ariaLabel: dbeT('importHtmlEditor', 'HTML to import'),
             onEscape: function () { dlg.close(); }
         });
+        var status = document.createElement('p');
+        status.className = 'dbe-html__status';
+        status.setAttribute('role', 'status');
+        var authoring = dbeHtmlAuthoringToolbar(editor, {
+            collection: false,
+            component: false,
+            announce: function (message, warn) {
+                status.textContent = message;
+                status.classList.toggle('dbe-html__status--warn', !!warn);
+            }
+        });
+        dlg.appendChild(authoring.el);
         dlg.appendChild(editor.el);
 
         // Repetition offer — shown only when the parsed markup contains
@@ -3025,9 +3673,6 @@
         preview.setAttribute('aria-label', dbeT('importHtmlPreview', 'Preview'));
         dlg.appendChild(preview);
 
-        var status = document.createElement('p');
-        status.className = 'dbe-html__status';
-        status.setAttribute('role', 'status');
         dlg.appendChild(status);
 
         var undoWarning = dbeHtmlUndoWarning('dbe-import-html-undo-warning',
@@ -3059,10 +3704,31 @@
             insert.disabled = true;
             status.textContent = '';
             if (!html.trim()) {
+                authoring.setIssue(null);
                 preview.textContent = dbeT('importHtmlEmpty', 'Nothing to preview yet.');
                 return;
             }
-            var p = dbeParseHtmlFragment(html, {});
+            var analysis = dbeHtmlAnalyse(html);
+            authoring.setIssue(analysis.error);
+            if (analysis.error) {
+                preview.textContent = '';
+                optionRow.style.display = 'none';
+                wireRow.style.display = 'none';
+                status.textContent = analysis.error.message;
+                status.classList.add('dbe-html__status--warn');
+                return;
+            }
+            var p;
+            try {
+                p = dbeParseHtmlFragment(html, {});
+            } catch (error) {
+                preview.textContent = '';
+                optionRow.style.display = 'none';
+                wireRow.style.display = 'none';
+                status.textContent = typeof error === 'string' ? error : dbeT('htmlErrParse', 'Could not parse the HTML');
+                status.classList.add('dbe-html__status--warn');
+                return;
+            }
             if (!p.roots.length) {
                 preview.textContent = '';
                 optionRow.style.display = 'none';
@@ -3099,6 +3765,7 @@
                 note += ' ' + dbeT('importCollapseBindNote', 'New collections still need their data binding.');
             }
             status.textContent = note;
+            status.classList.remove('dbe-html__status--warn');
             insert.disabled = false;
         }
         editor.onChange(function () {

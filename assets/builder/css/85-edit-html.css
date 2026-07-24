@@ -57,6 +57,38 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 	padding: 1px 4px;
 }
 
+.dbe-html__tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block-end: 8px;
+}
+.dbe-html__tool {
+	min-block-size: 28px;
+	padding: 5px 9px;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l2);
+	color: var(--dbe-text-2);
+	font: 600 11px/1.2 var(--dbe-ui-font);
+	cursor: pointer;
+	transition: background var(--dbe-t), border-color var(--dbe-t), color var(--dbe-t);
+}
+.dbe-html__tool:hover {
+	background: var(--dbe-hover-wash);
+	color: var(--dbe-text);
+}
+.dbe-html__tool[aria-pressed="true"] {
+	background: var(--dbe-accent-soft);
+	border-color: var(--dbe-accent);
+	color: var(--dbe-text);
+}
+.dbe-html__tool:focus-visible {
+	outline: 2px solid var(--dbe-accent);
+	outline-offset: 2px;
+}
+.dbe-html__tool[hidden] { display: none; }
+
 .dbe-html__editor {
 	flex: 1 1 auto;
 	min-block-size: 220px;
