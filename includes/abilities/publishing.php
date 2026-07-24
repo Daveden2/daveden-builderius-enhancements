@@ -622,8 +622,8 @@ function dbe_ability_release_plan_row( $post, $entity_type, $commit, $included_b
 
 /**
  * Build the exact release dependency closure Builderius' createRelease
- * resolver will use: selected pages/templates, their recursively referenced
- * components, and every global settings set with a saved commit.
+ * resolver will use: selected pages/templates, every global settings set with
+ * a saved commit, and components recursively referenced by either group.
  *
  * @param array $loaded_templates Loaded rows from dbe_ability_load_templates().
  * @return array Grouped and flattened release plan.
@@ -654,6 +654,32 @@ function dbe_ability_release_plan( $loaded_templates ) {
 		}
 	}
 
+	$settings_sets = get_posts(
+		array(
+			'post_type'   => 'builderius_sett_set',
+			'post_status' => get_post_stati(),
+			'numberposts' => -1,
+			'orderby'     => 'ID',
+			'order'       => 'ASC',
+		)
+	);
+	foreach ( $settings_sets as $settings_set ) {
+		$resolved = dbe_ability_resolve_commit( $settings_set );
+		if ( is_wp_error( $resolved ) ) {
+			$plan['warnings'][] = sprintf( 'Global settings set "%s" has no readable saved commit and will not be included.', $settings_set->post_name );
+			continue;
+		}
+		$plan['global_settings_sets'][] = dbe_ability_release_plan_row(
+			$settings_set,
+			'global_settings_set',
+			$resolved['commit'],
+			'builderius_required'
+		);
+		foreach ( dbe_ability_release_component_slugs( $resolved['config'] ) as $slug ) {
+			$component_queue[] = $slug;
+		}
+	}
+
 	$seen_components = array();
 	while ( $component_queue ) {
 		$slug = array_shift( $component_queue );
@@ -680,29 +706,6 @@ function dbe_ability_release_plan( $loaded_templates ) {
 		foreach ( dbe_ability_release_component_slugs( $loaded['config'] ) as $nested_slug ) {
 			$component_queue[] = $nested_slug;
 		}
-	}
-
-	$settings_sets = get_posts(
-		array(
-			'post_type'   => 'builderius_sett_set',
-			'post_status' => get_post_stati(),
-			'numberposts' => -1,
-			'orderby'     => 'ID',
-			'order'       => 'ASC',
-		)
-	);
-	foreach ( $settings_sets as $settings_set ) {
-		$resolved = dbe_ability_resolve_commit( $settings_set );
-		if ( is_wp_error( $resolved ) ) {
-			$plan['warnings'][] = sprintf( 'Global settings set "%s" has no readable saved commit and will not be included.', $settings_set->post_name );
-			continue;
-		}
-		$plan['global_settings_sets'][] = dbe_ability_release_plan_row(
-			$settings_set,
-			'global_settings_set',
-			$resolved['commit'],
-			'builderius_required'
-		);
 	}
 
 	$plan['entities'] = array_merge(
