@@ -29,6 +29,10 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   reflow, region navigation, composite controls, forced colours, focus return,
   target size and responsive top-bar behaviour. Individual Navigator row names
   remain under Builderius ownership rather than relying on a fragile rewrite.
+* Fixed: clicking a different Navigator row's disclosure now expands or
+  collapses it without moving keyboard focus away from the row whose focus ring
+  remains visible. If collapsing would hide the focused descendant, focus moves
+  to the branch row instead, so the visual cue and keyboard origin stay aligned.
 
 ### HTML editing tools (Pro, experimental, off by default)
 

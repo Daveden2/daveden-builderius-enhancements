@@ -36,6 +36,7 @@ const panelResize = read('assets/builder/css/75-panel-resize.css');
 const compactPanes = read('assets/builder/css/83-compact-panes.css');
 const saveMenu = read('assets/builder/css/35-save-menu.css');
 const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
+const navigatorKeyboard = read('assets/builder/css/79-navigator-keyboard.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
@@ -726,6 +727,26 @@ assert.match(
     composites,
     /function navSyncAria\(\)[\s\S]+aria-level[\s\S]+aria-posinset[\s\S]+aria-setsize[\s\S]+function ensureNavKeyboard\(\)[\s\S]+navigator-keys/,
     'The composites chunk must own the APG Navigator tree structure and keyboard binding.'
+);
+assert.match(
+    composites,
+    /function navPreserveDisclosureFocus\(e\)[\s\S]+chev\.parentElement !== row[\s\S]+branch\.contains\(activeRow\)[\s\S]+e\.preventDefault\(\)[\s\S]+navigator-disclosure-focus[\s\S]+mousedown/,
+    'Navigator disclosures must preserve visible row focus unless a collapse would hide the focused descendant.'
+);
+assert.match(
+    navigatorKeyboard,
+    /\.uniRightPanel \.uniModTree__item:focus-visible\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\) !important/,
+    'Keyboard-focused Navigator rows must retain their visible focus ring.'
+);
+assert.match(
+    navigatorKeyboard,
+    /\.uniRightPanel \.uniModTree__item:focus:not\(:focus-visible\)\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\)/,
+    'Navigator focus must remain visible in browsers that fall back to :focus.'
+);
+assert.doesNotMatch(
+    composites,
+    /data-dbe-focus-via|navSetPointerFocus|navClearPointerFocus/,
+    'Navigator focus must not be hidden behind a pointer-modality marker.'
 );
 assert.match(
     composites,

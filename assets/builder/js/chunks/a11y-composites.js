@@ -1990,6 +1990,24 @@
             });
         }
 
+        // The disclosure is an activation target inside the row button, not a
+        // separate treeitem. Keep mouse activation from moving DOM focus away
+        // from the row whose visible ring will remain on screen. If collapsing
+        // this branch would hide the focused descendant, allow the native focus
+        // move onto the branch row so focus never becomes hidden or detached.
+        function navPreserveDisclosureFocus(e) {
+            if (e.button !== 0) { return; }
+            var chev = e.target && e.target.closest && e.target.closest('i');
+            var row = chev && chev.closest && chev.closest(NAV_ROW_SEL);
+            var root = navRootList();
+            if (!row || !root || !root.contains(row) || chev.parentElement !== row) { return; }
+            var active = document.activeElement;
+            var activeRow = active && active.closest && active.closest(NAV_ROW_SEL);
+            var branch = navRowLi(row);
+            if (activeRow && activeRow !== row && branch && branch.contains(activeRow)) { return; }
+            e.preventDefault();
+        }
+
         // Move the single tab stop onto `target`, focus it, scroll it into view.
         function navFocus(target) {
             if (!target) { return; }
@@ -2197,6 +2215,9 @@
             if (on('navigator_keyboard')) { navSyncAria(); }
             var panel = document.querySelector('.uniRightPanel');
             if (!panel) { return; }
+            if (on('navigator_keyboard')) {
+                dbeBindOwnedEvent('a11y/composites', document, 'navigator-disclosure-focus', 'mousedown', navPreserveDisclosureFocus, true);
+            }
             // Bound on the stable panel (the tree lists are replaced on re-render),
             // while the controller registry keeps the binding reversible.
             dbeBindOwnedEvent('a11y/composites', panel, 'navigator-keys', 'keydown', navOnKeydown);
