@@ -614,6 +614,40 @@ assert.match(
     /\.dbe-palette__input:focus-visible\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\)/,
     'Palette search must retain a visible focus indicator.'
 );
+const paletteSelectedRule = palette.match(
+    /\.dbe-palette__item\[aria-selected="true"\]\s*\{([^}]*)\}/
+);
+assert.ok(paletteSelectedRule, 'Palette options must expose a selected-state rule.');
+assert.match(
+    paletteSelectedRule[1],
+    /background:\s*var\(--dbe-accent-tint\)/,
+    'Pointer-selected palette options must retain the light blue tint.'
+);
+assert.doesNotMatch(
+    paletteSelectedRule[1],
+    /outline:/,
+    'Pointer-selected palette options must not show the keyboard focus outline.'
+);
+assert.match(
+    palette,
+    /\.dbe-palette__item\[aria-selected="true"\]\[data-dbe-active-via="keyboard"\]\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\)/,
+    'Keyboard-selected palette options must retain a visible focus outline.'
+);
+assert.match(
+    palette,
+    /\.dbe-palette__search-row\s*\{[\s\S]*margin:\s*12px 12px 0[\s\S]*border-radius:\s*var\(--dbe-r-sm\)/,
+    'The palette search row must be inset from the dialog edge.'
+);
+assert.match(
+    palette,
+    /\.dbe-palette__list\s*\{[\s\S]*padding:\s*12px/,
+    'The palette command list must keep a 12px outer inset.'
+);
+assert.match(
+    commands,
+    /mouseenter[\s\S]{0,120}setActiveButton\(btn, 'pointer'\)[\s\S]+setActiveButton\(vis2\[next\], 'keyboard'\)/,
+    'Palette options must distinguish pointer and keyboard active states.'
+);
 assert.match(
     commands,
     /if \(e\.key === 'Escape'\) \{[\s\S]{0,180}else \{ dlg\.close\(\); \}/,

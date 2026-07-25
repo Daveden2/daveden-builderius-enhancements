@@ -1694,7 +1694,9 @@
                 try { collectFromRules(sheet.cssRules); } catch (e) {}
             });
         }
-        return Object.keys(items).sort().map(function (name) { return items[name]; });
+        return Object.keys(items).filter(function (name) {
+            return name.indexOf('uni-') !== 0;
+        }).sort().map(function (name) { return items[name]; });
     }
 
     function dbeHtmlCompletionContext(model, position) {

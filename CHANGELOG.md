@@ -43,7 +43,8 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   Monaco suggests HTML tags and attributes, Builderius dynamic-data expressions,
   registered component slugs and typed properties, plus existing classes
   gathered from Builderius modules and the preview's global/entity stylesheets;
-  class details show their source, usage and authored CSS rules. A selected
+  Builderius's internal `uni-*` runtime classes are omitted, while class details
+  show their source, usage and authored CSS rules. A selected
   repeated pattern can be rewritten as a Collection backed by static JSON, and
   a selected existing subtree can open Builderius's native component creator
   after the reviewed markup is applied. Every

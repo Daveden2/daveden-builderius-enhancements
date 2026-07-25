@@ -44,7 +44,10 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 40px;
 	align-items: stretch;
-	border-block-end: 1px solid var(--dbe-line);
+	margin: 12px 12px 0;
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	overflow: hidden;
 }
 
 .dbe-palette__input {
@@ -85,7 +88,7 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 
 .dbe-palette__list {
 	margin: 0;
-	padding: 6px;
+	padding: 12px;
 	list-style: none;
 	overflow-y: auto;
 	max-block-size: min(52vh, 420px);
@@ -110,9 +113,11 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-palette__item:hover { background: var(--dbe-accent-tint); }
 .dbe-palette__item[aria-selected="true"] {
+	background: var(--dbe-accent-tint);
+}
+.dbe-palette__item[aria-selected="true"][data-dbe-active-via="keyboard"] {
 	outline: 2px solid var(--dbe-focus);
 	outline-offset: -2px;
-	background: var(--dbe-accent-tint);
 }
 .dbe-palette__item[aria-disabled="true"] {
 	color: var(--dbe-muted);

@@ -65,6 +65,52 @@ assert.equal(
     'A non-collapsed selection must not be replaced by auto-closing.'
 );
 
+const classItemsSource = extractFunction(editing, 'dbeHtmlClassItems');
+const classItemsContext = {
+    modules: () => ({
+        one: {
+            settings: [{
+                name: 'tagClass',
+                value: ['module-class', 'uni-module-class']
+            }]
+        }
+    }),
+    moduleClasses: (mod) => mod.settings[0].value,
+    dbeQuery: () => ({
+        contentDocument: {
+            styleSheets: [{
+                cssRules: [{
+                    selectorText: '.stylesheet-class, .uni-stylesheet-class',
+                    style: { cssText: 'display: grid;' }
+                }]
+            }],
+            adoptedStyleSheets: [{
+                cssRules: [{
+                    selectorText: '.adopted-class, .uni-adopted-class',
+                    style: { cssText: 'display: flex;' }
+                }]
+            }]
+        }
+    })
+};
+runInNewContext(`${classItemsSource}; result = dbeHtmlClassItems;`, classItemsContext);
+const classItems = classItemsContext.result(
+    '<section class="markup-class uni-markup-class"></section>'
+);
+const classNames = Array.from(classItems, (item) => item.name);
+assert.deepEqual(
+    classNames,
+    ['adopted-class', 'markup-class', 'module-class', 'stylesheet-class'],
+    'Class completions must omit every uni-* name regardless of its source.'
+);
+const classItemsByName = Object.fromEntries(
+    Array.from(classItems, (item) => [item.name, item])
+);
+assert.equal(classItemsByName['module-class'].modules, 1, 'Module-class provenance must be retained.');
+assert.equal(classItemsByName['markup-class'].markup, true, 'Markup provenance must be retained.');
+assert.equal(classItemsByName['stylesheet-class'].rules.length, 1, 'Stylesheet rule details must be retained.');
+assert.equal(classItemsByName['adopted-class'].rules.length, 1, 'Adopted stylesheet rule details must be retained.');
+
 const analyseSource = extractFunction(editing, 'dbeHtmlAnalyse');
 const analysisContext = {
     DBE_HTML_VOID: context.DBE_HTML_VOID,

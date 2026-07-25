@@ -2208,10 +2208,12 @@
             var groupHeads = []; // divider/heading <li>s, hidden when their group is fully filtered out
             var activeButton = null;
 
-            function setActiveButton(button) {
+            function setActiveButton(button, method) {
                 buttons.forEach(function (b) {
                     var selected = b === button ? 'true' : 'false';
                     if (b.getAttribute('aria-selected') !== selected) { b.setAttribute('aria-selected', selected); }
+                    if (b === button && method) { b.setAttribute('data-dbe-active-via', method); }
+                    else { b.removeAttribute('data-dbe-active-via'); }
                 });
                 activeButton = button || null;
                 if (activeButton) {
@@ -2298,7 +2300,7 @@
                         if (cmd.href) { dlg.close(); return; }
                         pick(cmd);
                     });
-                    btn.addEventListener('mouseenter', function () { setActiveButton(btn); });
+                    btn.addEventListener('mouseenter', function () { setActiveButton(btn, 'pointer'); });
                     li.appendChild(btn);
                     listEl.appendChild(li);
                     buttons.push(btn);
@@ -2390,7 +2392,7 @@
                 if (!vis2.length) { return; }
                 var i = vis2.indexOf(activeButton);
                 var next = e.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % vis2.length) : (i < 0 ? vis2.length - 1 : (i - 1 + vis2.length) % vis2.length);
-                setActiveButton(vis2[next]);
+                setActiveButton(vis2[next], 'keyboard');
                 input.focus();
             });
 
