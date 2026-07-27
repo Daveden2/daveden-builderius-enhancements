@@ -472,7 +472,7 @@ function dbe_features() {
 			'description' => __( 'Reorganises the Navigator right-click menu around the actions used most often, with compact flyouts for inserting, moving and advanced tools. Includes full keyboard support (arrow keys, Home/End and Escape); unavailable commands remain discoverable and explain why they cannot currently run. Also adds a right-click copy and remove menu to the class chips in the Styles editor.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'editing',
 			'css'         => array(),
-			'shared_css'  => array( '30-context-menu.css' ),
+			'shared_css'  => array( '04-menu-anchor.css', '30-context-menu.css' ),
 			'js'          => true,
 		),
 		'wrap_in'               => array(

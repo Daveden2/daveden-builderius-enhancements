@@ -22,6 +22,7 @@ const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const cssCache = read('includes/builder-css-cache.php');
 const outputBuilder = read('includes/output-builder.php');
+const features = read('includes/features.php');
 const uninstall = read('uninstall.php');
 
 assert.match(
@@ -314,6 +315,25 @@ assert.match(
     commands,
     /function dbeRefreshCommands\(\)[\s\S]+ensureCollapseButton\(\)[\s\S]+ensureTreeSearch\(\)[\s\S]+ensureRowActions\(\)[\s\S]+function destroyCommands\(\)[\s\S]+dbe-tree-search[\s\S]+dbe-row-actions/,
     'Navigator command surfaces must refresh and tear down through the commands controller.'
+);
+assert.match(
+    commands,
+    /function onItemMenuShow\(\)[\s\S]+data-menu-id\^="module_actions_"[\s\S]+dbeSelectorMenuTarget[\s\S]+function dbeAnchorItemMenu\(menu, btn\)[\s\S]+anchor-name[\s\S]+getBoundingClientRect/,
+    'Selector context menus must use the actual opening row as their progressive anchor.'
+);
+assert.match(
+    commands,
+    /function dbeRememberContextTarget\(e\)[\s\S]+closest\('\.uniSelectorsCss__item'\)[\s\S]+builderius\.contextMenu\.show'[\s\S]+onItemMenuShow/,
+    'The commands controller must remember selector context-menu targets before the native menu opens.'
+);
+const contextMenuFeature = features.slice(
+    features.indexOf("'context_menu'          =>"),
+    features.indexOf("'wrap_in'               =>")
+);
+assert.match(
+    contextMenuFeature,
+    /'shared_css'\s*=> array\( '04-menu-anchor\.css', '30-context-menu\.css' \)/,
+    'The context-menu feature must load the shared progressive anchor rules.'
 );
 assert.match(
     coreRuntime,

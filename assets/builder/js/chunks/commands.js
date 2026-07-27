@@ -1130,21 +1130,29 @@
         }
 
         /* The snippet/variable list menu (Rename / Configure / Delete / Move,
-           data-menu-id="var_actions_<title>") opens through the same native
-           dialog machinery as the element menu, but onContextMenuShow never
-           touches it (it recognises element menus by their Duplicate / Create
-           Component rows) — so its items are unfocusable and arrows do nothing.
-           Stamp the shared menu keyboard model on it, and name the menu after
-           the item it acts on (the menu-id suffix is the item's title). Runs
-           under footer_toolbar — the footer tools' accessibility feature — via
-           its own hook registration, so it never drags the element-menu
-           machinery in. */
-        function onVarMenuShow() {
+           data-menu-id="var_actions_<title>") and the Selectors-tab context
+           menu (data-menu-id="module_actions_<selector>") open through the same
+           native dialog machinery as the element menu, but onContextMenuShow
+           never touches them (it recognises element menus by their Duplicate /
+           Create Component rows). Stamp the shared menu keyboard model on
+           either menu, name it after the item it acts on, and anchor it to the
+           owning control rather than the opening pointer coordinates. */
+        function onItemMenuShow() {
             dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
-                var menu = [].slice.call(document.querySelectorAll('dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'))
+                var selectorMenu = dbeSelectorMenuTarget && [].slice.call(document.querySelectorAll(
+                    'dialog[open] .uniContextMenu[data-menu-id^="module_actions_"]'
+                ))
                     .filter(function (m) { return m.offsetParent !== null; })[0];
+                var variableMenu = [].slice.call(document.querySelectorAll(
+                    'dialog[open] .uniContextMenu[data-menu-id^="var_actions_"]'
+                )).filter(function (m) { return m.offsetParent !== null; })[0];
+                var menu = selectorMenu || variableMenu;
                 if (!menu) { return; }
-                var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
+                var btn = selectorMenu ? dbeSelectorMenuTarget : dbeVarMenuButton(menu);
+                var title = selectorMenu
+                    ? btn && ((btn.getAttribute('title') || btn.textContent || '').trim())
+                    : (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
+                if (!btn || !title) { return; }
                 if (!menu.getAttribute('aria-label')) {
                     menu.setAttribute('aria-label', title
                         ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
@@ -1152,42 +1160,47 @@
                 }
                 var container = menu.querySelector('ul') || menu;
                 setupMenuKeyboard(container);
-                dbeAnchorVarMenu(menu, title);
+                dbeAnchorItemMenu(menu, btn);
             });
         }
 
-        /* Anchor the snippet/variable menu to the row button that owns it,
-           instead of the click coordinates the native dialog positions itself
-           from (a keyboard open otherwise lands at the synthesised event's
-           coordinates, and a pointer open wherever the mouse was). The trigger
-           is resolved from the menu-id suffix — it is the row's title — against
-           the visible list, so it works however the menu was opened. Where CSS
-           anchor positioning exists, the trigger is stamped as the anchor and
-           04-menu-anchor.css tethers the dialog through relayout; elsewhere the
-           dialog's inline position is overwritten once (the dbeAnchorSaveMenu
-           technique): below the button with right edges aligned, flipped above
-           when the footer leaves no room below — which, for the bottom-of-screen
-           list, is the common case. An unmatched title leaves the native
-           placement alone. */
-        var dbeVarMenuAnchorBtn = null;
-        function dbeAnchorVarMenu(menu, title) {
-            var dlg = menu.closest('dialog');
-            if (!dlg || !title) { return; }
+        /* Resolve the snippet/variable menu's row action button from the title
+           encoded in its menu id. Selector menus instead use the actual
+           contextmenu target remembered by dbeRememberContextTarget(), because
+           punctuation in selector names is normalised in the native menu id. */
+        function dbeVarMenuButton(menu) {
+            var title = (menu.getAttribute('data-menu-id') || '').slice('var_actions_'.length);
             var btn = null;
             [].slice.call(document.querySelectorAll('.uniTabDataVars__varsList li')).forEach(function (row) {
                 if (btn || row.offsetParent === null) { return; }
                 var t = row.querySelector('button.varTitle');
                 if (t && (t.textContent || '').trim() === title) { btn = row.querySelector('button.iconBoxWrapper'); }
             });
-            if (!btn) { return; }
+            return btn;
+        }
+
+        /* Anchor an item menu to the row control that owns it,
+           instead of the click coordinates the native dialog positions itself
+           from (a keyboard open otherwise lands at the synthesised event's
+           coordinates, and a pointer open wherever the mouse was). Where CSS
+           anchor positioning exists, the trigger is stamped as the anchor and
+           04-menu-anchor.css tethers the dialog through relayout; elsewhere the
+           dialog's inline position is overwritten once (the dbeAnchorSaveMenu
+           technique): below the button with right edges aligned, flipped above
+           when there is no room below. */
+        var dbeItemMenuAnchorBtn = null;
+        var dbeSelectorMenuTarget = null;
+        function dbeAnchorItemMenu(menu, btn) {
+            var dlg = menu.closest('dialog');
+            if (!dlg || !btn) { return; }
             if (window.CSS && CSS.supports && CSS.supports('anchor-name: --a')) {
                 // One anchor at a time: duplicate anchor-names resolve to the last
                 // element in DOM order, which need not be the clicked row's button.
-                if (dbeVarMenuAnchorBtn && dbeVarMenuAnchorBtn !== btn) {
-                    dbeVarMenuAnchorBtn.style.removeProperty('anchor-name');
+                if (dbeItemMenuAnchorBtn && dbeItemMenuAnchorBtn !== btn) {
+                    dbeItemMenuAnchorBtn.style.removeProperty('anchor-name');
                 }
                 btn.style.setProperty('anchor-name', '--dbe-menu-anchor');
-                dbeVarMenuAnchorBtn = btn;
+                dbeItemMenuAnchorBtn = btn;
                 dlg.classList.add('dbe-menu-anchored');
                 return;
             }
@@ -1200,6 +1213,15 @@
             if (top + dr.height > window.innerHeight - 8) { top = Math.round(br.top - dr.height - 4); }
             dlg.style.left = Math.max(8, Math.round(br.right - dr.width)) + 'px';
             dlg.style.top = Math.max(8, top) + 'px';
+        }
+
+        function dbeClearItemMenuAnchor() {
+            if (dbeItemMenuAnchorBtn) { dbeItemMenuAnchorBtn.style.removeProperty('anchor-name'); }
+            dbeItemMenuAnchorBtn = null;
+            dbeSelectorMenuTarget = null;
+            document.querySelectorAll('dialog.uniBuilderContextMenu.dbe-menu-anchored').forEach(function (dlg) {
+                dlg.classList.remove('dbe-menu-anchored');
+            });
         }
 
         /* (e) "Collapse subtrees" Navigator header icon. The stock header button
@@ -3550,6 +3572,8 @@
         }
 
         function dbeRememberContextTarget(e) {
+            dbeSelectorMenuTarget = e.target.closest && e.target.closest('.uniSelectorsCss__item');
+            if (dbeSelectorMenuTarget) { return; }
             var btn = e.target.closest && e.target.closest('.uniModTree__item');
             if (!btn) { return; }
             var match = btn.className.toString().match(/uni-tree-node-(\w+)/);
@@ -3643,8 +3667,7 @@
                 row.classList.remove('dbe-tree-filtered-out', 'dbe-tree-dim');
             });
             raUnstamp();
-            if (dbeVarMenuAnchorBtn) { dbeVarMenuAnchorBtn.style.removeProperty('anchor-name'); }
-            dbeVarMenuAnchorBtn = null;
+            dbeClearItemMenuAnchor();
             dbePasteCtxRow = null;
             dbeKeyboardFrame = null;
             dbeSaveMenuEl = null;
@@ -3675,8 +3698,9 @@
                 if (NEED_CTX_MENU || on('navigator_paste') || on('navigator_keyboard')) {
                     dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key', 'keydown', dbeNavigatorContextMenuKeydown, true);
                 }
-                if (on('footer_toolbar')) {
-                    dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeVarMenu', onVarMenuShow);
+                if (on('footer_toolbar') || on('context_menu')) {
+                    dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeItemMenu', onItemMenuShow);
+                    dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.hide', 'dbeItemMenuHide', dbeClearItemMenuAnchor);
                 }
                 if (on('context_menu')) { bindChipMenu(); }
                 if (on('navigator_paste')) {
