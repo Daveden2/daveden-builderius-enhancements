@@ -286,13 +286,15 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 }
 
 /* --- Search and filtering --- */
+/* No rule of its own: the panel heading below carries one, and two horizontal
+   rules with only the heading between them read as a boxed-in strip. The space
+   below is what separates the tools from the panel. */
 .dbe-settings-tools {
   display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 12px;
-  padding-block: 16px;
-  border-block-end: 1px solid #c3c4c7;
+  margin-block-end: var(--dbe-gap-section);
 }
 
 .dbe-settings-tools label {

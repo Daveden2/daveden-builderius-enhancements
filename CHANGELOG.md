@@ -201,6 +201,10 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   horizontal bar, and reports `aria-orientation` to match. It previously
   accepted both pairs in both directions, so a screen-reader user was given two
   conflicting mental models of a one-dimensional list.
+* Fixed: the rule under the search and filter row sat flush against the panel
+  heading below it while the search box had space above it, and two horizontal
+  rules that close boxed the heading in. The tools row now separates from the
+  panel by space alone, leaving the panel heading's rule as the only divider.
 * Fixed: every switch on a panel now sits on one vertical line. The tab and
   section switches were 17 pixels to the right of the feature switches they
   govern, because the feature rows are cards with padding and a border while the
