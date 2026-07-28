@@ -251,16 +251,17 @@ function dbe_sanitise_options( $input ) {
 	}
 
 	foreach ( dbe_enum_settings() as $id => $setting ) {
-		// Same as above: a select under a Pro-locked parent renders disabled and
-		// drops out of the POST, so preserve the saved choice instead of resetting
-		// it to the default.
-		$parent = isset( $setting['parent'] ) ? $setting['parent'] : '';
-		if ( $parent && ! empty( $features[ $parent ]['requires_pro'] ) && ! $pro ) {
+		// A select renders disabled whenever its parent feature is Pro-locked or
+		// simply switched off, and a disabled control is absent from the POST.
+		// Treat any absent select as "unchanged" and keep the saved choice, so a
+		// parent toggled off and on again returns with its setting intact rather
+		// than silently reset to the default.
+		if ( ! isset( $input[ $id ] ) ) {
 			$saved_value  = isset( $saved[ $id ] ) ? $saved[ $id ] : $setting['default'];
 			$clean[ $id ] = array_key_exists( $saved_value, $setting['choices'] ) ? $saved_value : $setting['default'];
 			continue;
 		}
-		$value        = isset( $input[ $id ] ) ? sanitize_key( $input[ $id ] ) : '';
+		$value        = sanitize_key( $input[ $id ] );
 		$clean[ $id ] = array_key_exists( $value, $setting['choices'] ) ? $value : $setting['default'];
 	}
 

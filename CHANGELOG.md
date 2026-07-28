@@ -153,6 +153,52 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   sanitised in place. The tools are gated on the `unfiltered_html`
   capability, so their builder output reaches only users who already hold it.
 
+### Settings screen
+
+* Changed: the tabs are now a vertical rail carrying a live count for each one
+  ("16 / 16"), so the section you are in and how much of it is switched on stay
+  visible however far down a long tab you have scrolled. Below 1200 pixels the
+  rail returns to the previous horizontal bar.
+* Added: a **tri-state switch for each tab and each section**. It reflects the
+  real state of the group (on, off, or mixed, which a screen reader announces as
+  such), turns a part-on group fully on and a fully-on group off, and states how
+  many experimental features the group contains before you use it. It is a
+  control over the other switches, never a saved setting of its own.
+* Added: a new **Accessibility** tab. The keyboard and screen-reader features
+  were spread across Editing, Appearance and Workflow, with sibling features
+  such as the top-bar and bottom-bar keyboard toolbars sitting in different
+  tabs. They are now together, which also takes Editing from 24 features down
+  to 16.
+* Added: features that can change saved templates, components or CSS are badged
+  **Changes saved content**, the one distinction that decides whether switching
+  a feature off later undoes anything.
+* Changed: feature titles that named their implementation rather than their
+  effect have been reworded, for example "Controls styling" to "Restyled buttons
+  and inputs" and "Preview overlay contrast fix" to "Readable canvas overlay
+  labels".
+* Changed: the introduction video is click-to-load. Nothing is requested from
+  YouTube until you press play, so opening the screen makes no third-party
+  request, and a blocked or unreachable YouTube leaves a working link rather
+  than an empty 560x315 gap.
+* Changed: **Reset to defaults** has moved out of the filter row, is now named
+  "Reset all tabs to defaults", explains that it covers every tab, and asks for
+  confirmation first.
+* Changed: the dashboard's per-tab summary rows are links that open the tab they
+  count.
+* Fixed: the **Clear filters** button was permanently visible. Its `hidden`
+  attribute lost to WordPress core's `.button` display rule, which the stylesheet
+  restated for every other conditionally-hidden element but not this one. The
+  same defect left an inert info button on each row when JavaScript is off.
+* Fixed: the settings screen skipped from `h1` straight to `h3`, because the
+  per-panel `h2` was removed with `display: none` once the JavaScript tabs took
+  over, dropping it from the accessibility tree. The panel heading is now shown.
+* Fixed: an enum sub-setting (default theme, default density, palette shortcut)
+  stayed editable while its parent feature was switched off, so you could set a
+  default for something that would not load. It now follows its parent, and any
+  select absent from the POST keeps its saved value instead of resetting to the
+  default, so switching a parent off and on again loses nothing.
+* Fixed: content scrolled to no longer lands underneath the sticky save bar.
+
 ## 1.14.0
 Accessible settings groups and image defaults, an assignable command-palette
 shortcut with a top-bar button, accessibility for the footer tools' configure

@@ -1,7 +1,10 @@
 /* Daveden Builder Enhancements — settings screen. */
 
 .dbe-settings {
-  max-width: 920px;
+  max-width: 1160px;
+  /* The save bar is sticky to the bottom, so anything scrolled to would land
+     underneath it without this. */
+  scroll-padding-block-end: 72px;
 }
 
 .dbe-intro {
@@ -9,39 +12,82 @@
   color: #50575e;
 }
 
-/* --- Tab bar (revealed by settings.js; without JS all panels stay visible) --- */
-.dbe-tabbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-block: 16px 0;
-  border-bottom: 1px solid #c3c4c7;
-}
-
+/* Anything given a `display` of its own beats the UA's `[hidden]` rule, so every
+   such element needs its hidden state restating. WP core's `.button` and our own
+   flex/inline-flex components all fall into that trap. */
 .dbe-tabbar[hidden],
 .dbe-settings-tools[hidden],
 .dbe-field[hidden],
 .dbe-savebar[hidden],
-.dbe-no-results[hidden] {
+.dbe-no-results[hidden],
+.dbe-clear-filters[hidden],
+.dbe-danger-zone[hidden],
+.dbe-bulk[hidden],
+.dbe-info-btn[hidden] {
   display: none;
 }
 
+/* --- Layout: a tab rail beside the panels, stacking when there is no room --- */
+.dbe-settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  margin-block-start: 16px;
+}
+
+.dbe-settings-main {
+  min-inline-size: 0;
+}
+
+/* Filtering searches across every tab at once, so the rail is hidden and its
+   column with it; the results run the full width under their panel headings. */
+.dbe-filter-mode .dbe-settings-layout {
+  display: block;
+}
+
+.dbe-filter-mode .dbe-panel {
+  margin-block-start: 24px;
+}
+
+.dbe-filter-mode .dbe-bulk {
+  display: none;
+}
+
+/* --- Tab rail (revealed by settings.js; without JS all panels stay visible) --- */
+.dbe-tabbar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  inset-block-start: 46px; /* clears the admin bar */
+}
+
 .dbe-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  inline-size: 100%;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-inline-start: 3px solid transparent;
+  border-radius: 0 3px 3px 0;
   background: transparent;
-  padding: 10px 14px;
+  padding: 10px 12px;
   font-size: 14px;
+  text-align: start;
   color: #50575e;
   cursor: pointer;
 }
 
 .dbe-tab:hover {
+  background: #f0f0f1;
   color: #1d2327;
 }
 
 .dbe-tab.is-active {
-  border-bottom-color: #2271b1;
+  border-inline-start-color: #2271b1;
+  background: #f0f6fc;
   color: #1d2327;
   font-weight: 600;
 }
@@ -51,32 +97,103 @@
   outline-offset: -2px;
 }
 
+/* Count chip. aria-hidden in the markup: the panel heading states the same
+   figure in words, so a screen reader is not told it twice. */
+.dbe-tab__count {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #f0f0f1;
+  color: #50575e;
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.dbe-tab.is-active .dbe-tab__count {
+  background: #fff;
+  color: #1d2327;
+}
+
+/* Below the two-column threshold the rail becomes the original horizontal bar. */
+@media (max-width: 1200px) {
+  .dbe-settings-layout {
+    display: block;
+  }
+
+  .dbe-tabbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    position: static;
+    margin-block-end: 4px;
+    border-block-end: 1px solid #c3c4c7;
+  }
+
+  .dbe-tab {
+    inline-size: auto;
+    border-inline-start: 0;
+    border-block-end: 2px solid transparent;
+    border-radius: 0;
+    padding: 10px 14px;
+  }
+
+  .dbe-tab.is-active {
+    border-block-end-color: #2271b1;
+    background: transparent;
+  }
+}
+
 /* --- Panels --- */
 .dbe-panel {
-  margin-block-start: 24px;
+  margin-block-start: 0;
 }
 
 .dbe-panel[hidden] {
   display: none;
 }
 
-.dbe-panel__title {
-  font-size: 16px;
-  margin-block-end: 8px;
+/* The panel heading stays a real h2 so the outline runs h1 - h2 - h3. It was
+   previously display:none once the JS tabs took over, which dropped it from the
+   accessibility tree and left a heading-level skip. */
+.dbe-panel__head,
+.dbe-feature-group__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-/* Once JS tabs are active the per-panel headings duplicate the tab label. */
-.dbe-js-tabs .dbe-panel__title {
+.dbe-panel__head {
+  padding-block-end: 12px;
+  border-block-end: 1px solid #c3c4c7;
+  margin-block-end: 20px;
+}
+
+.dbe-panel__headtext,
+.dbe-feature-group__headtext {
+  min-inline-size: 0;
+}
+
+.dbe-panel__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.dbe-panel__count {
+  margin: 2px 0 0;
+  color: #50575e;
+  font-variant-numeric: tabular-nums;
+}
+
+.dbe-panel__count:empty {
   display: none;
 }
 
-.dbe-js-tabs.dbe-filter-mode .dbe-panel__title {
-  display: block;
-  margin-block: 20px 8px;
-}
-
 .dbe-feature-group {
-  margin-block-start: 20px;
+  margin-block-start: 28px;
 }
 
 .dbe-feature-group:first-of-type {
@@ -85,6 +202,10 @@
 
 .dbe-feature-group[hidden] {
   display: none;
+}
+
+.dbe-feature-group__head {
+  margin-block-end: 10px;
 }
 
 .dbe-feature-group__title {
@@ -96,8 +217,55 @@
 
 .dbe-feature-group__desc {
   max-width: 65ch;
-  margin: 4px 0 10px;
+  margin: 4px 0 0;
   color: #50575e;
+}
+
+/* --- Bulk switches (one per tab, one per section) --- */
+.dbe-bulk {
+  display: flex;
+  align-items: center;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  max-inline-size: 24ch;
+}
+
+.dbe-bulk__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #50575e;
+  text-align: end;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dbe-bulk--tab .dbe-bulk__label {
+  color: #1d2327;
+}
+
+.dbe-bulk__note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: #50575e;
+  text-align: end;
+}
+
+/* The mixed state must not read as "off": a dashed track distinguishes it from
+   both solid states without relying on the knob position (WCAG 1.4.1). */
+input[type="checkbox"].dbe-switch--bulk:indeterminate {
+  background: #fff;
+  border-style: dashed;
+  border-color: #2271b1;
+}
+
+input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
+  translate: 10px 0;
+  background:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%232271b1" stroke-width="1.8" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat,
+    #fff;
 }
 
 /* --- Search and filtering --- */
@@ -133,10 +301,6 @@
 
 .dbe-settings-tools .button {
   min-block-size: 36px;
-}
-
-.dbe-reset-defaults {
-  margin-inline-start: auto;
 }
 
 .dbe-filter-status {
@@ -261,6 +425,66 @@
   color: #50575e;
 }
 
+/* Click-to-load placeholder. Styled locally rather than with a YouTube
+   thumbnail, which would itself be a third-party request. */
+.dbe-video-facade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 16px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #f6f7f7;
+  color: #1d2327;
+  cursor: pointer;
+}
+
+.dbe-video-facade:hover {
+  border-color: #2271b1;
+  background: #f0f6fc;
+}
+
+.dbe-video-facade:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: 2px;
+}
+
+.dbe-video-facade__icon {
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: 50%;
+  background: #2271b1
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 6.5v11l9-5.5z" fill="white"/></svg>')
+    center / 24px 24px no-repeat;
+}
+
+.dbe-video-facade__text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dbe-video-facade__meta {
+  font-size: 12px;
+  color: #50575e;
+}
+
+/* --- Reset to defaults, out of the filter row and on its own --- */
+.dbe-danger-zone {
+  margin-block-start: 28px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid #c3c4c7;
+}
+
+.dbe-danger-zone__note {
+  max-width: 65ch;
+  margin: 8px 0 0;
+  color: #50575e;
+}
+
 .dbe-dashboard h3 {
   margin-block: 20px 8px;
   font-size: 14px;
@@ -271,17 +495,40 @@
 }
 
 .dbe-dashboard__summary li {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
   max-width: 40ch;
-  padding-block: 6px;
   border-block-end: 1px solid #f0f0f1;
   margin: 0;
 }
 
 .dbe-dashboard__summary li:last-child {
   border-block-end: 0;
+}
+
+/* Each summary row jumps to the tab it counts. */
+.dbe-dashboard__jump {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  inline-size: 100%;
+  min-block-size: 32px; /* WCAG 2.5.8 pointer target */
+  padding: 6px 8px;
+  border-radius: 3px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dbe-dashboard__jump:hover {
+  background: #f0f6fc;
+}
+
+.dbe-dashboard__jump:hover .dbe-dashboard__tab {
+  text-decoration: underline;
+}
+
+.dbe-dashboard__jump:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: -2px;
 }
 
 .dbe-dashboard__tab {
@@ -348,6 +595,21 @@
   text-transform: uppercase;
 }
 
+/* "Changes saved content" badge: deliberately quiet. It marks the one thing that
+   decides whether switching a feature off later undoes anything, so it needs to
+   be scannable without reading as a warning. Grey 700 on grey 100 is 7.6:1. */
+.dbe-badge--content {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid #c3c4c7;
+  border-radius: 9px;
+  background: #f6f7f7;
+  color: #4a5054;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 /* Pro-locked row: amber edge + pale wash, note explains why. Text stays at
    full contrast; only the (disabled) switch is dimmed. */
 .dbe-field--pro-locked {
@@ -382,6 +644,14 @@ input[type="checkbox"].dbe-switch:disabled {
   display: inline-block;
   margin-inline-end: 8px;
   font-weight: 600;
+}
+
+/* A sub-setting whose parent feature is off. The label keeps full contrast so it
+   stays readable; only the disabled select is dimmed, matching the Pro-locked
+   treatment above. */
+.dbe-field__sub.is-disabled select {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* --- Switch (a styled checkbox — stays a native, accessible control) ---
@@ -538,16 +808,29 @@ input[type="checkbox"].dbe-switch:focus-visible {
     inline-size: 100%;
   }
 
-  .dbe-reset-defaults {
-    margin-inline-start: 0;
-  }
-
   .dbe-field {
     gap: 16px;
   }
 
   .dbe-presets__grid {
     grid-template-columns: 1fr;
+  }
+
+  /* The bulk switch drops under its heading rather than squeezing beside it. */
+  .dbe-panel__head,
+  .dbe-feature-group__head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .dbe-bulk {
+    justify-content: flex-start;
+    max-inline-size: none;
+  }
+
+  .dbe-bulk__label,
+  .dbe-bulk__note {
+    text-align: start;
   }
 }
 

@@ -109,14 +109,23 @@ function dbe_render_toggle( $id, $feature ) {
 	// info disclosure (visible without JavaScript — settings.js collapses it
 	// and reveals the button, the same progressive enhancement as the tabs).
 	$has_more = '' !== $summary && ! empty( $feature['description'] );
+	// A feature that can change saved templates, components or CSS says so on the
+	// row: it is the one distinction that decides whether switching it off later
+	// undoes anything (see the `scope` key in dbe_features()).
+	$changes_content = isset( $feature['scope'] ) && 'content' === $feature['scope'];
+	$scope_id        = $field_id . '-scope';
 	// The locked note is part of the field's accessible description.
 	$describedby = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
+	if ( $changes_content ) {
+		$describedby .= ' ' . $scope_id;
+	}
 	?>
 	<div
 		class="dbe-field<?php echo $pro_locked ? ' dbe-field--pro-locked' : ''; ?>"
 		data-default="<?php echo empty( $feature['experimental'] ) ? '1' : '0'; ?>"
 		data-experimental="<?php echo $experimental ? '1' : '0'; ?>"
 		data-unavailable="<?php echo $pro_locked ? '1' : '0'; ?>"
+		data-scope="<?php echo $changes_content ? 'content' : 'interface'; ?>"
 	>
 		<div class="dbe-field__text">
 			<span class="dbe-field__titlerow">
@@ -126,6 +135,9 @@ function dbe_render_toggle( $id, $feature ) {
 				<?php endif; ?>
 				<?php if ( $experimental ) : ?>
 					<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
+				<?php endif; ?>
+				<?php if ( $changes_content ) : ?>
+					<span class="dbe-badge dbe-badge--content" id="<?php echo esc_attr( $scope_id ); ?>"><?php esc_html_e( 'Changes saved content', 'daveden-builderius-enhancements' ); ?></span>
 				<?php endif; ?>
 				<?php if ( $has_more ) : ?>
 					<button type="button" class="dbe-info-btn" aria-expanded="true" aria-controls="<?php echo esc_attr( $more_id ); ?>" hidden>
@@ -153,7 +165,7 @@ function dbe_render_toggle( $id, $feature ) {
 					<?php esc_html_e( 'Builderius Pro isn’t active, so this feature is unavailable. Your saved preference is preserved.', 'daveden-builderius-enhancements' ); ?>
 				</p>
 			<?php endif; ?>
-			<?php dbe_render_enum_subfields( $id, $pro_locked ); ?>
+			<?php dbe_render_enum_subfields( $id, $pro_locked || empty( $options[ $id ] ) ); ?>
 		</div>
 		<input
 			type="checkbox"
@@ -173,9 +185,10 @@ function dbe_render_toggle( $id, $feature ) {
  * Enum selects that belong to a parent feature (default theme / density).
  *
  * @param string $parent_id Parent feature id.
- * @param bool   $disabled  Whether the parent feature is Pro-locked (greys the
- *                          select and drops it from the POST, so the saved value
- *                          is preserved by dbe_sanitise_options()).
+ * @param bool   $disabled  Whether the parent feature is Pro-locked or simply
+ *                          switched off. Either way the select is greyed and
+ *                          drops out of the POST, and dbe_sanitise_options()
+ *                          preserves the saved value for any absent select.
  */
 function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
 	foreach ( dbe_enum_settings() as $id => $setting ) {
@@ -185,7 +198,7 @@ function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
 		$field_id = 'dbe-e-' . $id;
 		$current  = dbe_setting( $id );
 		?>
-		<p class="dbe-field__sub">
+		<p class="dbe-field__sub" data-parent="<?php echo esc_attr( $parent_id ); ?>">
 			<label for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $setting['title'] ); ?></label>
 			<select id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>" data-default="<?php echo esc_attr( $setting['default'] ); ?>" <?php disabled( $disabled ); ?>>
 				<?php foreach ( $setting['choices'] as $value => $label ) : ?>
@@ -195,6 +208,85 @@ function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
 		</p>
 		<?php
 	}
+}
+
+/**
+ * A "turn this whole group on or off" switch.
+ *
+ * Deliberately carries no `name`: it is a control over the other switches, never
+ * a saved setting, so it must not reach dbe_sanitise_options(). settings.js owns
+ * its state, setting `indeterminate` when the group is part on and part off, so
+ * a screen reader announces the group as mixed rather than guessing.
+ *
+ * Pro-locked switches are excluded by settings.js (they are disabled), so a
+ * group that is entirely Pro-locked gets no control at all.
+ *
+ * The visible label is kept short so it never wraps beside a long section title;
+ * the group it governs is appended for assistive tech only, so the accessible
+ * name stays specific ("All features in Appearance") while the screen shows
+ * just "All features".
+ *
+ * @param string $scope    'tab' or 'group'.
+ * @param string $key      Tab slug, or the section's title id.
+ * @param string $visible  Short visible label, e.g. "All".
+ * @param string $context  The group it covers, e.g. "Power tools".
+ * @param int    $trial    How many features in the group are experimental.
+ */
+function dbe_render_bulk_switch( $scope, $key, $visible, $context, $trial = 0 ) {
+	$id = 'dbe-bulk-' . $scope . '-' . $key;
+	?>
+	<?php // Hidden until settings.js takes ownership, so it is never a dead control. ?>
+	<div class="dbe-bulk dbe-bulk--<?php echo esc_attr( $scope ); ?>" hidden>
+		<label class="dbe-bulk__label" for="<?php echo esc_attr( $id ); ?>">
+			<?php echo esc_html( $visible ); ?>
+			<span class="screen-reader-text">
+				<?php
+				printf(
+					/* translators: %s: settings tab or section name, e.g. "Power tools". */
+					esc_html__( 'in %s', 'daveden-builderius-enhancements' ),
+					esc_html( $context )
+				);
+				?>
+			</span>
+		</label>
+		<input
+			type="checkbox"
+			class="dbe-switch dbe-switch--bulk"
+			id="<?php echo esc_attr( $id ); ?>"
+			data-bulk="<?php echo esc_attr( $scope ); ?>"
+			<?php if ( $trial > 0 ) : ?>
+				aria-describedby="<?php echo esc_attr( $id . '-note' ); ?>"
+			<?php endif; ?>
+		>
+		<?php if ( $trial > 0 ) : ?>
+			<p class="dbe-bulk__note" id="<?php echo esc_attr( $id . '-note' ); ?>">
+				<?php
+				printf(
+					/* translators: %d: number of experimental features in the group. */
+					esc_html( _n( 'Includes %d experimental feature, which is off by default.', 'Includes %d experimental features, which are off by default.', $trial, 'daveden-builderius-enhancements' ) ),
+					(int) $trial
+				);
+				?>
+			</p>
+		<?php endif; ?>
+	</div>
+	<?php
+}
+
+/**
+ * How many features in a list are flagged experimental.
+ *
+ * @param array $features Registry entries keyed by feature id.
+ * @return int
+ */
+function dbe_count_experimental( $features ) {
+	$count = 0;
+	foreach ( $features as $feature ) {
+		if ( ! empty( $feature['experimental'] ) ) {
+			++$count;
+		}
+	}
+	return $count;
 }
 
 /**
@@ -223,10 +315,23 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 			$title_id = 'dbe-section-' . $tab_slug . '-' . $index;
 			?>
 			<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( $title_id ); ?>">
-				<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( $title_id ); ?>"><?php echo esc_html( $section['title'] ); ?></h3>
-				<?php if ( '' !== $section['description'] ) : ?>
-					<p class="dbe-feature-group__desc"><?php echo esc_html( $section['description'] ); ?></p>
-				<?php endif; ?>
+				<div class="dbe-feature-group__head">
+					<div class="dbe-feature-group__headtext">
+						<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( $title_id ); ?>"><?php echo esc_html( $section['title'] ); ?></h3>
+						<?php if ( '' !== $section['description'] ) : ?>
+							<p class="dbe-feature-group__desc"><?php echo esc_html( $section['description'] ); ?></p>
+						<?php endif; ?>
+					</div>
+					<?php
+					dbe_render_bulk_switch(
+						'group',
+						$tab_slug . '-' . $index,
+						__( 'All', 'daveden-builderius-enhancements' ),
+						$section['title'],
+						dbe_count_experimental( $section_features )
+					);
+					?>
+				</div>
 				<?php
 				foreach ( $section_features as $id => $feature ) {
 					$rendered[ $id ] = true;
@@ -250,7 +355,20 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 	}
 	?>
 	<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>">
-		<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>"><?php esc_html_e( 'Other enhancements', 'daveden-builderius-enhancements' ); ?></h3>
+		<div class="dbe-feature-group__head">
+			<div class="dbe-feature-group__headtext">
+				<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>"><?php esc_html_e( 'Other enhancements', 'daveden-builderius-enhancements' ); ?></h3>
+			</div>
+			<?php
+			dbe_render_bulk_switch(
+				'group',
+				$tab_slug . '-other',
+				__( 'All', 'daveden-builderius-enhancements' ),
+				__( 'Other enhancements', 'daveden-builderius-enhancements' ),
+				dbe_count_experimental( $remaining )
+			);
+			?>
+		</div>
 		<?php
 		foreach ( $remaining as $id => $feature ) {
 			dbe_render_toggle( $id, $feature );
@@ -341,7 +459,8 @@ function dbe_render_abilities_panel() {
 			<?php esc_html_e( 'The WordPress Abilities API is not currently available on this site, so no ability is active regardless of these switches. Your choices are saved and take effect when a plugin that provides the API (such as Novamira) is active.', 'daveden-builderius-enhancements' ); ?>
 		</p>
 	<?php endif; ?>
-	<div class="dbe-field" data-default="0" data-experimental="0" data-unavailable="0">
+	<?php // dbe-field--master keeps this row out of the tab's "N of M on" count: it governs the abilities below rather than being one of them. ?>
+	<div class="dbe-field dbe-field--master" data-default="0" data-experimental="0" data-unavailable="0">
 		<div class="dbe-field__text">
 			<span class="dbe-field__titlerow">
 				<label class="dbe-field__title" for="dbe-a-master"><?php esc_html_e( 'Enable agent abilities', 'daveden-builderius-enhancements' ); ?></label>
@@ -454,16 +573,29 @@ function dbe_render_dashboard_panel() {
 				data-many="<?php echo esc_attr( $preset_many ); ?>"
 			></p>
 		</section>
+		<?php
+		/*
+		 * Click-to-load rather than an auto-loading iframe: nothing is requested
+		 * from YouTube until the button is pressed, so opening this settings
+		 * screen makes no third-party request, and a blocked or unreachable
+		 * YouTube leaves a working link instead of a blank 560x315 hole.
+		 */
+		?>
 		<figure class="dbe-dashboard__video">
-			<iframe
-				src="https://www.youtube-nocookie.com/embed/PnwovfnCQsQ"
-				title="<?php esc_attr_e( 'Introduction to Daveden Builder Enhancements (YouTube video)', 'daveden-builderius-enhancements' ); ?>"
-				loading="lazy"
-				allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-				referrerpolicy="strict-origin-when-cross-origin"
-				allowfullscreen
-			></iframe>
-			<figcaption><?php esc_html_e( 'Introduction to the plugin on the Daveden YouTube channel.', 'daveden-builderius-enhancements' ); ?></figcaption>
+			<button
+				type="button"
+				class="dbe-video-facade"
+				data-embed="https://www.youtube-nocookie.com/embed/PnwovfnCQsQ?autoplay=1"
+				data-embed-title="<?php esc_attr_e( 'Introduction to Daveden Builder Enhancements (YouTube video)', 'daveden-builderius-enhancements' ); ?>"
+			>
+				<span class="dbe-video-facade__icon" aria-hidden="true"></span>
+				<span class="dbe-video-facade__text"><?php esc_html_e( 'Play the introduction video', 'daveden-builderius-enhancements' ); ?></span>
+				<span class="dbe-video-facade__meta"><?php esc_html_e( 'Loads from YouTube when you press play', 'daveden-builderius-enhancements' ); ?></span>
+			</button>
+			<figcaption>
+				<?php esc_html_e( 'Introduction to the plugin on the Daveden YouTube channel.', 'daveden-builderius-enhancements' ); ?>
+				<a href="https://www.youtube.com/watch?v=PnwovfnCQsQ" target="_blank" rel="noopener"><?php esc_html_e( 'Watch it on YouTube instead', 'daveden-builderius-enhancements' ); ?></a>
+			</figcaption>
 		</figure>
 		<h3><?php esc_html_e( 'Enabled features', 'daveden-builderius-enhancements' ); ?></h3>
 		<ul class="dbe-dashboard__summary">
@@ -493,17 +625,26 @@ function dbe_render_dashboard_panel() {
 				}
 				?>
 				<li>
-					<span class="dbe-dashboard__tab"><?php echo esc_html( $tab_label ); ?></span>
-					<span class="dbe-dashboard__count">
-						<?php
-						printf(
-							/* translators: 1: enabled feature count, 2: total feature count. */
-							esc_html__( '%1$d of %2$d enabled', 'daveden-builderius-enhancements' ),
-							(int) $enabled,
-							(int) $total
-						);
-						?>
-					</span>
+					<?php
+					/*
+					 * A real in-page link, not a button: without JavaScript every
+					 * panel is visible and this jumps to the right one, and with it
+					 * the same click switches tabs instead.
+					 */
+					?>
+					<a class="dbe-dashboard__jump" href="#dbe-panel-<?php echo esc_attr( $tab_slug ); ?>" data-goto-tab="<?php echo esc_attr( $tab_slug ); ?>">
+						<span class="dbe-dashboard__tab"><?php echo esc_html( $tab_label ); ?></span>
+						<span class="dbe-dashboard__count">
+							<?php
+							printf(
+								/* translators: 1: enabled feature count, 2: total feature count. */
+								esc_html__( '%1$d of %2$d enabled', 'daveden-builderius-enhancements' ),
+								(int) $enabled,
+								(int) $total
+							);
+							?>
+						</span>
+					</a>
 				</li>
 			<?php endforeach; ?>
 		</ul>
@@ -530,19 +671,24 @@ function dbe_render_settings_page() {
 
 		<?php settings_errors(); ?>
 
-		<div class="dbe-tabbar" hidden>
-			<?php $first = true; ?>
-			<?php foreach ( $tabs as $slug => $label ) : ?>
-				<button type="button" class="dbe-tab<?php echo $first ? ' is-active' : ''; ?>" data-tab="<?php echo esc_attr( $slug ); ?>">
-					<?php echo esc_html( $label ); ?>
-				</button>
-				<?php $first = false; ?>
-			<?php endforeach; ?>
-		</div>
-
 		<form method="post" action="options.php">
 			<?php settings_fields( 'daveden_builder_enhancements' ); ?>
 
+			<div class="dbe-settings-layout">
+			<div class="dbe-tabbar" hidden>
+				<?php $first = true; ?>
+				<?php foreach ( $tabs as $slug => $label ) : ?>
+					<button type="button" class="dbe-tab<?php echo $first ? ' is-active' : ''; ?>" data-tab="<?php echo esc_attr( $slug ); ?>">
+						<span class="dbe-tab__label"><?php echo esc_html( $label ); ?></span>
+						<?php if ( 'dashboard' !== $slug ) : ?>
+							<span class="dbe-tab__count" data-tabcount-for="<?php echo esc_attr( $slug ); ?>" aria-hidden="true"></span>
+						<?php endif; ?>
+					</button>
+					<?php $first = false; ?>
+				<?php endforeach; ?>
+			</div>
+
+			<div class="dbe-settings-main">
 			<div
 				class="dbe-settings-tools"
 				data-result-one="<?php esc_attr_e( '1 feature shown', 'daveden-builderius-enhancements' ); ?>"
@@ -564,13 +710,39 @@ function dbe_render_settings_page() {
 					</select>
 				</label>
 				<button type="button" class="button dbe-clear-filters" hidden><?php esc_html_e( 'Clear filters', 'daveden-builderius-enhancements' ); ?></button>
-				<button type="button" class="button dbe-reset-defaults"><?php esc_html_e( 'Reset to defaults', 'daveden-builderius-enhancements' ); ?></button>
 				<span class="dbe-filter-status" role="status" aria-live="polite"></span>
 			</div>
 
 			<?php foreach ( $tabs as $slug => $label ) : ?>
-				<section class="dbe-panel" data-tab="<?php echo esc_attr( $slug ); ?>" aria-label="<?php echo esc_attr( $label ); ?>">
-					<h2 class="dbe-panel__title"><?php echo esc_html( $label ); ?></h2>
+				<?php
+				$tab_features = array();
+				foreach ( $features as $feature_id => $feature ) {
+					if ( $feature['tab'] === $slug ) {
+						$tab_features[ $feature_id ] = $feature;
+					}
+				}
+				?>
+				<?php // The id is set here, not only by settings.js, so the dashboard's in-page links resolve without JavaScript. ?>
+				<section class="dbe-panel" id="dbe-panel-<?php echo esc_attr( $slug ); ?>" data-tab="<?php echo esc_attr( $slug ); ?>" aria-label="<?php echo esc_attr( $label ); ?>">
+					<div class="dbe-panel__head">
+						<div class="dbe-panel__headtext">
+							<h2 class="dbe-panel__title"><?php echo esc_html( $label ); ?></h2>
+							<?php if ( ! empty( $tab_features ) ) : ?>
+								<p class="dbe-panel__count" data-count-for="<?php echo esc_attr( $slug ); ?>"></p>
+							<?php endif; ?>
+						</div>
+						<?php
+						if ( ! empty( $tab_features ) ) {
+							dbe_render_bulk_switch(
+								'tab',
+								$slug,
+								__( 'All features', 'daveden-builderius-enhancements' ),
+								$label,
+								dbe_count_experimental( $tab_features )
+							);
+						}
+						?>
+					</div>
 					<?php
 					if ( 'dashboard' === $slug ) {
 						dbe_render_dashboard_panel();
@@ -587,6 +759,18 @@ function dbe_render_settings_page() {
 				<p><?php esc_html_e( 'No features match those filters.', 'daveden-builderius-enhancements' ); ?></p>
 				<button type="button" class="button dbe-no-results-clear"><?php esc_html_e( 'Clear filters', 'daveden-builderius-enhancements' ); ?></button>
 			</div>
+
+			<div class="dbe-danger-zone" hidden>
+				<button
+					type="button"
+					class="button dbe-reset-defaults"
+					data-confirm="<?php esc_attr_e( 'Reset every feature on every tab to its default? Nothing is saved until you choose Save changes.', 'daveden-builderius-enhancements' ); ?>"
+				><?php esc_html_e( 'Reset all tabs to defaults', 'daveden-builderius-enhancements' ); ?></button>
+				<p class="dbe-danger-zone__note"><?php esc_html_e( 'Restores every feature across all tabs to how it ships, experimental features off. Your choices are only replaced once you save.', 'daveden-builderius-enhancements' ); ?></p>
+			</div>
+
+			</div><!-- .dbe-settings-main -->
+			</div><!-- .dbe-settings-layout -->
 
 			<div
 				class="dbe-savebar"
