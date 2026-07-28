@@ -620,6 +620,13 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   margin-block-start: 4px;
 }
 
+/* Keeps the destructive-ability warning glyph on the title's line. */
+.dbe-field__titlerow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .dbe-field__title {
   display: block;
   font-size: 14px;
@@ -897,14 +904,16 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
 /* --- Agent abilities tab --- */
 .dbe-panel__intro {
-  max-width: 65ch;
+  max-width: 80ch;
+  margin-block: 0 16px;
   color: #50575e;
 }
 
 /* API-missing note: amber wash matching the Pro-locked treatment. */
 .dbe-panel__note {
-  max-width: 65ch;
+  max-width: 80ch;
   padding: 12px 16px;
+  margin-block-end: 16px;
   border: 1px solid #dba617;
   border-inline-start-width: 3px;
   border-radius: 4px;
@@ -913,18 +922,17 @@ input[type="checkbox"].dbe-switch:focus-visible {
   font-weight: 500;
 }
 
-.dbe-ability-group {
-  margin-block-start: 24px;
-}
-
 .dbe-ability-group__title {
   margin: 0;
   font-size: 14px;
 }
 
+/* Column three: these headings have no bulk switch of their own, so the
+   description skips the empty switch column rather than landing in it. */
 .dbe-ability-group__desc {
-  max-width: 65ch;
-  margin: 5px 0 10px;
+  grid-column: 3;
+  max-width: 62ch;
+  margin: 0;
   color: #50575e;
 }
 
@@ -953,32 +961,35 @@ input[type="checkbox"].dbe-switch:focus-visible {
   background: #b32d2e;
 }
 
+/* A coloured edge rather than a wash across the whole row: three tinted
+   backgrounds down a 42-row list fought the calmer layout, and the access is
+   written out in the badge either way. */
 .dbe-field--ability {
-  border-inline-start-width: 3px;
+  border-inline-start: 3px solid transparent;
+  padding-inline: calc(var(--dbe-main-pad) - 3px) var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
 }
 
 .dbe-field--ability-read {
   border-inline-start-color: #2271b1;
-  background: #f0f6fc;
 }
 
 .dbe-field--ability-write {
   border-inline-start-color: #007c83;
-  background: #f0f7f7;
 }
 
 .dbe-field--ability-execute {
   border-inline-start-color: #b32d2e;
-  background: #fcf0f1;
 }
 
 /* The ability id, so what an agent sees maps to what the row controls. */
 .dbe-ability-id {
+  display: inline-block;
   font-size: 12px;
   color: #50575e;
   background: #f0f0f1;
   border-radius: 3px;
-  padding: 1px 6px;
+  padding: 0 6px;
 }
 
 /* "Caution" badge: amber pill, same recipe as the Pro badge (contrast ~8:1). */
@@ -1009,10 +1020,10 @@ input[type="checkbox"].dbe-switch:focus-visible {
   text-transform: uppercase;
 }
 
-/* Destructive-ability row: red edge + pale red wash, warning icon and note.
-   Text stays at full contrast, matching the Pro-locked pattern. */
+/* Destructive-ability row: the one row that keeps a wash, because it is the one
+   that needs to stand out from the rest of the list. */
 .dbe-field--danger {
-  border-inline-start: 3px solid #b32d2e;
+  border-inline-start-color: #b32d2e;
   background: #fcf0f1;
 }
 
