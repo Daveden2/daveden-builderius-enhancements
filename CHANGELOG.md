@@ -163,15 +163,13 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   real state of the group (on, off, or mixed, which a screen reader announces as
   such), turns a part-on group fully on and a fully-on group off, and states how
   many experimental features the group contains before you use it. It is a
-  control over the other switches, never a saved setting of its own.
+  control over the other switches, never a saved setting of its own, and it sits
+  on the same vertical line as the switches it governs.
 * Added: a new **Accessibility** tab. The keyboard and screen-reader features
   were spread across Editing, Appearance and Workflow, with sibling features
   such as the top-bar and bottom-bar keyboard toolbars sitting in different
   tabs. They are now together, which also takes Editing from 24 features down
   to 16.
-* Added: features that can change saved templates, components or CSS are badged
-  **Changes saved content**, the one distinction that decides whether switching
-  a feature off later undoes anything.
 * Changed: feature titles that named their implementation rather than their
   effect have been reworded, for example "Controls styling" to "Restyled buttons
   and inputs" and "Preview overlay contrast fix" to "Readable canvas overlay
@@ -198,6 +196,16 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   select absent from the POST keeps its saved value instead of resetting to the
   default, so switching a parent off and on again loses nothing.
 * Fixed: content scrolled to no longer lands underneath the sticky save bar.
+* Fixed: the tab list now takes only the arrow keys its orientation calls for,
+  Up and Down for the vertical rail and Left and Right for the collapsed
+  horizontal bar, and reports `aria-orientation` to match. It previously
+  accepted both pairs in both directions, so a screen-reader user was given two
+  conflicting mental models of a one-dimensional list.
+* Fixed: every switch on a panel now sits on one vertical line. The tab and
+  section switches were 17 pixels to the right of the feature switches they
+  govern, because the feature rows are cards with padding and a border while the
+  heading rows are not. The card padding, border and the four vertical spacing
+  steps are now single custom properties, so the two cannot drift apart again.
 
 ## 1.14.0
 Accessible settings groups and image defaults, an assignable command-palette

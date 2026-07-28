@@ -109,23 +109,14 @@ function dbe_render_toggle( $id, $feature ) {
 	// info disclosure (visible without JavaScript — settings.js collapses it
 	// and reveals the button, the same progressive enhancement as the tabs).
 	$has_more = '' !== $summary && ! empty( $feature['description'] );
-	// A feature that can change saved templates, components or CSS says so on the
-	// row: it is the one distinction that decides whether switching it off later
-	// undoes anything (see the `scope` key in dbe_features()).
-	$changes_content = isset( $feature['scope'] ) && 'content' === $feature['scope'];
-	$scope_id        = $field_id . '-scope';
 	// The locked note is part of the field's accessible description.
 	$describedby = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
-	if ( $changes_content ) {
-		$describedby .= ' ' . $scope_id;
-	}
 	?>
 	<div
 		class="dbe-field<?php echo $pro_locked ? ' dbe-field--pro-locked' : ''; ?>"
 		data-default="<?php echo empty( $feature['experimental'] ) ? '1' : '0'; ?>"
 		data-experimental="<?php echo $experimental ? '1' : '0'; ?>"
 		data-unavailable="<?php echo $pro_locked ? '1' : '0'; ?>"
-		data-scope="<?php echo $changes_content ? 'content' : 'interface'; ?>"
 	>
 		<div class="dbe-field__text">
 			<span class="dbe-field__titlerow">
@@ -135,9 +126,6 @@ function dbe_render_toggle( $id, $feature ) {
 				<?php endif; ?>
 				<?php if ( $experimental ) : ?>
 					<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
-				<?php endif; ?>
-				<?php if ( $changes_content ) : ?>
-					<span class="dbe-badge dbe-badge--content" id="<?php echo esc_attr( $scope_id ); ?>"><?php esc_html_e( 'Changes saved content', 'daveden-builderius-enhancements' ); ?></span>
 				<?php endif; ?>
 				<?php if ( $has_more ) : ?>
 					<button type="button" class="dbe-info-btn" aria-expanded="true" aria-controls="<?php echo esc_attr( $more_id ); ?>" hidden>

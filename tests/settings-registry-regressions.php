@@ -201,12 +201,6 @@ foreach ( $features as $feature_id => $feature ) {
 		isset( $placed[ $feature_id ] ),
 		sprintf( 'Feature "%s" is in no section, so it falls into "Other enhancements".', $feature_id )
 	);
-	if ( isset( $feature['scope'] ) ) {
-		dbe_settings_test_assert(
-			in_array( $feature['scope'], array( 'interface', 'content' ), true ),
-			sprintf( 'Feature "%s" declares an unknown scope "%s".', $feature_id, $feature['scope'] )
-		);
-	}
 }
 
 foreach ( dbe_enum_settings() as $enum_id => $enum ) {

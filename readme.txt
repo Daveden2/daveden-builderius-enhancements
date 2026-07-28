@@ -83,8 +83,8 @@ The foundation release: a faster, lifecycle-managed builder runtime, a broad acc
 * Improved: the settings screen has a vertical tab rail with a live count for each tab, so where you are and how much is switched on stay visible however far you scroll. It returns to a horizontal bar on narrower screens.
 * New: a tri-state switch for each tab and each section turns a whole group on or off in one step, shows a mixed state when a group is part on, and says how many experimental features it contains first.
 * New: an Accessibility tab gathers the keyboard and screen-reader features that were previously spread across Editing, Appearance and Workflow, taking Editing from 24 features down to 16.
-* New: features that can change saved templates, components or CSS are badged "Changes saved content", so it is clear which ones leave something behind when switched off.
 * Improved: feature names now describe what changes rather than how it is built, and the introduction video only contacts YouTube once you press play.
+* Fixed: the tab list takes only the arrow keys that suit its direction, Up and Down for the vertical rail and Left and Right when it collapses to a horizontal bar, and every switch on a panel now lines up in one column.
 * Improved: Reset to defaults is now "Reset all tabs to defaults", sits on its own away from the filters, and asks for confirmation.
 * Fixed: the Clear filters button was permanently visible, and the settings screen skipped a heading level from h1 to h3.
 * Fixed: a feature's extra setting (default theme, default density, palette shortcut) no longer stays editable while the feature itself is off, and its saved value survives switching the feature off and on again.

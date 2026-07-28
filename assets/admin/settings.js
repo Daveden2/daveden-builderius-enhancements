@@ -246,6 +246,7 @@
     // Retrofit ARIA now that the tabs are functional.
     bar.hidden = false;
     bar.setAttribute('role', 'tablist');
+    syncOrientation();
     wrap.classList.add('dbe-js-tabs');
     tabs.forEach(function (tab) {
       tab.setAttribute('role', 'tab');
@@ -264,12 +265,28 @@
       if (tab) { activate(tab.dataset.tab, false, false); }
     });
 
+    // The rail is vertical at width and horizontal below the CSS breakpoint, so
+    // the arrow keys follow it: Up/Down for a vertical tab list, Left/Right for
+    // a horizontal one, never both (APG). Orientation is read back from the
+    // computed flex-direction rather than a breakpoint duplicated here, so the
+    // stylesheet stays the single source of truth.
+    function railIsVertical() {
+      return getComputedStyle(bar).flexDirection === 'column';
+    }
+
+    function syncOrientation() {
+      bar.setAttribute('aria-orientation', railIsVertical() ? 'vertical' : 'horizontal');
+    }
+
+    window.addEventListener('resize', syncOrientation);
+
     bar.addEventListener('keydown', function (e) {
       var idx = tabs.indexOf(document.activeElement);
       if (idx === -1) { return; }
+      var vertical = railIsVertical();
       var next = null;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (idx + 1) % tabs.length; }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (idx - 1 + tabs.length) % tabs.length; }
+      if (e.key === (vertical ? 'ArrowDown' : 'ArrowRight')) { next = (idx + 1) % tabs.length; }
+      if (e.key === (vertical ? 'ArrowUp' : 'ArrowLeft')) { next = (idx - 1 + tabs.length) % tabs.length; }
       if (e.key === 'Home') { next = 0; }
       if (e.key === 'End') { next = tabs.length - 1; }
       if (next !== null) {
