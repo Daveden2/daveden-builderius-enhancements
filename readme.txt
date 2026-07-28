@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.0.0-dev-19
+Stable tag: 2.0.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,7 +12,7 @@ Quality-of-life, theming and accessibility enhancements for the Builderius build
 
 == Description ==
 
-Daveden Builder Enhancements refines the Builderius builder's own interface with independent toggles across six areas: appearance and theming (light / dark / auto, density, design tokens), a friendlier Navigator (search, keyboard tree, row quick actions, detachable panel), editing tools (a flatter right-click menu, wrap and unwrap, inline rename, undo/redo, element shortcuts and a command palette), Styles-panel helpers, and workflow extras such as Cmd/Ctrl+S to save. Keyboard and screen-reader access is a design goal throughout.
+Daveden Builder Enhancements refines the Builderius builder's own interface with independent toggles across six areas: appearance and theming (light / dark / auto, density, design tokens), accessibility (keyboard tree navigation, region shortcuts, screen-reader announcements), a friendlier Navigator (search, row quick actions, detachable panel), editing tools (a flatter right-click menu, wrap and unwrap, inline rename, undo/redo, element shortcuts, a command palette and opt-in HTML authoring), Styles-panel helpers, and workflow extras such as Cmd/Ctrl+S to save. Keyboard and screen-reader access is a design goal throughout.
 
 Everything is configured under **Builderius → Builder Enhancements**, and every feature can be switched off without affecting the rest.
 
@@ -61,35 +61,21 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
 = 2.0.0 =
-The foundation release: a faster, lifecycle-managed builder runtime, a broad accessibility and responsive-workspace pass, and opt-in HTML authoring tools.
-* Improved: the builder runtime is divided into cacheable accessibility, workspace, command, editing, style and integration chunks behind a versioned Builderius adapter. Targeted events replace broad polling and observer work, while CI guards compressed size, controller mounts and long tasks.
-* Improved: clean/save state, focus return, composite controls, compact one-pane reflow, forced colours, target sizes, responsive top-bar behaviour and direct region navigation have been audited and strengthened across the builder.
-* Fixed: clicking a different Navigator row's disclosure no longer separates the visible focus ring from the keyboard starting point; focus stays put unless the collapsed branch would hide it.
-* New: Edit as HTML (Pro, experimental, off by default). Open it from an element's context menu or the command palette to edit its subtree as readable HTML, change tags, classes, attributes and text, and apply it back. The editor auto-closes non-void tags, marks structural errors, formats markup, renames matching tag pairs and suggests HTML, Builderius components and props, dynamic-data expressions, and existing classes with their provenance while omitting Builderius's internal uni-* runtime classes. Selected repetitions can become a Collection with static JSON, while an existing selected subtree can be passed to Builderius's component creator after Apply. Marked elements keep their identity, labels and settings, and a preview shows exactly what will change before you apply. The dialog warns beforehand that the complete operation cannot be undone.
-* New: Import HTML (Pro, experimental, off by default). Open it from an element's context menu or the command palette, paste markup, preview the elements it will create, and insert it. Its editor shares the structural validation, formatting, paired rename and Builderius-aware suggestions. Structurally identical repeated blocks are offered for collapse into a Collection and Template, and a pasted SVG becomes an editable element. The dialog explains before insertion that a complete import cannot be undone as one action.
-* New: Change tag (Pro, experimental, off by default). Change an element's HTML tag from a Navigator flyout or the command palette, Collections included, keeping its label and any data binding.
-* New: a mini-Emmet syntax in the command palette for building elements quickly, attributes and dynamic Collection or Template words included (see the Emmet guide in the repository).
-* New: Paste where you click in the Navigator (on by default), so a pasted element lands where you point rather than at the top of the tree.
-* Improved: with a text element highlighted in the canvas, press Enter to start editing it and Escape to finish. A persistent canvas indicator shows when editing is active, with one natural screen-reader announcement; for other elements, Enter uses the clearer Interact with page action and Escape returns to Select elements. Edit text is also available from the command palette.
-* Improved: Navigator search hides non-matching branches while preserving each match's ancestors, with localised result feedback and a clear no-results state. Element menus are named after their target, empty Undo feedback explains what DBE can recover, and CSS-scope guidance now describes the protected editing behaviour directly.
-* Improved: Follow selection in the tree now keeps the selected element's hierarchy visible above the canvas while the Navigator is hidden, so full-width editing does not remove location context.
-* New: five additive quick-start presets on the settings dashboard enable a considered set of accessibility, keyboard, visual, safer-editing or power-editing features without switching off any existing choices. Experimental settings are clearly marked, and nothing changes until you review and save.
-* Improved: the selected-element context menu is shorter and easier to scan. Insertion, movement and navigation, and advanced element tools now sit in labelled keyboard-operable flyouts while frequent actions remain immediately available. Unavailable menu and command-palette actions stay discoverable by keyboard and explain why they cannot currently run.
-* Improved: recoverable element changes now show an Undo button in their confirmation message, followed by Redo after undoing. Keyboard shortcuts remain available, and no action is offered for changes DBE cannot safely reverse.
-* Fixed: class, attribute and tag updates are now reversible settings changes instead of being mistaken for newly added elements. Cmd/Ctrl+Z and the confirmation message's Undo action restore the previous properties without removing the element or crossing into older work.
-* Fixed: undoing or redoing a deleted element now restores its original sibling position instead of appending it as the last child. Batch restores retain their order even though Builderius assigns every restored element a new ID.
-* Improved: Save status now reports Unsaved, Saving and confirmed Saved states, includes settings-only edits, and keeps failed saves marked unsaved with a prompt to try again. The command palette now shows a no-results state and inline guidance for empty or invalid input.
-* Security: markup entered through any HTML-authoring path is sanitised before it becomes Builderius content, stripping scripts, event handlers, dangerous URLs and unsupported elements.
-* Improved: most features are no longer marked experimental and are on by default, including the detachable Navigator, builder keyboard shortcuts, the command palette, Change HTML tag, hiding the code minimap and the preview resize handles. Edit as HTML and Import HTML stay experimental and off by default, because each rewrites a whole subtree in one step that cannot be undone.
-* Improved: the settings screen has a vertical tab rail with an icon and a live count for each tab, so where you are and how much is switched on stay visible however far you scroll. It returns to a horizontal bar on narrower screens.
-* Improved: each row is now a name, its switch and its description in three columns on one calm surface, rather than a bordered card per feature, and the fuller description opens from a "More" link instead of a small "i" icon.
-* New: a tri-state switch for each tab and each section turns a whole group on or off in one step, shows a mixed state when a group is part on, and says how many experimental features it contains first.
-* New: an Accessibility tab gathers the keyboard and screen-reader features that were previously spread across Editing, Appearance and Workflow, taking Editing from 24 features down to 16.
-* Improved: feature names now describe what changes rather than how it is built, and the introduction video only contacts YouTube once you press play.
-* Fixed: the tab list takes only the arrow keys that suit its direction, Up and Down for the vertical rail and Left and Right when it collapses to a horizontal bar, and every switch on a panel now lines up in one column.
-* Improved: Reset to defaults is now "Reset all tabs to defaults", sits on its own away from the filters, and asks for confirmation.
-* Fixed: the Clear filters button was permanently visible, and the settings screen skipped a heading level from h1 to h3.
-* Fixed: a feature's extra setting (default theme, default density, palette shortcut) no longer stays editable while the feature itself is off, and its saved value survives switching the feature off and on again.
+A rebuilt settings screen, new HTML authoring tools, and a thorough accessibility and performance pass.
+* New: Edit as HTML (Pro, experimental, off by default). Edit an element and everything inside it as plain HTML, then apply the changes back. A preview shows exactly what will change first.
+* New: Import HTML (Pro, experimental, off by default). Paste markup from anywhere, preview the elements it will create, and insert them. Repeated blocks can be collapsed into a Collection, and a pasted SVG stays editable.
+* New: Change tag. Change an element's HTML tag from the Navigator or the command palette, keeping its label and any data binding.
+* New: a shorthand for building elements quickly from the command palette. See the Emmet guide in the repository.
+* New: Paste where you click in the Navigator, so a pasted element lands where you point rather than at the top of the tree.
+* New: quick-start presets on the settings dashboard switch on a considered set of accessibility, keyboard, visual, safer-editing or power-editing features in one step, without turning anything off. Nothing changes until you review and save.
+* Improved: the settings screen has been rebuilt. A tab rail shows how much of each section is switched on, every feature is a name, a switch and a plain description, and one switch turns a whole tab or section on or off. A new Accessibility tab gathers the keyboard and screen-reader features that were scattered across the other tabs.
+* Improved: most features have come through testing and are no longer marked experimental, so they are on by default. Edit as HTML and Import HTML stay off, and now carry a warning on the settings screen, because each rewrites a whole element in one step that cannot be undone.
+* Improved: the right-click menu is shorter and easier to scan, with grouped flyouts for inserting, moving and advanced tools. Press Enter to start editing a text element and Escape to finish. Navigator search hides branches that do not match, and Follow selection keeps your place visible even when the Navigator is hidden.
+* Improved: changes you can undo now offer an Undo button in their confirmation message, and Redo after undoing. Save status reports Unsaved, Saving and Saved, and includes settings-only edits.
+* Improved: the code behind the plugin has been reorganised for maintainability and speed. The builder loads faster, stays responsive while you work, and the plugin now cleans up properly after itself when a feature is switched off.
+* Improved: a thorough accessibility pass across the builder, covering keyboard focus, screen reader announcements, target sizes, forced-colours mode and the narrow-window layout.
+* Fixed: a round of fixes across the Navigator, the right-click and class menus, undo and redo, and the settings screen. The full list is in CHANGELOG.md.
+* Security: markup pasted through the HTML tools is cleaned before it reaches the builder, and those tools are available only to users already allowed to post unfiltered HTML.
 
 = 1.14.0 =
 Accessible settings groups and image defaults, an assignable command-palette shortcut, and a round of accessibility and light-theme fixes across the footer tools and top bar.
