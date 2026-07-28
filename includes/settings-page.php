@@ -406,7 +406,7 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 					dbe_render_bulk_switch(
 						'group',
 						$tab_slug . '-' . $index,
-						__( 'All', 'daveden-builderius-enhancements' ),
+						__( 'All in this section', 'daveden-builderius-enhancements' ),
 						$section['title'],
 						dbe_count_experimental( $section_features ),
 						$section['description']
@@ -442,7 +442,7 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 			dbe_render_bulk_switch(
 				'group',
 				$tab_slug . '-other',
-				__( 'All', 'daveden-builderius-enhancements' ),
+				__( 'All in this section', 'daveden-builderius-enhancements' ),
 				__( 'Other enhancements', 'daveden-builderius-enhancements' ),
 				dbe_count_experimental( $remaining )
 			);

@@ -11,20 +11,22 @@
      rather than at the far edge of a 900px row keeps the label and its state in
      one glance, and puts every switch on one vertical line by construction. */
   --dbe-cols: minmax(0, 15.5rem) auto minmax(0, 1fr);
-  --dbe-col-gap: 20px;
+  --dbe-col-gap: 1.25rem;
 
-  /* Vertical rhythm, increasing with structural distance. */
-  --dbe-gap-row: 14px;
-  --dbe-gap-heading: 8px;
-  --dbe-gap-panel: 20px;
-  --dbe-gap-section: 28px;
+  /* Vertical rhythm, increasing with structural distance. In rem alongside the
+     type, so raising the browser's default font size opens the rows out with it
+     rather than leaving the text cramped in fixed gaps. */
+  --dbe-gap-row: 0.875rem;
+  --dbe-gap-heading: 0.5rem;
+  --dbe-gap-panel: 1.25rem;
+  --dbe-gap-section: 1.75rem;
 
   --dbe-line: #dcdcde;
 
   /* The panel's inner padding. Full-bleed bands (section headings, the
      Pro-locked wash) cancel it with a negative margin and restore it as padding,
      so they run to the panel edges while their content stays on the columns. */
-  --dbe-main-pad: 24px;
+  --dbe-main-pad: 1.5rem;
 }
 
 .dbe-intro {
@@ -101,7 +103,7 @@
   border-radius: 0 3px 3px 0;
   background: transparent;
   padding: 9px 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: start;
   color: #50575e;
   cursor: pointer;
@@ -148,7 +150,7 @@
   border-radius: 9px;
   background: #f0f0f1;
   color: #50575e;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   line-height: 1.7;
@@ -224,7 +226,7 @@
 
 .dbe-panel__title {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1.3;
 }
 
@@ -254,17 +256,25 @@
    The negative inline margin lets the tint run to the panel's edges while the
    content box stays on the shared column grid. */
 .dbe-feature-group__head {
-  padding: 12px var(--dbe-main-pad);
+  padding: 10px var(--dbe-main-pad);
   margin-inline: calc(var(--dbe-main-pad) * -1);
   margin-block-end: var(--dbe-gap-heading);
-  background: #f6f7f7;
+  background: #f0f0f1;
+  border-block: 1px solid var(--dbe-line);
 }
 
+/* Deliberately unlike a feature name, which is 14px sentence case in near-black.
+   A section heading sits in the same three columns as the rows it governs, so
+   typography has to carry the difference: the small-caps group-label convention
+   reads as a heading over a list rather than as one more thing in it. */
 .dbe-feature-group__title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1d2327;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.7;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #50575e;
 }
 
 /* --- Bulk switches (one per tab, one per section) --- */
@@ -279,7 +289,7 @@
 
 .dbe-bulk__label {
   display: inline-block;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #1d2327;
   cursor: pointer;
@@ -293,7 +303,7 @@
 }
 
 .dbe-bulk__note {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* The mixed state must not read as "off": a dashed track distinguishes it from
@@ -307,7 +317,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate {
 input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   translate: 10px 0;
   background:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%232271b1" stroke-width="1.8" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat,
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%232271b1" stroke-width="1.8" stroke-linecap="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat,
     #fff;
 }
 
@@ -388,7 +398,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 
 .dbe-dashboard .dbe-presets > h3 {
   margin-block: 0 6px;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .dbe-presets__intro {
@@ -427,7 +437,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 
 .dbe-preset h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .dbe-preset p {
@@ -466,7 +476,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 
 .dbe-dashboard__video figcaption {
   margin-block-start: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #50575e;
 }
 
@@ -508,12 +518,12 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 }
 
 .dbe-video-facade__text {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .dbe-video-facade__meta {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #50575e;
 }
 
@@ -532,7 +542,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 
 .dbe-dashboard h3 {
   margin-block: 20px 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .dbe-dashboard__summary {
@@ -629,7 +639,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 
 .dbe-field__title {
   display: block;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1d2327;
   cursor: pointer;
@@ -642,7 +652,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   border-radius: 9px;
   background: #dba617;
   color: #1d2327;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -656,7 +666,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   border-radius: 9px;
   background: #2271b1;
   color: #fff;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -676,7 +686,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 .dbe-field__pro-note {
   margin: 6px 0 0;
   max-width: 60ch;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #614a00; /* dark amber on the pale wash, AA */
 }
@@ -717,11 +727,11 @@ input[type="checkbox"].dbe-switch:disabled {
 input[type="checkbox"].dbe-switch {
   appearance: none;
   flex: none;
-  inline-size: 44px;
-  block-size: 24px;
+  inline-size: 2.75rem;
+  block-size: 1.5rem;
   margin: 2px 0 0;
   border: 1px solid #8c8f94;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: #dcdcde;
   position: relative;
   cursor: pointer;
@@ -735,10 +745,10 @@ input[type="checkbox"].dbe-switch:checked::before {
   float: none;
   display: block;
   position: absolute;
-  inset-block-start: 2px;
-  inset-inline-start: 2px;
-  inline-size: 18px;
-  block-size: 18px;
+  inset-block-start: 0.125rem;
+  inset-inline-start: 0.125rem;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
   margin: 0;
   border-radius: 50%;
   /* OFF state carries a dash inside the knob, so the on/off state does not rely
@@ -746,7 +756,7 @@ input[type="checkbox"].dbe-switch:checked::before {
      background-image, so it is decorative to assistive tech — the underlying
      checkbox already announces checked/unchecked. Swapped for a tick when
      checked (see :checked::before below). */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%23646970" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat, #fff;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%23646970" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat, #fff;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
   transition: translate 120ms ease;
 }
@@ -757,10 +767,10 @@ input[type="checkbox"].dbe-switch:checked {
 }
 
 input[type="checkbox"].dbe-switch:checked::before {
-  translate: 20px 0;
+  translate: 1.25rem 0;
   /* ON state: a tick replaces the dash (a distinct shape, not just a colour or
      position change). Darker blue than the track for contrast on the white knob. */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%23135e96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 11px 11px no-repeat, #fff;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%23135e96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat, #fff;
 }
 
 input[type="checkbox"].dbe-switch:focus-visible {
@@ -870,7 +880,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
   }
 
   .dbe-settings {
-    --dbe-main-pad: 16px;
+    --dbe-main-pad: 1rem;
   }
 }
 
@@ -924,7 +934,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
 .dbe-ability-group__title {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Column three: these headings have no bulk switch of their own, so the
@@ -942,7 +952,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
   padding: 1px 7px;
   border-radius: 9px;
   color: #fff;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -985,7 +995,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
 /* The ability id, so what an agent sees maps to what the row controls. */
 .dbe-ability-id {
   display: inline-block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #50575e;
   background: #f0f0f1;
   border-radius: 3px;
@@ -999,7 +1009,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
   border-radius: 9px;
   background: #dba617;
   color: #1d2327;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -1013,7 +1023,7 @@ input[type="checkbox"].dbe-switch:focus-visible {
   border-radius: 9px;
   background: #b32d2e;
   color: #fff;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -1029,14 +1039,14 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
 .dbe-danger-icon {
   color: #b32d2e;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .dbe-field__danger-note {
   margin: 6px 0 0;
   max-width: 60ch;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #8a2424; /* dark red on the pale wash, AA */
 }

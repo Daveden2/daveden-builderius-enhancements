@@ -170,6 +170,16 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   take a tinted band so they cannot be mistaken for one more row. The switch now
   sits beside the name it belongs to rather than at the far edge of the row.
 * Added: an icon for each tab in the rail.
+* Changed: type, spacing and the switch geometry are in `rem` rather than fixed
+  pixels, so the whole screen follows the browser's default font size for anyone
+  who has raised it, the switch included. Sizes are unchanged at the default
+  16px root; hairlines and borders stay in pixels, where scaling would only blur
+  them.
+* Fixed: a section heading was set in the same 14px semibold near-black as a
+  feature name and sat in the same three columns, so only a faint tint told them
+  apart. Section headings now take the small-caps group-label convention on a
+  stronger band with a rule above and below, and their switch is labelled "All
+  in this section".
 * Changed: the fuller description behind each row opens from a **More** link on
   the end of the summary. It was a 16px "i" glyph, which never advertised that
   the fuller description existed.
