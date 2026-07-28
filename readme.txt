@@ -29,6 +29,8 @@ Several features were suggested by the Builderius and the wider web design commu
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
 * Navigator row quick actions — TRẦN ĐỨC LƯƠNG (@evanscliff)
+* Command palette button in the top bar — @chanart
+* Assignable command palette shortcut — @chanart
 
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
