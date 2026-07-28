@@ -89,8 +89,84 @@ function dbe_admin_assets( $hook ) {
 add_action( 'admin_enqueue_scripts', 'dbe_admin_assets' );
 
 /**
- * One toggle row: title + description on the left, switch on the right,
- * optional enum sub-setting underneath.
+ * The tab rail's icon for one tab, as inline SVG.
+ *
+ * Inline rather than Dashicons so the glyphs match the plugin's own line-icon
+ * weight, inherit the tab's colour through currentColor, and need no font to
+ * load. Decorative: every tab already carries its name in text, so the icon is
+ * hidden from assistive tech.
+ *
+ * @param string $slug Tab slug from dbe_tabs().
+ * @return string SVG markup, or an empty string for an unknown tab.
+ */
+function dbe_tab_icon( $slug ) {
+	$paths = array(
+		// Panels of a dashboard.
+		'dashboard'     => '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+		// Half-filled circle: the light / dark contrast mark.
+		'appearance'    => '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
+		// The universal access symbol.
+		'accessibility' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="7.6" r="1.3" fill="currentColor" stroke="none"/><path d="M7.8 10.6h8.4M12 10.6v4.1M12 14.7l-2.1 3.9M12 14.7l2.1 3.9"/>',
+		// An indented tree.
+		'navigator'     => '<path d="M4 4v13.5A2.5 2.5 0 0 0 6.5 20H9"/><path d="M12 5h8M12 12h8M12 19h8"/>',
+		// A pencil over a line.
+		'editing'       => '<path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.5 18.5 3.5 19.5l1-4Z"/>',
+		// Curly braces: CSS.
+		'styles'        => '<path d="M8.5 3.5H8a2 2 0 0 0-2 2V9a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3.5a2 2 0 0 0 2 2h.5"/><path d="M15.5 3.5h.5a2 2 0 0 1 2 2V9a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3.5a2 2 0 0 1-2 2h-.5"/>',
+		// A save disc.
+		'workflow'      => '<path d="M19.5 20.5h-15a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1H16l4.5 4.5v11.5a1 1 0 0 1-1 1Z"/><path d="M16.5 20.5v-7h-9v7M7.5 3.5v4.5h6"/>',
+		// A small machine: the agent.
+		'abilities'     => '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4.5M8.5 4.5h7"/><circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9.5 16.8h5"/>',
+	);
+	if ( empty( $paths[ $slug ] ) ) {
+		return '';
+	}
+	return '<svg class="dbe-tab__icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $paths[ $slug ] . '</svg>';
+}
+
+/**
+ * The inline SVG a tab icon is allowed to output through wp_kses().
+ *
+ * @return array<string,array<string,bool>>
+ */
+function dbe_svg_allowed_html() {
+	$shared = array(
+		'fill'            => true,
+		'stroke'          => true,
+		'stroke-width'    => true,
+		'stroke-linecap'  => true,
+		'stroke-linejoin' => true,
+		'class'           => true,
+		'viewbox'         => true,
+		'width'           => true,
+		'height'          => true,
+		'aria-hidden'     => true,
+		'focusable'       => true,
+	);
+	return array(
+		'svg'    => $shared,
+		'path'   => array_merge( $shared, array( 'd' => true ) ),
+		'rect'   => array_merge(
+			$shared,
+			array(
+				'x'  => true,
+				'y'  => true,
+				'rx' => true,
+			)
+		),
+		'circle' => array_merge(
+			$shared,
+			array(
+				'cx' => true,
+				'cy' => true,
+				'r'  => true,
+			)
+		),
+	);
+}
+
+/**
+ * One toggle row: name, switch and description in three columns.
  *
  * @param string $id      Feature id.
  * @param array  $feature Registry entry.
@@ -118,31 +194,50 @@ function dbe_render_toggle( $id, $feature ) {
 		data-experimental="<?php echo $experimental ? '1' : '0'; ?>"
 		data-unavailable="<?php echo $pro_locked ? '1' : '0'; ?>"
 	>
-		<div class="dbe-field__text">
-			<span class="dbe-field__titlerow">
-				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
-				<?php if ( $requires_pro ) : ?>
-					<span class="dbe-badge dbe-badge--pro"><?php esc_html_e( 'Pro', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', requires Builderius Pro', 'daveden-builderius-enhancements' ); ?></span></span>
-				<?php endif; ?>
-				<?php if ( $experimental ) : ?>
-					<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
-				<?php endif; ?>
+		<div class="dbe-field__name">
+			<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
+			<?php if ( $requires_pro || $experimental ) : ?>
+				<span class="dbe-field__badges">
+					<?php if ( $requires_pro ) : ?>
+						<span class="dbe-badge dbe-badge--pro"><?php esc_html_e( 'Pro', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', requires Builderius Pro', 'daveden-builderius-enhancements' ); ?></span></span>
+					<?php endif; ?>
+					<?php if ( $experimental ) : ?>
+						<span class="dbe-badge dbe-badge--experimental"><?php esc_html_e( 'Experimental', 'daveden-builderius-enhancements' ); ?><span class="screen-reader-text"><?php esc_html_e( ', experimental feature, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
+					<?php endif; ?>
+				</span>
+			<?php endif; ?>
+		</div>
+		<div class="dbe-field__control">
+			<input
+				type="checkbox"
+				class="dbe-switch"
+				id="<?php echo esc_attr( $field_id ); ?>"
+				name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>"
+				value="1"
+				aria-describedby="<?php echo esc_attr( $describedby ); ?>"
+				<?php checked( ! $pro_locked && ! empty( $options[ $id ] ) ); ?>
+				<?php disabled( $pro_locked ); ?>
+			>
+		</div>
+		<div class="dbe-field__body">
+			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>">
+				<?php echo esc_html( '' !== $summary ? $summary : $feature['description'] ); ?>
 				<?php if ( $has_more ) : ?>
+					<?php // A named text control rather than a bare "i": the fuller description is the best copy on the page and a 16px glyph never advertised it. ?>
 					<button type="button" class="dbe-info-btn" aria-expanded="true" aria-controls="<?php echo esc_attr( $more_id ); ?>" hidden>
-						<span aria-hidden="true">i</span>
+						<span class="dbe-info-btn__text"><?php esc_html_e( 'More', 'daveden-builderius-enhancements' ); ?></span>
 						<span class="screen-reader-text">
 							<?php
 							printf(
 								/* translators: %s: feature title. */
-								esc_html__( 'More about %s', 'daveden-builderius-enhancements' ),
+								esc_html__( 'about %s', 'daveden-builderius-enhancements' ),
 								esc_html( $feature['title'] )
 							);
 							?>
 						</span>
 					</button>
 				<?php endif; ?>
-			</span>
-			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>"><?php echo esc_html( '' !== $summary ? $summary : $feature['description'] ); ?></p>
+			</p>
 			<?php if ( $has_more ) : ?>
 				<div class="dbe-field__more" id="<?php echo esc_attr( $more_id ); ?>">
 					<p><?php echo esc_html( $feature['description'] ); ?></p>
@@ -155,16 +250,6 @@ function dbe_render_toggle( $id, $feature ) {
 			<?php endif; ?>
 			<?php dbe_render_enum_subfields( $id, $pro_locked || empty( $options[ $id ] ) ); ?>
 		</div>
-		<input
-			type="checkbox"
-			class="dbe-switch"
-			id="<?php echo esc_attr( $field_id ); ?>"
-			name="<?php echo esc_attr( DBE_OPTION . '[' . $id . ']' ); ?>"
-			value="1"
-			aria-describedby="<?php echo esc_attr( $describedby ); ?>"
-			<?php checked( ! $pro_locked && ! empty( $options[ $id ] ) ); ?>
-			<?php disabled( $pro_locked ); ?>
-		>
 	</div>
 	<?php
 }
@@ -219,24 +304,15 @@ function dbe_render_enum_subfields( $parent_id, $disabled = false ) {
  * @param string $visible  Short visible label, e.g. "All".
  * @param string $context  The group it covers, e.g. "Power tools".
  * @param int    $trial    How many features in the group are experimental.
+ * @param string $blurb    Optional prose for the third column, e.g. the section
+ *                         description, which reads there exactly as a feature
+ *                         row's description does.
  */
-function dbe_render_bulk_switch( $scope, $key, $visible, $context, $trial = 0 ) {
+function dbe_render_bulk_switch( $scope, $key, $visible, $context, $trial = 0, $blurb = '' ) {
 	$id = 'dbe-bulk-' . $scope . '-' . $key;
 	?>
 	<?php // Hidden until settings.js takes ownership, so it is never a dead control. ?>
 	<div class="dbe-bulk dbe-bulk--<?php echo esc_attr( $scope ); ?>" hidden>
-		<label class="dbe-bulk__label" for="<?php echo esc_attr( $id ); ?>">
-			<?php echo esc_html( $visible ); ?>
-			<span class="screen-reader-text">
-				<?php
-				printf(
-					/* translators: %s: settings tab or section name, e.g. "Power tools". */
-					esc_html__( 'in %s', 'daveden-builderius-enhancements' ),
-					esc_html( $context )
-				);
-				?>
-			</span>
-		</label>
 		<input
 			type="checkbox"
 			class="dbe-switch dbe-switch--bulk"
@@ -246,16 +322,36 @@ function dbe_render_bulk_switch( $scope, $key, $visible, $context, $trial = 0 ) 
 				aria-describedby="<?php echo esc_attr( $id . '-note' ); ?>"
 			<?php endif; ?>
 		>
-		<?php if ( $trial > 0 ) : ?>
-			<p class="dbe-bulk__note" id="<?php echo esc_attr( $id . '-note' ); ?>">
-				<?php
-				printf(
-					/* translators: %d: number of experimental features in the group. */
-					esc_html( _n( 'Includes %d experimental feature, which is off by default.', 'Includes %d experimental features, which are off by default.', $trial, 'daveden-builderius-enhancements' ) ),
-					(int) $trial
-				);
-				?>
-			</p>
+	</div>
+	<div class="dbe-bulk__body dbe-bulk__body--<?php echo esc_attr( $scope ); ?>">
+		<?php // Only the switch's own label and note follow it into hiding; the section's description belongs to the section and always stays. ?>
+		<div class="dbe-bulk__text" hidden>
+			<label class="dbe-bulk__label" for="<?php echo esc_attr( $id ); ?>">
+				<?php echo esc_html( $visible ); ?>
+				<span class="screen-reader-text">
+					<?php
+					printf(
+						/* translators: %s: settings tab or section name, e.g. "Power tools". */
+						esc_html__( 'in %s', 'daveden-builderius-enhancements' ),
+						esc_html( $context )
+					);
+					?>
+				</span>
+			</label>
+			<?php if ( $trial > 0 ) : ?>
+				<p class="dbe-bulk__note" id="<?php echo esc_attr( $id . '-note' ); ?>">
+					<?php
+					printf(
+						/* translators: %d: number of experimental features in the group. */
+						esc_html( _n( 'Includes %d experimental feature, which is off by default.', 'Includes %d experimental features, which are off by default.', $trial, 'daveden-builderius-enhancements' ) ),
+						(int) $trial
+					);
+					?>
+				</p>
+			<?php endif; ?>
+		</div>
+		<?php if ( '' !== $blurb ) : ?>
+			<p class="dbe-bulk__blurb"><?php echo esc_html( $blurb ); ?></p>
 		<?php endif; ?>
 	</div>
 	<?php
@@ -303,20 +399,17 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 			$title_id = 'dbe-section-' . $tab_slug . '-' . $index;
 			?>
 			<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( $title_id ); ?>">
+				<?php // Same three columns as a toggle row, so the section's switch sits in the column of switches it governs. ?>
 				<div class="dbe-feature-group__head">
-					<div class="dbe-feature-group__headtext">
-						<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( $title_id ); ?>"><?php echo esc_html( $section['title'] ); ?></h3>
-						<?php if ( '' !== $section['description'] ) : ?>
-							<p class="dbe-feature-group__desc"><?php echo esc_html( $section['description'] ); ?></p>
-						<?php endif; ?>
-					</div>
+					<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( $title_id ); ?>"><?php echo esc_html( $section['title'] ); ?></h3>
 					<?php
 					dbe_render_bulk_switch(
 						'group',
 						$tab_slug . '-' . $index,
 						__( 'All', 'daveden-builderius-enhancements' ),
 						$section['title'],
-						dbe_count_experimental( $section_features )
+						dbe_count_experimental( $section_features ),
+						$section['description']
 					);
 					?>
 				</div>
@@ -344,9 +437,7 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 	?>
 	<section class="dbe-feature-group" aria-labelledby="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>">
 		<div class="dbe-feature-group__head">
-			<div class="dbe-feature-group__headtext">
-				<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>"><?php esc_html_e( 'Other enhancements', 'daveden-builderius-enhancements' ); ?></h3>
-			</div>
+			<h3 class="dbe-feature-group__title" id="<?php echo esc_attr( 'dbe-section-' . $tab_slug . '-other' ); ?>"><?php esc_html_e( 'Other enhancements', 'daveden-builderius-enhancements' ); ?></h3>
 			<?php
 			dbe_render_bulk_switch(
 				'group',
@@ -667,7 +758,8 @@ function dbe_render_settings_page() {
 				<?php $first = true; ?>
 				<?php foreach ( $tabs as $slug => $label ) : ?>
 					<button type="button" class="dbe-tab<?php echo $first ? ' is-active' : ''; ?>" data-tab="<?php echo esc_attr( $slug ); ?>">
-						<span class="dbe-tab__label"><?php echo esc_html( $label ); ?></span>
+						<?php echo wp_kses( dbe_tab_icon( $slug ), dbe_svg_allowed_html() ); ?>
+					<span class="dbe-tab__label"><?php echo esc_html( $label ); ?></span>
 						<?php if ( 'dashboard' !== $slug ) : ?>
 							<span class="dbe-tab__count" data-tabcount-for="<?php echo esc_attr( $slug ); ?>" aria-hidden="true"></span>
 						<?php endif; ?>

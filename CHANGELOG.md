@@ -155,6 +155,24 @@ measured performance budgets and a set of opt-in HTML authoring tools.
 
 ### Settings screen
 
+* Changed: **most features are no longer marked experimental**, and so are on by
+  default. The detachable Navigator, builder keyboard shortcuts, the command
+  palette, Change HTML tag, hiding the code minimap and the preview resize
+  handles have all come through testing without trouble. Any caveat that was
+  real (Builderius may add its own shortcuts; the detached panel and the resize
+  handle sit on builder chrome an update could move) stays in the feature's own
+  description, where it belongs. Edit as HTML and Import HTML keep the flag and
+  stay off by default: both rewrite a whole subtree in one irreversible step,
+  which is a different thing to default on than a panel that floats.
+* Changed: the row layout follows the Admin and Site Enhancements pattern. Rail
+  and panels sit on one surface instead of 58 bordered cards, each row is a
+  name, its switch and its description in three columns, and section headings
+  take a tinted band so they cannot be mistaken for one more row. The switch now
+  sits beside the name it belongs to rather than at the far edge of the row.
+* Added: an icon for each tab in the rail.
+* Changed: the fuller description behind each row opens from a **More** link on
+  the end of the summary. It was a 16px "i" glyph, which never advertised that
+  the fuller description existed.
 * Changed: the tabs are now a vertical rail carrying a live count for each one
   ("16 / 16"), so the section you are in and how much of it is switched on stay
   visible however far down a long tab you have scrolled. Below 1200 pixels the

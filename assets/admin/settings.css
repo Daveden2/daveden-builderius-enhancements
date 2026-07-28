@@ -6,20 +6,25 @@
      underneath it without this. */
   scroll-padding-block-end: 72px;
 
-  /* A toggle row's switch is inset by the card's padding plus its border. The
-     header rows have no card, so their bulk switch is pulled in by the same
-     amount to keep every switch on one vertical line. Kept as one variable so
-     the two cannot drift apart. */
-  --dbe-field-padding: 16px;
-  --dbe-field-border: 1px;
-  --dbe-switch-inset: calc(var(--dbe-field-padding) + var(--dbe-field-border));
+  /* Every row on a panel, heading rows included, shares these three columns:
+     the name, the switch, then the prose. Putting the switch beside its name
+     rather than at the far edge of a 900px row keeps the label and its state in
+     one glance, and puts every switch on one vertical line by construction. */
+  --dbe-cols: minmax(0, 15.5rem) auto minmax(0, 1fr);
+  --dbe-col-gap: 20px;
 
-  /* Vertical rhythm, increasing with structural distance: between cards, from a
-     heading to its cards, from the panel heading, and between sections. */
-  --dbe-gap-card: 8px;
-  --dbe-gap-heading: 12px;
+  /* Vertical rhythm, increasing with structural distance. */
+  --dbe-gap-row: 14px;
+  --dbe-gap-heading: 8px;
   --dbe-gap-panel: 20px;
   --dbe-gap-section: 28px;
+
+  --dbe-line: #dcdcde;
+
+  /* The panel's inner padding. Full-bleed bands (section headings, the
+     Pro-locked wash) cancel it with a negative margin and restore it as padding,
+     so they run to the panel edges while their content stays on the columns. */
+  --dbe-main-pad: 24px;
 }
 
 .dbe-intro {
@@ -42,17 +47,22 @@
   display: none;
 }
 
-/* --- Layout: a tab rail beside the panels, stacking when there is no room --- */
+/* --- Layout: a tab rail beside the panels, stacking when there is no room ---
+   One containing surface rather than a card per row: 58 bordered boxes is a lot
+   of chrome for what is a list of names and switches. */
 .dbe-settings-layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 32px;
-  align-items: start;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: stretch;
   margin-block-start: 16px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #fff;
 }
 
 .dbe-settings-main {
   min-inline-size: 0;
+  padding: 20px var(--dbe-main-pad) var(--dbe-main-pad);
 }
 
 /* Filtering searches across every tab at once, so the rail is hidden and its
@@ -74,25 +84,38 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  align-self: start;
   position: sticky;
   inset-block-start: 46px; /* clears the admin bar */
+  padding: 20px 8px;
+  border-inline-end: 1px solid var(--dbe-line);
 }
 
 .dbe-tab {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   inline-size: 100%;
   border: 0;
   border-inline-start: 3px solid transparent;
   border-radius: 0 3px 3px 0;
   background: transparent;
-  padding: 10px 12px;
+  padding: 9px 10px;
   font-size: 14px;
   text-align: start;
   color: #50575e;
   cursor: pointer;
+}
+
+/* Decorative: the tab's name is already text beside it. */
+.dbe-tab__icon {
+  flex: none;
+  opacity: 0.75;
+}
+
+.dbe-tab__label {
+  flex: 1;
+  min-inline-size: 0;
 }
 
 .dbe-tab:hover {
@@ -105,6 +128,11 @@
   background: #f0f6fc;
   color: #1d2327;
   font-weight: 600;
+}
+
+.dbe-tab.is-active .dbe-tab__icon {
+  opacity: 1;
+  color: #2271b1;
 }
 
 .dbe-tab:focus-visible {
@@ -142,16 +170,17 @@
     flex-wrap: wrap;
     gap: 4px;
     position: static;
-    margin-block-end: 4px;
-    border-block-end: 1px solid #c3c4c7;
+    padding: 8px 8px 0;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--dbe-line);
   }
 
   .dbe-tab {
     inline-size: auto;
     border-inline-start: 0;
     border-block-end: 2px solid transparent;
-    border-radius: 0;
-    padding: 10px 14px;
+    border-radius: 3px 3px 0 0;
+    padding: 9px 12px;
   }
 
   .dbe-tab.is-active {
@@ -172,22 +201,24 @@
 /* The panel heading stays a real h2 so the outline runs h1 - h2 - h3. It was
    previously display:none once the JS tabs took over, which dropped it from the
    accessibility tree and left a heading-level skip. */
+/* Heading rows share the toggle rows' columns, so a group's switch sits in the
+   column of switches it governs rather than beside its own heading. */
 .dbe-panel__head,
-.dbe-feature-group__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
+.dbe-feature-group__head,
+.dbe-field {
+  display: grid;
+  grid-template-columns: var(--dbe-cols);
+  column-gap: var(--dbe-col-gap);
+  align-items: start;
 }
 
 .dbe-panel__head {
   padding-block-end: 12px;
-  border-block-end: 1px solid #c3c4c7;
+  border-block-end: 1px solid var(--dbe-line);
   margin-block-end: var(--dbe-gap-panel);
 }
 
-.dbe-panel__headtext,
-.dbe-feature-group__headtext {
+.dbe-panel__headtext {
   min-inline-size: 0;
 }
 
@@ -219,8 +250,14 @@
   display: none;
 }
 
+/* Tinted band so a section heading cannot be mistaken for one more toggle row.
+   The negative inline margin lets the tint run to the panel's edges while the
+   content box stays on the shared column grid. */
 .dbe-feature-group__head {
+  padding: 12px var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
   margin-block-end: var(--dbe-gap-heading);
+  background: #f6f7f7;
 }
 
 .dbe-feature-group__title {
@@ -230,44 +267,33 @@
   color: #1d2327;
 }
 
-.dbe-feature-group__desc {
-  max-width: 65ch;
-  margin: 4px 0 0;
-  color: #50575e;
-}
-
 /* --- Bulk switches (one per tab, one per section) --- */
 .dbe-bulk {
   display: flex;
   align-items: center;
-  flex: none;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px 10px;
-  /* Aligns this switch with the column of switches it governs. */
-  margin-inline-end: var(--dbe-switch-inset);
-  max-inline-size: 24ch;
+}
+
+.dbe-bulk__body {
+  min-inline-size: 0;
 }
 
 .dbe-bulk__label {
+  display: inline-block;
   font-size: 13px;
   font-weight: 600;
-  color: #50575e;
-  text-align: end;
-  white-space: nowrap;
+  color: #1d2327;
   cursor: pointer;
 }
 
-.dbe-bulk--tab .dbe-bulk__label {
-  color: #1d2327;
+.dbe-bulk__note,
+.dbe-bulk__blurb {
+  max-width: 62ch;
+  margin: 2px 0 0;
+  color: #50575e;
 }
 
 .dbe-bulk__note {
-  flex-basis: 100%;
-  margin: 0;
   font-size: 12px;
-  color: #50575e;
-  text-align: end;
 }
 
 /* The mixed state must not read as "off": a dashed track distinguishes it from
@@ -559,28 +585,39 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   color: #50575e;
 }
 
-/* --- Toggle rows --- */
+/* --- Toggle rows ---
+   No card: a hairline between rows carries the separation that 58 bordered
+   boxes were carrying before. */
 .dbe-field {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  background: #fff;
-  border: var(--dbe-field-border) solid #c3c4c7;
-  border-radius: 4px;
-  padding: var(--dbe-field-padding);
-  margin-block-end: var(--dbe-gap-card);
+  padding-block: var(--dbe-gap-row);
+  border-block-start: 1px solid var(--dbe-line);
 }
 
-.dbe-field:last-child {
-  margin-block-end: 0;
+/* The tinted section band above already separates it. */
+.dbe-field:first-of-type {
+  border-block-start: 0;
 }
 
-.dbe-field__titlerow {
+.dbe-field__name {
+  min-inline-size: 0;
+}
+
+.dbe-field__control {
   display: flex;
   align-items: center;
+  min-block-size: 1.5em; /* keeps the switch on the name's first line */
+}
+
+.dbe-field__body {
+  min-inline-size: 0;
+}
+
+.dbe-field__badges {
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  margin-block-start: 4px;
 }
 
 .dbe-field__title {
@@ -588,6 +625,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   font-size: 14px;
   font-weight: 600;
   color: #1d2327;
+  cursor: pointer;
 }
 
 /* "Pro" badge: amber pill with near-black text (contrast ~8:1, AA). */
@@ -618,11 +656,14 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   text-transform: uppercase;
 }
 
-/* Pro-locked row: amber edge + pale wash, note explains why. Text stays at
-   full contrast; only the (disabled) switch is dimmed. */
+/* Pro-locked row: an amber edge and pale wash across the whole grid row, note
+   explains why. Text stays at full contrast; only the disabled switch is
+   dimmed. */
 .dbe-field--pro-locked {
   border-inline-start: 3px solid #dba617;
   background: #fcf9e8;
+  padding-inline: calc(var(--dbe-main-pad) - 3px) var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
 }
 
 .dbe-field__pro-note {
@@ -728,44 +769,41 @@ input[type="checkbox"].dbe-switch:focus-visible {
 }
 
 /* --- Info disclosure (revealed by settings.js; without JS the full
-       description stays visible and the button stays hidden) --- */
+       description stays visible and the button stays hidden) ---
+   A named text control on the end of the summary. The previous 16px "i" glyph
+   never advertised that a fuller description existed, and that description is
+   the most useful copy on the page. */
 .dbe-info-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 24px;   /* WCAG 2.5.8 pointer target */
-  block-size: 24px;
+  display: inline;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: #50575e;
-}
-
-/* The visual ring is smaller than the hit area. */
-.dbe-info-btn > span[aria-hidden] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 16px;
-  block-size: 16px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 11px;
-  font-style: italic;
-  font-family: Georgia, serif;
-  line-height: 1;
-}
-
-.dbe-info-btn:hover,
-.dbe-info-btn[aria-expanded="true"] {
   color: #2271b1;
+  font: inherit;
+}
+
+.dbe-info-btn__text {
+  text-decoration: underline;
+}
+
+.dbe-info-btn::after {
+  content: " \25BE";
+  text-decoration: none;
+}
+
+.dbe-info-btn[aria-expanded="true"]::after {
+  content: " \25B4";
+}
+
+.dbe-info-btn:hover {
+  color: #135e96;
 }
 
 .dbe-info-btn:focus-visible {
   outline: 2px solid #2271b1;
-  outline-offset: 1px;
-  border-radius: 50%;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .dbe-field__more {
@@ -824,21 +862,36 @@ input[type="checkbox"].dbe-switch:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  /* The bulk switch drops under its heading rather than squeezing beside it. */
+  .dbe-settings {
+    --dbe-main-pad: 16px;
+  }
+}
+
+/* Too narrow for three columns: the name and its switch stay on one line and
+   the prose drops to a full-width second row. */
+@media (max-width: 960px) {
   .dbe-panel__head,
-  .dbe-feature-group__head {
-    flex-wrap: wrap;
-    gap: 12px;
+  .dbe-feature-group__head,
+  .dbe-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
   }
 
+  .dbe-field__name,
+  .dbe-panel__headtext,
+  .dbe-feature-group__title {
+    grid-column: 1;
+  }
+
+  .dbe-field__control,
   .dbe-bulk {
-    justify-content: flex-start;
-    max-inline-size: none;
+    grid-column: 2;
+    grid-row: 1;
   }
 
-  .dbe-bulk__label,
-  .dbe-bulk__note {
-    text-align: start;
+  .dbe-field__body,
+  .dbe-bulk__body {
+    grid-column: 1 / -1;
   }
 }
 

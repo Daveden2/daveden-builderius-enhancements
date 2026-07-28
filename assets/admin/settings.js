@@ -83,8 +83,14 @@
         var targets = bulkTargets(bulk);
         // Rendered hidden, revealed only once it has something to govern: an
         // entirely Pro-locked group has no changeable switches, and without this
-        // script running there is nothing to drive it at all.
-        bulk.closest('.dbe-bulk').hidden = !targets.length;
+        // script running there is nothing to drive it at all. The switch and its
+        // own label sit in different grid cells, so both follow; the section
+        // description beside them is not the switch's and stays put.
+        var wrap = bulk.closest('.dbe-bulk');
+        var body = wrap.nextElementSibling;
+        var text = body ? body.querySelector('.dbe-bulk__text') : null;
+        wrap.hidden = !targets.length;
+        if (text) { text.hidden = !targets.length; }
         if (!targets.length) { return; }
         var on = targets.filter(function (t) { return t.checked; }).length;
         bulk.checked = on === targets.length;
