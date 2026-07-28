@@ -124,6 +124,11 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   The command palette now shows the same reasons directly beneath unavailable
   commands and exposes them as accessible descriptions, including precise
   first/last-sibling guidance for Move up and Move down.
+* Fixed: the class chips' right-click and caret menus in the Styles editor opened
+  wherever the pointer happened to be, which put a keyboard-opened menu in the
+  corner of the screen, away from the chip it belonged to. They now anchor to
+  their own chip, staying attached while open where the browser supports CSS
+  anchor positioning and falling back to a measured position where it does not.
 * Improved: confirmation messages for recoverable element additions, deletes,
   duplicates, cuts and structural moves now include an **Undo** button instead
   of relying on users to recall Cmd/Ctrl+Z. After undoing, the same message
@@ -233,6 +238,20 @@ measured performance budgets and a set of opt-in HTML authoring tools.
   heading below it while the search box had space above it, and two horizontal
   rules that close boxed the heading in. The tools row now separates from the
   panel by space alone, leaving the panel heading's rule as the only divider.
+* Added: **Edit as HTML** and **Import HTML** carry a warning sign beside their
+  name and a note saying what cannot be undone, rather than leaving that to the
+  fuller description behind More. Both rewrite a whole subtree in one step, which
+  is the reason they alone keep the experimental flag, so the settings screen now
+  says so where the decision is made. The glyph is decorative; the note is in the
+  switch's accessible description, so a screen reader is told the same thing. In
+  forced-colours mode the glyph takes `Mark`, where the amber is dropped.
+* Fixed: feature names were set with WordPress core's `body { line-height: 1.4em }`,
+  a length rather than a ratio, so a 14px semibold name inherited the same fixed
+  18.2px as 13px body copy. A name long enough to wrap, such as "Change HTML tag
+  from the Navigator", was cramped, and its Pro and Experimental badges sat hard
+  underneath. The screen now sets a unitless line height, so every element derives
+  its leading from its own type, and the switch beside a name tracks that line box
+  through a shared custom property instead of a separately-stated `1.5em`.
 * Fixed: every switch on a panel now sits on one vertical line. The tab and
   section switches were 17 pixels to the right of the feature switches they
   govern, because the feature rows are cards with padding and a border while the

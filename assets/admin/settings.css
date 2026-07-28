@@ -27,6 +27,19 @@
      Pro-locked wash) cancel it with a negative margin and restore it as padding,
      so they run to the panel edges while their content stays on the columns. */
   --dbe-main-pad: 1.5rem;
+
+  /* WordPress core sets `body { line-height: 1.4em }`, a length rather than a
+     ratio, so every descendant inherits a fixed 18.2px however large its own
+     type is. A 14px semibold feature name was getting the same 18.2px as 13px
+     body copy, which is far too tight once the name wraps to a second line.
+     A unitless value restores the ratio, so each element computes its leading
+     from its own font size. */
+  line-height: 1.5;
+
+  /* The feature name's line box, derived from its own type. The switch beside
+     it centres on the same height, so the two cannot drift apart if either the
+     name's size or the screen's leading changes. */
+  --dbe-row-lead: calc(0.875rem * 1.5);
 }
 
 .dbe-intro {
@@ -615,7 +628,7 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
 .dbe-field__control {
   display: flex;
   align-items: center;
-  min-block-size: 1.5em; /* keeps the switch on the name's first line */
+  min-block-size: var(--dbe-row-lead); /* keeps the switch on the name's first line */
 }
 
 .dbe-field__body {
@@ -630,7 +643,8 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   margin-block-start: 4px;
 }
 
-/* Keeps the destructive-ability warning glyph on the title's line. */
+/* Keeps a warning glyph on the title's line, for both the destructive
+   abilities and the two features whose action cannot be undone in one step. */
 .dbe-field__titlerow {
   display: flex;
   align-items: baseline;
@@ -689,6 +703,34 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   font-size: 0.8125rem;
   font-weight: 500;
   color: #614a00; /* dark amber on the pale wash, AA */
+}
+
+/* A feature that rewrites a whole subtree in one irreversible step. The row
+   keeps its plain surface — a wash on two rows in a list of sixteen shouts —
+   so the warning is carried by the glyph beside the name and this note. The
+   note is in the switch's accessible description, because the glyph is
+   decorative and a screen reader is never told about it. */
+.dbe-caution-icon {
+  color: #b26200; /* amber on white, ~4.3:1 */
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dbe-field__caution-note {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #8a5700; /* dark amber on white, ~6:1, AA */
+}
+
+/* Forced-colours mode drops the amber, so the glyph would become one more
+   character of body text. Marking it as a mark keeps it distinguishable. */
+@media (forced-colors: active) {
+  .dbe-caution-icon,
+  .dbe-danger-icon {
+    color: Mark;
+  }
 }
 
 input[type="checkbox"].dbe-switch:disabled {

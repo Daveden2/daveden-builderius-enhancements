@@ -176,17 +176,28 @@ function dbe_render_toggle( $id, $feature ) {
 	$field_id     = 'dbe-f-' . $id;
 	$desc_id      = $field_id . '-desc';
 	$note_id      = $field_id . '-pronote';
+	$caution_id   = $field_id . '-caution';
 	$more_id      = $field_id . '-more';
 	$requires_pro = ! empty( $feature['requires_pro'] );
 	$experimental = ! empty( $feature['experimental'] );
 	$pro_locked   = $requires_pro && ! dbe_builderius_pro_active();
 	$summary      = isset( $feature['summary'] ) ? $feature['summary'] : '';
+	// A feature whose action cannot be undone in one step. The glyph is the
+	// visible sign; the note carries the same warning for screen readers, since
+	// the glyph itself is decorative.
+	$caution_note = isset( $feature['caution_note'] ) ? (string) $feature['caution_note'] : '';
 	// One concise line under the title; the full description sits behind the
 	// info disclosure (visible without JavaScript — settings.js collapses it
 	// and reveals the button, the same progressive enhancement as the tabs).
 	$has_more = '' !== $summary && ! empty( $feature['description'] );
-	// The locked note is part of the field's accessible description.
-	$describedby = $pro_locked ? $desc_id . ' ' . $note_id : $desc_id;
+	// Both notes are part of the field's accessible description.
+	$describedby = $desc_id;
+	if ( '' !== $caution_note ) {
+		$describedby .= ' ' . $caution_id;
+	}
+	if ( $pro_locked ) {
+		$describedby .= ' ' . $note_id;
+	}
 	?>
 	<div
 		class="dbe-field<?php echo $pro_locked ? ' dbe-field--pro-locked' : ''; ?>"
@@ -195,7 +206,12 @@ function dbe_render_toggle( $id, $feature ) {
 		data-unavailable="<?php echo $pro_locked ? '1' : '0'; ?>"
 	>
 		<div class="dbe-field__name">
-			<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
+			<span class="dbe-field__titlerow">
+				<?php if ( '' !== $caution_note ) : ?>
+					<span class="dbe-caution-icon" aria-hidden="true">&#9888;</span>
+				<?php endif; ?>
+				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $feature['title'] ); ?></label>
+			</span>
 			<?php if ( $requires_pro || $experimental ) : ?>
 				<span class="dbe-field__badges">
 					<?php if ( $requires_pro ) : ?>
@@ -242,6 +258,11 @@ function dbe_render_toggle( $id, $feature ) {
 				<div class="dbe-field__more" id="<?php echo esc_attr( $more_id ); ?>">
 					<p><?php echo esc_html( $feature['description'] ); ?></p>
 				</div>
+			<?php endif; ?>
+			<?php if ( '' !== $caution_note ) : ?>
+				<p class="dbe-field__caution-note" id="<?php echo esc_attr( $caution_id ); ?>">
+					<?php echo esc_html( $caution_note ); ?>
+				</p>
 			<?php endif; ?>
 			<?php if ( $pro_locked ) : ?>
 				<p class="dbe-field__pro-note" id="<?php echo esc_attr( $note_id ); ?>">

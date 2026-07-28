@@ -617,6 +617,7 @@ function dbe_features() {
 			'cap'          => 'unfiltered_html',
 			'requires_pro' => true,
 			'experimental' => true,
+			'caution_note' => __( 'Applying rewrites the whole element and everything inside it in one step, which cannot be undone. Review the preview before you apply, and save your work first.', 'daveden-builderius-enhancements' ),
 		),
 		'import_html'           => array(
 			'title'        => __( 'Import HTML', 'daveden-builderius-enhancements' ),
@@ -629,6 +630,7 @@ function dbe_features() {
 			'cap'          => 'unfiltered_html',
 			'requires_pro' => true,
 			'experimental' => true,
+			'caution_note' => __( 'A complete import cannot be undone as one action; the elements it creates have to be deleted afterwards. Check the preview before you insert, and save your work first.', 'daveden-builderius-enhancements' ),
 		),
 		'tag_change'            => array(
 			'title'        => __( 'Change HTML tag from the Navigator', 'daveden-builderius-enhancements' ),
