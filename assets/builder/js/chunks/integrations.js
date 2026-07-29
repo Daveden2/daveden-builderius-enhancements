@@ -334,7 +334,7 @@
         }
 
         function dbePresenceCreateTabId() {
-            var id = '';
+            var id;
             try {
                 var records = dbePresenceLocalRecords();
                 id = sessionStorage.getItem('dbeBuilderiusTabId') || '';

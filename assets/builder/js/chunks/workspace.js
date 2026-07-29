@@ -528,7 +528,7 @@
                 var max = dbeCanvasMax();
                 var w = inner.getBoundingClientRect().width;
                 var step = ev.shiftKey ? 50 : 10;
-                var next = null;
+                var next;
                 switch (ev.key) {
                     case 'ArrowRight':
                     case 'ArrowUp':
@@ -648,7 +648,7 @@
             h.addEventListener('keydown', function (ev) {
                 var step = ev.shiftKey ? 40 : 10;
                 var w = dbePanelWidth();
-                var next = null;
+                var next;
                 switch (ev.key) {
                     case 'ArrowRight':
                     case 'ArrowUp': next = w + step; break;

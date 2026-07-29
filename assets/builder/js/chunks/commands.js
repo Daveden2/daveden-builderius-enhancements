@@ -1500,7 +1500,7 @@
                 var items = dbeSaveMenuItems(menu);
                 if (!items.length) { return; }
                 var idx = items.indexOf(document.activeElement);
-                var next = -1;
+                var next;
                 if (e.key === 'ArrowDown') { next = idx < 0 ? 0 : (idx + 1) % items.length; }
                 else if (e.key === 'ArrowUp') { next = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length; }
                 else if (e.key === 'Home') { next = 0; }
