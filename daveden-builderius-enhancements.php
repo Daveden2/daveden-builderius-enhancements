@@ -7,6 +7,7 @@
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       daveden-builderius-enhancements
  * Domain Path:       /languages
  * Requires at least: 6.4
@@ -33,6 +34,21 @@
  * The slug daveden-builderius-enhancements passes that substring check; rename
  * the folder and every wp_head/wp_footer feature silently vanishes in the
  * builder. Re-verify the check after Builderius updates.
+ *
+ * Copyright (C) 2026 Daveden Digital Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/gpl-2.0.html.
  *
  * @package Daveden_Builder_Enhancements
  */
