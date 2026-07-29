@@ -1,0 +1,377 @@
+/* Style inspector (style_inspector): a persistent, non-modal DevTools-like
+   panel for the selected element. It deliberately uses the existing DBE chrome
+   tokens so it follows light/dark mode and density without becoming a second
+   visual system inside Builderius. */
+
+.dbe-style-inspector {
+	position: fixed;
+	inset-block: 56px 40px;
+	inset-inline-end: 12px;
+	z-index: 2147482500;
+	display: grid;
+	grid-template-rows: auto auto minmax(0, 1fr);
+	inline-size: min(440px, calc(100vw - 24px));
+	min-block-size: 280px;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	background: var(--dbe-l1);
+	color: var(--dbe-text);
+	box-shadow: 0 16px 48px var(--dbe-shadow);
+	font-family: var(--dbe-ui-font);
+	overflow: hidden;
+}
+
+.dbe-style-inspector__head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	border-block-end: 1px solid var(--dbe-line);
+	background: var(--dbe-l0);
+}
+
+.dbe-style-inspector__identity {
+	display: grid;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.dbe-style-inspector__title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 650;
+	line-height: 1.3;
+}
+
+.dbe-style-inspector__target {
+	overflow: hidden;
+	color: var(--dbe-muted);
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	line-height: 1.35;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dbe-style-inspector__head-actions,
+.dbe-style-inspector__instances {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.dbe-style-inspector__icon-button,
+.dbe-style-inspector__edit,
+.dbe-style-inspector__tab {
+	border: 1px solid transparent;
+	border-radius: var(--dbe-r-sm);
+	background: transparent;
+	color: var(--dbe-text-2);
+	font: inherit;
+	cursor: pointer;
+}
+
+.dbe-style-inspector__icon-button {
+	display: grid;
+	place-items: center;
+	inline-size: 30px;
+	block-size: 30px;
+	padding: 0;
+	font-size: 16px;
+}
+
+.dbe-style-inspector :is(.dbe-style-inspector__icon-button, .dbe-style-inspector__instance-count, .dbe-style-inspector__all)[hidden] {
+	display: none;
+}
+
+.dbe-style-inspector__icon-button:hover,
+.dbe-style-inspector__edit:hover,
+.dbe-style-inspector__tab:hover {
+	background: var(--dbe-hover-wash);
+	color: var(--dbe-text);
+}
+
+.dbe-style-inspector :is(button, input):focus-visible {
+	outline: 2px solid var(--dbe-focus);
+	outline-offset: 1px;
+}
+
+.dbe-style-inspector__tabs {
+	display: flex;
+	align-items: stretch;
+	padding-inline: 8px;
+	border-block-end: 1px solid var(--dbe-line);
+	background: var(--dbe-l1);
+}
+
+.dbe-style-inspector__tab {
+	position: relative;
+	padding: 9px 10px 8px;
+	border-radius: 0;
+	font-size: 12px;
+}
+
+.dbe-style-inspector__tab[aria-selected="true"] {
+	color: var(--dbe-text);
+	font-weight: 600;
+}
+
+.dbe-style-inspector__tab[aria-selected="true"]::after {
+	content: "";
+	position: absolute;
+	inset-inline: 8px;
+	inset-block-end: -1px;
+	block-size: 2px;
+	background: var(--dbe-accent);
+}
+
+.dbe-style-inspector__body {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	min-block-size: 0;
+}
+
+.dbe-style-inspector__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	border-block-end: 1px solid var(--dbe-line);
+}
+
+.dbe-style-inspector__search {
+	min-inline-size: 0;
+	flex: 1;
+	box-sizing: border-box;
+	padding: 7px 9px;
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l2);
+	color: var(--dbe-text);
+	font: inherit;
+	font-size: 12px;
+}
+
+.dbe-style-inspector__search::placeholder { color: var(--dbe-muted); }
+
+.dbe-style-inspector__all {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--dbe-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.dbe-style-inspector__instance-count {
+	color: var(--dbe-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.dbe-style-inspector__content {
+	min-block-size: 0;
+	padding: 8px;
+	overflow: auto;
+}
+
+.dbe-style-inspector__empty {
+	margin: 24px 12px;
+	color: var(--dbe-muted);
+	font-size: 12px;
+	line-height: 1.5;
+	text-align: center;
+}
+
+.dbe-style-inspector__hint {
+	margin: 0 0 10px;
+	padding: 8px 9px;
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l0);
+	color: var(--dbe-muted);
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.dbe-style-inspector__section + .dbe-style-inspector__section {
+	margin-block-start: 14px;
+}
+
+.dbe-style-inspector__rules + .dbe-style-inspector__inherited {
+	margin-block-start: 16px;
+}
+
+.dbe-style-inspector__section-title {
+	margin: 0 0 7px;
+	color: var(--dbe-text-2);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.dbe-style-inspector__inherited-group + .dbe-style-inspector__inherited-group {
+	margin-block-start: 12px;
+}
+
+.dbe-style-inspector__inherited-from {
+	margin: 0 0 7px;
+	color: var(--dbe-text-2);
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	font-weight: 650;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.dbe-style-inspector__pseudo-computed {
+	border: 1px solid var(--dbe-line);
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l2);
+	overflow: hidden;
+}
+
+.dbe-style-inspector__pseudo-computed + .dbe-style-inspector__pseudo-computed {
+	margin-block-start: 8px;
+}
+
+.dbe-style-inspector__pseudo-label {
+	margin: 0;
+	padding: 7px 8px;
+	border-block-end: 1px solid var(--dbe-sep-line);
+	color: var(--dbe-text);
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	font-weight: 650;
+}
+
+.dbe-style-inspector__properties {
+	display: grid;
+	margin: 0;
+}
+
+.dbe-style-inspector__property {
+	display: grid;
+	grid-template-columns: minmax(120px, .8fr) minmax(0, 1.2fr);
+	gap: 12px;
+	padding: 6px 8px;
+	border-block-end: 1px solid var(--dbe-sep-line);
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+.dbe-style-inspector__property dt {
+	color: var(--dbe-accent);
+	overflow-wrap: anywhere;
+}
+
+.dbe-style-inspector__property dd {
+	margin: 0;
+	color: var(--dbe-text-2);
+	overflow-wrap: anywhere;
+}
+
+.dbe-style-inspector__rules {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.dbe-style-inspector__rule {
+	border: 1px solid var(--dbe-line);
+	border-inline-start: 3px solid var(--dbe-source-colour, var(--dbe-line-hi));
+	border-radius: var(--dbe-r-sm);
+	background: var(--dbe-l2);
+	overflow: hidden;
+}
+
+.dbe-style-inspector__rule[data-source="local"] { --dbe-source-colour: var(--dbe-lvl-local); }
+.dbe-style-inspector__rule[data-source="global"] { --dbe-source-colour: var(--dbe-lvl-global); }
+.dbe-style-inspector__rule[data-source="entity"] { --dbe-source-colour: var(--dbe-lvl-template); }
+
+.dbe-style-inspector__rule-head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: start;
+	gap: 8px;
+	padding: 8px 9px;
+	border-block-end: 1px solid var(--dbe-sep-line);
+}
+
+.dbe-style-inspector__selector {
+	color: var(--dbe-text);
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+.dbe-style-inspector__rule-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-block-start: 5px;
+}
+
+.dbe-style-inspector__badge {
+	padding: 2px 5px;
+	border: 1px solid var(--dbe-line);
+	border-radius: 999px;
+	color: var(--dbe-muted);
+	font-size: 9px;
+	font-weight: 650;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+.dbe-style-inspector__badge[data-state="active"] {
+	border-color: var(--dbe-accent);
+	color: var(--dbe-accent);
+}
+
+.dbe-style-inspector__badge[data-state="inactive"] {
+	opacity: .72;
+}
+
+.dbe-style-inspector__edit {
+	padding: 4px 7px;
+	border-color: var(--dbe-line);
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+.dbe-style-inspector__declarations {
+	display: grid;
+	gap: 3px;
+	margin: 0;
+	padding: 8px 10px 9px;
+	font-family: var(--dbe-mono);
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.dbe-style-inspector__declaration {
+	display: grid;
+	grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
+	gap: 6px;
+}
+
+.dbe-style-inspector__declaration dt { color: var(--dbe-accent); }
+.dbe-style-inspector__declaration dd {
+	margin: 0;
+	color: var(--dbe-text-2);
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+	.dbe-style-inspector {
+		inset-block-start: 48px;
+		inset-inline: 8px;
+		inline-size: auto;
+	}
+}

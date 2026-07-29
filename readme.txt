@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 1.14.0
+Stable tag: 2.0.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,9 +12,9 @@ Quality-of-life, theming and accessibility enhancements for the Builderius build
 
 == Description ==
 
-Daveden Builder Enhancements refines the Builderius builder's own interface with independent toggles across six areas: appearance and theming (light / dark / auto, density, design tokens), a friendlier Navigator (search, keyboard tree, row quick actions, detachable panel), editing tools (a flatter right-click menu, wrap and unwrap, inline rename, undo/redo, element shortcuts and a command palette), Styles-panel helpers, and workflow extras such as Cmd/Ctrl+S to save. Keyboard and screen-reader access is a design goal throughout.
+Daveden Builder Enhancements refines the Builderius builder's own interface with independent toggles across six areas: appearance and theming (light / dark / auto, density, design tokens), accessibility (keyboard tree navigation, region shortcuts, screen-reader announcements), a friendlier Navigator (search, row quick actions, detachable panel), editing tools (a flatter right-click menu, wrap and unwrap, inline rename, undo/redo, element shortcuts, a command palette and opt-in HTML authoring), Styles-panel helpers, and workflow extras such as Cmd/Ctrl+S to save. Keyboard and screen-reader access is a design goal throughout.
 
-Everything is configured under **Builderius → Builder Enhance**, and every feature can be switched off without affecting the rest.
+Everything is configured under **Builderius → Builder Enhancements**, and every feature can be switched off without affecting the rest.
 
 The plugin targets Builderius 1.3.5-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
 
@@ -29,6 +29,8 @@ Several features were suggested by the Builderius and the wider web design commu
 * Density toggle (compact mode) — Max Ziebell
 * Light / dark / auto theme — David McCan
 * Navigator row quick actions — TRẦN ĐỨC LƯƠNG (@evanscliff)
+* Command palette button in the top bar — @chanart
+* Assignable command palette shortcut — @chanart
 
 Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
@@ -36,7 +38,7 @@ Suggested a feature that shipped? Open an issue on GitHub to be credited.
 
 1. Download the latest release zip from the GitHub repository and install it via Plugins → Add New Plugin → Upload Plugin (or unzip it into `wp-content/plugins/`, keeping the folder name).
 2. Make sure Builderius is installed and active, then activate the plugin.
-3. Adjust the toggles under Builderius → Builder Enhance — sensible defaults are on out of the box.
+3. Adjust the toggles under Builderius → Builder Enhancements — sensible defaults are on out of the box.
 
 == Frequently Asked Questions ==
 
@@ -50,11 +52,32 @@ No. A few features enhance Pro-only surfaces (such as the CSS code editor helper
 
 = How do I suggest a feature or report a bug? =
 
-Open an issue on the GitHub repository. Suggestions that ship are credited in this readme.
+Report bugs as issues on the GitHub repository. For questions, ideas and general chat, use the repository's Discussions tab. Suggestions that ship are credited in this readme.
+
+= Can I support the plugin's development? =
+
+Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi or PayPal). The plugin stays free either way.
 
 == Changelog ==
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
+
+= 2.0.0 =
+A rebuilt settings screen, new HTML authoring tools, and a thorough accessibility and performance pass.
+* New: Edit as HTML (Pro, experimental, off by default). Edit an element and everything inside it as plain HTML, then apply the changes back. A preview shows exactly what will change first.
+* New: Import HTML (Pro, experimental, off by default). Paste markup from anywhere, preview the elements it will create, and insert them. Repeated blocks can be collapsed into a Collection, and a pasted SVG stays editable.
+* New: Change tag. Change an element's HTML tag from the Navigator or the command palette, keeping its label and any data binding.
+* New: a shorthand for building elements quickly from the command palette. See the Emmet guide in the repository.
+* New: Paste where you click in the Navigator, so a pasted element lands where you point rather than at the top of the tree.
+* New: quick-start presets on the settings dashboard switch on a considered set of accessibility, keyboard, visual, safer-editing or power-editing features in one step, without turning anything off. Nothing changes until you review and save.
+* Improved: the settings screen has been rebuilt. A tab rail shows how much of each section is switched on, every feature is a name, a switch and a plain description, and one switch turns a whole tab or section on or off. A new Accessibility tab gathers the keyboard and screen-reader features that were scattered across the other tabs.
+* Improved: most features have come through testing and are no longer marked experimental, so they are on by default. Edit as HTML and Import HTML stay off, and now carry a warning on the settings screen, because each rewrites a whole element in one step that cannot be undone.
+* Improved: the right-click menu is shorter and easier to scan, with grouped flyouts for inserting, moving and advanced tools. Press Enter to start editing a text element and Escape to finish. Navigator search hides branches that do not match, and Follow selection keeps your place visible even when the Navigator is hidden.
+* Improved: changes you can undo now offer an Undo button in their confirmation message, and Redo after undoing. Save status reports Unsaved, Saving and Saved, and includes settings-only edits.
+* Improved: the code behind the plugin has been reorganised for maintainability and speed. The builder loads faster, stays responsive while you work, and the plugin now cleans up properly after itself when a feature is switched off.
+* Improved: a thorough accessibility pass across the builder, covering keyboard focus, screen reader announcements, target sizes, forced-colours mode and the narrow-window layout.
+* Fixed: a round of fixes across the Navigator, the right-click and class menus, undo and redo, and the settings screen. The full list is in CHANGELOG.md.
+* Security: markup pasted through the HTML tools is cleaned before it reaches the builder, and those tools are available only to users already allowed to post unfiltered HTML.
 
 = 1.14.0 =
 Accessible settings groups and image defaults, an assignable command-palette shortcut, and a round of accessibility and light-theme fixes across the footer tools and top bar.
@@ -116,4 +139,4 @@ Older releases are documented in CHANGELOG.md in the plugin repository.
 == Upgrade Notice ==
 
 = 1.13.0 =
-Adds Navigator row quick actions: accessible Duplicate and Delete buttons on the hovered or focused Navigator row, on by default. Toggle or tune it under Builderius → Builder Enhance → Navigator.
+Adds Navigator row quick actions: accessible Duplicate and Delete buttons on the hovered or focused Navigator row, on by default. Toggle or tune it under Builderius → Builder Enhancements → Navigator.

@@ -3,7 +3,8 @@ name: Asset lint
 # ESLint + Stylelint over assets/ — the JS and CSS that make up ~85% of the
 # plugin and, until this workflow, had no automated checking at all (phpcs
 # covers only the PHP). Correctness-focused configs: eslint.config.js and
-# .stylelintrc.json in the repo root.
+# .stylelintrc.json in the repo root. npm test also gates accessibility,
+# runtime and deterministic performance contracts.
 #
 # This check is REQUIRED by branch protection on both main and develop - a red
 # run blocks the merge. Run `npm run lint` locally before pushing.
@@ -28,10 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
@@ -44,3 +45,6 @@ jobs:
 
       - name: Stylelint
         run: npm run lint:css
+
+      - name: Runtime and performance contracts
+        run: npm test

@@ -1,7 +1,45 @@
 /* Daveden Builder Enhancements — settings screen. */
 
 .dbe-settings {
-  max-width: 760px;
+  max-width: 1160px;
+  /* The save bar is sticky to the bottom, so anything scrolled to would land
+     underneath it without this. */
+  scroll-padding-block-end: 72px;
+
+  /* Every row on a panel, heading rows included, shares these three columns:
+     the name, the switch, then the prose. Putting the switch beside its name
+     rather than at the far edge of a 900px row keeps the label and its state in
+     one glance, and puts every switch on one vertical line by construction. */
+  --dbe-cols: minmax(0, 15.5rem) auto minmax(0, 1fr);
+  --dbe-col-gap: 1.25rem;
+
+  /* Vertical rhythm, increasing with structural distance. In rem alongside the
+     type, so raising the browser's default font size opens the rows out with it
+     rather than leaving the text cramped in fixed gaps. */
+  --dbe-gap-row: 0.875rem;
+  --dbe-gap-heading: 0.5rem;
+  --dbe-gap-panel: 1.25rem;
+  --dbe-gap-section: 1.75rem;
+
+  --dbe-line: #dcdcde;
+
+  /* The panel's inner padding. Full-bleed bands (section headings, the
+     Pro-locked wash) cancel it with a negative margin and restore it as padding,
+     so they run to the panel edges while their content stays on the columns. */
+  --dbe-main-pad: 1.5rem;
+
+  /* WordPress core sets `body { line-height: 1.4em }`, a length rather than a
+     ratio, so every descendant inherits a fixed 18.2px however large its own
+     type is. A 14px semibold feature name was getting the same 18.2px as 13px
+     body copy, which is far too tight once the name wraps to a second line.
+     A unitless value restores the ratio, so each element computes its leading
+     from its own font size. */
+  line-height: 1.5;
+
+  /* The feature name's line box, derived from its own type. The switch beside
+     it centres on the same height, so the two cannot drift apart if either the
+     name's size or the screen's leading changes. */
+  --dbe-row-lead: calc(0.875rem * 1.5);
 }
 
 .dbe-intro {
@@ -9,33 +47,107 @@
   color: #50575e;
 }
 
-/* --- Tab bar (revealed by settings.js; without JS all panels stay visible) --- */
+/* Anything given a `display` of its own beats the UA's `[hidden]` rule, so every
+   such element needs its hidden state restating. WP core's `.button` and our own
+   flex/inline-flex components all fall into that trap. */
+.dbe-tabbar[hidden],
+.dbe-settings-tools[hidden],
+.dbe-field[hidden],
+.dbe-savebar[hidden],
+.dbe-no-results[hidden],
+.dbe-clear-filters[hidden],
+.dbe-danger-zone[hidden],
+.dbe-bulk[hidden],
+.dbe-info-btn[hidden] {
+  display: none;
+}
+
+/* --- Layout: a tab rail beside the panels, stacking when there is no room ---
+   One containing surface rather than a card per row: 58 bordered boxes is a lot
+   of chrome for what is a list of names and switches. */
+.dbe-settings-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: stretch;
+  margin-block-start: 16px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.dbe-settings-main {
+  min-inline-size: 0;
+  padding: 20px var(--dbe-main-pad) var(--dbe-main-pad);
+}
+
+/* Filtering searches across every tab at once, so the rail is hidden and its
+   column with it; the results run the full width under their panel headings. */
+.dbe-filter-mode .dbe-settings-layout {
+  display: block;
+}
+
+.dbe-filter-mode .dbe-panel {
+  margin-block-start: 24px;
+}
+
+.dbe-filter-mode .dbe-bulk {
+  display: none;
+}
+
+/* --- Tab rail (revealed by settings.js; without JS all panels stay visible) --- */
 .dbe-tabbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-block: 16px 0;
-  border-bottom: 1px solid #c3c4c7;
+  flex-direction: column;
+  gap: 2px;
+  align-self: start;
+  position: sticky;
+  inset-block-start: 46px; /* clears the admin bar */
+  padding: 20px 8px;
+  border-inline-end: 1px solid var(--dbe-line);
 }
 
 .dbe-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-inline-start: 3px solid transparent;
+  border-radius: 0 3px 3px 0;
   background: transparent;
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 9px 10px;
+  font-size: 0.875rem;
+  text-align: start;
   color: #50575e;
   cursor: pointer;
 }
 
+/* Decorative: the tab's name is already text beside it. */
+.dbe-tab__icon {
+  flex: none;
+  opacity: 0.75;
+}
+
+.dbe-tab__label {
+  flex: 1;
+  min-inline-size: 0;
+}
+
 .dbe-tab:hover {
+  background: #f0f0f1;
   color: #1d2327;
 }
 
 .dbe-tab.is-active {
-  border-bottom-color: #2271b1;
+  border-inline-start-color: #2271b1;
+  background: #f0f6fc;
   color: #1d2327;
   font-weight: 600;
+}
+
+.dbe-tab.is-active .dbe-tab__icon {
+  opacity: 1;
+  color: #2271b1;
 }
 
 .dbe-tab:focus-visible {
@@ -43,31 +155,244 @@
   outline-offset: -2px;
 }
 
+/* Count chip. aria-hidden in the markup: the panel heading states the same
+   figure in words, so a screen reader is not told it twice. */
+.dbe-tab__count {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #f0f0f1;
+  color: #50575e;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.dbe-tab.is-active .dbe-tab__count {
+  background: #fff;
+  color: #1d2327;
+}
+
+/* Below the two-column threshold the rail becomes the original horizontal bar. */
+@media (max-width: 1200px) {
+  .dbe-settings-layout {
+    display: block;
+  }
+
+  .dbe-tabbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    position: static;
+    padding: 8px 8px 0;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--dbe-line);
+  }
+
+  .dbe-tab {
+    inline-size: auto;
+    border-inline-start: 0;
+    border-block-end: 2px solid transparent;
+    border-radius: 3px 3px 0 0;
+    padding: 9px 12px;
+  }
+
+  .dbe-tab.is-active {
+    border-block-end-color: #2271b1;
+    background: transparent;
+  }
+}
+
 /* --- Panels --- */
 .dbe-panel {
-  margin-block-start: 24px;
+  margin-block-start: 0;
 }
 
 .dbe-panel[hidden] {
   display: none;
 }
 
-.dbe-panel__title {
-  font-size: 16px;
-  margin-block-end: 8px;
+/* The panel heading stays a real h2 so the outline runs h1 - h2 - h3. It was
+   previously display:none once the JS tabs took over, which dropped it from the
+   accessibility tree and left a heading-level skip. */
+/* Heading rows share the toggle rows' columns, so a group's switch sits in the
+   column of switches it governs rather than beside its own heading. */
+.dbe-panel__head,
+.dbe-feature-group__head,
+.dbe-field {
+  display: grid;
+  grid-template-columns: var(--dbe-cols);
+  column-gap: var(--dbe-col-gap);
+  align-items: start;
 }
 
-/* Once JS tabs are active the per-panel headings duplicate the tab label. */
-.dbe-js-tabs .dbe-panel__title {
+.dbe-panel__head {
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--dbe-line);
+  margin-block-end: var(--dbe-gap-panel);
+}
+
+.dbe-panel__headtext {
+  min-inline-size: 0;
+}
+
+.dbe-panel__title {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.dbe-panel__count {
+  margin: 2px 0 0;
+  color: #50575e;
+  font-variant-numeric: tabular-nums;
+}
+
+.dbe-panel__count:empty {
   display: none;
+}
+
+.dbe-feature-group {
+  margin-block-start: var(--dbe-gap-section);
+}
+
+.dbe-feature-group:first-of-type {
+  margin-block-start: 0;
+}
+
+.dbe-feature-group[hidden] {
+  display: none;
+}
+
+/* Tinted band so a section heading cannot be mistaken for one more toggle row.
+   The negative inline margin lets the tint run to the panel's edges while the
+   content box stays on the shared column grid. */
+.dbe-feature-group__head {
+  padding: 10px var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
+  margin-block-end: var(--dbe-gap-heading);
+  background: #f0f0f1;
+  border-block: 1px solid var(--dbe-line);
+}
+
+/* Deliberately unlike a feature name, which is 14px sentence case in near-black.
+   A section heading sits in the same three columns as the rows it governs, so
+   typography has to carry the difference: the small-caps group-label convention
+   reads as a heading over a list rather than as one more thing in it. */
+.dbe-feature-group__title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.7;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #50575e;
+}
+
+/* --- Bulk switches (one per tab, one per section) --- */
+.dbe-bulk {
+  display: flex;
+  align-items: center;
+}
+
+.dbe-bulk__body {
+  min-inline-size: 0;
+}
+
+.dbe-bulk__label {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1d2327;
+  cursor: pointer;
+}
+
+.dbe-bulk__note,
+.dbe-bulk__blurb {
+  max-width: 62ch;
+  margin: 2px 0 0;
+  color: #50575e;
+}
+
+.dbe-bulk__note {
+  font-size: 0.75rem;
+}
+
+/* The mixed state must not read as "off": a dashed track distinguishes it from
+   both solid states without relying on the knob position (WCAG 1.4.1). */
+input[type="checkbox"].dbe-switch--bulk:indeterminate {
+  background: #fff;
+  border-style: dashed;
+  border-color: #2271b1;
+}
+
+input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
+  translate: 10px 0;
+  background:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%232271b1" stroke-width="1.8" stroke-linecap="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat,
+    #fff;
+}
+
+/* --- Search and filtering --- */
+/* No rule of its own: the panel heading below carries one, and two horizontal
+   rules with only the heading between them read as a boxed-in strip. The space
+   below is what separates the tools from the panel. */
+.dbe-settings-tools {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-end: var(--dbe-gap-section);
+}
+
+.dbe-settings-tools label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.dbe-settings-tools__search {
+  flex: 1 1 280px;
+}
+
+.dbe-settings-tools__search input {
+  inline-size: 100%;
+  min-block-size: 36px;
+}
+
+.dbe-settings-tools__filter select {
+  min-inline-size: 150px;
+  min-block-size: 36px;
+}
+
+.dbe-settings-tools .button {
+  min-block-size: 36px;
+}
+
+.dbe-filter-status {
+  flex-basis: 100%;
+  min-block-size: 20px;
+  color: #50575e;
+}
+
+.dbe-filter-status:empty {
+  display: none;
+}
+
+.dbe-no-results {
+  padding-block: 28px;
+  text-align: center;
+}
+
+.dbe-no-results p {
+  font-weight: 600;
 }
 
 /* --- Dashboard panel --- */
 .dbe-dashboard {
-  background: #fff;
-  border: 1px solid #c3c4c7;
-  border-radius: 4px;
-  padding: 16px;
+  padding-block: 4px;
 }
 
 .dbe-dashboard p {
@@ -76,6 +401,77 @@
 
 .dbe-dashboard__meta {
   color: #50575e;
+}
+
+.dbe-presets {
+  margin-block-start: 24px;
+  padding-block-start: 20px;
+  border-block-start: 1px solid #c3c4c7;
+}
+
+.dbe-dashboard .dbe-presets > h3 {
+  margin-block: 0 6px;
+  font-size: 1rem;
+}
+
+.dbe-presets__intro {
+  margin-block: 0 14px;
+  color: #50575e;
+}
+
+.dbe-presets__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dbe-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-block-size: 150px;
+  padding: 16px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.dbe-preset--experimental {
+  border-inline-start: 3px solid #2271b1;
+  background: #f0f6fc;
+}
+
+.dbe-preset__heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dbe-preset h4 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.dbe-preset p {
+  flex: 1;
+  margin-block: 8px 14px;
+  color: #50575e;
+}
+
+.dbe-preset .button {
+  min-block-size: 32px;
+}
+
+.dbe-preset-status {
+  min-block-size: 20px;
+  margin-block: 10px 0;
+  color: #1d2327;
+  font-weight: 600;
+}
+
+.dbe-preset-status:empty {
+  display: none;
 }
 
 .dbe-dashboard__video {
@@ -93,13 +489,73 @@
 
 .dbe-dashboard__video figcaption {
   margin-block-start: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
+  color: #50575e;
+}
+
+/* Click-to-load placeholder. Styled locally rather than with a YouTube
+   thumbnail, which would itself be a third-party request. */
+.dbe-video-facade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 16px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #f6f7f7;
+  color: #1d2327;
+  cursor: pointer;
+}
+
+.dbe-video-facade:hover {
+  border-color: #2271b1;
+  background: #f0f6fc;
+}
+
+.dbe-video-facade:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: 2px;
+}
+
+.dbe-video-facade__icon {
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: 50%;
+  background: #2271b1
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 6.5v11l9-5.5z" fill="white"/></svg>')
+    center / 24px 24px no-repeat;
+}
+
+.dbe-video-facade__text {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.dbe-video-facade__meta {
+  font-size: 0.75rem;
+  color: #50575e;
+}
+
+/* --- Reset to defaults, out of the filter row and on its own --- */
+.dbe-danger-zone {
+  margin-block-start: 28px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid #c3c4c7;
+}
+
+.dbe-danger-zone__note {
+  max-width: 65ch;
+  margin: 8px 0 0;
   color: #50575e;
 }
 
 .dbe-dashboard h3 {
   margin-block: 20px 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .dbe-dashboard__summary {
@@ -107,17 +563,40 @@
 }
 
 .dbe-dashboard__summary li {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
   max-width: 40ch;
-  padding-block: 6px;
   border-block-end: 1px solid #f0f0f1;
   margin: 0;
 }
 
 .dbe-dashboard__summary li:last-child {
   border-block-end: 0;
+}
+
+/* Each summary row jumps to the tab it counts. */
+.dbe-dashboard__jump {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  inline-size: 100%;
+  min-block-size: 32px; /* WCAG 2.5.8 pointer target */
+  padding: 6px 8px;
+  border-radius: 3px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dbe-dashboard__jump:hover {
+  background: #f0f6fc;
+}
+
+.dbe-dashboard__jump:hover .dbe-dashboard__tab {
+  text-decoration: underline;
+}
+
+.dbe-dashboard__jump:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: -2px;
 }
 
 .dbe-dashboard__tab {
@@ -129,31 +608,55 @@
   color: #50575e;
 }
 
-/* --- Toggle rows --- */
+/* --- Toggle rows ---
+   No card: a hairline between rows carries the separation that 58 bordered
+   boxes were carrying before. */
 .dbe-field {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  background: #fff;
-  border: 1px solid #c3c4c7;
-  border-radius: 4px;
-  padding: 16px;
-  margin-block-end: 8px;
+  padding-block: var(--dbe-gap-row);
+  border-block-start: 1px solid var(--dbe-line);
 }
 
-.dbe-field__titlerow {
+/* The tinted section band above already separates it. */
+.dbe-field:first-of-type {
+  border-block-start: 0;
+}
+
+.dbe-field__name {
+  min-inline-size: 0;
+}
+
+.dbe-field__control {
   display: flex;
   align-items: center;
+  min-block-size: var(--dbe-row-lead); /* keeps the switch on the name's first line */
+}
+
+.dbe-field__body {
+  min-inline-size: 0;
+}
+
+.dbe-field__badges {
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  margin-block-start: 4px;
+}
+
+/* Keeps a warning glyph on the title's line, for both the destructive
+   abilities and the two features whose action cannot be undone in one step. */
+.dbe-field__titlerow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .dbe-field__title {
   display: block;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1d2327;
+  cursor: pointer;
 }
 
 /* "Pro" badge: amber pill with near-black text (contrast ~8:1, AA). */
@@ -163,7 +666,7 @@
   border-radius: 9px;
   background: #dba617;
   color: #1d2327;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
@@ -177,26 +680,57 @@
   border-radius: 9px;
   background: #2271b1;
   color: #fff;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.6;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
-/* Pro-locked row: amber edge + pale wash, note explains why. Text stays at
-   full contrast; only the (disabled) switch is dimmed. */
+/* Pro-locked row: an amber edge and pale wash across the whole grid row, note
+   explains why. Text stays at full contrast; only the disabled switch is
+   dimmed. */
 .dbe-field--pro-locked {
   border-inline-start: 3px solid #dba617;
   background: #fcf9e8;
+  padding-inline: calc(var(--dbe-main-pad) - 3px) var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
 }
 
 .dbe-field__pro-note {
   margin: 6px 0 0;
   max-width: 60ch;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #614a00; /* dark amber on the pale wash, AA */
+}
+
+/* A feature that rewrites a whole subtree in one irreversible step. The row
+   keeps its plain surface — a wash on two rows in a list of sixteen shouts —
+   so the warning is carried by the glyph beside the name and this note. The
+   note is in the switch's accessible description, because the glyph is
+   decorative and a screen reader is never told about it. */
+.dbe-caution-icon {
+  color: #b26200; /* amber on white, ~4.3:1 */
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dbe-field__caution-note {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #8a5700; /* dark amber on white, ~6:1, AA */
+}
+
+/* Forced-colours mode drops the amber, so the glyph would become one more
+   character of body text. Marking it as a mark keeps it distinguishable. */
+@media (forced-colors: active) {
+  .dbe-caution-icon,
+  .dbe-danger-icon {
+    color: Mark;
+  }
 }
 
 input[type="checkbox"].dbe-switch:disabled {
@@ -220,6 +754,14 @@ input[type="checkbox"].dbe-switch:disabled {
   font-weight: 600;
 }
 
+/* A sub-setting whose parent feature is off. The label keeps full contrast so it
+   stays readable; only the disabled select is dimmed, matching the Pro-locked
+   treatment above. */
+.dbe-field__sub.is-disabled select {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* --- Switch (a styled checkbox — stays a native, accessible control) ---
    Selectors are input[type="checkbox"]-qualified: WP core's forms.css styles
    checkboxes (size, border, and a :checked::before checkmark) at that
@@ -227,11 +769,11 @@ input[type="checkbox"].dbe-switch:disabled {
 input[type="checkbox"].dbe-switch {
   appearance: none;
   flex: none;
-  inline-size: 44px;
-  block-size: 24px;
+  inline-size: 2.75rem;
+  block-size: 1.5rem;
   margin: 2px 0 0;
   border: 1px solid #8c8f94;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: #dcdcde;
   position: relative;
   cursor: pointer;
@@ -245,10 +787,10 @@ input[type="checkbox"].dbe-switch:checked::before {
   float: none;
   display: block;
   position: absolute;
-  inset-block-start: 2px;
-  inset-inline-start: 2px;
-  inline-size: 18px;
-  block-size: 18px;
+  inset-block-start: 0.125rem;
+  inset-inline-start: 0.125rem;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
   margin: 0;
   border-radius: 50%;
   /* OFF state carries a dash inside the knob, so the on/off state does not rely
@@ -256,7 +798,7 @@ input[type="checkbox"].dbe-switch:checked::before {
      background-image, so it is decorative to assistive tech — the underlying
      checkbox already announces checked/unchecked. Swapped for a tick when
      checked (see :checked::before below). */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%23646970" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 11px 11px no-repeat, #fff;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 6h6" stroke="%23646970" stroke-width="1.6" stroke-linecap="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat, #fff;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
   transition: translate 120ms ease;
 }
@@ -267,10 +809,10 @@ input[type="checkbox"].dbe-switch:checked {
 }
 
 input[type="checkbox"].dbe-switch:checked::before {
-  translate: 20px 0;
+  translate: 1.25rem 0;
   /* ON state: a tick replaces the dash (a distinct shape, not just a colour or
      position change). Darker blue than the track for contrast on the white knob. */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%23135e96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 11px 11px no-repeat, #fff;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 6.3 5 8.8 9.5 3.5" fill="none" stroke="%23135e96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 0.6875rem 0.6875rem no-repeat, #fff;
 }
 
 input[type="checkbox"].dbe-switch:focus-visible {
@@ -286,44 +828,41 @@ input[type="checkbox"].dbe-switch:focus-visible {
 }
 
 /* --- Info disclosure (revealed by settings.js; without JS the full
-       description stays visible and the button stays hidden) --- */
+       description stays visible and the button stays hidden) ---
+   A named text control on the end of the summary. The previous 16px "i" glyph
+   never advertised that a fuller description existed, and that description is
+   the most useful copy on the page. */
 .dbe-info-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 24px;   /* WCAG 2.5.8 pointer target */
-  block-size: 24px;
+  display: inline;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: #50575e;
-}
-
-/* The visual ring is smaller than the hit area. */
-.dbe-info-btn > span[aria-hidden] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 16px;
-  block-size: 16px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 11px;
-  font-style: italic;
-  font-family: Georgia, serif;
-  line-height: 1;
-}
-
-.dbe-info-btn:hover,
-.dbe-info-btn[aria-expanded="true"] {
   color: #2271b1;
+  font: inherit;
+}
+
+.dbe-info-btn__text {
+  text-decoration: underline;
+}
+
+.dbe-info-btn::after {
+  content: " \25BE";
+  text-decoration: none;
+}
+
+.dbe-info-btn[aria-expanded="true"]::after {
+  content: " \25B4";
+}
+
+.dbe-info-btn:hover {
+  color: #135e96;
 }
 
 .dbe-info-btn:focus-visible {
   outline: 2px solid #2271b1;
-  outline-offset: 1px;
-  border-radius: 50%;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .dbe-field__more {
@@ -341,4 +880,215 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
 .dbe-field__more[hidden] {
   display: none;
+}
+
+/* --- Save state --- */
+.dbe-savebar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  min-block-size: 52px;
+  margin-block-start: 20px;
+  padding-block: 10px;
+  border-block-start: 1px solid #c3c4c7;
+  background: #f0f0f1;
+}
+
+.dbe-save-status {
+  color: #50575e;
+}
+
+.dbe-savebar.is-dirty .dbe-save-status {
+  color: #1d2327;
+  font-weight: 600;
+}
+
+@media (max-width: 782px) {
+  .dbe-settings-tools > *,
+  .dbe-settings-tools__filter select {
+    inline-size: 100%;
+  }
+
+  .dbe-field {
+    gap: 16px;
+  }
+
+  .dbe-presets__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dbe-settings {
+    --dbe-main-pad: 1rem;
+  }
+}
+
+/* Too narrow for three columns: the name and its switch stay on one line and
+   the prose drops to a full-width second row. */
+@media (max-width: 960px) {
+  .dbe-panel__head,
+  .dbe-feature-group__head,
+  .dbe-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+
+  .dbe-field__name,
+  .dbe-panel__headtext,
+  .dbe-feature-group__title {
+    grid-column: 1;
+  }
+
+  .dbe-field__control,
+  .dbe-bulk {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dbe-field__body,
+  .dbe-bulk__body {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- Agent abilities tab --- */
+.dbe-panel__intro {
+  max-width: 80ch;
+  margin-block: 0 16px;
+  color: #50575e;
+}
+
+/* API-missing note: amber wash matching the Pro-locked treatment. */
+.dbe-panel__note {
+  max-width: 80ch;
+  padding: 12px 16px;
+  margin-block-end: 16px;
+  border: 1px solid #dba617;
+  border-inline-start-width: 3px;
+  border-radius: 4px;
+  background: #fcf9e8;
+  color: #614a00;
+  font-weight: 500;
+}
+
+.dbe-ability-group__title {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Column three: these headings have no bulk switch of their own, so the
+   description skips the empty switch column rather than landing in it. */
+.dbe-ability-group__desc {
+  grid-column: 3;
+  max-width: 62ch;
+  margin: 0;
+  color: #50575e;
+}
+
+/* Access is always written as text; colour is a secondary scanning cue. */
+.dbe-ability-access {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.dbe-ability-access--read {
+  background: #2271b1;
+}
+
+.dbe-ability-access--write {
+  background: #007c83;
+}
+
+.dbe-ability-access--execute {
+  background: #b32d2e;
+}
+
+/* A coloured edge rather than a wash across the whole row: three tinted
+   backgrounds down a 42-row list fought the calmer layout, and the access is
+   written out in the badge either way. */
+.dbe-field--ability {
+  border-inline-start: 3px solid transparent;
+  padding-inline: calc(var(--dbe-main-pad) - 3px) var(--dbe-main-pad);
+  margin-inline: calc(var(--dbe-main-pad) * -1);
+}
+
+.dbe-field--ability-read {
+  border-inline-start-color: #2271b1;
+}
+
+.dbe-field--ability-write {
+  border-inline-start-color: #007c83;
+}
+
+.dbe-field--ability-execute {
+  border-inline-start-color: #b32d2e;
+}
+
+/* The ability id, so what an agent sees maps to what the row controls. */
+.dbe-ability-id {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #50575e;
+  background: #f0f0f1;
+  border-radius: 3px;
+  padding: 0 6px;
+}
+
+/* "Caution" badge: amber pill, same recipe as the Pro badge (contrast ~8:1). */
+.dbe-badge--caution {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #dba617;
+  color: #1d2327;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* "Destructive" badge: WordPress alert red with white text (contrast ~5.9:1, AA). */
+.dbe-badge--danger {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #b32d2e;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Destructive-ability row: the one row that keeps a wash, because it is the one
+   that needs to stand out from the rest of the list. */
+.dbe-field--danger {
+  border-inline-start-color: #b32d2e;
+  background: #fcf0f1;
+}
+
+.dbe-danger-icon {
+  color: #b32d2e;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dbe-field__danger-note {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #8a2424; /* dark red on the pale wash, AA */
 }

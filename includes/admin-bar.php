@@ -187,15 +187,29 @@ function dbe_adminbar_second_tab_warning() {
 	;
 	// The builder page heartbeats into localStorage (builder.js); a beat
 	// fresher than HB.staleAfter means a builder tab is (very likely) open.
+	function freshestBeat(value) {
+		if (value && typeof value.t === 'number') {
+			return (Date.now() - value.t) <= HB.staleAfter ? value : null;
+		}
+		if (!value || !value.tabs || typeof value.tabs !== 'object' || Array.isArray(value.tabs)) { return null; }
+		return Object.keys(value.tabs).map(function (id) {
+			return value.tabs[id];
+		}).filter(function (beat) {
+			return beat && typeof beat.t === 'number' && (Date.now() - beat.t) <= HB.staleAfter;
+		}).sort(function (a, b) {
+			return b.t - a.t;
+		})[0] || null;
+	}
 	document.addEventListener('click', function (e) {
 		var a = e.target.closest && e.target.closest('#wp-admin-bar-dbe-open-template > a');
 		if (!a) { return; }
 		var raw = null;
 		try { raw = localStorage.getItem(HB.key); } catch (err) {}
 		if (!raw) { return; }
-		var beat;
-		try { beat = JSON.parse(raw); } catch (err) { return; }
-		if (!beat || typeof beat.t !== 'number' || (Date.now() - beat.t) > HB.staleAfter) { return; }
+		var stored;
+		try { stored = JSON.parse(raw); } catch (err) { return; }
+		var beat = freshestBeat(stored);
+		if (!beat) { return; }
 		var msg = MSG.open
 			+ (beat.title ? ':\n“' + beat.title + '”' : '')
 			+ '\n\n' + MSG.warn;

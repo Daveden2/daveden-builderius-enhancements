@@ -77,7 +77,14 @@ For a fix that cannot wait for the next `develop` release:
 - A merge to `main` without a version bump (e.g. a docs-only change) is safe:
   `auto-release.yml` sees the existing tag and does nothing.
 - `release.yml` (attach zip on a manually published release) is kept as a
-  fallback for hand-cut releases; the automated path does not trigger it, and
-  attaches the zip itself instead.
+  fallback for hand-cut releases; the automated path attaches the zip itself
+  and stamps a hidden `published-by: auto-release` marker in the notes, which
+  `release.yml` uses to skip releases the automation already finished.
+- Releases are attributed to whoever owns the token that creates them. With
+  the `RELEASE_PAT` repository secret set (a fine-grained personal access
+  token with **Contents: read and write** on this repository), releases show
+  the maintainer's profile; without it, `auto-release.yml` falls back to the
+  workflow's `GITHUB_TOKEN` and releases show `github-actions[bot]`. Set or
+  rotate it with `gh secret set RELEASE_PAT`.
 - The maintainer is the sole reviewer; the release PR needs no approval, only
   green checks.

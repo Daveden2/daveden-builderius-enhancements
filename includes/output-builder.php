@@ -3,16 +3,17 @@
  * Builder-mode output: the chrome CSS and JS injected into the Builderius
  * builder page (a front-end request carrying `?builderius`).
  *
- * CSS is concatenated from per-feature files and printed inline in wp_head —
- * inline is deliberate: it is guaranteed to be in the document before the
- * builder SPA paints (no flash of stock chrome), the payload varies with the
- * saved toggles so there is nothing to cache-bust, and inline printing is the
- * only delivery proven to survive builder mode.
+ * CSS is concatenated from per-feature files into a content-addressed uploads
+ * bundle and linked directly in wp_head. This preserves render-blocking order
+ * without adding the enabled CSS to every HTML response. If the uploads cache
+ * cannot be written, the same trusted CSS falls back to inline delivery.
  *
  * @package Daveden_Builder_Enhancements
  */
 
 defined( 'ABSPATH' ) || exit;
+
+require_once DBE_DIR . 'includes/builder-css-cache.php';
 
 /**
  * Whether the current request is a builder-mode page view.
@@ -28,15 +29,15 @@ function dbe_is_builder_mode() {
  * Whether this request should receive the builder enhancements at all.
  *
  * The prototype emitted for anonymous `?builderius` requests; the plugin
- * restricts output to logged-in users who can edit content. Filterable in
- * case a site gates Builderius access on a different capability.
+ * restricts output to logged-in users who can open Builderius development
+ * mode. Filterable in case a site gates Builderius access differently.
  *
  * @return bool
  */
 function dbe_builder_output_allowed() {
 	$allowed = dbe_is_builder_mode()
 		&& is_user_logged_in()
-		&& current_user_can( 'edit_posts' )
+		&& current_user_can( 'builderius-development' )
 		&& dbe_any_enabled();
 
 	/**
@@ -80,7 +81,7 @@ function dbe_builder_css_files() {
 	$files[] = '00-tokens.css';
 
 	foreach ( dbe_features() as $id => $feature ) {
-		if ( ! dbe_enabled( $id ) ) {
+		if ( ! dbe_feature_output_permitted( $id ) ) {
 			continue;
 		}
 		foreach ( array( 'css', 'shared_css' ) as $key ) {
@@ -102,11 +103,13 @@ function dbe_builder_css_files() {
 /**
  * Concatenate the enabled CSS files.
  *
+ * @param string[]|null $files Optional pre-resolved ordered file list.
  * @return string
  */
-function dbe_builder_css() {
-	$css = '';
-	foreach ( dbe_builder_css_files() as $file ) {
+function dbe_builder_css( $files = null ) {
+	$css   = '';
+	$files = is_array( $files ) ? $files : dbe_builder_css_files();
+	foreach ( $files as $file ) {
 		$path = DBE_DIR . 'assets/builder/css/' . $file;
 		if ( is_readable( $path ) ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a bundled plugin CSS file, not a remote URL.
@@ -117,19 +120,22 @@ function dbe_builder_css() {
 }
 
 /**
- * Theme/density bootstrap printed on wp_head (before the styles, so the first
- * paint is already in the right theme), followed by the concatenated chrome CSS.
+ * Theme, density and workspace bootstrap printed on wp_head (before the styles,
+ * so the first paint already has the user's preferences), followed by the
+ * concatenated chrome CSS.
  */
 function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) || dbe_enabled( 'compact_panes' ) ) {
 		$bootstrap = array(
-			'theme'      => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
-			'density'    => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
-			'panelWidth' => dbe_enabled( 'panel_resize' ),
+			'theme'           => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
+			'density'         => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
+			'panelWidth'      => dbe_enabled( 'panel_resize' ),
+			'panelVisibility' => dbe_enabled( 'command_palette' ),
+			'compactPanes'    => dbe_enabled( 'compact_panes' ),
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
@@ -179,46 +185,80 @@ function dbe_print_builder_head() {
 					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
 				}
 			}
+			if (cfg.panelVisibility) {
+				try {
+					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
+					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
+					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
+				} catch (e) {}
+			}
+			/* Default narrow sessions to the primary editing surface before the
+			 * builder mounts. builder.js replaces this seed with the user's chosen
+			 * compact view and removes it when the breakpoint clears. */
+			if (cfg.compactPanes) {
+				try {
+					if (matchMedia('(max-width: 720px)').matches) {
+						d.classList.add('dbe-compact-panes');
+						d.dataset.dbeCompactPane = 'canvas';
+					}
+				} catch (e) {}
+			}
 		})(document.documentElement);
 		</script>
 		<?php
 	}
 
+	$bundle = dbe_builder_css_bundle();
+	if ( false !== $bundle ) {
+		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- direct head output is required because Builderius strips normal plugin enqueue hooks in builder mode.
+		echo '<link id="dbe-builder-enhancements" rel="stylesheet" href="' . esc_url( $bundle['url'] ) . '" data-dbe-css-delivery="external">' . "\n";
+		return;
+	}
+
 	$css = dbe_builder_css();
 	if ( '' !== trim( $css ) ) {
-		// Trusted plugin asset files — printed verbatim.
-		echo '<style id="dbe-builder-enhancements">' . "\n" . $css . '</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		// Trusted plugin asset files — printed verbatim as a fail-soft fallback.
+		echo '<style id="dbe-builder-enhancements" data-dbe-css-delivery="inline">' . "\n" . $css . '</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
 
 /**
- * Config object (inline — it varies per site and per toggle set) and the
- * builder chrome script on wp_footer.
+ * Config object (inline — it varies per site and per toggle set), the small
+ * core runtime and the builder feature runtime on wp_footer.
  *
- * The script is a plain `<script src>` tag printed directly, NOT inlined and
- * NOT enqueued: at ~400 KB it is the plugin's largest asset and inlining
- * defeated browser caching on every builder load, while the wp_enqueue
+ * The scripts are plain `<script src>` tags printed directly, NOT inlined and
+ * NOT enqueued. Inlining the large feature runtime defeated browser caching
+ * on every builder load, while the wp_enqueue
  * pipeline under `?builderius` remains unproven (builder mode strips foreign
- * hooks — see the header docblock in the main plugin file). A printed tag
- * sidesteps both: the browser caches the file, and no enqueue machinery is
- * involved. Versioned by filemtime so a plugin update — or an edit while
- * developing — busts the cache immediately.
+ * hooks — see the header docblock in the main plugin file). Printed tags
+ * sidestep both: the browser caches each file, dependency order is explicit,
+ * and no enqueue machinery is involved. Each file is versioned by filemtime
+ * so a plugin update — or an edit while developing — busts its cache
+ * immediately.
  */
 function dbe_print_builder_footer() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	$path = DBE_DIR . 'assets/builder/js/builder.js';
-	if ( ! is_readable( $path ) ) {
+	$runtime_path         = DBE_DIR . 'assets/builder/js/core-runtime.js';
+	$a11y_path            = DBE_DIR . 'assets/builder/js/chunks/a11y.js';
+	$a11y_composites_path = DBE_DIR . 'assets/builder/js/chunks/a11y-composites.js';
+	$workspace_path       = DBE_DIR . 'assets/builder/js/chunks/workspace.js';
+	$editing_path         = DBE_DIR . 'assets/builder/js/chunks/editing.js';
+	$styles_path          = DBE_DIR . 'assets/builder/js/chunks/styles.js';
+	$integrations_path    = DBE_DIR . 'assets/builder/js/chunks/integrations.js';
+	$commands_path        = DBE_DIR . 'assets/builder/js/chunks/commands.js';
+	$builder_path         = DBE_DIR . 'assets/builder/js/builder.js';
+	if ( ! is_readable( $runtime_path ) || ! is_readable( $a11y_path ) || ! is_readable( $a11y_composites_path ) || ! is_readable( $workspace_path ) || ! is_readable( $editing_path ) || ! is_readable( $styles_path ) || ! is_readable( $integrations_path ) || ! is_readable( $commands_path ) || ! is_readable( $builder_path ) ) {
 		return;
 	}
 
 	$flags = array();
 	foreach ( dbe_features() as $id => $feature ) {
 		if ( ! empty( $feature['js'] ) ) {
-			$flags[ $id ] = dbe_enabled( $id );
+			$flags[ $id ] = dbe_feature_output_permitted( $id );
 		}
 	}
 
@@ -231,11 +271,47 @@ function dbe_print_builder_footer() {
 		'heartbeat'  => dbe_heartbeat_config(),
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
+		'builderius' => array(
+			'version' => function_exists( 'builderius_get_version' ) ? builderius_get_version() : '',
+		),
 	);
 
-	$src = add_query_arg( 'ver', (string) filemtime( $path ), DBE_URL . 'assets/builder/js/builder.js' );
+	$config['adminUrls'] = array(
+		'dashboard' => admin_url(),
+		'releases'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-releases' ) : '',
+		'settings'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-settings' ) : '',
+	);
+
+	// Server-side presence beats ride the presence_heartbeat toggle; the
+	// nonce enables cookie-authenticated REST from the builder page.
+	if ( dbe_feature_output_permitted( 'presence_heartbeat' ) ) {
+		$config['presence'] = array(
+			'url'                => rest_url( 'dbe/v1/presence' ),
+			'nonce'              => wp_create_nonce( 'wp_rest' ),
+			'interval'           => 20000,
+			'transitionInterval' => 2500,
+		);
+	}
+
+	$runtime_src         = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
+	$a11y_src            = add_query_arg( 'ver', (string) filemtime( $a11y_path ), DBE_URL . 'assets/builder/js/chunks/a11y.js' );
+	$a11y_composites_src = add_query_arg( 'ver', (string) filemtime( $a11y_composites_path ), DBE_URL . 'assets/builder/js/chunks/a11y-composites.js' );
+	$workspace_src       = add_query_arg( 'ver', (string) filemtime( $workspace_path ), DBE_URL . 'assets/builder/js/chunks/workspace.js' );
+	$editing_src         = add_query_arg( 'ver', (string) filemtime( $editing_path ), DBE_URL . 'assets/builder/js/chunks/editing.js' );
+	$styles_src          = add_query_arg( 'ver', (string) filemtime( $styles_path ), DBE_URL . 'assets/builder/js/chunks/styles.js' );
+	$integrations_src    = add_query_arg( 'ver', (string) filemtime( $integrations_path ), DBE_URL . 'assets/builder/js/chunks/integrations.js' );
+	$commands_src        = add_query_arg( 'ver', (string) filemtime( $commands_path ), DBE_URL . 'assets/builder/js/chunks/commands.js' );
+	$builder_src         = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: the enqueue pipeline is unproven under builder mode (see the function docblock); a printed tag is the delivery proven to survive it.
+	echo '<script id="dbe-builder-runtime-js" src="' . esc_url( $runtime_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed in dependency order because the enqueue pipeline is unproven under builder mode (see the function docblock).
+	echo '<script id="dbe-builder-a11y-js" src="' . esc_url( $a11y_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers the accessibility chunk before builder.js supplies its host services.
+	echo '<script id="dbe-builder-a11y-composites-js" src="' . esc_url( $a11y_composites_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers APG composite controllers before builder.js supplies its host services.
+	echo '<script id="dbe-builder-workspace-js" src="' . esc_url( $workspace_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers responsive workspace controllers before builder.js supplies its host services.
+	echo '<script id="dbe-builder-editing-js" src="' . esc_url( $editing_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers editing controllers before builder.js supplies its host and late-bound command services.
+	echo '<script id="dbe-builder-styles-js" src="' . esc_url( $styles_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers CSS editing controllers before builder.js supplies its host and command services.
+	echo '<script id="dbe-builder-integrations-js" src="' . esc_url( $integrations_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers terminal and presence controllers before builder.js supplies their host services.
+	echo '<script id="dbe-builder-commands-js" src="' . esc_url( $commands_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers command and Navigator interaction controllers before builder.js supplies its host services.
+	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );

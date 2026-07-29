@@ -121,6 +121,19 @@ html.dbe-panels-hidden .dbe-panel-handle {
     border-radius: var(--dbe-r-sm, 6px) !important;
 }
 
+@media (forced-colors: active) {
+    .dbe-panel-handle::before {
+        background: Canvas !important;
+        border-color: CanvasText !important;
+        box-shadow: none !important;
+    }
+    .dbe-panel-handle::after {
+        background: CanvasText !important;
+        box-shadow: 0 -5px 0 CanvasText, 0 5px 0 CanvasText !important;
+    }
+    .dbe-panel-handle:focus-visible { outline-color: Highlight !important; }
+}
+
 /* While dragging: kill the panel's 0.25s width transition so it tracks the
    pointer, stop the canvas iframe swallowing pointer events, and suppress
    text selection. */

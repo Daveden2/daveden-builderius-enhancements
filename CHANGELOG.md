@@ -3,6 +3,261 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.0.0
+The foundation release: a segmented, lifecycle-managed builder runtime with
+measured performance budgets and a set of opt-in HTML authoring tools.
+
+### Runtime foundation
+
+* Changed: the builder runtime is split into coherent accessibility, workspace,
+  command, editing, style and integration chunks behind a small shared core.
+  Controllers now own explicit initialise, targeted-refresh and destroy
+  lifecycles, so disabling DBE can release its listeners, observers, timers and
+  generated interface state predictably.
+* Changed: version-sensitive Builderius DOM and store access now runs through a
+  central adapter. An unsupported Builderius version fails soft in one place
+  instead of letting selector assumptions drift independently across features.
+* Performance: broad overlapping observers and continuous selection work have
+  been replaced by a shared mutation router, targeted scheduling and native
+  builder/store events. Local and server presence use separate cadences and
+  clean tabs no longer send server keep-alives.
+* Performance: enabled builder CSS is delivered as a content-addressed,
+  cacheable external bundle with a safe inline fallback. JavaScript chunks are
+  independently cacheable, and CI now enforces compressed-size, controller
+  mount, observer-burst and long-task budgets.
+* Accessibility: completed a builder-wide pass over clean/save state, compact
+  reflow, region navigation, composite controls, forced colours, focus return,
+  target size and responsive top-bar behaviour. Individual Navigator row names
+  remain under Builderius ownership rather than relying on a fragile rewrite.
+* Fixed: clicking a different Navigator row's disclosure now expands or
+  collapses it without moving keyboard focus away from the row whose focus ring
+  remains visible. If collapsing would hide the focused descendant, focus moves
+  to the branch row instead, so the visual cue and keyboard origin stay aligned.
+
+### HTML editing tools (Pro, experimental, off by default)
+
+* Added: **Edit as HTML**. Right-click an element to open its subtree as
+  readable HTML in a code editor (Monaco where the builder provides it, a
+  textarea otherwise), edit tags, ids, classes, attributes and text, and
+  apply the markup back. The editor auto-closes non-void opening tags, keeps
+  the caret between the pair and avoids duplicate or malformed closures.
+  Structural diagnostics mark mismatched, unexpected and unclosed tags and
+  provide a direct jump to the issue. Authoring tools format the whole document
+  or current selection and rename matching opening and closing tags together.
+  Monaco suggests HTML tags and attributes, Builderius dynamic-data expressions,
+  registered component slugs and typed properties, plus existing classes
+  gathered from Builderius modules and the preview's global/entity stylesheets;
+  Builderius's internal `uni-*` runtime classes are omitted, while class details
+  show their source, usage and authored CSS rules. A selected
+  repeated pattern can be rewritten as a Collection backed by static JSON, and
+  a selected existing subtree can open Builderius's native component creator
+  after the reviewed markup is applied. Every
+  serialised element carries a `data-dbe-id`
+  marker: elements whose marker survives keep their module, so labels,
+  rendering conditions, interactive-mode and other non-HTML settings ride
+  along while the HTML-expressible parts update in place; unmarked elements
+  are created and vanished markers remove their elements. A live outcome
+  preview reports how many elements will be updated, added and removed
+  before you apply, and warns about an unrecognised marker (which would
+  create a new element and remove the original). Collections serialise as
+  their real tag with the binding attribute, Templates as real `<template>`
+  elements, components as `<dbe-component>`, and modules the editor cannot
+  express (code blocks, composites) as `<dbe-keep>` placeholders that
+  round-trip verbatim. Because the complete reconcile cannot yet be undone as
+  one operation, the dialog now states that before Apply; cancelling keeps the
+  current element unchanged. The post-action guidance no longer misleadingly
+  suggests that reopening the editor can restore the previous version.
+* Added: **Import HTML**. Paste markup and watch a live preview of the module
+  tree it will build, then insert it into (or after) the target. Structurally
+  identical sibling blocks are detected and offered for collapse into a
+  Collection plus a Template of the first copy, optionally wiring the sample
+  values into the Collection's data as literal JSON. `<template>` maps to a
+  Template, a data binding or `data-dbe-module="collection"` to a Collection,
+  and a pasted `<svg>` becomes an editable SvgCode element rather than being
+  stripped. The dialog warns before insertion that a complete import cannot
+  be undone as one action and explains that the new elements can be deleted
+  afterwards. Both Import HTML and Edit as HTML are available from the command
+  palette as well as the selected element's context menu.
+* Added: **Change tag**. Change an element's HTML tag from a flyout on the
+  Navigator's right-click menu or through a typed command in the palette,
+  for Collections and SubCollections as well as plain elements, keeping the
+  label and any data binding. Void and script-like tags are refused.
+* Added: a **mini-Emmet syntax** in the command palette for building elements
+  quickly, including `[attr=value]` attributes and the reserved words
+  `collection`, `subcollection` and `template` that build the dynamic
+  modules. Documented in `docs/emmet-guide.md`.
+* Added: **Paste where you click** in the Navigator (on by default), so a
+  pasted element lands at the row you point at rather than at the tree root.
+* Improved: a text element highlighted in the canvas can now enter
+  Builderius's native inline editor with **Enter**, matching the existing
+  double-click gesture; Escape finishes the edit. A persistent **Editing text —
+  Esc to finish** indicator makes the active mode visible for keyboard and
+  pointer entry alike. Its screen-reader announcement is a single natural
+  sentence rather than a duplicate of the compact visual label. On elements
+  without editable text, Enter now uses the clearer **Interact with page**
+  wording, and Escape returns to **Select elements**. **Edit text** is also
+  available from the command palette.
+* Improved: Navigator search now hides non-matching branches while keeping
+  each match's ancestors visible, with a localised result count and a clear
+  **No matching elements** state. Element context menus are named after their
+  target for screen readers, empty Undo feedback explains which element
+  changes DBE can recover, and CSS-scope guidance now describes the protected
+  editing behaviour directly.
+* Improved: **Follow selection in the tree** now keeps a compact selected-element
+  path above the canvas whenever the Navigator is hidden. Long paths retain the
+  last three items on screen, while the full hierarchy remains available
+  as the control's accessible name and tooltip.
+* Added: five additive **quick-start presets** on the settings dashboard for
+  accessibility, keyboard workflow, visual polish, safer editing and power
+  editing. Applying a preset only enables its listed settings, preserves every
+  other choice, marks the experimental preset clearly and waits for the user
+  to review and save the changes.
+* Improved: the selected-element context menu keeps frequent actions at the
+  top level while grouping insertion, structural movement/navigation and
+  advanced element tools into labelled keyboard-operable flyouts. This cuts
+  the longest menu from 23 top-level entries to 15 without hiding an action.
+* Improved: unavailable context-menu commands remain reachable with the arrow
+  keys instead of disappearing from the keyboard sequence. Each announces why
+  it cannot currently run—for example, the element is already at the edge,
+  the selected elements are not siblings, or the action needs one selection—
+  and ignores activation. Heading and selection-summary rows remain skipped.
+  The command palette now shows the same reasons directly beneath unavailable
+  commands and exposes them as accessible descriptions, including precise
+  first/last-sibling guidance for Move up and Move down.
+* Fixed: the class chips' right-click and caret menus in the Styles editor opened
+  wherever the pointer happened to be, which put a keyboard-opened menu in the
+  corner of the screen, away from the chip it belonged to. They now anchor to
+  their own chip, staying attached while open where the browser supports CSS
+  anchor positioning and falling back to a measured position where it does not.
+* Improved: confirmation messages for recoverable element additions, deletes,
+  duplicates, cuts and structural moves now include an **Undo** button instead
+  of relying on users to recall Cmd/Ctrl+Z. After undoing, the same message
+  offers **Redo**. The action remains visible longer, pauses while hovered or
+  focused, and is never offered for changes DBE cannot safely reverse.
+* Fixed: class, attribute and tag updates use Builderius's module-upsert channel,
+  which also emits its “module added” event. DBE now records those as reversible
+  settings changes instead of structural additions, so Cmd/Ctrl+Z restores the
+  earlier properties rather than removing the existing element or crossing
+  into an unrelated older action. Their confirmation messages now offer Undo.
+* Fixed: undo and redo now return a restored element to its recorded sibling
+  position instead of leaving Builderius's native Paste result at the end of
+  the parent. Previous/next sibling anchors preserve batch order even when
+  several deleted siblings are restored in either direction and each receives
+  a regenerated Builderius module ID.
+* Improved: **Save status** now reports **Unsaved**, **Saving…** and confirmed
+  **Saved** states. It includes settings-only edits, leaves failed saves marked
+  unsaved with a retry instruction, and only clears after Builderius creates a
+  fresh saved snapshot. Dirty-tab protection uses the same native dirty signal.
+* Improved: command-palette searches now show **No matching commands** instead
+  of an unexplained blank list. Input commands keep the user's value and show
+  concise inline guidance for missing or invalid classes, attributes, element
+  abbreviations, names and HTML tags.
+* Security: every markup-entry path shares one sanitiser that strips script
+  elements, event handlers, `javascript:`/`vbscript:` and script-bearing
+  `data:` URLs, and unknown tags, and reports what it removed. Inline SVG is
+  sanitised in place. The tools are gated on the `unfiltered_html`
+  capability, so their builder output reaches only users who already hold it.
+
+### Settings screen
+
+* Changed: **most features are no longer marked experimental**, and so are on by
+  default. The detachable Navigator, builder keyboard shortcuts, the command
+  palette, Change HTML tag, hiding the code minimap and the preview resize
+  handles have all come through testing without trouble. Any caveat that was
+  real (Builderius may add its own shortcuts; the detached panel and the resize
+  handle sit on builder chrome an update could move) stays in the feature's own
+  description, where it belongs. Edit as HTML and Import HTML keep the flag and
+  stay off by default: both rewrite a whole subtree in one irreversible step,
+  which is a different thing to default on than a panel that floats.
+* Changed: the row layout follows the Admin and Site Enhancements pattern. Rail
+  and panels sit on one surface instead of 58 bordered cards, each row is a
+  name, its switch and its description in three columns, and section headings
+  take a tinted band so they cannot be mistaken for one more row. The switch now
+  sits beside the name it belongs to rather than at the far edge of the row.
+* Added: an icon for each tab in the rail.
+* Changed: type, spacing and the switch geometry are in `rem` rather than fixed
+  pixels, so the whole screen follows the browser's default font size for anyone
+  who has raised it, the switch included. Sizes are unchanged at the default
+  16px root; hairlines and borders stay in pixels, where scaling would only blur
+  them.
+* Fixed: a section heading was set in the same 14px semibold near-black as a
+  feature name and sat in the same three columns, so only a faint tint told them
+  apart. Section headings now take the small-caps group-label convention on a
+  stronger band with a rule above and below, and their switch is labelled "All
+  in this section".
+* Changed: the fuller description behind each row opens from a **More** link on
+  the end of the summary. It was a 16px "i" glyph, which never advertised that
+  the fuller description existed.
+* Changed: the tabs are now a vertical rail carrying a live count for each one
+  ("16 / 16"), so the section you are in and how much of it is switched on stay
+  visible however far down a long tab you have scrolled. Below 1200 pixels the
+  rail returns to the previous horizontal bar.
+* Added: a **tri-state switch for each tab and each section**. It reflects the
+  real state of the group (on, off, or mixed, which a screen reader announces as
+  such), turns a part-on group fully on and a fully-on group off, and states how
+  many experimental features the group contains before you use it. It is a
+  control over the other switches, never a saved setting of its own, and it sits
+  on the same vertical line as the switches it governs.
+* Added: a new **Accessibility** tab. The keyboard and screen-reader features
+  were spread across Editing, Appearance and Workflow, with sibling features
+  such as the top-bar and bottom-bar keyboard toolbars sitting in different
+  tabs. They are now together, which also takes Editing from 24 features down
+  to 16.
+* Changed: feature titles that named their implementation rather than their
+  effect have been reworded, for example "Controls styling" to "Restyled buttons
+  and inputs" and "Preview overlay contrast fix" to "Readable canvas overlay
+  labels".
+* Changed: the introduction video is click-to-load. Nothing is requested from
+  YouTube until you press play, so opening the screen makes no third-party
+  request, and a blocked or unreachable YouTube leaves a working link rather
+  than an empty 560x315 gap.
+* Changed: **Reset to defaults** has moved out of the filter row, is now named
+  "Reset all tabs to defaults", explains that it covers every tab, and asks for
+  confirmation first.
+* Changed: the dashboard's per-tab summary rows are links that open the tab they
+  count.
+* Fixed: the **Clear filters** button was permanently visible. Its `hidden`
+  attribute lost to WordPress core's `.button` display rule, which the stylesheet
+  restated for every other conditionally-hidden element but not this one. The
+  same defect left an inert info button on each row when JavaScript is off.
+* Fixed: the settings screen skipped from `h1` straight to `h3`, because the
+  per-panel `h2` was removed with `display: none` once the JavaScript tabs took
+  over, dropping it from the accessibility tree. The panel heading is now shown.
+* Fixed: an enum sub-setting (default theme, default density, palette shortcut)
+  stayed editable while its parent feature was switched off, so you could set a
+  default for something that would not load. It now follows its parent, and any
+  select absent from the POST keeps its saved value instead of resetting to the
+  default, so switching a parent off and on again loses nothing.
+* Fixed: content scrolled to no longer lands underneath the sticky save bar.
+* Fixed: the tab list now takes only the arrow keys its orientation calls for,
+  Up and Down for the vertical rail and Left and Right for the collapsed
+  horizontal bar, and reports `aria-orientation` to match. It previously
+  accepted both pairs in both directions, so a screen-reader user was given two
+  conflicting mental models of a one-dimensional list.
+* Fixed: the rule under the search and filter row sat flush against the panel
+  heading below it while the search box had space above it, and two horizontal
+  rules that close boxed the heading in. The tools row now separates from the
+  panel by space alone, leaving the panel heading's rule as the only divider.
+* Added: **Edit as HTML** and **Import HTML** carry a warning sign beside their
+  name and a note saying what cannot be undone, rather than leaving that to the
+  fuller description behind More. Both rewrite a whole subtree in one step, which
+  is the reason they alone keep the experimental flag, so the settings screen now
+  says so where the decision is made. The glyph is decorative; the note is in the
+  switch's accessible description, so a screen reader is told the same thing. In
+  forced-colours mode the glyph takes `Mark`, where the amber is dropped.
+* Fixed: feature names were set with WordPress core's `body { line-height: 1.4em }`,
+  a length rather than a ratio, so a 14px semibold name inherited the same fixed
+  18.2px as 13px body copy. A name long enough to wrap, such as "Change HTML tag
+  from the Navigator", was cramped, and its Pro and Experimental badges sat hard
+  underneath. The screen now sets a unitless line height, so every element derives
+  its leading from its own type, and the switch beside a name tracks that line box
+  through a shared custom property instead of a separately-stated `1.5em`.
+* Fixed: every switch on a panel now sits on one vertical line. The tab and
+  section switches were 17 pixels to the right of the feature switches they
+  govern, because the feature rows are cards with padding and a border while the
+  heading rows are not. The card padding, border and the four vertical spacing
+  steps are now single custom properties, so the two cannot drift apart again.
+
 ## 1.14.0
 Accessible settings groups and image defaults, an assignable command-palette
 shortcut with a top-bar button, accessibility for the footer tools' configure

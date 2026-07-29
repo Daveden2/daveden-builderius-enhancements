@@ -1,23 +1,31 @@
 name: Tag and publish release
 
 # Runs on every push to main (i.e. every merged release or hotfix PR). If the
-# version in the plugin header has no matching tag yet, it verifies the version
-# strings agree, tags MAIN'S TIP, creates the GitHub release with notes taken
-# from the readme.txt changelog block, builds the distributable zip and
-# attaches it — the whole manual tail of the old release flow.
+# version in the plugin header is not fully published, it verifies the version
+# strings agree, builds the distributable archive, tags MAIN'S TIP, and creates
+# or repairs the GitHub release. A rerun can therefore recover from a failure
+# after the tag was pushed but before the release asset was attached.
 #
-# Why the zip is attached here rather than left to release.yml: a release
-# created with the workflow's own GITHUB_TOKEN does not trigger other
-# workflows, so release.yml would never fire for an auto-created release.
-# release.yml remains as the path for releases published by hand.
+# Why the zip is attached here rather than left to release.yml: the release
+# may be created with the workflow's own GITHUB_TOKEN (see below), and
+# bot-created releases do not trigger other workflows, so release.yml could
+# never be relied on to fire. release.yml remains as the path for releases
+# published by hand.
+#
+# Attribution: the release is created with the RELEASE_PAT secret when it
+# exists (a fine-grained PAT, Contents read/write on this repository), so the
+# release shows the maintainer as its author instead of github-actions[bot].
+# Without the secret it falls back to GITHUB_TOKEN and everything still works,
+# just bot-attributed. A PAT-created release DOES trigger release.yml, so the
+# generated notes carry a hidden published-by marker that release.yml checks
+# to skip releases this workflow already finished.
 #
 # Tagging main's tip (not the version-bump commit) removes the failure mode
 # that shipped 1.10.0 short: after a merge-commit release PR the two trees are
 # identical, and a tag at the tip can never miss code that main already has.
 #
-# If the tag already exists (e.g. a docs-only merge with no version bump) the
-# run is a quiet no-op. If the tag is missing but the version strings disagree,
-# the run fails loudly so the problem is seen before anyone installs anything.
+# If the tag, release and archive already exist (e.g. a docs-only merge with no
+# version bump) the run is a quiet no-op. Any incomplete state is repaired.
 
 on:
   push:
@@ -35,10 +43,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Read the version and decide whether to release
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
         run: |
           set -euo pipefail
           version="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9][0-9A-Za-z.-]*).*/\1/p' daveden-builderius-enhancements.php | head -n1)"
@@ -47,10 +57,28 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          tag_exists=no
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null 2>&1; then
-            echo "Tag v$version already exists — nothing to release."
+            tag_exists=yes
+          fi
+
+          release_exists=no
+          asset_exists=no
+          if gh release view "v$version" > /dev/null 2>&1; then
+            release_exists=yes
+            if gh release view "v$version" --json assets --jq '.assets[].name' | grep -Fxq 'daveden-builderius-enhancements.zip'; then
+              asset_exists=yes
+            fi
+          fi
+
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+          if [ "$tag_exists" = yes ] && [ "$release_exists" = yes ] && [ "$asset_exists" = yes ]; then
+            echo "v$version is already tagged and has a distributable archive."
             echo "release=no" >> "$GITHUB_OUTPUT"
           else
+            echo "v$version is incomplete (tag=$tag_exists, release=$release_exists, archive=$asset_exists); publishing or repairing it."
             echo "release=yes" >> "$GITHUB_OUTPUT"
           fi
 
@@ -77,6 +105,15 @@ jobs:
             fail=1
           fi
 
+          if [ "${{ steps.version.outputs.tag_exists }}" = yes ]; then
+            git fetch --force --no-tags origin "refs/tags/v$expected:refs/tags/v$expected"
+            if ! git diff --quiet "v$expected" HEAD; then
+              echo "::error::Existing tag v$expected does not match main's current tree. Refusing to attach a different build to it."
+              git diff --stat "v$expected" HEAD
+              fail=1
+            fi
+          fi
+
           [ "$fail" -eq 0 ] || exit 1
 
       - name: Extract the release notes from readme.txt
@@ -92,12 +129,24 @@ jobs:
           {
             echo ""
             echo "Full notes: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v$version/CHANGELOG.md)"
+            # Hidden marker (HTML comments don't render): tells release.yml
+            # this release was published, zip attached, by auto-release.
+            echo ""
+            echo "<!-- published-by: auto-release -->"
           } >> release-notes.md
           echo "--- release notes ---"
           cat release-notes.md
 
-      - name: Tag main's tip
+      - name: Build and checksum the distributable zip
         if: steps.version.outputs.release == 'yes'
+        run: |
+          set -euo pipefail
+          bash bin/build-zip.sh
+          cd dist
+          sha256sum daveden-builderius-enhancements.zip > daveden-builderius-enhancements.zip.sha256
+
+      - name: Tag main's tip
+        if: steps.version.outputs.release == 'yes' && steps.version.outputs.tag_exists != 'yes'
         run: |
           set -euo pipefail
           version="${{ steps.version.outputs.version }}"
@@ -106,18 +155,25 @@ jobs:
           git tag -a "v$version" -m "Release $version"
           git push origin "v$version"
 
-      - name: Build the distributable zip
-        if: steps.version.outputs.release == 'yes'
-        run: bash bin/build-zip.sh
-
-      - name: Create the GitHub release with the zip attached
+      - name: Create or repair the GitHub release
         if: steps.version.outputs.release == 'yes'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # RELEASE_PAT attributes the release to the maintainer's profile;
+          # absent, the bot token keeps the pipeline working (bot-attributed).
+          GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
         run: |
           set -euo pipefail
           version="${{ steps.version.outputs.version }}"
-          gh release create "v$version" \
-            --title "$version" \
-            --notes-file release-notes.md \
-            dist/daveden-builderius-enhancements.zip
+          if [ "${{ steps.version.outputs.release_exists }}" = yes ]; then
+            gh release edit "v$version" --title "$version" --notes-file release-notes.md
+            gh release upload "v$version" \
+              dist/daveden-builderius-enhancements.zip \
+              dist/daveden-builderius-enhancements.zip.sha256 \
+              --clobber
+          else
+            gh release create "v$version" \
+              --title "$version" \
+              --notes-file release-notes.md \
+              dist/daveden-builderius-enhancements.zip \
+              dist/daveden-builderius-enhancements.zip.sha256
+          fi

@@ -22,8 +22,31 @@ html.dbe-auto-ctx dialog.uniBuilderContextMenu { visibility: hidden !important; 
     opacity: 0 !important;
     pointer-events: none !important;
     transition: opacity .18s ease !important;
+    align-items: center !important;
+    display: flex !important;
+    gap: 10px !important;
 }
 .dbe-undo-toast.is-visible { opacity: 1 !important; }
+.dbe-undo-toast.is-visible.has-action { pointer-events: auto !important; }
+.dbe-undo-toast__message { min-width: 0 !important; }
+.dbe-undo-toast__action {
+    appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-inline-start: 1px solid var(--dbe-line) !important;
+    color: var(--dbe-accent) !important;
+    cursor: pointer !important;
+    font: 700 13px/1.4 var(--dbe-ui-font) !important;
+    min-height: 24px !important;
+    padding: 2px 0 2px 10px !important;
+}
+.dbe-undo-toast__action:hover { color: var(--dbe-text) !important; }
+.dbe-undo-toast__action:focus-visible {
+    border-radius: var(--dbe-r-sm) !important;
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: 2px !important;
+}
+.dbe-undo-toast__action:disabled { cursor: wait !important; opacity: .6 !important; }
 @media (prefers-reduced-motion: reduce) {
     .dbe-undo-toast { transition: none !important; }
 }
