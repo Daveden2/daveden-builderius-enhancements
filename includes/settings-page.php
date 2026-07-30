@@ -810,9 +810,9 @@ function dbe_render_settings_page() {
 				data-result-many="<?php echo esc_attr( $result_many ); ?>"
 				hidden
 			>
-				<label class="dbe-settings-tools__search">
+				<label class="dbe-settings-tools__search" for="dbe-feature-search">
 					<span><?php esc_html_e( 'Find a feature', 'daveden-builderius-enhancements' ); ?></span>
-					<input type="search" class="dbe-feature-search" placeholder="<?php esc_attr_e( 'Search all features', 'daveden-builderius-enhancements' ); ?>">
+					<input id="dbe-feature-search" type="search" class="dbe-feature-search" placeholder="<?php esc_attr_e( 'Search all features', 'daveden-builderius-enhancements' ); ?>">
 				</label>
 				<label class="dbe-settings-tools__filter">
 					<span><?php esc_html_e( 'Show', 'daveden-builderius-enhancements' ); ?></span>

@@ -3,9 +3,9 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 Requires PHP: 7.4
-License: GPLv2 or later
+License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
@@ -61,6 +61,10 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 == Changelog ==
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
+
+= 2.0.1 =
+A fix for element names lost when editing a component as HTML.
+* Fixed: editing a subtree as HTML renamed every component inside it. A component's own Navigator name was not written into the HTML, so applying the edit fell back to the component's registered name — or just "Component" — and the name you had given that instance was gone. Names now survive the round trip, and a component inserted by Import HTML or the shorthand keeps the name it was given.
 
 = 2.0.0 =
 A rebuilt settings screen, new HTML authoring tools, and a thorough accessibility and performance pass.

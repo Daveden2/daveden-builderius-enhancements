@@ -49,7 +49,7 @@ function dbe_plugin_information_fallback( $result, $action, $args ) {
 	}
 
 	if ( ! class_exists( 'PucReadmeParser' ) ) {
-		require_once $parser_path;
+		require_once DBE_DIR . 'vendor/plugin-update-checker/vendor/PucReadmeParser.php';
 	}
 
 	$parser = new PucReadmeParser();
