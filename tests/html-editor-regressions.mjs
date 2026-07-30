@@ -157,6 +157,10 @@ assert.match(
     'Component completions must include declared properties, boolean values and select-like options.'
 );
 assert.ok(
+    editing.includes('dbe-component name="${1:component_slug}" data-dbe-label="${2:Navigator label}"></dbe-component>'),
+    'The component completion must prompt for a Navigator label.'
+);
+assert.ok(
     editing.includes('data-b-context=\\\'[{"${1:field}":"${2:value}"}]\\\'') &&
         editing.includes("dbeT('htmlCompletionWpData'") &&
         editing.includes("dbeT('htmlCompletionPropData'") &&
@@ -192,6 +196,71 @@ assert.match(
     editing,
     /ta\.setRangeText\('><\/' \+ tag \+ '>'[\s\S]+ta\.setSelectionRange\(start \+ 1, start \+ 1\)[\s\S]+new Event\('input', \{ bubbles: true \}\)/,
     'The textarea fallback must mirror auto-closing and notify the live preview.'
+);
+
+const parsedNodeHtmlSource = extractFunction(editing, 'dbeParsedNodeHtml');
+const parsedNodeContext = {
+    DBE_HTML_VOID: context.DBE_HTML_VOID,
+    dbeHtmlEscapeAttr: (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+};
+runInNewContext(`${parsedNodeHtmlSource}; result = dbeParsedNodeHtml;`, parsedNodeContext);
+assert.equal(
+    parsedNodeContext.result({
+        module: 'Component',
+        componentName: 'feature_card',
+        props: [{ name: 'heading', value: 'A "quoted" heading' }],
+        label: 'Featured card',
+        existingId: 'component-1'
+    }, 0),
+    '<dbe-component name="feature_card" heading="A &quot;quoted&quot; heading" data-dbe-label="Featured card" data-dbe-id="component-1"></dbe-component>',
+    'Formatting a component node must preserve its Navigator label.'
+);
+
+const serializeSubtreeSource = extractFunction(editing, 'dbeSerializeSubtree');
+const componentModule = {
+    name: 'Component',
+    label: 'Feature card',
+    settings: [{ name: 'componentName', value: 'feature_card' }]
+};
+const serializeContext = {
+    DBE_HTML_MODULES: { Component: 1 },
+    modules: () => ({ 'component-1': componentModule }),
+    store: () => ({ storeGet: () => ({}) }),
+    dbeSettingVal: (module, name) => {
+        const setting = module.settings.find((item) => item.name === name);
+        return setting ? setting.value : undefined;
+    },
+    dbeComponentRegistry: () => ({ feature_card: { label: 'Feature card', props: {} } }),
+    dbeHtmlEscapeAttr: parsedNodeContext.dbeHtmlEscapeAttr
+};
+runInNewContext(`${serializeSubtreeSource}; result = dbeSerializeSubtree;`, serializeContext);
+assert.equal(
+    serializeContext.result('component-1'),
+    '<dbe-component name="feature_card" data-dbe-label="Feature card" data-dbe-id="component-1"></dbe-component>',
+    'Edit as HTML must always expose a component instance label.'
+);
+
+const insertParsedNodeSource = extractFunction(editing, 'dbeInsertParsedNode');
+let insertedModule = null;
+const insertContext = {
+    dbeMakeId: () => 'new-component',
+    dbeComponentRegistry: () => ({ feature_card: { label: 'Feature card', props: {} } }),
+    dbeNodeSettings: () => [],
+    storeAddModule: (store, module) => {
+        insertedModule = module;
+    }
+};
+runInNewContext(`${insertParsedNodeSource}; result = dbeInsertParsedNode;`, insertContext);
+insertContext.result({}, {
+    module: 'Component',
+    componentName: 'feature_card',
+    label: '',
+    children: []
+}, 'parent', 0);
+assert.equal(
+    insertedModule.label,
+    'Feature card',
+    'Import HTML must use the registered component title when no explicit label is supplied.'
 );
 
 console.log('HTML editor regressions passed.');

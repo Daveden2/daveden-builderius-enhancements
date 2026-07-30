@@ -19,14 +19,15 @@ function dbe_uninstall_site_data() {
 	$presence      = $wpdb->esc_like( '_transient_dbe_presence_' ) . '%';
 	$presence_ttl  = $wpdb->esc_like( '_transient_timeout_dbe_presence_' ) . '%';
 	$ability_locks = $wpdb->esc_like( 'dbe_ability_lock_' ) . '%';
-	$cleanup_query = $wpdb->prepare(
-		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s",
-		$presence,
-		$presence_ttl,
-		$ability_locks
-	);
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- bulk removal of plugin-owned wildcard keys during uninstall.
-	$wpdb->query( $cleanup_query );
+	$wpdb->query(
+		$wpdb->prepare(
+			"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s",
+			$presence,
+			$presence_ttl,
+			$ability_locks
+		)
+	);
 
 	$uploads = wp_upload_dir( null, false, true );
 	if ( empty( $uploads['error'] ) && ! empty( $uploads['basedir'] ) ) {

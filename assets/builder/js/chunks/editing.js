@@ -1975,7 +1975,7 @@
         if (context.type === 'tag') {
             add(
                 'dbe-component',
-                'dbe-component name="${1:component_slug}"></dbe-component>',
+                'dbe-component name="${1:component_slug}" data-dbe-label="${2:Navigator label}"></dbe-component>',
                 dbeT('htmlCompletionComponent', 'Builderius component instance'),
                 kinds.Class || 6,
                 dbeT('htmlCompletionComponentHelp', 'Choose a registered component slug and add its declared properties as attributes.'),
@@ -2113,7 +2113,12 @@
                     copen += ' ' + p.name + '="' + dbeHtmlEscapeAttr(p.value == null ? '' : p.value) + '"';
                 });
                 var creg = dbeComponentRegistry();
-                copen += dbeSerializeLabel(m, (creg[slug] && creg[slug].label) || 'Component');
+                var componentLabel = String(m.label || '').replace(/\s+/g, ' ').trim();
+                if (!componentLabel) {
+                    componentLabel = String((creg[slug] && creg[slug].label) || 'Component')
+                        .replace(/\s+/g, ' ').trim();
+                }
+                copen += ' data-dbe-label="' + dbeHtmlEscapeAttr(componentLabel) + '"';
                 copen += ' data-dbe-id="' + id + '"></dbe-component>';
                 return pad + copen;
             }
@@ -2923,6 +2928,7 @@
             (node.props || []).forEach(function (prop) {
                 component += ' ' + prop.name + '="' + dbeHtmlEscapeAttr(prop.value) + '"';
             });
+            if (node.label) { component += ' data-dbe-label="' + dbeHtmlEscapeAttr(node.label) + '"'; }
             if (node.existingId) { component += ' data-dbe-id="' + dbeHtmlEscapeAttr(node.existingId) + '"'; }
             return component + '></dbe-component>';
         }
@@ -3379,11 +3385,20 @@
 
     function dbeInsertParsedNode(sf, node, parentId, index) {
         var moduleName = node.module || 'HtmlElement';
+        var label = node.label;
+        if (!label) {
+            if (moduleName === 'HtmlElement') {
+                label = node.tag.charAt(0).toUpperCase() + node.tag.slice(1);
+            } else if (moduleName === 'Component') {
+                var registry = dbeComponentRegistry();
+                label = (registry[node.componentName] && registry[node.componentName].label) || moduleName;
+            } else {
+                label = moduleName;
+            }
+        }
         var mod = {
             id: dbeMakeId(), name: moduleName,
-            label: node.label || (moduleName === 'HtmlElement'
-                ? node.tag.charAt(0).toUpperCase() + node.tag.slice(1)
-                : moduleName),
+            label: label,
             settings: dbeNodeSettings(node)
         };
         storeAddModule(sf, mod, parentId, index);
