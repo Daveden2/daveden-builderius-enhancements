@@ -3,6 +3,22 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.0.1
+A fix for element names lost when editing a component as HTML.
+
+* Fixed: opening a subtree in Edit as HTML and applying it back renamed
+  every Component inside it. The serialiser emitted no `data-dbe-label`
+  for a Component, so the parse on the way back had no name to restore
+  and `dbeInsertParsedNode()` fell through to the component registry's
+  label, or to the bare module name. Any instance the user had renamed
+  in the Navigator silently reverted, and because the rename is a
+  property of the instance rather than the component, nothing else
+  recorded it. The serialiser now emits the instance's own label,
+  falling back to the registry label only when the instance has none,
+  and both the Import HTML path and the `dbe-component` completion
+  snippet carry the attribute too. Present since Edit as HTML shipped
+  in 2.0.0.
+
 ## 2.0.0
 The foundation release: a segmented, lifecycle-managed builder runtime with
 measured performance budgets and a set of opt-in HTML authoring tools.
