@@ -24,6 +24,9 @@ const cssCache = read('includes/builder-css-cache.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
 const uninstall = read('uninstall.php');
+const updateInfoFallback = read('includes/update-info-fallback.php');
+const settingsPage = read('includes/settings-page.php');
+const readme = read('readme.txt');
 
 assert.match(
     outputBuilder,
@@ -54,6 +57,26 @@ assert.match(
     uninstall,
     /dbe-builder-css[\s\S]+\^builder-\[a-f0-9\]\{64\}[\s\S]+wp_delete_file\( \$cache_file \)/,
     'Uninstall must remove content-addressed CSS bundles from every site cache.'
+);
+assert.match(
+    uninstall,
+    /\$wpdb->query\(\s*\$wpdb->prepare\(/,
+    'The bulk uninstall query must be visibly prepared at its query sink.'
+);
+assert.match(
+    updateInfoFallback,
+    /require_once DBE_DIR \. 'vendor\/plugin-update-checker\/vendor\/PucReadmeParser\.php';/,
+    'The bundled readme parser include must use a fixed plugin-relative path.'
+);
+assert.match(
+    settingsPage,
+    /<label class="dbe-settings-tools__search" for="dbe-feature-search">[\s\S]+<input id="dbe-feature-search" type="search"/,
+    'The feature search label must have an explicit association with its input.'
+);
+assert.match(
+    readme,
+    /^License: GPL-2\.0-or-later$/m,
+    'The directory readme must use the SPDX identifier declared by the plugin package.'
 );
 
 assert.match(
