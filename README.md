@@ -14,6 +14,7 @@ Every change touches the builder chrome only. Nothing is added to the front end 
 - [Settings](#settings)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
+- [Support](#support)
 - [Releases](#releases)
 - [Licence](#licence)
 
@@ -82,6 +83,10 @@ Switching a feature off releases everything it added: listeners, observers, time
 ## Contributing
 
 Suggestions, bug reports and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); contributors are credited in [CONTRIBUTORS.md](CONTRIBUTORS.md). Bug reports are most useful with your WordPress, PHP, Builderius and plugin versions, and the browser you saw it in.
+
+## Support
+
+Daveden Builder Enhancements is free and open source. If it saves you time, you can support its continued development through [GitHub Sponsors](https://github.com/sponsors/Daveden2), [Ko-fi](https://ko-fi.com/Daveden2) or [PayPal](https://paypal.me/daveden2). Support is entirely optional; every feature remains available either way.
 
 ## Releases
 
