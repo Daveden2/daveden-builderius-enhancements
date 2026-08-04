@@ -5,9 +5,9 @@ This file keeps the full, detailed notes.
 
 ## 2.1.0 (exploration)
 
-Two candidate workstreams are being evaluated: extending element context-menu
-and rename actions into the preview canvas, and a safe custom-font manager for
-locally hosted Google Fonts and manually uploaded font files.
+Four candidates are being evaluated independently: a preview context menu,
+preview-based element rename, reliable Navigator multiselect/move, and a safe
+custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
 ## 2.0.1
 A fix for element names lost when editing a component as HTML.

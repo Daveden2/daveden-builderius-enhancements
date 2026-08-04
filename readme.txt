@@ -63,7 +63,7 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
 = 2.1.0 =
-Exploration of direct preview-area element actions and safe, locally hosted custom-font management.
+Exploration of a preview context menu, preview-based element rename, reliable Navigator multiselect/move, and safe locally hosted custom-font management.
 
 = 2.0.1 =
 A fix for element names lost when editing a component as HTML.
