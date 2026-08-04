@@ -127,9 +127,10 @@ function dbe_release_test_assert( $condition, $message ) {
 $matrix = array(
 	'1.14.0'       => array( false, false ),
 	'2.0.0-dev-16' => array( false, false ),
-	'2.1.0-dev-1'  => array( true, false ),
-	'2.1.3'        => array( true, false ),
-	'2.2.0-rc.1'   => array( true, true ),
+	'2.1.0-dev-1'  => array( false, false ),
+	'2.1.3'        => array( false, false ),
+	'2.2.0-rc.1'   => array( true, false ),
+	'2.3.0-dev-1'  => array( true, true ),
 	'3.0.0'        => array( true, true ),
 	'invalid'      => array( false, false ),
 );

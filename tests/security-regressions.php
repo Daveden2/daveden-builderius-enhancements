@@ -72,7 +72,7 @@ foreach ( $ability_functions as $ability_function ) {
 		function_exists( $ability_function ) === $abilities_available,
 		$abilities_available
 			? 'The release-available ability callback is not loaded: ' . $ability_function . '.'
-			: 'An Agent ability callback loaded before the 2.1 release line: ' . $ability_function . '.'
+			: 'An Agent ability callback loaded before the 2.2 release line: ' . $ability_function . '.'
 	);
 }
 dbe_test_assert( function_exists( 'dbe_css_blocks_parse' ), 'The shared CSS block parser is not loaded.' );

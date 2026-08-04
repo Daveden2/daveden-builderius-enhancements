@@ -24,16 +24,16 @@ defined( 'ABSPATH' ) || exit;
  */
 function dbe_release_availability() {
 	return array(
-		'agent_abilities' => '2.1',
-		'style_inspector' => '2.2',
+		'agent_abilities' => '2.2',
+		'style_inspector' => '2.3',
 	);
 }
 
 /**
  * Extract a comparable major.minor release line from a plugin version.
  *
- * Development suffixes such as 2.1.0-dev-1 belong to the 2.1 release line,
- * so version_compare() against the final 2.1.0 string would be too strict.
+ * Development suffixes such as 2.2.0-dev-1 belong to the 2.2 release line,
+ * so version_compare() against the final 2.2.0 string would be too strict.
  *
  * @param string $version Plugin version.
  * @return string Major.minor, or 0.0 for an invalid value.
