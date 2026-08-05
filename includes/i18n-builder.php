@@ -571,6 +571,10 @@ function dbe_builder_strings() {
 		'canvasTextEditingAnnounce'     => __( 'Editing text. Press Escape to finish.', 'daveden-builderius-enhancements' ),
 		'canvasFinishHint'              => __( 'Esc to finish', 'daveden-builderius-enhancements' ),
 		'canvasTextFinished'            => __( 'Finished editing text', 'daveden-builderius-enhancements' ),
+		/* translators: 1: Navigator label, 2: rendered HTML tag. */
+		'previewContextTarget'          => __( '%1$s · <%2$s>', 'daveden-builderius-enhancements' ),
+		'previewContextFailed'          => __( 'Could not open the element menu', 'daveden-builderius-enhancements' ),
+		'previewContextSelectFailed'    => __( 'Could not select the preview element', 'daveden-builderius-enhancements' ),
 		'editText'                      => __( 'Edit text', 'daveden-builderius-enhancements' ),
 		'cannotEditText'                => __( 'Select an element with editable text', 'daveden-builderius-enhancements' ),
 		/* translators: %s: selected element label. */

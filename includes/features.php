@@ -161,7 +161,7 @@ function dbe_feature_sections() {
 			array(
 				'title'       => __( 'Everyday element actions', 'daveden-builderius-enhancements' ),
 				'description' => __( 'Frequent right-click and Navigator actions, kept near the top because they change day-to-day editing speed.', 'daveden-builderius-enhancements' ),
-				'features'    => array( 'context_menu', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'wrap_in' ),
+				'features'    => array( 'preview_context_menu', 'context_menu', 'element_moves', 'navigator_paste', 'inline_rename', 'dblclick_rename', 'undo_delete', 'wrap_in' ),
 			),
 			array(
 				'title'       => __( 'Element helpers', 'daveden-builderius-enhancements' ),
@@ -478,6 +478,16 @@ function dbe_features() {
 		),
 
 		/* ------------------------------------------------------------- Editing */
+		'preview_context_menu'  => array(
+			'title'        => __( 'Preview right-click menu', 'daveden-builderius-enhancements' ),
+			'summary'      => __( 'Use element actions directly from the preview canvas.', 'daveden-builderius-enhancements' ),
+			'description'  => __( 'In canvas selection mode, right-click a rendered element to select it and open the same action menu used in the Navigator. Shift+F10 and the Menu key open it from the keyboard. Interaction mode, editable content, form controls and embedded documents retain their normal context menus.', 'daveden-builderius-enhancements' ),
+			'tab'          => 'editing',
+			'css'          => array(),
+			'shared_css'   => array( '30-context-menu.css' ),
+			'js'           => true,
+			'experimental' => true,
+		),
 		'context_menu'          => array(
 			'title'       => __( 'Right-click menu enhancements', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'A flatter, keyboard-friendly right-click menu.', 'daveden-builderius-enhancements' ),

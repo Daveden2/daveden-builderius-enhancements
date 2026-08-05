@@ -374,6 +374,21 @@ assert.match(
     /function dbeRememberContextTarget\(e\)[\s\S]+closest\('\.uniSelectorsCss__item'\)[\s\S]+builderius\.contextMenu\.show'[\s\S]+onItemMenuShow/,
     'The commands controller must remember selector context-menu targets before the native menu opens.'
 );
+assert.match(
+    commands,
+    /function dbePreviewContextTarget\(target\)[\s\S]+\^uni-node-\([\s\S]+getClientRects\(\)\.length[\s\S]+function dbePreviewContextTargetAtPoint\(doc, x, y, fallback\)[\s\S]+elementsFromPoint[\s\S]+function dbeOpenPreviewContextMenu\(target, innerX, innerY\)[\s\S]+clickSeq\(row\)[\s\S]+new MouseEvent\('contextmenu'/,
+    'Preview context menus must resolve the nearest visible module, select its Navigator row, and reuse the native menu channel.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextPointerDown\(e\)[\s\S]+e\.button !== 2[\s\S]+dbePreviewContextTargetAtPoint[\s\S]+function dbePreviewContextMenu\(e\)[\s\S]+dbeSetOwnedTimeout\(DBE_COMMANDS_OWNER[\s\S]+dbeOpenPreviewContextMenu/,
+    'Preview context menus must retain the pre-repaint pointer target and defer the outer menu until Builderius settles.'
+);
+assert.match(
+    commands,
+    /function dbePreviewBuilderPoint\(frame, innerX, innerY\)[\s\S]+rect\.width \/ frame\.clientWidth[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight/,
+    'Preview pointer coordinates must be translated and clamped in builder viewport space.'
+);
 const contextMenuFeature = features.slice(
     features.indexOf("'context_menu'          =>"),
     features.indexOf("'wrap_in'               =>")
@@ -382,6 +397,15 @@ assert.match(
     contextMenuFeature,
     /'shared_css'\s*=> array\( '04-menu-anchor\.css', '30-context-menu\.css' \)/,
     'The context-menu feature must load the shared progressive anchor rules.'
+);
+const previewContextMenuFeature = features.slice(
+    features.indexOf("'preview_context_menu'  =>"),
+    features.indexOf("'context_menu'          =>")
+);
+assert.match(
+    previewContextMenuFeature,
+    /'experimental'\s*=> true/,
+    'The 2.1 preview context menu must remain opt-in while its exploration gate is open.'
 );
 assert.match(
     coreRuntime,

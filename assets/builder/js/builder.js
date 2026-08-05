@@ -819,7 +819,7 @@
     var NEED_NAV_BUTTONS = on('collapse_expand_all');
     var NEED_STYLES = on('css_code_default') || on('scope_bar') || on('style_inspector') ||
         on('css_hint_dialog') || on('hide_minimap');
-    var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
+    var NEED_CTX_MENU = on('preview_context_menu') || on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     var dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
     if (typeof dbeA11yChunk === 'function') {

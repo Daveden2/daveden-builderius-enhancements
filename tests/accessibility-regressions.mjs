@@ -349,6 +349,31 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbePreviewContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+dbeOpenPreviewContextMenu[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'preview-context-menu-key'/,
+    'Preview elements must open the shared context menu from Shift+F10 and the Menu key.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextBlocked\(target\)[\s\S]+input, textarea, select[\s\S]+contenteditable[\s\S]+function dbePreviewContextPointerDown\(e\)[\s\S]+dbeCanvasInteractive\(\)[\s\S]+function dbePreviewContextMenu\(e\)/,
+    'Preview menus must preserve editable and interaction-mode context menus.'
+);
+assert.match(
+    commands,
+    /function dbeReleasePreviewContextState\(state, keepFocused\)[\s\S]+state\.element\.addEventListener\('blur'[\s\S]+function dbeRestorePreviewContextTarget\(state\)[\s\S]+target\.focus[\s\S]+stableChecks >= 2[\s\S]+function dbeDiscardPreviewContext\(restoreFocus\)[\s\S]+dialog\.uniBuilderContextMenu\[open\][\s\S]+dbeRestorePreviewContextTarget\(state\)/,
+    'Closing a preview context menu must restore focus to its rendered target.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextCloseKeydown\(e\)[\s\S]+e\.key !== 'Escape'[\s\S]+dbeRestorePreviewContextTarget\(state\)[\s\S]+preview-context-close-key'[\s\S]+dbePreviewContextCloseKeydown/,
+    'Preview focus restoration must survive the native dialog Escape handling.'
+);
+assert.match(
+    commands,
+    /preview-context-close'[\s\S]+dbeDiscardPreviewContext\(true\)[\s\S]+builderius\.contextMenu\.hide'[\s\S]+dbePreviewContextState[\s\S]+200/,
+    'Preview focus restoration must follow dialog close and retain a bounded fallback.'
+);
+assert.match(
+    commands,
     /function decorateClassChips\(\)[\s\S]+dbeRememberOwnedAttributes\(DBE_COMMANDS_OWNER, li, \['tabindex'\]\)/,
     'Class-chip focusability must restore the native tabindex on teardown.'
 );

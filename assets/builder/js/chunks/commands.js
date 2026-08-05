@@ -736,6 +736,45 @@
                     });
                 }
 
+                // Preview opens reuse this exact Navigator menu. Give that
+                // pointer-distant surface a visible target heading containing
+                // both the Navigator label and rendered tag, while the normal
+                // row menu keeps Builderius' native “Actions” heading.
+                var previewHeading = dbePreviewContextState && dbePreviewContextState.id === contextTarget()
+                    ? dbePreviewContextHeading()
+                    : '';
+                if (previewHeading) {
+                    var targetHeading = [].slice.call(container.querySelectorAll('.uniContextMenu__item.disabled')).filter(function (li) {
+                        return (li.textContent || '').trim() === 'Actions';
+                    })[0];
+                    if (!targetHeading) {
+                        targetHeading = document.createElement('li');
+                        targetHeading.className = 'uniContextMenu__item disabled';
+                        targetHeading.setAttribute('aria-disabled', 'true');
+                        container.insertBefore(targetHeading, container.firstChild);
+                    }
+                    targetHeading.textContent = previewHeading;
+                    targetHeading.classList.add('dbe-ctx-heading', 'dbe-preview-ctx-heading');
+                    if (ctxDialog) {
+                        dbeBindOwnedEvent(DBE_COMMANDS_OWNER, ctxDialog, 'preview-context-close', 'close', function () {
+                            dbeDiscardPreviewContext(true);
+                        }, { once: true });
+                    }
+                }
+
+                // Name both the enhanced flat menu and the untouched native
+                // fallback. This runs before the grouped/ungrouped branch so
+                // the preview feature remains independent of context_menu.
+                var menuEl = container.closest('[role="menu"]') || (ctxDialog && ctxDialog.querySelector('[role="menu"]'));
+                if (menuEl) {
+                    var ctxModsForLabel = modules() || {};
+                    var ctxModForLabel = contextTarget() && ctxModsForLabel[contextTarget()];
+                    var ctxTargetLabel = previewHeading || (ctxModForLabel && (ctxModForLabel.label || defaultLabelFor(contextTarget())));
+                    menuEl.setAttribute('aria-label', multiIds
+                        ? dbeFmt(dbeT('selectedElementsActions', 'Actions for %s selected elements'), multiIds.length)
+                        : dbeFmt(dbeT('elementActionsFor', 'Actions for %s'), ctxTargetLabel || dbeT('element', 'element')));
+                }
+
                 /* --- Build the injected items (appended flat or grouped below) --- */
 
                 // "Rename" / "Reset label" -> inline edit on the tree row (single row only)
@@ -1111,18 +1150,6 @@
                 // After clustering (which matches native rows by textContent): append
                 // the shortcut hints, so the hint text never corrupts those matches.
                 if (on('keyboard_shortcuts') && !multiIds) { annotateNativeCtxAccels(container); }
-
-                // The native menu has a role but no name. Name it after its target
-                // so a screen reader does not announce an unexplained bare “menu”.
-                var menuEl = container.closest('[role="menu"]') || (ctxDialog && ctxDialog.querySelector('[role="menu"]'));
-                if (menuEl) {
-                    var ctxModsForLabel = modules() || {};
-                    var ctxModForLabel = contextTarget() && ctxModsForLabel[contextTarget()];
-                    var ctxTargetLabel = ctxModForLabel && (ctxModForLabel.label || defaultLabelFor(contextTarget()));
-                    menuEl.setAttribute('aria-label', multiIds
-                        ? dbeFmt(dbeT('selectedElementsActions', 'Actions for %s selected elements'), multiIds.length)
-                        : dbeFmt(dbeT('elementActionsFor', 'Actions for %s'), ctxTargetLabel || dbeT('element', 'element')));
-                }
 
                 setupMenuKeyboard(container);
                 fitContextMenu(ctxDialog);
@@ -2443,6 +2470,9 @@
         var dbeCommandsControllerActive = false;
         var dbeKeyboardFrame = null;
         var dbeCommandFrameDocuments = [];
+        var dbePreviewContextState = null;
+        var dbePreviewPointerContext = null;
+        var dbePreviewFocusState = null;
 
         function dbeCanvasTextEditingKeydown(e) {
             if (e.key !== 'Escape') { return; }
@@ -2534,6 +2564,285 @@
             } catch (e) {}
             var toggle = document.querySelector('.overlayToggleIcon');
             return !!(toggle && toggle.classList.contains('active'));
+        }
+
+        function dbePreviewContextBlocked(target) {
+            var el = target && target.nodeType === 1 ? target : target && target.parentElement;
+            if (!el || !el.closest) { return true; }
+            if (el.closest('input, textarea, select, option, button, iframe, object, embed, .monaco-editor, uni-inline-editing')) {
+                return true;
+            }
+            var editable = el.closest('[contenteditable]');
+            return !!(editable && editable.getAttribute('contenteditable') !== 'false');
+        }
+
+        /* Resolve the nearest rendered module, rather than the first uni-node
+           class in the document. Collection instances can render one module id
+           more than once; retaining the actual element gives focus return a
+           predictable instance even though the shared command target is the id. */
+        function dbePreviewContextTarget(target) {
+            var el = target && target.nodeType === 1 ? target : target && target.parentElement;
+            while (el && el.nodeType === 1) {
+                for (var i = 0; i < el.classList.length; i++) {
+                    var match = /^uni-node-([A-Za-z0-9_-]+)$/.exec(el.classList[i]);
+                    if (match && el.getClientRects().length && (modules() || {})[match[1]]) {
+                        return { id: match[1], element: el, tag: (el.localName || '').toLowerCase() };
+                    }
+                }
+                el = el.parentElement;
+            }
+            return null;
+        }
+
+        function dbePreviewContextTargetAtPoint(doc, x, y, fallback) {
+            var hits = doc && doc.elementsFromPoint ? doc.elementsFromPoint(x, y) : [];
+            for (var i = 0; i < hits.length; i++) {
+                var target = dbePreviewContextTarget(hits[i]);
+                if (target) { return target; }
+            }
+            return dbePreviewContextTarget(fallback);
+        }
+
+        function dbePreviewActiveTarget(doc) {
+            var active = doc && doc.activeElement;
+            var target = dbePreviewContextTarget(active);
+            if (target) { return target; }
+            var id = activeId();
+            if (!id || !doc) { return null; }
+            var matches = [].slice.call(doc.querySelectorAll('.uni-node-' + id));
+            var el = matches.filter(function (candidate) { return candidate.getClientRects().length; })[0] || null;
+            return el ? { id: id, element: el, tag: (el.localName || '').toLowerCase() } : null;
+        }
+
+        function dbePreviewContextHeading() {
+            var state = dbePreviewContextState;
+            var mods = modules() || {};
+            var mod = state && mods[state.id];
+            if (!state || !mod) { return ''; }
+            var label = mod.label || defaultLabelFor(state.id) || dbeT('element', 'Element');
+            var tagSetting = (mod.settings || []).filter(function (setting) { return setting.name === 'tag'; })[0];
+            var tag = (tagSetting && tagSetting.value) || state.tag;
+            return tag
+                ? dbeFmt(dbeT('previewContextTarget', '%1$s · <%2$s>'), label, tag)
+                : label;
+        }
+
+        function dbeClearPreviewFocusState() {
+            var state = dbePreviewFocusState;
+            dbePreviewFocusState = null;
+            if (!state || !state.element) { return; }
+            if (state.blurCleanup) { state.element.removeEventListener('blur', state.blurCleanup); }
+            if (state.addedTabindex && state.element.getAttribute('tabindex') === '-1') {
+                state.element.removeAttribute('tabindex');
+            }
+        }
+
+        function dbeReleasePreviewContextState(state, keepFocused) {
+            if (!state || !state.element) { return; }
+            if (keepFocused && state.element.ownerDocument.activeElement === state.element) {
+                dbeClearPreviewFocusState();
+                state.blurCleanup = function () {
+                    if (dbePreviewFocusState === state) { dbePreviewFocusState = null; }
+                    dbeReleasePreviewContextState(state, false);
+                };
+                dbePreviewFocusState = state;
+                state.element.addEventListener('blur', state.blurCleanup, { once: true });
+                return;
+            }
+            if (state.addedTabindex && state.element.getAttribute('tabindex') === '-1') {
+                state.element.removeAttribute('tabindex');
+            }
+        }
+
+        function dbeRestorePreviewContextTarget(state) {
+            var target = state.element && state.element.isConnected ? state.element : null;
+            if (!target) {
+                if (state.frame && state.frame.isConnected) {
+                    try { state.frame.focus(); } catch (e) {}
+                }
+                dbeReleasePreviewContextState(state, false);
+                return;
+            }
+            var attempts = 0;
+            var stableChecks = 0;
+
+            function attempt() {
+                var outerActive = document.activeElement;
+                var innerActive = target.ownerDocument.activeElement;
+                if (attempts > 0 && ((outerActive && outerActive !== document.body && outerActive !== state.frame) ||
+                    (innerActive && innerActive !== target.ownerDocument.body && innerActive !== target))) {
+                    dbeReleasePreviewContextState(state, false);
+                    return;
+                }
+                if (state.frame && state.frame.isConnected) {
+                    try { state.frame.focus(); } catch (e) {}
+                }
+                try { target.ownerDocument.defaultView.focus(); } catch (e) {}
+                try { target.focus({ preventScroll: true }); } catch (e) { try { target.focus(); } catch (err) {} }
+                dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                    stableChecks = target.ownerDocument.activeElement === target ? stableChecks + 1 : 0;
+                    if (stableChecks >= 2) {
+                        dbeReleasePreviewContextState(state, true);
+                    } else if (attempts++ < 6) {
+                        attempt();
+                    } else {
+                        dbeReleasePreviewContextState(state, false);
+                    }
+                }, 50);
+            }
+            attempt();
+        }
+
+        function dbeDiscardPreviewContext(restoreFocus) {
+            var state = dbePreviewContextState;
+            dbePreviewContextState = null;
+            if (!state) { return; }
+            if (!restoreFocus) {
+                dbeReleasePreviewContextState(state, false);
+                return;
+            }
+            waitFor(function () {
+                return document.querySelector('dialog.uniBuilderContextMenu[open]') ? null : true;
+            }, function (closed) {
+                if (!closed || document.querySelector('dialog[open]')) {
+                    dbeReleasePreviewContextState(state, false);
+                    return;
+                }
+                dbeRestorePreviewContextTarget(state);
+            }, 12, DBE_COMMANDS_OWNER);
+        }
+
+        function dbePreviewContextCloseKeydown(e) {
+            if (e.key !== 'Escape' || !dbePreviewContextState ||
+                !document.querySelector('dialog.uniBuilderContextMenu[open]')) { return; }
+            // The native dialog restores focus to its Navigator trigger after
+            // Escape. Retain the preview target now and move focus only after
+            // that top-layer restoration has completed.
+            var state = dbePreviewContextState;
+            dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                if (dbePreviewContextState === state) { dbePreviewContextState = null; }
+                waitFor(function () {
+                    return document.querySelector('dialog.uniBuilderContextMenu[open]') ? null : true;
+                }, function (closed) {
+                    if (closed && !document.querySelector('dialog[open]')) {
+                        dbeRestorePreviewContextTarget(state);
+                    } else {
+                        dbeReleasePreviewContextState(state, false);
+                    }
+                }, 12, DBE_COMMANDS_OWNER);
+            }, 0);
+        }
+
+        function dbePreviewBuilderPoint(frame, innerX, innerY) {
+            var rect = frame.getBoundingClientRect();
+            var scaleX = frame.clientWidth ? rect.width / frame.clientWidth : 1;
+            var scaleY = frame.clientHeight ? rect.height / frame.clientHeight : 1;
+            return {
+                x: Math.min(Math.max(8, rect.left + innerX * scaleX), window.innerWidth - 8),
+                y: Math.min(Math.max(8, rect.top + innerY * scaleY), window.innerHeight - 8)
+            };
+        }
+
+        function dbeOpenPreviewContextMenu(target, innerX, innerY) {
+            var frame = dbeQuery('previewFrame');
+            var row = target && navRowById(target.id);
+            if (!frame || !row || document.querySelector('dialog.uniBuilderContextMenu[open]')) { return false; }
+
+            dbeDiscardPreviewContext(false);
+            dbeClearPreviewFocusState();
+            if (dbeMultiSel.size) { clearMultiSel(); }
+            var hadTabindex = target.element.hasAttribute('tabindex');
+            if (!hadTabindex && target.element.tabIndex < 0) { target.element.setAttribute('tabindex', '-1'); }
+            dbePreviewContextState = {
+                id: target.id,
+                element: target.element,
+                tag: target.tag,
+                frame: frame,
+                addedTabindex: !hadTabindex && target.element.getAttribute('tabindex') === '-1'
+            };
+            try { target.element.focus({ preventScroll: true }); } catch (e) { try { target.element.focus(); } catch (err) {} }
+            setContextTarget(target.id);
+
+            function open() {
+                if (!dbePreviewContextState || dbePreviewContextState.id !== target.id) { return; }
+                var point = dbePreviewBuilderPoint(frame, innerX, innerY);
+                var event = new MouseEvent('contextmenu', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: point.x,
+                    clientY: point.y
+                });
+                try { Object.defineProperty(event, 'dbePreviewContext', { value: true }); } catch (e) { event.dbePreviewContext = true; }
+                row.dispatchEvent(event);
+                waitFor(function () {
+                    return document.querySelector('dialog.uniBuilderContextMenu[open]');
+                }, function (dialog) {
+                    if (!dialog && dbePreviewContextState && dbePreviewContextState.id === target.id) {
+                        dbeDiscardPreviewContext(true);
+                        dbeCanvasStatus(dbeT('previewContextFailed', 'Could not open the element menu'));
+                    }
+                }, 12, DBE_COMMANDS_OWNER);
+            }
+
+            if (activeId() === target.id) { open(); }
+            else {
+                clickSeq(row);
+                waitFor(function () { return activeId() === target.id || null; }, function (selected) {
+                    if (selected) { open(); }
+                    else {
+                        dbeDiscardPreviewContext(true);
+                        dbeCanvasStatus(dbeT('previewContextSelectFailed', 'Could not select the preview element'));
+                    }
+                }, 20, DBE_COMMANDS_OWNER);
+            }
+            return true;
+        }
+
+        /* Builderius can retarget the eventual contextmenu event to its current
+           overlay ancestor during right-button pointerdown. Capture the actual
+           rendered module at pointerdown, before that selection repaint, so a
+           nested heading does not become its containing section. */
+        function dbePreviewContextPointerDown(e) {
+            if (e.button !== 2 && !(e.button === 0 && e.ctrlKey)) { return; }
+            var blocked = dbeCanvasInteractive() || dbePreviewContextBlocked(e.target);
+            dbePreviewPointerContext = {
+                doc: e.currentTarget,
+                blocked: blocked,
+                target: blocked ? null : dbePreviewContextTargetAtPoint(e.currentTarget, e.clientX, e.clientY, e.target)
+            };
+        }
+
+        function dbePreviewContextMenu(e) {
+            var pointer = dbePreviewPointerContext && dbePreviewPointerContext.doc === e.currentTarget
+                ? dbePreviewPointerContext
+                : null;
+            dbePreviewPointerContext = null;
+            if ((pointer && pointer.blocked) || (!pointer && (dbeCanvasInteractive() || dbePreviewContextBlocked(e.target)))) { return; }
+            var target = pointer && pointer.target
+                ? pointer.target
+                : dbePreviewContextTargetAtPoint(e.currentTarget, e.clientX, e.clientY, e.target);
+            if (!target) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            // Let Builderius finish the pointerdown selection repaint before the
+            // synthetic Navigator contextmenu opens its outer-document dialog.
+            dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                dbeOpenPreviewContextMenu(target, e.clientX, e.clientY);
+            }, 0);
+        }
+
+        function dbePreviewContextMenuKeydown(e) {
+            if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) { return; }
+            if (dbeCanvasInteractive() || dbePreviewContextBlocked(e.target)) { return; }
+            var doc = e.currentTarget;
+            var target = dbePreviewContextTarget(e.target) || dbePreviewActiveTarget(doc);
+            if (!target) { return; }
+            var rect = target.element.getBoundingClientRect();
+            e.preventDefault();
+            e.stopPropagation();
+            dbeOpenPreviewContextMenu(target, rect.left + rect.width / 2, rect.top + rect.height / 2);
         }
 
         function dbeCanvasStatus(message) {
@@ -2659,10 +2968,16 @@
                 dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'canvas-text-editing-key');
                 dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'canvas-navigation-key');
                 dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'reveal-selection-click');
+                dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'preview-context-menu');
+                dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'preview-context-menu-key');
+                dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, record.doc, 'preview-context-pointer');
                 if (record.observer) { record.observer.disconnect(); }
                 try { delete record.doc.dbeCanvasTextEditingActive; } catch (e) {}
             });
             dbeCommandFrameDocuments = dbeCommandFrameDocuments.filter(function (record) { return record.doc === keepDoc; });
+            if (dbePreviewFocusState && dbePreviewFocusState.element.ownerDocument !== keepDoc) {
+                dbeClearPreviewFocusState();
+            }
         }
 
         function dbeBindKeyboardFrameDocument(frame) {
@@ -2698,6 +3013,11 @@
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'reveal-selection-click', 'click', function () {
                     dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { schedule('canvas-selection'); }, 0);
                 });
+            }
+            if (on('preview_context_menu')) {
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-pointer', 'pointerdown', dbePreviewContextPointerDown, true);
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-menu', 'contextmenu', dbePreviewContextMenu, true);
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-menu-key', 'keydown', dbePreviewContextMenuKeydown, true);
             }
         }
 
@@ -3576,6 +3896,7 @@
             if (dbeSelectorMenuTarget) { return; }
             var btn = e.target.closest && e.target.closest('.uniModTree__item');
             if (!btn) { return; }
+            if (!e.dbePreviewContext) { dbeDiscardPreviewContext(false); }
             var match = btn.className.toString().match(/uni-tree-node-(\w+)/);
             if (!match) { return; }
             setContextTarget(match[1]);
@@ -3603,7 +3924,7 @@
 
         function dbeObserveCommands() {
             var needMain = on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') ||
-                on('reveal_selected') || on('context_menu') || NEED_NAV_BUTTONS || on('tree_search') ||
+                on('reveal_selected') || on('preview_context_menu') || on('context_menu') || NEED_NAV_BUTTONS || on('tree_search') ||
                 on('navigator_row_actions');
             dbeObserveChrome('commands-top', (on('command_palette') || on('save_split_button')) ? dbeQuery('topPanel') : null, {
                 childList: true,
@@ -3623,7 +3944,7 @@
             dbeObserveCommands();
             if (on('command_palette')) { ensurePaletteButton(); }
             if (on('save_split_button')) { ensureSaveMenuButton(); }
-            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected')) {
+            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected') || on('preview_context_menu')) {
                 ensureKeyboardIframeBridge();
             }
             if (on('context_menu')) { decorateClassChips(); }
@@ -3648,6 +3969,8 @@
             dbeObserveChrome('commands-main', null);
             dbeDestroyOwnedHooks(DBE_COMMANDS_OWNER);
             dbeReleaseCommandFrameDocuments(null);
+            dbeDiscardPreviewContext(false);
+            dbeClearPreviewFocusState();
             if (raBox) { raHide(); }
             dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
             dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
@@ -3670,6 +3993,7 @@
             dbeClearItemMenuAnchor();
             dbePasteCtxRow = null;
             dbeKeyboardFrame = null;
+            dbePreviewPointerContext = null;
             dbeSaveMenuEl = null;
             treeSearchDebounce = null;
             treeQuery = '';
@@ -3693,10 +4017,24 @@
                 if (NEED_CTX_MENU) {
                     dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'context-target', 'contextmenu', dbeRememberContextTarget, true);
                     dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeWrapMenu', onContextMenuShow);
-                    dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.hide', 'dbeWrapMenuHide', removeSubmenus);
+                    dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.hide', 'dbeWrapMenuHide', function () {
+                        removeSubmenus();
+                        // The dialog's close event restores preview focus after
+                        // native top-layer focus handling finishes. Keep a short
+                        // fallback for Builderius versions that remove the menu
+                        // without dispatching close.
+                        if (dbePreviewContextState) {
+                            dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                                if (dbePreviewContextState) { dbeDiscardPreviewContext(true); }
+                            }, 200);
+                        }
+                    });
                 }
                 if (NEED_CTX_MENU || on('navigator_paste') || on('navigator_keyboard')) {
                     dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key', 'keydown', dbeNavigatorContextMenuKeydown, true);
+                }
+                if (on('preview_context_menu')) {
+                    dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'preview-context-close-key', 'keydown', dbePreviewContextCloseKeydown, true);
                 }
                 if (on('footer_toolbar') || on('context_menu')) {
                     dbeBindOwnedHook(DBE_COMMANDS_OWNER, 'builderius.contextMenu.show', 'dbeItemMenu', onItemMenuShow);
@@ -3725,7 +4063,7 @@
             destroy: function () {
                 destroyCommands();
             }
-        }, NEED_CTX_MENU || on('footer_toolbar') || on('context_menu') || on('navigator_paste') ||
+        }, NEED_CTX_MENU || on('footer_toolbar') || on('preview_context_menu') || on('context_menu') || on('navigator_paste') ||
             on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
             on('navigator_keyboard') || on('reveal_selected') || on('save_split_button') ||
             NEED_NAV_BUTTONS || on('tree_search') || on('navigator_row_actions'));

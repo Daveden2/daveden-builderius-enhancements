@@ -9,6 +9,12 @@ Four candidates are being evaluated independently: a preview context menu,
 preview-based element rename, reliable Navigator multiselect/move, and a safe
 custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
+* Added (experimental): **Preview right-click menu**. In canvas selection mode,
+  right-click a rendered element or press Shift+F10/Menu to select it and open
+  the same labelled, keyboard-operable command menu used by the Navigator.
+  Interaction mode and editable, form, Monaco and embedded content retain their
+  native context menus; closing returns focus to the rendered target.
+
 ## 2.0.1
 A fix for element names lost when editing a component as HTML.
 
