@@ -575,6 +575,15 @@ function dbe_builder_strings() {
 		'previewContextTarget'          => __( '%1$s · <%2$s>', 'daveden-builderius-enhancements' ),
 		'previewContextFailed'          => __( 'Could not open the element menu', 'daveden-builderius-enhancements' ),
 		'previewContextSelectFailed'    => __( 'Could not select the preview element', 'daveden-builderius-enhancements' ),
+		'previewRenameTitle'            => __( 'Rename Navigator name', 'daveden-builderius-enhancements' ),
+		'previewRenameHint'             => __( 'Changes the name shown in the Navigator. This does not change the element’s visible text or HTML tag.', 'daveden-builderius-enhancements' ),
+		'previewRenameLabel'            => __( 'Navigator name', 'daveden-builderius-enhancements' ),
+		'previewRenameSave'             => __( 'Save name', 'daveden-builderius-enhancements' ),
+		'previewRenameEmpty'            => __( 'Enter a Navigator name.', 'daveden-builderius-enhancements' ),
+		'previewRenameTooLong'          => __( 'Use 120 characters or fewer.', 'daveden-builderius-enhancements' ),
+		/* translators: %s: the new Navigator name. */
+		'previewRenameSuccess'          => __( 'Renamed element to %s', 'daveden-builderius-enhancements' ),
+		'previewRenameFailed'           => __( 'Could not rename the preview element', 'daveden-builderius-enhancements' ),
 		'editText'                      => __( 'Edit text', 'daveden-builderius-enhancements' ),
 		'cannotEditText'                => __( 'Select an element with editable text', 'daveden-builderius-enhancements' ),
 		/* translators: %s: selected element label. */

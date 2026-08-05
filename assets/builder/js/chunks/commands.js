@@ -777,15 +777,19 @@
 
                 /* --- Build the injected items (appended flat or grouped below) --- */
 
-                // "Rename" / "Reset label" -> inline edit on the tree row (single row only)
+                // Navigator menus retain inline rename; preview menus use the
+                // explicit Navigator-name dialog when the 2.1 candidate is on.
                 var nameItems = [];
                 var advancedItems = [];
-                if (!multiIds && on('inline_rename')) {
+                var previewRenamePath = !!previewHeading && on('preview_rename');
+                var previewRenameTarget = previewRenamePath && dbePreviewContextState
+                    ? dbePreviewContextState.element : null;
+                if (!multiIds && (on('inline_rename') || previewRenamePath)) {
                     var renameLi = document.createElement('li');
                     renameLi.className = 'uniContextMenu__item dbe-ctx-item';
                     renameLi.setAttribute('role', 'menuitem');
                     renameLi.textContent = dbeT('rename', 'Rename');
-                    if (on('keyboard_shortcuts')) { // F2 is only bound when that feature is on
+                    if (on('keyboard_shortcuts') || previewRenamePath) {
                         renameLi.classList.add('dbe-ctx-item--accel');
                         var renameAcc = document.createElement('span');
                         renameAcc.className = 'dbe-ctx-accel';
@@ -797,8 +801,16 @@
                         ev.preventDefault();
                         ev.stopPropagation();
                         var id = contextTarget() || activeId();
+                        var renderedTarget = previewRenameTarget;
+                        if (renderedTarget) { dbeDiscardPreviewContext(false); }
                         closeCtxMenu();
-                        startRename(id);
+                        if (renderedTarget) {
+                            dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                                dbeOpenPreviewRename(id, renderedTarget);
+                            }, 0);
+                        } else {
+                            startRename(id);
+                        }
                     });
                     nameItems.push(renameLi);
 
@@ -2473,6 +2485,7 @@
         var dbePreviewContextState = null;
         var dbePreviewPointerContext = null;
         var dbePreviewFocusState = null;
+        var dbePreviewRenameDialog = null;
 
         function dbeCanvasTextEditingKeydown(e) {
             if (e.key !== 'Escape') { return; }
@@ -2712,6 +2725,148 @@
             }, 12, DBE_COMMANDS_OWNER);
         }
 
+        function dbeOpenPreviewRename(id, renderedTarget) {
+            var mods = modules() || {};
+            var mod = id && mods[id];
+            if (!mod || dbeCanvasInteractive()) { return false; }
+
+            if (dbePreviewRenameDialog) {
+                dbePreviewRenameDialog.remove();
+                dbePreviewRenameDialog = null;
+            }
+            dbeDiscardPreviewContext(false);
+            dbeClearPreviewFocusState();
+
+            var frame = dbeQuery('previewFrame');
+            var target = renderedTarget && renderedTarget.isConnected ? renderedTarget : null;
+            var hadTabindex = target ? target.hasAttribute('tabindex') : true;
+            if (target && !hadTabindex && target.tabIndex < 0) { target.setAttribute('tabindex', '-1'); }
+            var focusState = {
+                element: target,
+                frame: frame,
+                addedTabindex: !!(target && !hadTabindex && target.getAttribute('tabindex') === '-1')
+            };
+            var restoreFocusOnClose = true;
+            var oldLabel = mod.label || defaultLabelFor(id) || '';
+            var dlg = document.createElement('dialog');
+            dlg.className = 'dbe-preview-rename';
+            dlg.setAttribute('aria-labelledby', 'dbe-preview-rename-title');
+            dlg.setAttribute('aria-describedby', 'dbe-preview-rename-hint dbe-preview-rename-error');
+            dbePreviewRenameDialog = dlg;
+
+            var title = document.createElement('h2');
+            title.id = 'dbe-preview-rename-title';
+            title.className = 'dbe-preview-rename__title';
+            title.textContent = dbeT('previewRenameTitle', 'Rename Navigator name');
+            dlg.appendChild(title);
+
+            var hint = document.createElement('p');
+            hint.id = 'dbe-preview-rename-hint';
+            hint.className = 'dbe-preview-rename__hint';
+            hint.textContent = dbeT('previewRenameHint',
+                'Changes the name shown in the Navigator. This does not change the element’s visible text or HTML tag.');
+            dlg.appendChild(hint);
+
+            var form = document.createElement('form');
+            form.noValidate = true;
+            var label = document.createElement('label');
+            label.className = 'dbe-preview-rename__label';
+            label.setAttribute('for', 'dbe-preview-rename-input');
+            label.textContent = dbeT('previewRenameLabel', 'Navigator name');
+            var input = document.createElement('input');
+            input.id = 'dbe-preview-rename-input';
+            input.className = 'dbe-preview-rename__input';
+            input.type = 'text';
+            input.value = oldLabel;
+            input.required = true;
+            input.setAttribute('autocomplete', 'off');
+            var error = document.createElement('p');
+            error.id = 'dbe-preview-rename-error';
+            error.className = 'dbe-preview-rename__error';
+            error.setAttribute('role', 'alert');
+            label.appendChild(input);
+            form.appendChild(label);
+            form.appendChild(error);
+
+            var actions = document.createElement('div');
+            actions.className = 'dbe-preview-rename__actions';
+            var cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'dbe-preview-rename__cancel';
+            cancel.textContent = dbeT('cancel', 'Cancel');
+            cancel.addEventListener('click', function () { dlg.close(); });
+            var save = document.createElement('button');
+            save.type = 'submit';
+            save.className = 'dbe-preview-rename__save';
+            save.textContent = dbeT('previewRenameSave', 'Save name');
+            actions.appendChild(cancel);
+            actions.appendChild(save);
+            form.appendChild(actions);
+            dlg.appendChild(form);
+
+            function restoreFocus() {
+                dbeRestorePreviewContextTarget(focusState);
+            }
+            function showError(message) {
+                error.textContent = message;
+                input.setAttribute('aria-invalid', 'true');
+                input.focus();
+            }
+
+            input.addEventListener('input', function () {
+                error.textContent = '';
+                input.removeAttribute('aria-invalid');
+            });
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var next = (input.value || '').trim();
+                if (!next) {
+                    showError(dbeT('previewRenameEmpty', 'Enter a Navigator name.'));
+                    return;
+                }
+                if (next.length > 120) {
+                    showError(dbeT('previewRenameTooLong', 'Use 120 characters or fewer.'));
+                    return;
+                }
+                if (next === oldLabel) {
+                    dlg.close();
+                    return;
+                }
+                restoreFocusOnClose = false;
+                dlg.close();
+                commitRename(id, next);
+                waitFor(function () {
+                    var current = (modules() || {})[id];
+                    return current && current.label === next ? true : null;
+                }, function (renamed) {
+                    restoreFocus();
+                    dbeCanvasStatus(renamed
+                        ? dbeFmt(dbeT('previewRenameSuccess', 'Renamed element to %s'), next)
+                        : dbeT('previewRenameFailed', 'Could not rename the preview element'));
+                }, 20, DBE_COMMANDS_OWNER);
+            });
+            dlg.addEventListener('keydown', function (e) {
+                e.stopPropagation();
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    dlg.close();
+                }
+            });
+            ['pointerdown', 'mousedown', 'click'].forEach(function (type) {
+                dlg.addEventListener(type, function (e) { e.stopPropagation(); });
+            });
+            dlg.addEventListener('close', function () {
+                dlg.remove();
+                if (dbePreviewRenameDialog === dlg) { dbePreviewRenameDialog = null; }
+                if (restoreFocusOnClose) { restoreFocus(); }
+            });
+            document.body.appendChild(dlg);
+            dlg.showModal();
+            input.focus();
+            input.select();
+            return true;
+        }
+
         function dbePreviewContextCloseKeydown(e) {
             if (e.key !== 'Escape' || !dbePreviewContextState ||
                 !document.querySelector('dialog.uniBuilderContextMenu[open]')) { return; }
@@ -2834,7 +2989,17 @@
         }
 
         function dbePreviewContextMenuKeydown(e) {
+            if (e.key === 'F2' && on('preview_rename') && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+                if (dbeCanvasInteractive() || dbePreviewContextBlocked(e.target)) { return; }
+                var renameTarget = dbePreviewContextTarget(e.target) || dbePreviewActiveTarget(e.currentTarget);
+                if (!renameTarget) { return; }
+                e.preventDefault();
+                e.stopPropagation();
+                dbeOpenPreviewRename(renameTarget.id, renameTarget.element);
+                return;
+            }
             if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) { return; }
+            if (!on('preview_context_menu')) { return; }
             if (dbeCanvasInteractive() || dbePreviewContextBlocked(e.target)) { return; }
             var doc = e.currentTarget;
             var target = dbePreviewContextTarget(e.target) || dbePreviewActiveTarget(doc);
@@ -3017,6 +3182,8 @@
             if (on('preview_context_menu')) {
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-pointer', 'pointerdown', dbePreviewContextPointerDown, true);
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-menu', 'contextmenu', dbePreviewContextMenu, true);
+            }
+            if (on('preview_context_menu') || on('preview_rename')) {
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, doc, 'preview-context-menu-key', 'keydown', dbePreviewContextMenuKeydown, true);
             }
         }
@@ -3944,7 +4111,7 @@
             dbeObserveCommands();
             if (on('command_palette')) { ensurePaletteButton(); }
             if (on('save_split_button')) { ensureSaveMenuButton(); }
-            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected') || on('preview_context_menu')) {
+            if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected') || on('preview_context_menu') || on('preview_rename')) {
                 ensureKeyboardIframeBridge();
             }
             if (on('context_menu')) { decorateClassChips(); }
@@ -3971,6 +4138,10 @@
             dbeReleaseCommandFrameDocuments(null);
             dbeDiscardPreviewContext(false);
             dbeClearPreviewFocusState();
+            if (dbePreviewRenameDialog) {
+                dbePreviewRenameDialog.remove();
+                dbePreviewRenameDialog = null;
+            }
             if (raBox) { raHide(); }
             dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
             dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
@@ -4063,7 +4234,7 @@
             destroy: function () {
                 destroyCommands();
             }
-        }, NEED_CTX_MENU || on('footer_toolbar') || on('preview_context_menu') || on('context_menu') || on('navigator_paste') ||
+        }, NEED_CTX_MENU || on('footer_toolbar') || on('preview_context_menu') || on('preview_rename') || on('context_menu') || on('navigator_paste') ||
             on('shortcuts_overlay') || on('keyboard_shortcuts') || on('command_palette') ||
             on('navigator_keyboard') || on('reveal_selected') || on('save_split_button') ||
             NEED_NAV_BUTTONS || on('tree_search') || on('navigator_row_actions'));

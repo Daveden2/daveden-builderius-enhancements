@@ -389,6 +389,11 @@ assert.match(
     /function dbePreviewBuilderPoint\(frame, innerX, innerY\)[\s\S]+rect\.width \/ frame\.clientWidth[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight/,
     'Preview pointer coordinates must be translated and clamped in builder viewport space.'
 );
+assert.match(
+    commands,
+    /var previewRenamePath = !!previewHeading && on\('preview_rename'\)[\s\S]+dbeDiscardPreviewContext\(false\)[\s\S]+dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+commitRename\(id, next\)[\s\S]+current\.label === next/,
+    'Preview Rename must replace the Navigator-inline route, use the native rename channel, and verify the updated module label.'
+);
 const contextMenuFeature = features.slice(
     features.indexOf("'context_menu'          =>"),
     features.indexOf("'wrap_in'               =>")
@@ -400,12 +405,21 @@ assert.match(
 );
 const previewContextMenuFeature = features.slice(
     features.indexOf("'preview_context_menu'  =>"),
-    features.indexOf("'context_menu'          =>")
+    features.indexOf("'preview_rename'        =>")
 );
 assert.match(
     previewContextMenuFeature,
     /'experimental'\s*=> true/,
     'The 2.1 preview context menu must remain opt-in while its exploration gate is open.'
+);
+const previewRenameFeature = features.slice(
+    features.indexOf("'preview_rename'        =>"),
+    features.indexOf("'context_menu'          =>")
+);
+assert.match(
+    previewRenameFeature,
+    /'86-preview-rename\.css'[\s\S]+'experimental'\s*=> true/,
+    'The 2.1 preview rename dialog must ship its interface styles and remain opt-in.'
 );
 assert.match(
     coreRuntime,

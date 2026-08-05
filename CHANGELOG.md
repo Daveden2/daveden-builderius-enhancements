@@ -14,6 +14,11 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   the same labelled, keyboard-operable command menu used by the Navigator.
   Interaction mode and editable, form, Monaco and embedded content retain their
   native context menus; closing returns focus to the rendered target.
+* Added (experimental): **Rename from the preview**. Rename in the preview menu
+  and F2 on a canvas-focused element now open a compact Navigator-name dialog
+  without changing visible text or the HTML tag. Empty and overlong names stay
+  open with an accessible error; Save uses the existing Builderius rename
+  channel, while Cancel and Escape restore focus without changing the name.
 
 ## 2.0.1
 A fix for element names lost when editing a component as HTML.

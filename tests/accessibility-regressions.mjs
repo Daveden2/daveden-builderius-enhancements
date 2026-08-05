@@ -354,6 +354,16 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbePreviewContextMenuKeydown\(e\)[\s\S]+e\.key === 'F2'[\s\S]+on\('preview_rename'\)[\s\S]+dbePreviewContextBlocked\(e\.target\)[\s\S]+dbeOpenPreviewRename\(renameTarget\.id, renameTarget\.element\)/,
+    'Preview F2 rename must ignore editing controls and use the rendered target.'
+);
+assert.match(
+    commands,
+    /function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+aria-labelledby[\s\S]+form\.noValidate = true[\s\S]+previewRenameLabel[\s\S]+function restoreFocus\(\)[\s\S]+dbeRestorePreviewContextTarget\(focusState\)[\s\S]+aria-invalid[\s\S]+next\.length > 120[\s\S]+dlg\.addEventListener\('keydown'[\s\S]+e\.key === 'Escape'/,
+    'Preview rename must clearly name its field, validate input, support Escape and restore canvas focus.'
+);
+assert.match(
+    commands,
     /function dbePreviewContextBlocked\(target\)[\s\S]+input, textarea, select[\s\S]+contenteditable[\s\S]+function dbePreviewContextPointerDown\(e\)[\s\S]+dbeCanvasInteractive\(\)[\s\S]+function dbePreviewContextMenu\(e\)/,
     'Preview menus must preserve editable and interaction-mode context menus.'
 );
