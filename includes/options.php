@@ -101,18 +101,22 @@ function dbe_enabled( $id ) {
  * Whether a feature's builder output may be emitted to the CURRENT user.
  *
  * Extends dbe_enabled() with an optional per-feature capability gate: a
- * feature that declares a `cap` in the registry is emitted only to users who
- * hold that capability, so its CSS and JS never reach a user who lacks it —
- * even with the toggle on and Builderius Pro active. This is a builder-output
- * gate only: the settings page still shows the toggle (an administrator, who
- * holds every capability, configures it for everyone).
+ * feature that declares a `cap` in the registry is reported to the builder
+ * runtime only for users who hold that capability, even with the toggle on and
+ * Builderius Pro active. Shared JavaScript chunks can still be delivered for
+ * other features, so the runtime takes an immutable snapshot of these flags at
+ * boot. This is a DBE builder-output gate only: the settings page still shows
+ * the toggle (an administrator, who holds every capability, configures it for
+ * everyone).
  *
  * The HTML converter features (Edit as HTML, Import HTML, Change tag) declare
  * `unfiltered_html`. They turn pasted or typed markup into stored elements
  * that Builderius renders raw — the same trust boundary WordPress's
  * `unfiltered_html` capability governs. On single site that is administrators
  * and editors; on multisite, only super admins (unless a site grants it), so
- * a lower-privileged builder user cannot plant markup that runs for visitors.
+ * a lower-privileged builder user cannot use these DBE tools to plant markup
+ * that runs for visitors. Builderius itself separately authorises all builder
+ * writes with its `builderius-development` capability.
  *
  * @param string $id Feature id from dbe_features().
  * @return bool
