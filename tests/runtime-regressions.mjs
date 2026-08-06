@@ -28,6 +28,31 @@ const updateInfoFallback = read('includes/update-info-fallback.php');
 const settingsPage = read('includes/settings-page.php');
 const readme = read('readme.txt');
 
+const capabilityWindow = {};
+const capabilityContext = {
+    window: capabilityWindow,
+    document: { documentElement: { dataset: {} } },
+    console
+};
+runInNewContext(coreRuntime, capabilityContext);
+const serverConfig = {
+    features: { import_html: false, edit_as_html: true },
+    builderius: { version: '' }
+};
+const hardenedRuntime = capabilityWindow.dbeBuilderRuntime.create(serverConfig);
+serverConfig.features.import_html = true;
+serverConfig.features.edit_as_html = false;
+assert.equal(
+    hardenedRuntime.on('import_html'),
+    false,
+    'A disabled server-authored feature must not be enabled by mutating the public config after boot.'
+);
+assert.equal(
+    hardenedRuntime.on('edit_as_html'),
+    true,
+    'An enabled server-authored feature must retain its boot-time value after public config mutation.'
+);
+
 assert.match(
     outputBuilder,
     /require_once DBE_DIR \. 'includes\/builder-css-cache\.php'[\s\S]+dbe_builder_css_bundle\(\)[\s\S]+data-dbe-css-delivery="external"[\s\S]+data-dbe-css-delivery="inline"/,

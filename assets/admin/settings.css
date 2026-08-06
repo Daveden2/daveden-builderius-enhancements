@@ -608,6 +608,37 @@ input[type="checkbox"].dbe-switch--bulk:indeterminate::before {
   color: #50575e;
 }
 
+.dbe-support {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-block-start: 24px;
+  padding-block-start: 20px;
+  border-block-start: 1px solid #c3c4c7;
+}
+
+.dbe-support__copy {
+  min-inline-size: 0;
+}
+
+.dbe-dashboard .dbe-support h3 {
+  margin-block: 0 6px;
+  font-size: 1rem;
+}
+
+.dbe-support p {
+  margin: 0;
+  color: #50575e;
+}
+
+.dbe-support__links {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* --- Toggle rows ---
    No card: a hairline between rows carries the separation that 58 bordered
    boxes were carrying before. */
@@ -919,6 +950,11 @@ input[type="checkbox"].dbe-switch:focus-visible {
 
   .dbe-presets__grid {
     grid-template-columns: 1fr;
+  }
+
+  .dbe-support {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .dbe-settings {

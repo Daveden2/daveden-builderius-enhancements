@@ -299,7 +299,15 @@
     window.dbeBuilderRuntime = Object.freeze({
         create: function (config) {
             var safeConfig = config || {};
-            var features = safeConfig.features || {};
+            var featureInput = safeConfig.features || {};
+            var features = Object.create(null);
+            Object.keys(featureInput).forEach(function (id) {
+                features[id] = !!featureInput[id];
+            });
+            // Capability-gated flags come from the server. Snapshot and freeze
+            // them so changing the public config object after boot cannot turn
+            // a restricted feature back on through the shared `on()` closure.
+            features = Object.freeze(features);
             var translations = createTranslations(safeConfig);
 
             return Object.freeze({
