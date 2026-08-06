@@ -41,6 +41,41 @@ const autoCloseTag = context.result;
 
 const closeAtEnd = (value) => autoCloseTag(value, value.length, value.length);
 
+const decodeEntitiesSource = extractFunction(editing, 'dbeDecodeEntities');
+const dangerousUrlSource = extractFunction(editing, 'dbeDangerousUrl');
+const attrBlockedSource = extractFunction(editing, 'dbeAttrBlocked');
+const securityContext = {
+    DOMParser: class {
+        parseFromString(markup) {
+            const encoded = /data-dbe-value="([\s\S]*?)"/.exec(markup)?.[1] || '';
+            const value = encoded
+                .replace(/&quot;/g, '"')
+                .replace(/&gt;/g, '>')
+                .replace(/&lt;/g, '<')
+                .replace(/&#(?:x0*3a|0*58);/gi, ':')
+                .replace(/&#(?:x0*6a|0*106);/gi, 'j')
+                .replace(/&amp;/g, '&');
+            return { body: { firstElementChild: { getAttribute: () => value } } };
+        }
+    },
+    DBE_URL_ATTRS: { href: 1, src: 1, action: 1, formaction: 1, poster: 1, 'xlink:href': 1 }
+};
+runInNewContext(
+    `${decodeEntitiesSource}; ${dangerousUrlSource}; ${attrBlockedSource}; result = { dangerous: dbeDangerousUrl, blocked: dbeAttrBlocked };`,
+    securityContext
+);
+const { dangerous, blocked } = securityContext.result;
+
+assert.equal(dangerous('java\tscript:alert(1)'), true, 'Control characters must not disguise a JavaScript URL.');
+assert.equal(dangerous('&#x6a;avascript&#x3a;alert(1)'), true, 'Character references must not disguise a JavaScript URL.');
+assert.equal(dangerous('data:text/html,<script>alert(1)</script>'), true, 'Script-bearing data documents must be blocked.');
+assert.equal(dangerous('data:image/svg+xml,<svg onload=alert(1)>'), true, 'Active SVG data documents must be blocked.');
+assert.equal(dangerous('data:image/png;base64,iVBORw0KGgo='), false, 'Raster image data URLs must remain available.');
+assert.equal(blocked('onerror', 'alert(1)'), 'onerror', 'Event-handler attributes must be rejected.');
+assert.match(blocked('href', 'javascript:alert(1)'), /^href=/, 'Dangerous navigable attributes must be rejected.');
+assert.equal(blocked('data-dbe-id', 'forged'), 'data-dbe-id', 'Internal identity markers must not become stored attributes.');
+assert.equal(blocked('aria-label', 'Safe label'), null, 'Ordinary safe attributes must remain available.');
+
 assert.equal(closeAtEnd('<section'), 'section', 'A normal opening tag must auto-close.');
 assert.equal(closeAtEnd('<section class="hero"'), 'section', 'A tag with attributes must auto-close.');
 assert.equal(closeAtEnd('<dbe-card'), 'dbe-card', 'A custom element must auto-close.');

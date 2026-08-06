@@ -613,8 +613,8 @@ function dbe_render_abilities_panel() {
 }
 
 /**
- * The Dashboard panel: what the plugin is, version, repository link and a
- * per-tab summary of enabled features. No form fields.
+ * The Dashboard panel: what the plugin is, version, repository and support
+ * links, and a per-tab summary of enabled features. No form fields.
  */
 function dbe_render_dashboard_panel() {
 	$features = dbe_available_features();
@@ -762,6 +762,24 @@ function dbe_render_dashboard_panel() {
 				</li>
 			<?php endforeach; ?>
 		</ul>
+		<section class="dbe-support" aria-labelledby="dbe-support-title">
+			<div class="dbe-support__copy">
+				<h3 id="dbe-support-title"><?php esc_html_e( 'Support development', 'daveden-builderius-enhancements' ); ?></h3>
+				<p><?php esc_html_e( 'Daveden Builder Enhancements is free and open source. If it saves you time, you can help fund its continued development. Every feature remains available either way.', 'daveden-builderius-enhancements' ); ?></p>
+			</div>
+			<div class="dbe-support__links" aria-label="<?php esc_attr_e( 'Support options', 'daveden-builderius-enhancements' ); ?>">
+				<span class="screen-reader-text" id="dbe-support-new-tab"><?php esc_html_e( 'Opens in a new tab.', 'daveden-builderius-enhancements' ); ?></span>
+				<a class="button" href="https://github.com/sponsors/Daveden2" target="_blank" rel="noopener" aria-describedby="dbe-support-new-tab">
+					<?php esc_html_e( 'Sponsor on GitHub', 'daveden-builderius-enhancements' ); ?>
+				</a>
+				<a class="button" href="https://ko-fi.com/Daveden2" target="_blank" rel="noopener" aria-describedby="dbe-support-new-tab">
+					<?php esc_html_e( 'Support on Ko-fi', 'daveden-builderius-enhancements' ); ?>
+				</a>
+				<a class="button" href="https://paypal.me/daveden2" target="_blank" rel="noopener" aria-describedby="dbe-support-new-tab">
+					<?php esc_html_e( 'Donate with PayPal', 'daveden-builderius-enhancements' ); ?>
+				</a>
+			</div>
+		</section>
 	</div>
 	<?php
 }

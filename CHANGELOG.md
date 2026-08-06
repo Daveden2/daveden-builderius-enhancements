@@ -3,6 +3,18 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.0.2
+Minor security fixes and new ways to support the project.
+
+* Security: tightened the handling of capability-gated builder feature
+  configuration.
+* Security: refreshed development-only dependencies used by the plugin's
+  linting and validation checks. These packages are not bundled into the
+  distributed plugin.
+* Improved: added optional project-support links to the settings dashboard,
+  repository documentation and GitHub funding metadata, covering GitHub
+  Sponsors, Ko-fi and PayPal without restricting any plugin feature.
+
 ## 2.0.1
 A fix for element names lost when editing a component as HTML.
 
