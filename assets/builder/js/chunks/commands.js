@@ -733,13 +733,6 @@
             }, dbeNormaliseNativeAutoBemLabels, 40, DBE_COMMANDS_OWNER);
         }
 
-        function dbeEnhanceNativeAutoBemItem(item) {
-            if (!item || item.getAttribute('data-dbe-auto-bem-dialog') === '1') { return; }
-            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, item, ['data-dbe-auto-bem-dialog']);
-            item.setAttribute('data-dbe-auto-bem-dialog', '1');
-            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, item, 'auto-bem-dialog-open', 'mousedown', dbeWatchNativeAutoBemDialog);
-        }
-
         /* Expand the right-clicked row's whole subtree. Same chevron click channel
            as expandAll, scoped to the row's li; runs in short passes because deep
            rows that were never expanded may only mount after their parent opens. */
@@ -1308,7 +1301,6 @@
                 var natClip = collectNativeItems(container, /^(Copy|Paste|Cut)$/);
                 var natName = collectNativeItems(container, /^Rename$/);
                 var natBem = collectNativeItems(container, /^Auto-BEM$/);
-                natBem.forEach(dbeEnhanceNativeAutoBemItem);
                 var natWrap = collectNativeItems(container, /^Wrap in$/);
                 var natExpand = collectNativeItems(container, /^Expand children$/);
                 var natCreate = collectNativeItems(container, /^Create Component$/);
@@ -4277,6 +4269,12 @@
                             }, 200);
                         }
                     });
+                    dbeBindOwnedHook(
+                        DBE_COMMANDS_OWNER,
+                        'builderius.miniModal.openAutoBem',
+                        'dbeNativeAutoBemLabels',
+                        dbeWatchNativeAutoBemDialog
+                    );
                 }
                 if (NEED_CTX_MENU || on('navigator_paste') || on('navigator_keyboard')) {
                     dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key', 'keydown', dbeNavigatorContextMenuKeydown, true);
