@@ -50,8 +50,13 @@ assert.equal(
 );
 assert.match(
     coreRuntime,
-    /var storeReference = window\[definition\.storeGlobal\][\s\S]+function store\(\) \{[\s\S]+return storeReference;/,
-    'The private store must be captured through the selected adapter before Builderius removes its globals.'
+    /function captureStore\(reference\)[\s\S]+typeof reference\.storeGet !== 'function'[\s\S]+typeof reference\.storeSet !== 'function'[\s\S]+function store\(\) \{[\s\S]+captureStore\(window\[definition\.storeGlobal\]\)[\s\S]+return storeReference;/,
+    'The private store must be validated and captured through the selected adapter.'
+);
+assert.match(
+    coreRuntime,
+    /builderius\.api\.started[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+captureStore\(props && props\.storeFns\)[\s\S]+return null;/,
+    'Builderius Free must capture storeFns through the unused footer extension point without replacing another extension.'
 );
 
 [

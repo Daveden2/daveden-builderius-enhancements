@@ -60,8 +60,39 @@
         var key = compatible ? family : '1.3';
         var definition = DBE_BUILDERIUS_ADAPTERS[key];
         var tested = version === definition.testedVersion;
-        var storeReference = window[definition.storeGlobal];
+        var storeReference = null;
         var root = document.documentElement;
+
+        function captureStore(reference) {
+            if (!reference || typeof reference.storeGet !== 'function' || typeof reference.storeSet !== 'function') {
+                return false;
+            }
+            storeReference = reference;
+            root.dataset.dbeBuilderiusStore = 'captured';
+            return true;
+        }
+        function bridgeFreeStore() {
+            if (!document.addEventListener || storeReference) { return; }
+            document.addEventListener('builderius.api.started', function () {
+                try {
+                    var hooks = window.Builderius && window.Builderius.API && window.Builderius.API.hooks;
+                    if (!hooks || typeof hooks.addFilter !== 'function') { return; }
+                    hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
+                        /* Pro and other extensions own their footer component.
+                           Free supplies no component, so use that empty slot to
+                           receive the same storeFns prop without adding UI. */
+                        if (component) { return component; }
+                        return function DbeStoreBridge(props) {
+                            captureStore(props && props.storeFns);
+                            return null;
+                        };
+                    });
+                } catch (error) {}
+            }, { once: true });
+        }
+
+        captureStore(window[definition.storeGlobal]);
+        bridgeFreeStore();
 
         function selector(name) { return definition.selectors[name] || ''; }
         function query(name, queryRoot) {
@@ -77,8 +108,7 @@
         }
         function store() {
             if (!storeReference) {
-                storeReference = window[definition.storeGlobal];
-                if (storeReference) { root.dataset.dbeBuilderiusStore = 'captured'; }
+                captureStore(window[definition.storeGlobal]);
             }
             return storeReference;
         }

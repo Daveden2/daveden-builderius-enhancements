@@ -101,11 +101,15 @@ above the bar.
 
 ## Module store
 
-Current module state is read from `window.__builderiusStoreFns`:
-`storeGet('modules')` (map of `id → module`) and `storeGet('activeModule')`
-(selected id). A module's `name` is its type — `HtmlElement`, `Collection`,
-`SubCollection`, `Template`, `Component`, `RecursiveTemplate`, or a `*Composite`;
-its `settings` array holds `tag`, `tagClass` (applied classes), etc.
+Current module state uses the `storeFns` object passed to the
+`builderius.FooterPanelExtraButtons` extension point. Builderius Pro also
+publishes that object as `window.__builderiusStoreFns`; Builderius Free does
+not, so DBE installs a non-rendering footer component only when the extension
+point is otherwise empty. The relevant calls are `storeGet('modules')` (map of
+`id → module`) and `storeGet('activeModule')` (selected id). A module's `name`
+is its type — `HtmlElement`, `Collection`, `SubCollection`, `Template`,
+`Component`, `RecursiveTemplate`, or a `*Composite`; its `settings` array holds
+`tag`, `tagClass` (applied classes), etc.
 
 > Elements inside a Collection's `Template` are defined **once** in the tree but
 > rendered **N times** on the canvas (one `.uni-node-<id>` per collection item).

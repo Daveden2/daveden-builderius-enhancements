@@ -11,6 +11,11 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
 * Compatibility: audited the Builderius runtime adapter against Builderius and
   Builderius Pro 1.3.6-beta.
+* Fixed: Builderius Free now exposes its builder store to DBE through the
+  existing footer-extension hook. DBE previously relied on a private store
+  global published only by Builderius Pro, which left store-backed features
+  inactive when Free ran on its own; the bridge adds no visible footer control
+  and leaves Pro or another extension's component untouched.
 * Changed: Builderius 1.3.6-beta now supplies change history with undo/redo,
   inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
   loading its older copies on 1.3.6-beta and later, hides those settings, and
