@@ -581,8 +581,10 @@
             var centreY = rowIsVisible ? rowRect.top + rowRect.height / 2 : viewportHeight / 2;
             var top = centreY - dialogRect.height / 2;
             top = Math.max(margin, Math.min(top, viewportHeight - dialogRect.height - margin));
-            dialog.style.left = Math.round(left) + 'px';
-            dialog.style.top = Math.round(top) + 'px';
+            dialog.style.setProperty('left', Math.round(left) + 'px', 'important');
+            dialog.style.setProperty('top', Math.round(top) + 'px', 'important');
+            dialog.style.setProperty('right', 'auto', 'important');
+            dialog.style.setProperty('bottom', 'auto', 'important');
         }
 
         /* Builderius 1.3.6 owns Div, Template and Collection wrapping through a

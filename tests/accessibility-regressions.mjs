@@ -414,7 +414,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+uniRightPanel[\s\S]+panel\.getBoundingClientRect\(\)[\s\S]+row\.getBoundingClientRect\(\)[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight[\s\S]+anchorLeft - dialogRect\.width - gap[\s\S]+anchorRight \+ gap[\s\S]+function scheduleWrapDialogPosition\(\)[\s\S]+wrap-dialog-resize[\s\S]+wrap-dialog-visual-resize/,
+    /function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+uniRightPanel[\s\S]+panel\.getBoundingClientRect\(\)[\s\S]+row\.getBoundingClientRect\(\)[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight[\s\S]+anchorLeft - dialogRect\.width - gap[\s\S]+anchorRight \+ gap[\s\S]+style\.setProperty\('left',[\s\S]+'important'\)[\s\S]+style\.setProperty\('top',[\s\S]+'important'\)[\s\S]+function scheduleWrapDialogPosition\(\)[\s\S]+wrap-dialog-resize[\s\S]+wrap-dialog-visual-resize/,
     'Wrap in must recalculate from live Navigator geometry and clamp both axes whenever browser or visual viewport zoom changes.'
 );
 assert.match(
