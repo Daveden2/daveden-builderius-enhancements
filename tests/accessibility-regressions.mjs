@@ -703,8 +703,13 @@ assert.match(
 );
 assert.match(
     adminBar,
-    /function setMenuOpen\(open\)[\s\S]+classList\.toggle\('hover', open\)[\s\S]+aria-expanded[\s\S]+trigger\.addEventListener\('focus'[\s\S]+setMenuOpen\(true\)/,
+    /function enhanceBuilderiusMenu\(\)[\s\S]+function setMenuOpen\(open\)[\s\S]+classList\.toggle\('hover', open\)[\s\S]+aria-expanded[\s\S]+trigger\.addEventListener\('focus'[\s\S]+setMenuOpen\(true\)/,
     'Focusing the native Builderius trigger must expose its submenu and expanded state.'
+);
+assert.match(
+    adminBar,
+    /document\.readyState === 'loading'[\s\S]+DOMContentLoaded[\s\S]+enhanceBuilderiusMenu\(\)/,
+    'Admin-bar keyboard wiring must wait until WordPress has rendered the toolbar after DBE’s footer hook.'
 );
 assert.match(
     adminBar,

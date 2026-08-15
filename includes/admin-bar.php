@@ -202,15 +202,15 @@ function dbe_adminbar_second_tab_warning() {
 	);
 	?>
 	;
-	var menu = document.getElementById('wp-admin-bar-builderius');
-	var trigger = menu && menu.querySelector(':scope > .ab-item');
-	var submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
-	function setMenuOpen(open) {
-		if (!menu || !trigger) { return; }
-		menu.classList.toggle('hover', open);
-		trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-	}
-	if (trigger && submenu) {
+	function enhanceBuilderiusMenu() {
+		var menu = document.getElementById('wp-admin-bar-builderius');
+		var trigger = menu && menu.querySelector(':scope > .ab-item');
+		var submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
+		if (!trigger || !submenu) { return; }
+		function setMenuOpen(open) {
+			menu.classList.toggle('hover', open);
+			trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+		}
 		trigger.setAttribute('aria-haspopup', 'true');
 		var submenuList = submenu.querySelector(':scope > ul[id]');
 		if (submenuList) { trigger.setAttribute('aria-controls', submenuList.id); }
@@ -236,6 +236,11 @@ function dbe_adminbar_second_tab_warning() {
 		menu.addEventListener('mouseleave', function () {
 			if (!menu.contains(document.activeElement)) { setMenuOpen(false); }
 		});
+	}
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', enhanceBuilderiusMenu, { once: true });
+	} else {
+		enhanceBuilderiusMenu();
 	}
 	// The builder page heartbeats into localStorage (builder.js); a beat
 	// fresher than HB.staleAfter means a builder tab is (very likely) open.
