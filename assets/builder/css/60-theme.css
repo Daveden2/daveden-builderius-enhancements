@@ -957,7 +957,7 @@ html[data-dbe-theme="light"] .uniFormField__settingLabelInline.nonEmptyValue {
    base rule's
    !important also pins the native :focus-within/:active recolours to the
    same white-on-accent pair, so every state stays AA; the focus CUE is the
-   2px --dbe-focus ring from 13-focus.css, offset over the panel surface
+   2px --dbe-focus inset ring from 13-focus.css
    (≥3:1 against it in both themes). The icon takes currentColor so it
    tracks the label in every state. */
 html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary,

@@ -164,5 +164,5 @@ input.uniPanelField__switch[type="checkbox"]:checked::before {
 }
 input.uniPanelField__switch[type="checkbox"]:focus-visible {
     outline: 2px solid var(--dbe-focus) !important;
-    outline-offset: 2px !important;
+    outline-offset: -2px !important;
 }

@@ -391,8 +391,19 @@ assert.match(
 );
 assert.match(
     contextMenu,
-    /uniWrapInModal__option:hover[\s\S]+dbe-hover-wash[\s\S]+uniWrapInModal__option:focus-visible[\s\S]+color-mix\(in srgb, var\(--dbe-focus\) 10%, transparent\)[\s\S]+outline:\s*2px solid var\(--dbe-focus\)/,
-    'Wrap in choices must have subtle hover and focus colours plus a visible focus ring.'
+    /uniWrapInModal__option:hover[\s\S]+dbe-hover-wash[\s\S]+uniWrapInModal__option:focus-visible[\s\S]+color-mix\(in srgb, var\(--dbe-focus\) 10%, transparent\)[\s\S]+outline:\s*2px solid var\(--dbe-focus\)[\s\S]+outline-offset:\s*-2px/,
+    'Wrap in choices must have subtle hover and focus colours plus one inset focus ring.'
+);
+const wrapChoiceFocus = contextMenu.match(/\.uniMiniModal--wrapIn \.uniWrapInModal__option:focus-visible\s*\{([^}]*)\}/)?.[1] || '';
+assert.doesNotMatch(
+    wrapChoiceFocus,
+    /border-color/,
+    'Wrap in choices must not add a second focus-coloured border around the inset ring.'
+);
+assert.match(
+    focus,
+    /outline:\s*2px solid var\(--dbe-focus\) !important;[\s\S]+outline-offset:\s*-2px !important;/,
+    'The shared builder focus treatment must use one inset ring instead of a separated outer outline.'
 );
 assert.match(
     commands,

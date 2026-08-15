@@ -78,7 +78,7 @@ dialog.dbe-el-picker::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-el-picker__filter:focus-visible {
 	outline: 2px solid var(--dbe-focus);
-	outline-offset: 1px;
+	outline-offset: -2px;
 }
 
 .dbe-el-picker__list {

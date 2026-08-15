@@ -45,19 +45,19 @@ dialog.uniMiniModal.uniMiniModal--wrapIn {
 .uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton:focus-visible {
 	background: color-mix(in srgb, var(--dbe-focus) 10%, transparent) !important;
 	outline: 2px solid var(--dbe-focus) !important;
-	outline-offset: 2px !important;
+	outline-offset: -2px !important;
 }
 
 /* Native and injected wrapping choices share one restrained interaction model:
-   a neutral hover wash, then a low-key accent wash plus a clear focus ring. */
+   a neutral hover wash, then a low-key accent wash plus one inset focus ring.
+   Keeping the ring inside avoids doubling the native option border. */
 .uniMiniModal--wrapIn .uniWrapInModal__option:hover {
 	background: var(--dbe-hover-wash) !important;
 }
 .uniMiniModal--wrapIn .uniWrapInModal__option:focus-visible {
 	background: color-mix(in srgb, var(--dbe-focus) 10%, transparent) !important;
-	border-color: var(--dbe-focus) !important;
 	outline: 2px solid var(--dbe-focus) !important;
-	outline-offset: 2px !important;
+	outline-offset: -2px !important;
 }
 
 /* Cluster separator: a hairline plus a small gap, not a chunky pad. The row's

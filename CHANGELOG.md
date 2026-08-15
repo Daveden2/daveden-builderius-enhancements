@@ -43,7 +43,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
 * Accessibility: the **Wrap in** modal now has an accessible name, starts focus
   on Div, contains Tab and Shift+Tab within its choices and Close control, and
   returns focus to the originating Navigator row when dismissed. Choices and
-  Close use subtle hover/focus colour washes with a clear focus outline.
+  Close use subtle hover/focus colour washes with one clear inset focus ring.
+* Improved: keyboard focus indicators now sit inside bordered builder controls
+  instead of adding a second outer ring. The same 2px high-contrast cue remains
+  visible without overwhelming the surrounding interface.
 * Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or

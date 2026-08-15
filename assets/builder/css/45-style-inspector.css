@@ -94,7 +94,7 @@
 
 .dbe-style-inspector :is(button, input):focus-visible {
 	outline: 2px solid var(--dbe-focus);
-	outline-offset: 1px;
+	outline-offset: -2px;
 }
 
 .dbe-style-inspector__tabs {

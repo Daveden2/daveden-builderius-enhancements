@@ -1,4 +1,6 @@
-/* Visible focus indicator on every interactive control (WCAG 2.4.7/2.4.13).
+/* Visible, inset focus indicator on every interactive control (WCAG
+   2.4.7/2.4.13). Drawing it inside avoids a second ring around Builderius's
+   bordered controls while keeping the full 2px keyboard cue.
    .uniAdvancedDialogMenu is the floating dynamic-data / CSS-vars /
    transformation picker — a position:fixed overlay mounted at body level,
    OUTSIDE the five chrome panels, so it needs listing explicitly. */
@@ -7,7 +9,7 @@
 .uniFooterPanelBar :focus-visible,
 .uniAdvancedDialogMenu :focus-visible {
     outline: 2px solid var(--dbe-focus) !important;
-    outline-offset: 1px !important;
+    outline-offset: -2px !important;
 }
 .monaco-editor :focus-visible { outline: revert !important; }
 

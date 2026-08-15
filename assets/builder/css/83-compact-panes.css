@@ -33,7 +33,7 @@
 
     html.dbe-compact-panes .dbe-compact-pane-switcher select:focus-visible {
         outline: 2px solid var(--dbe-focus);
-        outline-offset: 1px;
+        outline-offset: -2px;
     }
 
     /* Keep the four essential top-bar controls visible: Builderius menu,
