@@ -37,6 +37,7 @@ const compactPanes = read('assets/builder/css/83-compact-panes.css');
 const saveMenu = read('assets/builder/css/35-save-menu.css');
 const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const navigatorKeyboard = read('assets/builder/css/79-navigator-keyboard.css');
+const contextMenu = read('assets/builder/css/30-context-menu.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
@@ -351,6 +352,11 @@ assert.match(
     commands,
     /nativeContextItem\(container, \/\^Cut\$\/\)[\s\S]+collectNativeItems\(container, \/\^\(Copy\|Paste\|Cut\)\$\/\)[\s\S]+collectNativeItems\(container, \/\^Rename\$\/\)[\s\S]+collectNativeItems\(container, \/\^Auto-BEM\$\/\)[\s\S]+collectNativeItems\(container, \/\^Wrap in\$\/\)[\s\S]+collectNativeItems\(container, \/\^Expand children\$\/\)/,
     'The enhanced menu must adopt Builderius 1.3.6 actions instead of adding duplicate Cut, rename, wrapping or expansion commands.'
+);
+assert.match(
+    contextMenu,
+    /dialog\.uniMiniModal\.uniMiniModal--wrapIn\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;/,
+    'The native Wrap in modal must remain centred instead of inheriting pointer-anchored corner positioning.'
 );
 assert.match(
     commands,

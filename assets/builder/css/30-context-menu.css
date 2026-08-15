@@ -13,6 +13,17 @@
     padding-block: 8px !important;
 }
 
+/* Builderius 1.3.6 positions the native Wrap in mini-modal from the context
+   menu pointer coordinates. When the Navigator is docked on the right, the
+   420px dialog is clamped 20px from that viewport edge and appears pinned to
+   the corner. It is a modal choice surface rather than a flyout, so centre it
+   in the viewport while preserving Builderius's native width and contents. */
+dialog.uniMiniModal.uniMiniModal--wrapIn {
+	position: fixed !important;
+	inset: 0 !important;
+	margin: auto !important;
+}
+
 /* Cluster separator: a hairline plus a small gap, not a chunky pad. The row's
    own 8px top padding does the breathing; this only adds the rule + 4px. */
 .dbe-ctx-item--first { border-block-start: 1px solid var(--dbe-sep-line) !important; margin-block-start: 4px !important; padding-block-start: 8px !important; }
