@@ -1916,19 +1916,22 @@
             var t = e.target;
             if (t && t.closest && t.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
             var id = activeId();
-            // F2 — rename (no modifiers).
-            if (e.key === 'F2' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+            var nativeElementShortcuts = !!(((CFG.builderius || {}).native || {}).elementShortcuts);
+            // Builderius 1.3.6+ owns F2, Duplicate and Cut. Do not prevent the
+            // native event in this capture-phase handler; retain only DBE's
+            // unique region and add-before/after shortcuts on those versions.
+            if (!nativeElementShortcuts && e.key === 'F2' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                 if (!id) { return; }
                 e.preventDefault(); e.stopPropagation();
                 startRename(id);
                 return;
             }
             if (!mod) { return; }
-            if (code === 'KeyD' && e.shiftKey && !e.altKey) {                       // Duplicate
+            if (!nativeElementShortcuts && code === 'KeyD' && e.shiftKey && !e.altKey) { // Duplicate
                 if (!id) { return; }
                 e.preventDefault(); e.stopPropagation();
                 driveContextMenuItem(id, 'Duplicate', function (ok) { if (ok) { undoToast(dbeT('duplicated', 'Duplicated element'), 'undo'); } });
-            } else if (code === 'KeyX' && !e.shiftKey && !e.altKey) {               // Cut = Copy then Remove
+            } else if (!nativeElementShortcuts && code === 'KeyX' && !e.shiftKey && !e.altKey) { // Cut = Copy then Remove
                 if (!id) { return; }
                 e.preventDefault(); e.stopPropagation();
                 driveContextMenuItem(id, 'Copy', function (ok) {

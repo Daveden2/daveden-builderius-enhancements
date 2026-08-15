@@ -495,7 +495,7 @@ runInNewContext(coreRuntime, {
 });
 
 const liveRuntime = runtimeWindow.dbeBuilderRuntime.create({
-    builderius: { version: '1.3.5-beta' },
+    builderius: { version: '1.3.6-beta' },
     features: { chrome_landmarks: true }
 });
 let scheduledRefreshes = 0;

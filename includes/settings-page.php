@@ -794,12 +794,28 @@ function dbe_render_settings_page() {
 	}
 	$tabs     = dbe_tabs();
 	$features = dbe_available_features();
+	$replaced = dbe_builderius_replaced_features();
 	/* translators: %s: number of matching features. */
 	$result_many = __( '%s features shown', 'daveden-builderius-enhancements' );
 	?>
 	<div class="wrap dbe-settings">
 		<h1><?php esc_html_e( 'Daveden Builder Enhancements', 'daveden-builderius-enhancements' ); ?></h1>
 		<p class="dbe-intro"><?php esc_html_e( 'Choose which enhancements are available in Builderius. Interface settings apply the next time the builder loads; editing tools change saved content only when you use them.', 'daveden-builderius-enhancements' ); ?></p>
+
+		<?php if ( $replaced ) : ?>
+			<div class="notice notice-info inline">
+				<p>
+					<?php
+					printf(
+						/* translators: 1: Builderius version, 2: comma-separated feature titles. */
+						esc_html__( 'Builderius %1$s now provides: %2$s. DBE preserves your preferences for older Builderius versions but no longer loads its duplicate implementations.', 'daveden-builderius-enhancements' ),
+						esc_html( dbe_builderius_version() ),
+						esc_html( implode( ', ', wp_list_pluck( $replaced, 'title' ) ) )
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
 
 		<?php settings_errors(); ?>
 

@@ -86,6 +86,69 @@ function dbe_release_feature_available( $capability ) {
 }
 
 /**
+ * The active Builderius version, when the parent plugin is loaded.
+ *
+ * @return string
+ */
+function dbe_builderius_version() {
+	return function_exists( 'builderius_get_version' ) ? (string) builderius_get_version() : '';
+}
+
+/**
+ * Whether Builderius has replaced a DBE feature at an explicit parent version.
+ *
+ * Kept pure so the compatibility regression suite can exercise both sides of
+ * each version boundary without loading different parent-plugin versions.
+ * Unknown versions fail open: DBE keeps the enhancement available rather than
+ * silently withdrawing it when the parent version cannot be established.
+ *
+ * @param string $feature_id         Feature id from dbe_features().
+ * @param string $builderius_version Builderius version to test.
+ * @return bool
+ */
+function dbe_feature_replaced_by_builderius_for_version( $feature_id, $builderius_version ) {
+	$features = dbe_features();
+	if ( empty( $features[ $feature_id ]['builderius_native_since'] ) || '' === trim( (string) $builderius_version ) ) {
+		return false;
+	}
+
+	return version_compare( (string) $builderius_version, $features[ $feature_id ]['builderius_native_since'], '>=' );
+}
+
+/**
+ * Whether the active Builderius version has replaced a DBE feature.
+ *
+ * The filter is a developer escape hatch for compatibility testing. Public
+ * behaviour follows the version boundary declared in the feature registry.
+ *
+ * @param string $feature_id Feature id from dbe_features().
+ * @return bool
+ */
+function dbe_feature_replaced_by_builderius( $feature_id ) {
+	$version  = dbe_builderius_version();
+	$replaced = dbe_feature_replaced_by_builderius_for_version( $feature_id, $version );
+
+	/**
+	 * Filter whether Builderius has replaced a DBE feature.
+	 *
+	 * @param bool   $replaced  Version-derived replacement state.
+	 * @param string $feature_id Feature id.
+	 * @param string $version    Active Builderius version.
+	 */
+	return (bool) apply_filters( 'dbe_feature_replaced_by_builderius', $replaced, $feature_id, $version );
+}
+
+/**
+ * Whether a feature belongs to this DBE release and is still needed.
+ *
+ * @param string $feature_id Feature id from dbe_features().
+ * @return bool
+ */
+function dbe_feature_available( $feature_id ) {
+	return dbe_release_feature_available( $feature_id ) && ! dbe_feature_replaced_by_builderius( $feature_id );
+}
+
+/**
  * Settings-page tabs, in display order.
  *
  * @return array<string,string> slug => label.
@@ -242,7 +305,7 @@ function dbe_feature_presets() {
 			array_filter(
 				$preset['features'],
 				function ( $feature_id ) {
-					return dbe_release_feature_available( $feature_id );
+					return dbe_feature_available( $feature_id );
 				}
 			)
 		);
@@ -269,6 +332,9 @@ function dbe_feature_presets() {
  *         The HTML converter features use `unfiltered_html`, since they turn
  *         pasted markup into elements Builderius renders raw. The settings
  *         page is unaffected — an administrator still configures the toggle.
+ * - builderius_native_since: optional parent version that replaces this
+ *         enhancement. DBE preserves the saved preference but hides and stops
+ *         emitting its implementation from that Builderius version onwards.
  *
  * @return array<string,array<string,mixed>>
  */
@@ -534,30 +600,33 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'inline_rename'         => array(
-			'title'       => __( 'Inline rename', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Rename an element directly on its Navigator row.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag).', 'daveden-builderius-enhancements' ),
-			'tab'         => 'editing',
-			'css'         => array( '32-rename.css' ),
-			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
-			'js'          => true,
+			'title'                   => __( 'Inline rename', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Rename an element directly on its Navigator row.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Lets you rename an element directly on its Navigator row from the right-click menu, or reset its label to the default (its HTML tag).', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'editing',
+			'css'                     => array( '32-rename.css' ),
+			'shared_css'              => array( '01-infra.css', '30-context-menu.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 		'dblclick_rename'       => array(
-			'title'       => __( 'Double-click to rename', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Double-click a row to rename it.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Double-click an element\'s Navigator row to rename it in place, without opening the right-click menu.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'editing',
-			'css'         => array( '32-rename.css' ),
-			'js'          => true,
+			'title'                   => __( 'Double-click to rename', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Double-click a row to rename it.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Double-click an element\'s Navigator row to rename it in place, without opening the right-click menu.', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'editing',
+			'css'                     => array( '32-rename.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 		'undo_delete'           => array(
-			'title'       => __( 'Undo / redo element changes', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Undo element structure and selected DBE property changes.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored to its previous sibling position, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'editing',
-			'css'         => array(),
-			'shared_css'  => array( '01-infra.css' ),
-			'js'          => true,
+			'title'                   => __( 'Undo / redo element changes', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Undo element structure and selected DBE property changes.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Undo adding, deleting or structurally moving an element, plus class, attribute and tag changes made through DBE, from the confirmation message or with Cmd/Ctrl+Z. A deleted element is restored to its previous sibling position, an added element is removed, and a reordered, indented or outdented element returns to its previous position. The message then offers Redo; Cmd/Ctrl+Shift+Z also redoes the change. Other settings changes are not covered.', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'editing',
+			'css'                     => array(),
+			'shared_css'              => array( '01-infra.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 
 		/*
@@ -705,13 +774,14 @@ function dbe_features() {
 			'experimental' => true,
 		),
 		'auto_bem'              => array(
-			'title'       => __( 'Auto-BEM', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Suggested BEM class names for an element and its children.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'styles',
-			'css'         => array( '33-auto-bem.css' ),
-			'shared_css'  => array( '01-infra.css', '30-context-menu.css' ),
-			'js'          => true,
+			'title'                   => __( 'Auto-BEM', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Suggested BEM class names for an element and its children.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Right-click an element and choose Auto-BEM to get suggested block and element class names (such as hero, hero__title and hero__image) for it and everything inside it. Edit any suggestion, then apply them all in one go.', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'styles',
+			'css'                     => array( '33-auto-bem.css' ),
+			'shared_css'              => array( '01-infra.css', '30-context-menu.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 
 		'hide_minimap'          => array(
@@ -792,12 +862,13 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'preview_resize'        => array(
-			'title'       => __( 'Preview resize handles', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Drag handles to resize the preview canvas.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself, which a Builderius update could affect.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'workflow',
-			'css'         => array( '74-preview-resize.css' ),
-			'js'          => true,
+			'title'                   => __( 'Preview resize handles', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Drag handles to resize the preview canvas.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Adds drag handles to both edges of the preview so you can resize it around the centre, which is handy for container-query work. The width readout updates as you drag and the matching breakpoint lights up as you cross it; past your widest breakpoint you can keep dragging to preview any width up to the full canvas. Above your widest breakpoint the builder has no canvas size of its own, so the handle sizes the canvas itself, which a Builderius update could affect.', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'workflow',
+			'css'                     => array( '74-preview-resize.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 		'compact_panes'         => array(
 			'title'       => __( 'Compact workspace views', 'daveden-builderius-enhancements' ),
@@ -838,10 +909,27 @@ function dbe_features() {
  */
 function dbe_available_features() {
 	$features = dbe_features();
-	if ( ! dbe_release_feature_available( 'style_inspector' ) ) {
-		unset( $features['style_inspector'] );
+	foreach ( array_keys( $features ) as $feature_id ) {
+		if ( ! dbe_feature_available( $feature_id ) ) {
+			unset( $features[ $feature_id ] );
+		}
 	}
 	return $features;
+}
+
+/**
+ * Features supplied natively by the active Builderius version.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function dbe_builderius_replaced_features() {
+	return array_filter(
+		dbe_features(),
+		function ( $feature_id ) {
+			return dbe_feature_replaced_by_builderius( $feature_id );
+		},
+		ARRAY_FILTER_USE_KEY
+	);
 }
 
 /**

@@ -7,7 +7,7 @@
 
     var DBE_BUILDERIUS_ADAPTERS = {
         '1.3': {
-            testedVersion: '1.3.5-beta',
+            testedVersion: '1.3.6-beta',
             storeGlobal: '__builderiusStoreFns',
             selectors: {
                 mainPanel: '.uniMainPanel',

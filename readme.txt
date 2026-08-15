@@ -16,7 +16,7 @@ Daveden Builder Enhancements refines the Builderius builder's own interface with
 
 Everything is configured under **Builderius → Builder Enhancements**, and every feature can be switched off without affecting the rest.
 
-The plugin targets Builderius 1.3.5-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
+The plugin targets Builderius 1.3.6-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
 
 = Credits =
 

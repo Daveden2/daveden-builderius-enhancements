@@ -1597,7 +1597,7 @@
            build drove a synthetic drag per follower and read Builderius's drop
            indicator to place it — but that indicator only ever resolves to
            DROP_INSIDE on a container row and DROP_AFTER on a leaf row (probed against
-           1.3.5-beta, 6 Jul 2026); DROP_BEFORE never appears, so "place before the
+           1.3.6-beta, 15 Aug 2026); DROP_BEFORE never appears, so "place before the
            next sibling" could not match and the follower silently stayed put — the
            "drag into another parent leaves the rest behind" bug. The move store
            action places by parent + index directly, with no drop-zone guessing, so

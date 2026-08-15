@@ -94,7 +94,7 @@ runInNewContext(sources.get('assets/builder/js/core-runtime.js'), {
 });
 
 const runtime = runtimeWindow.dbeBuilderRuntime.create({
-    builderius: { version: '1.3.5-beta' },
+    builderius: { version: '1.3.6-beta' },
     features: {}
 });
 let mountCalls = 0;

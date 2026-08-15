@@ -82,7 +82,7 @@
         var attachId = newId; // where the selected elements are moved into
 
         // Build the wrapper action-side. Settings mirror the native insert
-        // defaults (verified against 1.3.5-beta). A Collection only renders its
+        // defaults (verified against 1.3.6-beta). A Collection only renders its
         // children through a Template child (the native inserter always makes
         // the pair), so build Collection > Template and move the selection into
         // the Template.
@@ -3976,7 +3976,7 @@
             modules: rec.subtree,
             indexes: { root: [rec.id] },
             template: { settings: [], technology: 'html' },
-            version: { 'builderius': '1.3.5-beta', 'builderius-pro': '1.3.5-beta' },
+            version: { 'builderius': '1.3.6-beta', 'builderius-pro': '1.3.6-beta' },
             source: 'builderiusCopiedElements'
         });
         var paste = function (menuRowId) {

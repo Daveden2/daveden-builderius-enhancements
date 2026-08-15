@@ -9,6 +9,13 @@ Four candidates are being evaluated independently: a preview context menu,
 preview-based element rename, reliable Navigator multiselect/move, and a safe
 custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
+* Compatibility: audited the Builderius runtime adapter against Builderius and
+  Builderius Pro 1.3.6-beta.
+* Changed: Builderius 1.3.6-beta now supplies change history with undo/redo,
+  inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
+  loading its older copies on 1.3.6-beta and later, hides those settings, and
+  preserves their saved preferences so a parent-plugin downgrade remains safe.
+
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open
   the same labelled, keyboard-operable command menu used by the Navigator.
@@ -19,6 +26,18 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   without changing visible text or the HTML tag. Empty and overlong names stay
   open with an accessible error; Save uses the existing Builderius rename
   channel, while Cancel and Escape restore focus without changing the name.
+
+## 2.0.2
+Minor security fixes and new ways to support the project.
+
+* Security: tightened the handling of capability-gated builder feature
+  configuration.
+* Security: refreshed development-only dependencies used by the plugin's
+  linting and validation checks. These packages are not bundled into the
+  distributed plugin.
+* Improved: added optional project-support links to the settings dashboard,
+  repository documentation and GitHub funding metadata, covering GitHub
+  Sponsors, Ko-fi and PayPal without restricting any plugin feature.
 
 ## 2.0.1
 A fix for element names lost when editing a component as HTML.

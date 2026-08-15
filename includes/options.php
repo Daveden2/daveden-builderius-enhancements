@@ -83,7 +83,7 @@ function dbe_builderius_pro_active() {
  * @return bool
  */
 function dbe_enabled( $id ) {
-	if ( ! dbe_release_feature_available( $id ) ) {
+	if ( ! dbe_feature_available( $id ) ) {
 		return false;
 	}
 	$options = dbe_get_options();
@@ -225,9 +225,9 @@ function dbe_sanitise_options( $input ) {
 	$pro      = dbe_builderius_pro_active();
 
 	foreach ( $features as $id => $feature ) {
-		// A feature staged for a later release has no field in this release's
-		// settings form. Preserve its saved value across a temporary downgrade.
-		if ( ! dbe_release_feature_available( $id ) ) {
+		// A staged or parent-replaced feature has no field in this settings form.
+		// Preserve its preference across a DBE or Builderius downgrade.
+		if ( ! dbe_feature_available( $id ) ) {
 			$clean[ $id ] = ! empty( $saved[ $id ] );
 			continue;
 		}

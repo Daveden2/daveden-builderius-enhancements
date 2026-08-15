@@ -25,12 +25,17 @@ const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /'builderius'\s*=> array\([\s\S]{0,180}'version'\s*=> function_exists\( 'builderius_get_version' \) \? builderius_get_version\(\) : ''/,
+    /'builderius'\s*=> array\([\s\S]{0,180}'version'\s*=> \$builderius_version/,
     'Builder config must carry the authoritative parent-plugin version.'
 );
 assert.match(
+    outputBuilder,
+    /'native'\s*=> array\([\s\S]{0,180}'elementShortcuts'\s*=>[\s\S]{0,180}version_compare\( \$builderius_version, '1\.3\.6-beta', '>=' \)/,
+    'Builder config must expose the native 1.3.6 element-shortcut boundary.'
+);
+assert.match(
     coreRuntime,
-    /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.5-beta'/,
+    /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.6-beta'/,
     'The audited Builderius 1.3 family must have an explicit tested version.'
 );
 assert.equal(
@@ -95,6 +100,11 @@ assert.match(
     commands,
     /function dbeObserveCommands\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
     'Controller-owned command observer roots must resolve through the adapter host.'
+);
+assert.match(
+    commands,
+    /nativeElementShortcuts[\s\S]+!nativeElementShortcuts && e\.key === 'F2'[\s\S]+!nativeElementShortcuts && code === 'KeyD'[\s\S]+!nativeElementShortcuts && code === 'KeyX'/,
+    'DBE must leave native rename, duplicate and cut shortcuts to Builderius 1.3.6+.'
 );
 assert.match(
     coreRuntime,

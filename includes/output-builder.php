@@ -261,6 +261,7 @@ function dbe_print_builder_footer() {
 			$flags[ $id ] = dbe_feature_output_permitted( $id );
 		}
 	}
+	$builderius_version = dbe_builderius_version();
 
 	$config = array(
 		'features'   => $flags,
@@ -272,7 +273,10 @@ function dbe_print_builder_footer() {
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
 		'builderius' => array(
-			'version' => function_exists( 'builderius_get_version' ) ? builderius_get_version() : '',
+			'version' => $builderius_version,
+			'native'  => array(
+				'elementShortcuts' => '' !== $builderius_version && version_compare( $builderius_version, '1.3.6-beta', '>=' ),
+			),
 		),
 	);
 
