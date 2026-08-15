@@ -467,12 +467,13 @@ function dbe_features() {
 
 		/* ----------------------------------------------------------- Navigator */
 		'tag_badges'            => array(
-			'title'       => __( 'HTML tag badges', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Shows each element\'s HTML tag in the Navigator.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Shows each element\'s HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class.', 'daveden-builderius-enhancements' ),
-			'tab'         => 'navigator',
-			'css'         => array( '20-tag-badges.css' ),
-			'js'          => true,
+			'title'                   => __( 'HTML tag badges', 'daveden-builderius-enhancements' ),
+			'summary'                 => __( 'Shows each element\'s HTML tag in the Navigator.', 'daveden-builderius-enhancements' ),
+			'description'             => __( 'Shows each element\'s HTML tag (such as <section>) next to its label in the Navigator, in place of its first CSS class.', 'daveden-builderius-enhancements' ),
+			'tab'                     => 'navigator',
+			'css'                     => array( '20-tag-badges.css' ),
+			'js'                      => true,
+			'builderius_native_since' => '1.3.6-beta',
 		),
 		'icon_declutter'        => array(
 			'title'       => __( 'Tidier Navigator icons', 'daveden-builderius-enhancements' ),

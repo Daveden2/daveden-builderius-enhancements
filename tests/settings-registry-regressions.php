@@ -236,7 +236,7 @@ foreach ( dbe_feature_presets() as $preset_id => $preset ) {
 
 /* -------------------------- Builderius-native feature retirement */
 
-$native_feature_ids = array( 'auto_bem', 'css_code_default', 'dblclick_rename', 'inline_rename', 'preview_resize', 'save_state_cue', 'scope_bar', 'undo_delete' );
+$native_feature_ids = array( 'auto_bem', 'css_code_default', 'dblclick_rename', 'inline_rename', 'preview_resize', 'save_state_cue', 'scope_bar', 'tag_badges', 'undo_delete' );
 $replaced_ids       = array_keys( dbe_builderius_replaced_features() );
 sort( $replaced_ids );
 
