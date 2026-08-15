@@ -13,6 +13,7 @@
         var dbeQuery = host.query;
         var dbeNavigatorRow = host.builderius.navigatorRow;
         var activeId = host.builderius.activeId;
+        var store = host.builderius.store;
         var dbeBreakpoints = host.breakpoints;
         var schedule = host.schedule;
         var setTip = host.tooltip;
@@ -906,6 +907,15 @@
         function dbeSetPanelVisibility(side, hidden) {
             var state = dbePanelVisibility();
             state[side] = !!hidden;
+            if (!hidden && dbePanelsAreHidden()) {
+                var wrappers = dbePanelWrappers();
+                var nativeHidden = dbePanelCollapsed(wrappers.left)
+                    && (!wrappers.right || dbePanelCollapsed(wrappers.right));
+                if (!dbeSetNativeFullScreen(false) && nativeHidden) {
+                    var button = dbeSidePanelsButton();
+                    if (button) { button.click(); }
+                }
+            }
             return dbeSavePanelVisibility(state);
         }
 
@@ -939,6 +949,16 @@
             })[0] || null;
         }
 
+        function dbeSetNativeFullScreen(hidden) {
+            try {
+                var sf = store();
+                if (!sf || typeof sf.storeGet !== 'function' || typeof sf.storeSet !== 'function') { return false; }
+                hidden = !!hidden;
+                if (sf.storeGet('forceFullScreen') !== hidden) { sf.storeSet('forceFullScreen', hidden); }
+                return true;
+            } catch (e) { return false; }
+        }
+
         function dbeSyncPanelToggle(button, hidden) {
             if (!button) { return; }
             dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, button, ['aria-label', 'aria-pressed', 'data-dbe-tip']);
@@ -954,13 +974,16 @@
                         && (!wrappers.right || dbePanelCollapsed(wrappers.right));
                     var nextHidden = !dbePanelsAreHidden();
                     dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
-                    /* Builderius 1.3.6 changed this control from .uniPanelButton
-                       to .uniPanelIconButton. A stale DBE build could therefore
-                       leave its persisted classes hidden while the native state
-                       remained open (or vice versa). Keep the native click only
-                       when it is needed to reopen genuinely collapsed wrappers;
-                       every other transition is owned by the persisted state. */
-                    if (nextHidden || !nativeHidden) {
+                    /* Builderius derives full-width preview sizing from its own
+                       forceFullScreen store value, not merely from collapsed panel
+                       wrappers. Keep that native value aligned with DBE persistence
+                       and suppress the native onClick only after the write succeeds,
+                       avoiding a double toggle. If the store bridge is unavailable,
+                       let the native handler run on entry and on a genuinely native
+                       exit. A DBE-only legacy mismatch exits through CSS alone so an
+                       open native state is not accidentally toggled on. */
+                    var nativeSynced = dbeSetNativeFullScreen(nextHidden);
+                    if (nativeSynced || (!nextHidden && !nativeHidden)) {
                         event.preventDefault();
                         event.stopImmediatePropagation();
                     }
@@ -1007,7 +1030,19 @@
 
         function dbeToggleSidePanels(done) {
             var wantHidden = !dbePanelsAreHidden();
-            dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+            var wrappers = dbePanelWrappers();
+            var nativeHidden = dbePanelCollapsed(wrappers.left)
+                && (!wrappers.right || dbePanelCollapsed(wrappers.right));
+            if (dbeSetNativeFullScreen(wantHidden)) {
+                dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+            } else {
+                var button = dbeSidePanelsButton();
+                if (button && (wantHidden || nativeHidden)) {
+                    button.click();
+                } else {
+                    dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+                }
+            }
             if (done) { done(true); }
             return true;
         }

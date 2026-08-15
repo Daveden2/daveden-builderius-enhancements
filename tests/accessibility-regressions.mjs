@@ -1032,8 +1032,36 @@ assert.match(
 );
 assert.match(
     workspace,
-    /persisted-panels[\s\S]+nativeHidden = dbePanelCollapsed\(wrappers\.left\)[\s\S]+dbeSavePanelVisibility\([\s\S]+if \(nextHidden \|\| !nativeHidden\)/,
-    'The full-width control must reconcile persisted panel visibility with the native collapsed state.'
+    /function dbeSetNativeFullScreen\(hidden\)[\s\S]+storeGet\('forceFullScreen'\)[\s\S]+storeSet\('forceFullScreen', hidden\)[\s\S]+persisted-panels[\s\S]+dbeSavePanelVisibility\([\s\S]+nativeSynced \|\| \(!nextHidden && !nativeHidden\)/,
+    'The full-width control must reconcile persisted visibility with Builderius native full-screen state.'
+);
+const nativeFullScreenSource = workspace.slice(
+    workspace.indexOf('function dbeSetNativeFullScreen'),
+    workspace.indexOf('function dbeSyncPanelToggle')
+).trim();
+let nativeFullScreenState = false;
+const nativeFullScreenWrites = [];
+const nativeFullScreenContext = {
+    store: () => ({
+        storeGet: () => nativeFullScreenState,
+        storeSet: (name, value) => {
+            nativeFullScreenWrites.push([name, value]);
+            nativeFullScreenState = value;
+        }
+    })
+};
+runInNewContext(`${nativeFullScreenSource}; result = dbeSetNativeFullScreen;`, nativeFullScreenContext);
+assert.equal(nativeFullScreenContext.result(true), true);
+assert.equal(nativeFullScreenState, true);
+assert.equal(JSON.stringify(nativeFullScreenWrites), JSON.stringify([['forceFullScreen', true]]));
+assert.equal(nativeFullScreenContext.result(true), true);
+assert.equal(nativeFullScreenWrites.length, 1, 'An unchanged native full-screen state must not be rewritten.');
+nativeFullScreenContext.store = () => null;
+assert.equal(nativeFullScreenContext.result(false), false, 'A missing store bridge must leave the native click available.');
+assert.match(
+    workspace,
+    /function dbeSetPanelVisibility\(side, hidden\)[\s\S]+!hidden && dbePanelsAreHidden\(\)[\s\S]+dbeSetNativeFullScreen\(false\)[\s\S]+function dbeToggleSidePanels\(done\)[\s\S]+dbeSetNativeFullScreen\(wantHidden\)[\s\S]+button\.click\(\)/,
+    'Partial-panel and command-palette routes must leave native full screen coherently.'
 );
 assert.match(
     builder,

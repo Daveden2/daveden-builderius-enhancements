@@ -96,6 +96,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   persisted hidden-panel state correctly. The native control changed from a
   panel button to an icon button, which left the two visibility states out of
   sync and made restoring the editing panels appear to do nothing.
+* Fixed: full-width canvas mode now also synchronises Builderius's native
+  `forceFullScreen` state. Responsive breakpoint and custom-width previews no
+  longer retain centred gutters after the side panels disappear, and the
+  command-palette route uses the same state transition as the top-bar control.
 * Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or
