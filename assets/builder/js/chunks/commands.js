@@ -587,26 +587,45 @@
             }
             if (dialog.getAttribute('data-dbe-wrap-keyboard') !== '1') {
                 dialog.setAttribute('data-dbe-wrap-keyboard', '1');
-                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key', 'keydown', function (ev) {
-                    if (ev.key !== 'Tab') { return; }
-                    var choices = [].slice.call(options.querySelectorAll('.uniWrapInModal__option'));
-                    var focusables = choices.concat(close ? [close] : []);
-                    var at = focusables.indexOf(document.activeElement);
-                    if (ev.shiftKey && at <= 0) {
-                        ev.preventDefault();
-                        focusables[focusables.length - 1].focus();
-                    } else if (!ev.shiftKey && at === focusables.length - 1) {
-                        ev.preventDefault();
-                        focusables[0].focus();
-                    }
-                });
-                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-close', 'close', function () {
+                var choices = [].slice.call(options.querySelectorAll('.uniWrapInModal__option'));
+                var focusables = choices.concat(close ? [close] : []);
+                var focusReturnQueued = false;
+                function releaseWrapDialogEvents() {
                     dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key');
+                    dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-cancel');
                     dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-close');
-                    dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
+                    if (close) { dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, close, 'wrap-dialog-close-return'); }
+                    choices.forEach(function (choice, index) {
+                        dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, choice, 'wrap-dialog-choice-return-' + index);
+                    });
+                }
+                function returnWrapDialogFocus() {
+                    if (focusReturnQueued) { return; }
+                    focusReturnQueued = true;
+                    dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () {
+                        releaseWrapDialogEvents();
                         var row = document.querySelector('.uniRightPanel .uni-tree-node-' + targetId);
                         if (row) { try { row.focus(); } catch (e) {} }
-                    });
+                    }, 120);
+                }
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key', 'keydown', function (ev) {
+                    if (ev.key !== 'Tab') { return; }
+                    if (!focusables.length) { return; }
+                    var at = focusables.indexOf(document.activeElement);
+                    if (at < 0) { at = 0; }
+                    ev.preventDefault();
+                    var next = (at + (ev.shiftKey ? focusables.length - 1 : 1)) % focusables.length;
+                    focusables[next].focus();
+                });
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-cancel', 'cancel', function () {
+                    returnWrapDialogFocus();
+                });
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-close', 'close', returnWrapDialogFocus);
+                if (close) {
+                    dbeBindOwnedEvent(DBE_COMMANDS_OWNER, close, 'wrap-dialog-close-return', 'click', returnWrapDialogFocus);
+                }
+                choices.forEach(function (choice, index) {
+                    dbeBindOwnedEvent(DBE_COMMANDS_OWNER, choice, 'wrap-dialog-choice-return-' + index, 'click', returnWrapDialogFocus);
                 });
             }
             // Start on the task rather than the dismiss control. Shift+Tab still

@@ -376,7 +376,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+dialog\.setAttribute\('aria-label', dbeT\('wrapIn'[\s\S]+ev\.key !== 'Tab'[\s\S]+ev\.shiftKey[\s\S]+wrap-dialog-close[\s\S]+uni-tree-node-[\s\S]+first\.focus\(\)/,
+    /dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+dialog\.setAttribute\('aria-label', dbeT\('wrapIn'[\s\S]+ev\.key !== 'Tab'[\s\S]+ev\.shiftKey[\s\S]+focusables\[next\]\.focus\(\)[\s\S]+wrap-dialog-cancel[\s\S]+wrap-dialog-close-return[\s\S]+wrap-dialog-choice-return-[\s\S]+uni-tree-node-[\s\S]+first\.focus\(\)/,
     'The Wrap in modal must be named, contain Tab focus, start on the first choice and return focus to its Navigator row.'
 );
 assert.doesNotMatch(
