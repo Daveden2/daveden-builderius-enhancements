@@ -71,24 +71,26 @@
             root.dataset.dbeBuilderiusStore = 'captured';
             return true;
         }
+        function registerFreeStoreBridge() {
+            try {
+                var hooks = window.Builderius && window.Builderius.API && window.Builderius.API.hooks;
+                if (!hooks || typeof hooks.addFilter !== 'function') { return false; }
+                hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
+                    /* Pro and other extensions own their footer component.
+                       Free supplies no component, so use that empty slot to
+                       receive the same storeFns prop without adding UI. */
+                    if (component) { return component; }
+                    return function DbeStoreBridge(props) {
+                        captureStore(props && props.storeFns);
+                        return null;
+                    };
+                });
+                return true;
+            } catch (error) { return false; }
+        }
         function bridgeFreeStore() {
-            if (!document.addEventListener || storeReference) { return; }
-            document.addEventListener('builderius.api.started', function () {
-                try {
-                    var hooks = window.Builderius && window.Builderius.API && window.Builderius.API.hooks;
-                    if (!hooks || typeof hooks.addFilter !== 'function') { return; }
-                    hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
-                        /* Pro and other extensions own their footer component.
-                           Free supplies no component, so use that empty slot to
-                           receive the same storeFns prop without adding UI. */
-                        if (component) { return component; }
-                        return function DbeStoreBridge(props) {
-                            captureStore(props && props.storeFns);
-                            return null;
-                        };
-                    });
-                } catch (error) {}
-            }, { once: true });
+            if (storeReference || registerFreeStoreBridge() || !document.addEventListener) { return; }
+            document.addEventListener('builderius.api.started', registerFreeStoreBridge, { once: true });
         }
 
         captureStore(window[definition.storeGlobal]);

@@ -55,8 +55,8 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /builderius\.api\.started[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+captureStore\(props && props\.storeFns\)[\s\S]+return null;/,
-    'Builderius Free must capture storeFns through the unused footer extension point without replacing another extension.'
+    /function registerFreeStoreBridge\(\)[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+captureStore\(props && props\.storeFns\)[\s\S]+return null;[\s\S]+registerFreeStoreBridge\(\)[\s\S]+builderius\.api\.started/,
+    'Builderius Free must capture storeFns through the unused footer extension point without replacing another extension or missing an API that is already available.'
 );
 
 [
