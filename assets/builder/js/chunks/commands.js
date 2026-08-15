@@ -728,7 +728,8 @@
 
         function dbeWatchNativeAutoBemDialog() {
             waitFor(function () {
-                return document.querySelector('dialog.uniMiniModal--autoBem[open]');
+                var dialog = document.querySelector('dialog.uniMiniModal--autoBem[open]');
+                return dialog && dialog.querySelector('.uniAutoBemModal__row') ? dialog : null;
             }, dbeNormaliseNativeAutoBemLabels, 40, DBE_COMMANDS_OWNER);
         }
 

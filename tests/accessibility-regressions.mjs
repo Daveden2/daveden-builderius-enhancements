@@ -414,7 +414,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /function dbeNormaliseNativeAutoBemLabels\(dialog\)[\s\S]+uniAutoBemModal__rowTag[\s\S]+uniAutoBemModal__rowLabel[\s\S]+replace\(\/\[<>\]\/g, ''\)[\s\S]+labelText === tagText[\s\S]+label\.hidden = true[\s\S]+data-dbe-auto-bem-default-label[\s\S]+function dbeWatchNativeAutoBemDialog\(\)[\s\S]+dialog\.uniMiniModal--autoBem\[open\][\s\S]+natBem\.forEach\(dbeEnhanceNativeAutoBemItem\)/,
+    /function dbeNormaliseNativeAutoBemLabels\(dialog\)[\s\S]+uniAutoBemModal__rowTag[\s\S]+uniAutoBemModal__rowLabel[\s\S]+replace\(\/\[<>\]\/g, ''\)[\s\S]+labelText === tagText[\s\S]+label\.hidden = true[\s\S]+data-dbe-auto-bem-default-label[\s\S]+function dbeWatchNativeAutoBemDialog\(\)[\s\S]+dialog\.uniMiniModal--autoBem\[open\][\s\S]+dialog\.querySelector\('\.uniAutoBemModal__row'\)[\s\S]+natBem\.forEach\(dbeEnhanceNativeAutoBemItem\)/,
     'Native Auto-BEM must hide only a redundant default label that duplicates its adjacent HTML tag badge.'
 );
 assert.match(
