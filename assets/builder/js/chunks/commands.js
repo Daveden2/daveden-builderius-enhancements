@@ -1839,9 +1839,7 @@
             ]]
         ] : []);
 
-        /* Builderius 1.3.6 owns the primary shortcut reference. Add only DBE's
-           extra routes to that panel, using its native group/list classes so the
-           result remains one reference rather than two competing surfaces. */
+        /* Extend Builderius 1.3.6's reference with DBE-only rows. */
         function dbeNativeShortcutGroups() {
             return SHORTCUT_GROUPS.map(function (group) {
                 return [group[0], group[1].filter(function (pair) { return !pair[2]; })];
@@ -1855,7 +1853,6 @@
             dbeNativeShortcutGroups().forEach(function (group) {
                 var section = document.createElement('div');
                 section.className = 'uniTabShortcuts__group dbe-native-shortcuts-group';
-                section.dataset.dbeShortcutGroup = group[0];
                 var title = document.createElement('h4');
                 title.className = 'uniTabShortcuts__groupTitle';
                 title.textContent = 'DBE · ' + group[0];
@@ -1883,16 +1880,9 @@
             var panel = document.querySelector('.uniTabShortcuts');
             if (panel) { ensureNativeShortcuts(); return true; }
             var button = document.querySelector('.tooltipId__footer_shortcuts .uniPanelIconButton--footer');
-            if (!button) {
-                button = [].slice.call(document.querySelectorAll('.uniPanelIconButton--footer')).find(function (candidate) {
-                    return (candidate.textContent || '').trim() === 'Shortcuts';
-                });
-            }
             if (!button) { return false; }
             clickSeq(button);
-            waitFor(function () { return document.querySelector('.uniTabShortcuts'); }, function (mounted) {
-                if (mounted) { ensureNativeShortcuts(); }
-            });
+            waitFor(function () { return document.querySelector('.uniTabShortcuts'); }, ensureNativeShortcuts);
             return true;
         }
 
