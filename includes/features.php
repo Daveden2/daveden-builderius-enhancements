@@ -441,9 +441,9 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'panel_tabs'            => array(
-			'title'       => __( 'Accessible panel tabs', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Arrow-key tab strips in the settings panel and Navigator.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Wires the panel tab strips as proper tab lists for screen readers and the keyboard: the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces that it is a tab and whether it is current, and each strip becomes one Tab stop where the arrow keys move between the tabs and switch them (Home and End jump to the first and last).', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Accessible builder tabs', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Arrow-key tab strips in the canvas, settings panel and Navigator.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Wires the builder\'s tab strips as proper tab lists for screen readers and the keyboard: the persistent template/component tabs above the canvas, the settings panel\'s Content / Styles tabs and the Navigator\'s Elements / Selectors / CSS vars tabs. Each tab announces whether it is current and each strip becomes one Tab stop where Left/Right, Home and End move between tabs; Enter or Space switches to the focused tab. Delete closes a focused canvas tab through Builderius\'s native close action, and the new-template button receives an accessible name.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'accessibility',
 			'css'         => false,
 			'js'          => true,

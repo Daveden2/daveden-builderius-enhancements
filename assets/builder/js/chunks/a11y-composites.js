@@ -377,11 +377,12 @@
             });
         }
 
-        /* (pt) Panel tabs (panel_tabs). The settings panel's Content / Styles strip
-           and the Navigator's Elements / Selectors / CSS vars strip are rows of
-           <button>s with no tab semantics: a screen reader cannot tell they are tabs
-           or which is current, and there is no single-Tab-stop arrow-key model. Wire
-           each strip as an APG tab list — role=tablist, each tab role=tab +
+        /* (pt) Builder tabs (panel_tabs). The persistent template/component tabs
+           above the canvas, the settings panel's Content / Styles strip and the
+           Navigator's Elements / Selectors / CSS vars strip are rows of <button>s
+           with no tab semantics: a screen reader cannot tell they are tabs or which
+           is current, and there is no single-Tab-stop arrow-key model. Wire each
+           strip as an APG tab list — role=tablist, each tab role=tab +
            aria-selected mirrored from the native `active` class, one Tab stop where
            arrows move focus and Enter/Space activates (the tabs are native buttons,
            so activation is their own click). MANUAL activation, not automatic:
@@ -468,6 +469,75 @@
                     }, 0);
                 });
             });
+
+            var canvasStrip = document.querySelector('.uniIframeTabs__wrapper');
+            var canvasSel = '.uniIframeTabButton';
+            if (canvasStrip && canvasStrip.querySelector(canvasSel)) {
+                var canvasLabel = dbeT('canvasDocumentTabs', 'Open templates and components');
+                dbeRememberOwnedAttributes('a11y/composites', canvasStrip, ['role', 'aria-label']);
+                if (canvasStrip.getAttribute('role') !== 'tablist') { canvasStrip.setAttribute('role', 'tablist'); }
+                if (canvasStrip.getAttribute('aria-label') !== canvasLabel) { canvasStrip.setAttribute('aria-label', canvasLabel); }
+                dbeRovingItems(canvasStrip, canvasSel).forEach(function (tab) {
+                    dbeRememberOwnedAttributes('a11y/composites', tab, [
+                        'role', 'aria-selected', 'aria-keyshortcuts', 'tabindex'
+                    ]);
+                    if (tab.getAttribute('role') !== 'tab') { tab.setAttribute('role', 'tab'); }
+                    var selected = tab.classList.contains('active') ? 'true' : 'false';
+                    if (tab.getAttribute('aria-selected') !== selected) { tab.setAttribute('aria-selected', selected); }
+                    if (tab.getAttribute('aria-keyshortcuts') !== 'Delete') { tab.setAttribute('aria-keyshortcuts', 'Delete'); }
+                });
+                dbeSyncRoving(canvasStrip, canvasSel, { activeClass: 'active' });
+                dbeBindOwnedEvent('a11y/composites', canvasStrip, 'canvas-tabs-keys', 'keydown', function (e) {
+                    var focused = document.activeElement && document.activeElement.closest
+                        ? document.activeElement.closest(canvasSel)
+                        : null;
+                    if (!focused || !canvasStrip.contains(focused)) { return; }
+                    var items = dbeRovingItems(canvasStrip, canvasSel);
+                    var i = items.indexOf(focused);
+                    if (i === -1 || !items.length) { return; }
+                    if (e.key === 'Delete') {
+                        var close = focused.querySelector('.uniIframeTabButton__closeIcon');
+                        if (!close) { return; }
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clickSeq(close);
+                        dbeSetOwnedTimeout('a11y/composites', function () {
+                            var live = document.querySelector('.uniIframeTabs__wrapper');
+                            var remaining = live ? dbeRovingItems(live, canvasSel) : [];
+                            var target = remaining[Math.min(i, remaining.length - 1)]
+                                || (live && live.querySelector(canvasSel + '.active'));
+                            if (target) { target.focus(); }
+                        }, 0);
+                        return;
+                    }
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clickSeq(focused);
+                        return;
+                    }
+                    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) { return; }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var next = i;
+                    if (e.key === 'ArrowRight') { next = (i + 1) % items.length; }
+                    else if (e.key === 'ArrowLeft') { next = (i - 1 + items.length) % items.length; }
+                    else if (e.key === 'Home') { next = 0; }
+                    else if (e.key === 'End') { next = items.length - 1; }
+                    items.forEach(function (item, k) { item.setAttribute('tabindex', k === next ? '0' : '-1'); });
+                    items[next].focus();
+                });
+            }
+
+            var canvasOpen = document.querySelector('.uniIframeTabs__navigatorBtn');
+            if (canvasOpen) {
+                var openLabel = dbeT('openCanvasDocument', 'Open a template or component');
+                dbeRememberOwnedAttributes('a11y/composites', canvasOpen, ['aria-label', 'data-dbe-tip']);
+                if (canvasOpen.getAttribute('aria-label') !== openLabel) { canvasOpen.setAttribute('aria-label', openLabel); }
+                if (on('tooltips') && canvasOpen.getAttribute('data-dbe-tip') !== openLabel) {
+                    canvasOpen.setAttribute('data-dbe-tip', openLabel);
+                }
+            }
         }
 
         /* (sa) Settings-group accordions (settings_accordions). The element

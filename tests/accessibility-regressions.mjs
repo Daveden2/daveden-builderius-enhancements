@@ -166,6 +166,11 @@ assert.match(
 );
 assert.match(
     composites,
+    /canvasDocumentTabs[\s\S]+role', 'tablist'[\s\S]+aria-selected[\s\S]+canvas-tabs-keys[\s\S]+e\.key === 'Delete'[\s\S]+uniIframeTabButton__closeIcon[\s\S]+openCanvasDocument/,
+    'Persistent canvas tabs must expose APG semantics, roving keys, keyboard close and a named document opener.'
+);
+assert.match(
+    composites,
     /function bindSelectCombobox\(\)[\s\S]+select-search-keys[\s\S]+select-search-input[\s\S]+select-trigger-keys[\s\S]+multi-select-keys[\s\S]+fake-select-focusout/,
     'Combobox variants must register every delegated listener through the composite controller.'
 );

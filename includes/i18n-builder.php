@@ -357,6 +357,8 @@ function dbe_builder_strings() {
 		'filterElementsAria'            => __( 'Filter elements by label or tag', 'daveden-builderius-enhancements' ),
 		/* translators: %s: Navigator view name, such as Elements or CSS vars. */
 		'navigatorViewTab'              => __( 'Show %s in Navigator', 'daveden-builderius-enhancements' ),
+		'canvasDocumentTabs'            => __( 'Open templates and components', 'daveden-builderius-enhancements' ),
+		'openCanvasDocument'            => __( 'Open a template or component', 'daveden-builderius-enhancements' ),
 
 		// Navigator keyboard tree.
 		'elementsTree'                  => __( 'Elements', 'daveden-builderius-enhancements' ),
