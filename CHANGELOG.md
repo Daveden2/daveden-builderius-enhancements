@@ -87,6 +87,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   older fallback now enforce that centred placement instead of inheriting a
   right-side position from the builder dialog layer. Their responsive width and
   class-name column are also enlarged so generated BEM names remain visible.
+* Fixed: Builderius 1.3.6-beta’s native **Auto-BEM** no longer displays a
+  duplicated tag such as `<div> <div>` when an element has no user-defined
+  label. DBE suppresses only the redundant default copy and retains custom
+  labels beside their tag badges.
 * Fixed: context-menu class actions, class-chip menus and matching command
   palette entries now wrap exceptionally long class names within the viewport
   instead of clipping their final characters.

@@ -414,6 +414,11 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbeNormaliseNativeAutoBemLabels\(dialog\)[\s\S]+uniAutoBemModal__rowTag[\s\S]+uniAutoBemModal__rowLabel[\s\S]+replace\(\/\[<>\]\/g, ''\)[\s\S]+labelText === tagText[\s\S]+label\.hidden = true[\s\S]+data-dbe-auto-bem-default-label[\s\S]+function dbeWatchNativeAutoBemDialog\(\)[\s\S]+dialog\.uniMiniModal--autoBem\[open\][\s\S]+natBem\.forEach\(dbeEnhanceNativeAutoBemItem\)/,
+    'Native Auto-BEM must hide only a redundant default label that duplicates its adjacent HTML tag badge.'
+);
+assert.match(
+    commands,
     /function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+uniRightPanel[\s\S]+panel\.getBoundingClientRect\(\)[\s\S]+row\.getBoundingClientRect\(\)[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight[\s\S]+anchorLeft - dialogRect\.width - gap[\s\S]+anchorRight \+ gap[\s\S]+style\.setProperty\('left',[\s\S]+'important'\)[\s\S]+style\.setProperty\('top',[\s\S]+'important'\)[\s\S]+function scheduleWrapDialogPosition\(\)[\s\S]+wrap-dialog-resize[\s\S]+wrap-dialog-visual-resize/,
     'Wrap in must recalculate from live Navigator geometry and clamp both axes whenever browser or visual viewport zoom changes.'
 );

@@ -708,6 +708,37 @@
             });
         }
 
+        /* Builderius 1.3.6 turns an absent/default label into "<tag>" and then
+           renders that beside a separate "<tag>" badge in native Auto-BEM.
+           Suppress only that redundant second copy; user-defined labels stay. */
+        function dbeNormaliseNativeAutoBemLabels(dialog) {
+            if (!dialog) { return; }
+            [].slice.call(dialog.querySelectorAll('.uniAutoBemModal__row')).forEach(function (row) {
+                var tag = row.querySelector('.uniAutoBemModal__rowTag');
+                var label = row.querySelector('.uniAutoBemModal__rowLabel');
+                if (!tag || !label) { return; }
+                var tagText = (tag.textContent || '').replace(/[<>]/g, '').trim().toLowerCase();
+                var labelText = (label.textContent || '').replace(/[<>]/g, '').trim().toLowerCase();
+                if (tagText && labelText === tagText) {
+                    label.hidden = true;
+                    label.setAttribute('data-dbe-auto-bem-default-label', '1');
+                }
+            });
+        }
+
+        function dbeWatchNativeAutoBemDialog() {
+            waitFor(function () {
+                return document.querySelector('dialog.uniMiniModal--autoBem[open]');
+            }, dbeNormaliseNativeAutoBemLabels, 40, DBE_COMMANDS_OWNER);
+        }
+
+        function dbeEnhanceNativeAutoBemItem(item) {
+            if (!item || item.getAttribute('data-dbe-auto-bem-dialog') === '1') { return; }
+            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, item, ['data-dbe-auto-bem-dialog']);
+            item.setAttribute('data-dbe-auto-bem-dialog', '1');
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, item, 'auto-bem-dialog-open', 'mousedown', dbeWatchNativeAutoBemDialog);
+        }
+
         /* Expand the right-clicked row's whole subtree. Same chevron click channel
            as expandAll, scoped to the row's li; runs in short passes because deep
            rows that were never expanded may only mount after their parent opens. */
@@ -1276,6 +1307,7 @@
                 var natClip = collectNativeItems(container, /^(Copy|Paste|Cut)$/);
                 var natName = collectNativeItems(container, /^Rename$/);
                 var natBem = collectNativeItems(container, /^Auto-BEM$/);
+                natBem.forEach(dbeEnhanceNativeAutoBemItem);
                 var natWrap = collectNativeItems(container, /^Wrap in$/);
                 var natExpand = collectNativeItems(container, /^Expand children$/);
                 var natCreate = collectNativeItems(container, /^Create Component$/);
@@ -4191,6 +4223,10 @@
             dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
             removeSubmenus();
             closeChipMenu();
+            document.querySelectorAll('[data-dbe-auto-bem-default-label="1"]').forEach(function (label) {
+                label.hidden = false;
+                label.removeAttribute('data-dbe-auto-bem-default-label');
+            });
             document.querySelectorAll(
                 '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
                 '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +
