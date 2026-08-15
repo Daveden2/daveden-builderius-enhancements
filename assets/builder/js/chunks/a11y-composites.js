@@ -493,7 +493,11 @@
                 // DBE has reduced the strip to one stop, later refreshes retain
                 // the user's arrow-key position through dbeSyncRoving().
                 var canvasStops = canvasItems.filter(function (tab) { return tab.getAttribute('tabindex') === '0'; });
-                if (canvasStops.length !== 1) {
+                var canvasFocused = document.activeElement && document.activeElement.closest
+                    ? document.activeElement.closest(canvasSel)
+                    : null;
+                var canvasActive = canvasItems.filter(function (tab) { return tab.classList.contains('active'); })[0];
+                if (canvasStops.length !== 1 || (!canvasFocused && canvasActive && canvasStops[0] !== canvasActive)) {
                     canvasItems.forEach(function (tab) {
                         tab.setAttribute('tabindex', tab.classList.contains('active') ? '0' : '-1');
                     });

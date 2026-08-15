@@ -166,7 +166,7 @@ assert.match(
 );
 assert.match(
     composites,
-    /canvasDocumentTabs[\s\S]+role', 'tablist'[\s\S]+aria-selected[\s\S]+canvasStops\.length !== 1[\s\S]+canvas-tabs-keys[\s\S]+e\.key === 'Delete'[\s\S]+uniIframeTabButton__closeIcon[\s\S]+openCanvasDocument/,
+    /canvasDocumentTabs[\s\S]+role', 'tablist'[\s\S]+aria-selected[\s\S]+canvasStops\.length !== 1[\s\S]+!canvasFocused && canvasActive[\s\S]+canvas-tabs-keys[\s\S]+e\.key === 'Delete'[\s\S]+uniIframeTabButton__closeIcon[\s\S]+openCanvasDocument/,
     'Persistent canvas tabs must expose APG semantics, roving keys, keyboard close and a named document opener.'
 );
 assert.match(
