@@ -188,7 +188,8 @@ function dbe_adminbar_focus_styles() {
 <style id="dbe-adminbar-builderius-focus">
 #wpadminbar #wp-admin-bar-builderius {
 	--dbe-adminbar-accent: #72aee6;
-	--dbe-adminbar-interaction: rgba(114, 174, 230, 0.14);
+	--dbe-adminbar-interaction: rgba(114, 174, 230, 0.24);
+	--dbe-adminbar-interaction-text: #f0f6fc;
 }
 #wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible {
 	outline: none;
@@ -203,16 +204,25 @@ function dbe_adminbar_focus_styles() {
 #wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper svg path {
 	fill: currentColor;
 }
+#wpadminbar #wp-admin-bar-builderius-preview-mode > .ab-item {
+	padding-inline: 0;
+}
+#wpadminbar #wp-admin-bar-builderius-preview-mode .status-heading,
+#wpadminbar #wp-admin-bar-builderius-preview-mode [role="menuitemradio"] {
+	box-sizing: border-box;
+	padding-inline: 10px;
+	width: 100%;
+}
 #wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:not([aria-disabled="true"]):hover,
 #wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover {
 	background-color: var(--dbe-adminbar-interaction);
-	color: var(--dbe-adminbar-accent);
+	color: var(--dbe-adminbar-interaction-text);
 }
 #wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitem"]:focus-visible,
 #wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:focus-visible {
 	background-color: var(--dbe-adminbar-interaction);
 	box-shadow: inset 0 0 0 2px var(--dbe-adminbar-accent);
-	color: var(--dbe-adminbar-accent);
+	color: var(--dbe-adminbar-interaction-text);
 	outline: none;
 }
 #wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover > .ab-item,

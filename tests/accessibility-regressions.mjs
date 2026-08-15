@@ -713,13 +713,18 @@ assert.match(
 );
 assert.match(
     adminBar,
-    /dbe-adminbar-builderius-focus[\s\S]+--dbe-adminbar-accent: #72aee6[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+\[role="menuitemradio"\]:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px var\(--dbe-adminbar-accent\)[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
+    /dbe-adminbar-builderius-focus[\s\S]+--dbe-adminbar-accent: #72aee6[\s\S]+--dbe-adminbar-interaction-text: #f0f6fc[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+\[role="menuitemradio"\]:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px var\(--dbe-adminbar-accent\)[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
     'The native Builderius trigger and submenu items must expose consistent inset focus cues with a forced-colours fallback.'
 );
 assert.match(
     adminBar,
-    /\[role="menuitemradio"\]:not\(\[aria-disabled="true"\]\):hover,[\s\S]+a\[role="menuitem"\]:hover[\s\S]+background-color: var\(--dbe-adminbar-interaction\)[\s\S]+color: var\(--dbe-adminbar-accent\)/,
-    'Available preview choices and the native edit link must share one hover colour while the disabled choice remains static.'
+    /#wp-admin-bar-builderius-preview-mode > \.ab-item[\s\S]+padding-inline: 0[\s\S]+\[role="menuitemradio"\][\s\S]+padding-inline: 10px[\s\S]+width: 100%/,
+    'Preview choices must fill the same menu width as the native edit link without moving their text.'
+);
+assert.match(
+    adminBar,
+    /\[role="menuitemradio"\]:not\(\[aria-disabled="true"\]\):hover,[\s\S]+a\[role="menuitem"\]:hover[\s\S]+background-color: var\(--dbe-adminbar-interaction\)[\s\S]+color: var\(--dbe-adminbar-interaction-text\)/,
+    'Available preview choices and the native edit link must share one higher-contrast hover treatment while the disabled choice remains static.'
 );
 assert.match(
     adminBar,
