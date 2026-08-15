@@ -72,7 +72,9 @@
    indicator always sits under the text as written, so horizontal text gets a
    bottom bar (the rotated footer-panel rail gets its own edge below). */
 .uniScopeControl {
-    display: inline-flex !important;
+    display: flex !important;
+    inline-size: 100% !important;
+    box-sizing: border-box !important;
     gap: 2px !important;
     background: transparent !important;
     border: 0 !important;
@@ -80,6 +82,8 @@
     border-radius: 0 !important;
 }
 .uniScopeControl button {
+    flex: 1 1 0 !important;
+    min-inline-size: 0 !important;
     border: 0 !important;
     border-bottom: 2px solid transparent !important;
     border-radius: 0 !important;

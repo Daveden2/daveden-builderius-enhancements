@@ -1051,6 +1051,11 @@ assert.doesNotMatch(
     /max-width:\s*359px/,
     'The command palette must remain visibly voice-addressable at 320 CSS pixels.'
 );
+assert.match(
+    tabs,
+    /\.uniScopeControl\s*\{[\s\S]+display:\s*flex !important[\s\S]+inline-size:\s*100% !important[\s\S]+\.uniScopeControl button\s*\{[\s\S]+flex:\s*1 1 0 !important/,
+    'Global and Template scope tabs must divide the full code-mode sidebar width.'
+);
 
 [tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize, compactPanes].forEach((css) => {
     assert.match(css, /@media \(forced-colors: active\)/, 'Accessibility CSS must retain a forced-colours treatment.');

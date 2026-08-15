@@ -68,6 +68,8 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   controls on 1.3.6-beta and later while retaining them for older Builderius
   versions. The separate CSS token guide, minimap preference and style
   inspector remain available.
+* Fixed: the native Global/Template tabs in the code-mode Styles panel now
+  divide the full sidebar width evenly instead of shrink-wrapping their labels.
 * Changed: the enhanced element context menu now adopts Builderius 1.3.6-beta’s
   native Cut, Rename, Auto-BEM, Wrap in and Expand children actions instead of
   displaying DBE duplicates. Native shortcut labels are ignored when matching
