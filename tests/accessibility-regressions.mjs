@@ -805,6 +805,11 @@ assert.match(
 );
 assert.match(
     composites,
+    /function favKey\(li\)[\s\S]+tooltipId__favModule_\(\?!remove_\)[\s\S]+function favSavedOrder\(\)[\s\S]+replace\(\/\^remove_\//,
+    'Favourite identity must ignore the native remove-control tooltip and migrate legacy saved keys.'
+);
+assert.match(
+    composites,
     /function applyFavouritesOrder\(\)[\s\S]+if \(nativeFavButton\(\)\) \{ return; \}/,
     'DBE local favourite persistence must step aside when the native editor exists.'
 );

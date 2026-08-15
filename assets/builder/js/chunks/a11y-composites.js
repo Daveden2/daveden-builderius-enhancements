@@ -1728,9 +1728,14 @@
         }
 
         function favKey(li) {
-            var t = li.querySelector('[class*="tooltipId__favModule_"]');
-            var m = t && t.className.toString().match(/tooltipId__favModule_(\S+)/);
-            if (m) { return m[1]; }
+            var wrappers = [].slice.call(li.querySelectorAll('[class*="tooltipId__favModule_"]'));
+            for (var i = 0; i < wrappers.length; i++) {
+                // Builderius renders `favModule_remove_<Type>` first for the
+                // delete control, then `favModule_<Type>` for the module button.
+                // Only the latter is a pinnedModules store key.
+                var m = wrappers[i].className.toString().match(/tooltipId__favModule_(?!remove_)(\S+)/);
+                if (m) { return m[1]; }
+            }
             var tc = li.querySelector('[data-tooltip-content]');
             if (tc) { return 'label:' + tc.getAttribute('data-tooltip-content'); }
             var p = li.querySelector('.modIcon svg path');
@@ -1763,7 +1768,9 @@
         function favSavedOrder() {
             try {
                 var v = JSON.parse(localStorage.getItem(DBE_FAV_KEY) || 'null');
-                return Array.isArray(v) && v.length ? v : null;
+                return Array.isArray(v) && v.length ? v.map(function (key) {
+                    return String(key).replace(/^remove_/, '');
+                }) : null;
             } catch (e) { return null; }
         }
 
