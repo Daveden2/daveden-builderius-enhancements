@@ -134,14 +134,14 @@ function dbe_print_builder_head() {
 		function register() {
 			try {
 				var hooks = w.Builderius && w.Builderius.API && w.Builderius.API.hooks;
-				if (!hooks || typeof hooks.addFilter !== 'function') { return false; }
+				var createElement = w.React && w.React.createElement;
+				if (!hooks || typeof hooks.addFilter !== 'function' || !createElement) { return false; }
 				hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
-					/* Pro and other extensions own their footer component. Free
-					 * supplies no component, so use its empty slot without adding UI. */
-					if (component) { return component; }
+					/* Capture the shared prop, then render Free's empty default or
+					 * Pro/another extension's component unchanged. */
 					return function DbeStoreBridge(props) {
 						w.dbeBuilderiusStoreFns = props && props.storeFns;
-						return null;
+						return component ? createElement(component, props) : null;
 					};
 				});
 				return true;

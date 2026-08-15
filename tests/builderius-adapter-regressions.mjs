@@ -55,8 +55,8 @@ assert.match(
 );
 assert.match(
     outputBuilder,
-    /dbe-builder-store-bridge[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+w\.dbeBuilderiusStoreFns = props && props\.storeFns[\s\S]+builderius\.api\.started/,
-    'Builderius Free must capture storeFns from an early head listener without replacing another extension.'
+    /dbe-builder-store-bridge[\s\S]+var createElement = w\.React && w\.React\.createElement[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+w\.dbeBuilderiusStoreFns = props && props\.storeFns[\s\S]+createElement\(component, props\)[\s\S]+builderius\.api\.started/,
+    'Builderius Free must capture storeFns from an early head listener while rendering the existing footer extension unchanged.'
 );
 
 [

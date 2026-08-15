@@ -15,7 +15,7 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   existing footer-extension hook. DBE previously relied on a private store
   global published only by Builderius Pro, which left store-backed features
   inactive when Free ran on its own; the bridge adds no visible footer control
-  and leaves Pro or another extension's component untouched.
+  and renders Pro or another extension's component unchanged.
 * Changed: Builderius 1.3.6-beta now supplies change history with undo/redo,
   inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
   loading its older copies on 1.3.6-beta and later, hides those settings, and
