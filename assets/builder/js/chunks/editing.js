@@ -804,6 +804,36 @@
         if (target) { try { target.focus(); } catch (e) {} }
     }
 
+    /* Builderius 1.3.5 can expose the default tag through the module map while
+       the Navigator is showing a custom label. Read the rendered row first so
+       opening DBE's fallback editor never seeds it with that stale default.
+       Tag badges retain the original row text in the visually-hidden span; an
+       undecorated row uses the same "Label .class" text shape. */
+    function dbeNavigatorLabel(row) {
+        var holder = row && row.querySelector('span');
+        if (!holder) { return ''; }
+        var spoken = holder.querySelector('.dbe-visually-hidden');
+        var raw = ((spoken || holder).textContent || '').trim();
+        var classAt = raw.indexOf(' .');
+        return (classAt >= 0 ? raw.slice(0, classAt) : raw).trim();
+    }
+
+    /* The two native clicks preceding dblclick can repaint a 1.3.5 row from
+       the stale module-map label. Cancellation must restore the label that was
+       visible when rename opened, without leaving an unsaved default behind. */
+    function dbeFinishCancelledRename(st, restoreFocus) {
+        dbeSetOwnedTimeout(DBE_EDITING_OWNER, function () {
+            if (renameState) { return; }
+            var row = document.querySelector('.uniRightPanel .uni-tree-node-' + st.id);
+            var current = dbeNavigatorLabel(row);
+            if (st.oldLabel && current && current !== st.oldLabel) {
+                commitRename(st.id, st.oldLabel, restoreFocus ? st.focusReturn : null);
+                return;
+            }
+            if (restoreFocus) { dbeRestoreRenameFocus(st.id, st.focusReturn); }
+        }, 50);
+    }
+
     function closeRename(commit, restoreFocus) {
         var st = renameState;
         if (!st) { return; }
@@ -813,7 +843,7 @@
         st.wrapper.classList.remove('dbe-renaming');
         if (st.li) { st.li.setAttribute('draggable', st.prevDraggable); }
         if (!commit) {
-            if (restoreFocus) { dbeRestoreRenameFocus(st.id, st.focusReturn); }
+            dbeFinishCancelledRename(st, restoreFocus);
             return;
         }
         if (!next) { next = defaultLabelFor(st.id); } // emptied field = reset to default
@@ -850,7 +880,7 @@
         if (!row || !mods || !mods[id]) { return; }
         var wrapper = row.closest('.uniModTree__itemContentWrapper') || row.parentElement;
         var li = row.closest('li.uniModTree__itemDrag');
-        var oldLabel = mods[id].label || '';
+        var oldLabel = dbeNavigatorLabel(row) || mods[id].label || '';
 
         var input = document.createElement('input');
         input.type = 'text';

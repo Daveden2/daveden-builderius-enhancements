@@ -508,8 +508,8 @@ assert.match(
 );
 assert.match(
     editing,
-    /function closeRename\(commit, restoreFocus\)[\s\S]+dbeRestoreRenameFocus\(st\.id, st\.focusReturn\)[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
-    'Committing or cancelling inline rename from the keyboard must return focus to its tree row.'
+    /function dbeNavigatorLabel\(row\)[\s\S]+dbe-visually-hidden[\s\S]+raw\.indexOf\(' \.'\)[\s\S]+function dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+current !== st\.oldLabel[\s\S]+commitRename\(st\.id, st\.oldLabel[\s\S]+function closeRename\(commit, restoreFocus\)[\s\S]+dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+var oldLabel = dbeNavigatorLabel\(row\) \|\| mods\[id\]\.label[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
+    'Inline rename must seed from the rendered 1.3.5 label, restore it on cancellation and return focus to its tree row.'
 );
 assert.match(
     editing,

@@ -9,6 +9,10 @@ Four candidates are being evaluated independently: a preview context menu,
 preview-based element rename, reliable Navigator multiselect/move, and a safe
 custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
+* Fixed: cancelling DBE's downgrade-safe inline rename fallback on Builderius
+  1.3.5-beta no longer replaces a custom Navigator label with its default HTML
+  tag after a double-click.
+
 * Performance: shortcut discovery now loads as its own cacheable runtime chunk,
   reducing the compressed commands chunk from its 16-byte safety margin to
   more than 1.4 KB of enforced headroom without adding another controller.
