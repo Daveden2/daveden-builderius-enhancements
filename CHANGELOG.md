@@ -16,6 +16,9 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
 * Accessibility: Builderius's top-level admin-bar item now receives its missing
   Tab stop, a single inset focus ring and keyboard entry/return behaviour,
   allowing focus to open and enter the native menu without a duplicate outline.
+  The Development/Live preview choices are now a labelled radio group with
+  selected and disabled state, while Up/Down, Home and End move through every
+  menu item and Enter/Space activates the available choice or edit link.
 * Fixed: cancelling DBE's downgrade-safe inline rename fallback on Builderius
   1.3.5-beta no longer replaces a custom Navigator label with its default HTML
   tag after a double-click.

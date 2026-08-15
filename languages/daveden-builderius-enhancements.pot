@@ -2016,7 +2016,7 @@ msgid "Warns about duplicate tabs and protects unsaved builder work from agent s
 msgstr ""
 
 #: includes/features.php:871
-msgid "Uses Builderius’s native applied-template admin-bar link when available, makes its menu keyboard-focusable and warns before Builderius opens in a second tab. Older Builderius versions retain DBE’s direct link. Tabs also report their state to DBE, which blocks agent saves to a template that has unsaved changes elsewhere, and tells a tab when the template has been saved underneath it so it does not quietly overwrite the newer work. An explicit force option is still available when the conflict is understood."
+msgid "Uses Builderius’s native applied-template admin-bar link when available, makes the complete menu keyboard-operable, identifies the current preview mode as selected and unavailable, and warns before Builderius opens in a second tab. Older Builderius versions retain DBE’s direct link. Tabs also report their state to DBE, which blocks agent saves to a template that has unsaved changes elsewhere, and tells a tab when the template has been saved underneath it so it does not quietly overwrite the newer work. An explicit force option is still available when the conflict is understood."
 msgstr ""
 
 #: includes/features.php:795

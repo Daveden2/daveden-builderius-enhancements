@@ -713,13 +713,23 @@ assert.match(
 );
 assert.match(
     adminBar,
-    /dbe-adminbar-builderius-focus[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
-    'The native Builderius trigger must expose one inset focus cue with a forced-colours fallback.'
+    /dbe-adminbar-builderius-focus[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+\[role="menuitemradio"\]:focus-visible[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
+    'The native Builderius trigger and submenu items must expose one inset focus cue with a forced-colours fallback.'
 );
 assert.match(
     adminBar,
-    /e\.key !== 'ArrowDown'[\s\S]+e\.key !== 'Enter'[\s\S]+e\.key !== ' '[\s\S]+first\.focus\(\)[\s\S]+e\.key !== 'Escape'[\s\S]+trigger\.focus\(\)/,
-    'The native Builderius menu must support keyboard entry and Escape focus return.'
+    /previewGroup\.setAttribute\('role', 'group'\)[\s\S]+aria-labelledby[\s\S]+item\.setAttribute\('role', 'menuitemradio'\)[\s\S]+aria-checked[\s\S]+aria-disabled/,
+    'The native preview-mode choices must form a labelled radio group with explicit selected and disabled state.'
+);
+assert.match(
+    adminBar,
+    /function menuItems\(\)[\s\S]+\[role="menuitemradio"\], a\[role="menuitem"\][\s\S]+function setRovingItem\(item\)[\s\S]+tabindex[\s\S]+function focusItem\(index\)/,
+    'Every native preview choice and edit link must participate in one roving menu sequence.'
+);
+assert.match(
+    adminBar,
+    /e\.key !== 'ArrowDown'[\s\S]+e\.key !== 'ArrowUp'[\s\S]+focusItem[\s\S]+e\.key === 'Escape'[\s\S]+trigger\.focus\(\)[\s\S]+e\.key === 'Home'[\s\S]+e\.key === 'End'[\s\S]+aria-disabled[\s\S]+current\.click\(\)/,
+    'The native Builderius menu must support complete arrow navigation, guarded activation and Escape focus return.'
 );
 assert.match(
     adminBar,
