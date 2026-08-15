@@ -9,6 +9,12 @@ Four candidates are being evaluated independently: a preview context menu,
 preview-based element rename, reliable Navigator multiselect/move, and a safe
 custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
+* Changed: the front-end admin bar now uses Builderius 1.3.6-beta's native
+  **Edit: {name}** item instead of adding DBE's duplicate. Older Builderius
+  versions retain DBE's direct-link fallback, and both routes keep the warning
+  before opening a second builder tab.
+* Accessibility: Builderius's top-level admin-bar item now receives its missing
+  Tab stop, allowing keyboard focus to open and enter the native menu.
 * Fixed: cancelling DBE's downgrade-safe inline rename fallback on Builderius
   1.3.5-beta no longer replaces a custom Navigator label with its default HTML
   tag after a double-click.

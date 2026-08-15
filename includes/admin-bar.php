@@ -1,12 +1,12 @@
 <?php
 /**
- * Admin bar: "Edit template" link + second-builder-tab warning.
+ * Admin bar: applied-template link compatibility + second-builder-tab warning.
  *
- * 1. Adds an item to the Builderius admin-bar menu on the logged-in front end
- *    (alongside the native dev/live preview switch): a direct link that opens
- *    the Builderius template applied to the current page in the builder,
- *    labelled with the template's name.
- * 2. Before following that link, warns if the builder already appears to be
+ * 1. Makes Builderius' own admin-bar menu trigger keyboard-focusable. The
+ *    parent plugin renders a div with menuitem semantics but no Tab stop.
+ * 2. Uses Builderius' native applied-template link when present. Older parent
+ *    versions retain DBE's direct "Edit template" fallback.
+ * 3. Before following either link, warns if the builder already appears to be
  *    open in another tab (two builder tabs can overwrite each other's
  *    changes). Detection: the builder page writes a heartbeat into
  *    localStorage (see builder.js); the front-end click handler treats a beat
@@ -106,7 +106,8 @@ function dbe_builderius_runtime_cache() {
 }
 
 /**
- * Add the "Edit template" node under the native Builderius admin-bar menu.
+ * Make the native Builderius menu focusable and add DBE's legacy edit link
+ * only when the parent plugin does not provide its own applied-template item.
  *
  * @param WP_Admin_Bar $wp_admin_bar Admin bar instance.
  */
@@ -123,6 +124,22 @@ function dbe_adminbar_edit_template( WP_Admin_Bar $wp_admin_bar ) {
 	// Builderius adds its parent node only for builderius developers with the
 	// admin bar showing — piggyback on that rather than re-checking.
 	if ( ! $wp_admin_bar->get_node( 'builderius' ) ) {
+		return;
+	}
+
+	// Builderius renders its top-level menu trigger as a div role="menuitem"
+	// without a Tab stop. Re-adding the existing node merges this supported
+	// meta value without replacing Builderius' title, children or classes.
+	$wp_admin_bar->add_node(
+		array(
+			'id'   => 'builderius',
+			'meta' => array( 'tabindex' => 0 ),
+		)
+	);
+
+	// Builderius 1.3.6-beta supplies the applied-template link natively. Keep
+	// the reflection-based DBE fallback only for parent versions without it.
+	if ( $wp_admin_bar->get_node( 'builderius-applied-template' ) ) {
 		return;
 	}
 
@@ -201,7 +218,7 @@ function dbe_adminbar_second_tab_warning() {
 		})[0] || null;
 	}
 	document.addEventListener('click', function (e) {
-		var a = e.target.closest && e.target.closest('#wp-admin-bar-dbe-open-template > a');
+		var a = e.target.closest && e.target.closest('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a');
 		if (!a) { return; }
 		var raw = null;
 		try { raw = localStorage.getItem(HB.key); } catch (err) {}

@@ -859,7 +859,7 @@ function dbe_features() {
 		'presence_heartbeat'    => array(
 			'title'       => __( 'Builder tab protection', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Warns about duplicate tabs and protects unsaved builder work from agent saves.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds an “Edit template” link to the front-end admin bar and warns before Builderius opens in a second tab. Tabs with unsaved changes also report their state to DBE, which blocks agent saves to the same template until the tab is saved or closed. An explicit force option is still available when the conflict is understood.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Uses Builderius’s native applied-template admin-bar link when available, makes its menu keyboard-focusable and warns before Builderius opens in a second tab. Older Builderius versions retain DBE’s direct link. Tabs also report their state to DBE, which blocks agent saves to a template that has unsaved changes elsewhere, and tells a tab when the template has been saved underneath it so it does not quietly overwrite the newer work. An explicit force option is still available when the conflict is understood.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'workflow',
 			'css'         => array(),
 			'js'          => true,

@@ -687,6 +687,21 @@ assert.match(
     'The admin-bar warning must accept legacy beats and choose the freshest v2 tab record.'
 );
 assert.match(
+    adminBar,
+    /get_node\( 'builderius' \)[\s\S]+add_node\([\s\S]+?'id'\s+=> 'builderius'[\s\S]+?'tabindex' => 0[\s\S]+?get_node\( 'builderius-applied-template' \)/,
+    'The native Builderius admin-bar trigger must gain a Tab stop before DBE checks for the native edit link.'
+);
+assert.match(
+    adminBar,
+    /get_node\( 'builderius-applied-template' \)[\s\S]+?return;[\s\S]+?dbe_builderius_runtime_cache\(\)/,
+    'The reflection-based edit link must remain a fallback after Builderius supplies its own item.'
+);
+assert.match(
+    adminBar,
+    /closest\('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a'\)/,
+    'Duplicate-tab protection must follow both the native link and DBE’s downgrade fallback.'
+);
+assert.match(
     coreRuntime,
     /function createMutationRouter\(refresh\)[\s\S]+new MutationObserver\(refresh\)[\s\S]+observer\.observe\(observation\.node, observation\.options\)/,
     'Builder-chrome mutations must route through one shared observer with targeted roots.'
