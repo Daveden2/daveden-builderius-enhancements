@@ -202,6 +202,41 @@ function dbe_adminbar_second_tab_warning() {
 	);
 	?>
 	;
+	var menu = document.getElementById('wp-admin-bar-builderius');
+	var trigger = menu && menu.querySelector(':scope > .ab-item');
+	var submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
+	function setMenuOpen(open) {
+		if (!menu || !trigger) { return; }
+		menu.classList.toggle('hover', open);
+		trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+	}
+	if (trigger && submenu) {
+		trigger.setAttribute('aria-haspopup', 'true');
+		var submenuList = submenu.querySelector(':scope > ul[id]');
+		if (submenuList) { trigger.setAttribute('aria-controls', submenuList.id); }
+		trigger.addEventListener('focus', function () { setMenuOpen(true); });
+		trigger.addEventListener('keydown', function (e) {
+			if (e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== ' ') { return; }
+			var first = submenu.querySelector('a[role="menuitem"], button:not([disabled]), [tabindex="0"]');
+			if (!first) { return; }
+			e.preventDefault();
+			setMenuOpen(true);
+			first.focus();
+		});
+		menu.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape' || !menu.contains(document.activeElement)) { return; }
+			e.preventDefault();
+			setMenuOpen(false);
+			trigger.focus();
+		});
+		menu.addEventListener('focusout', function (e) {
+			if (!menu.contains(e.relatedTarget)) { setMenuOpen(false); }
+		});
+		menu.addEventListener('mouseenter', function () { setMenuOpen(true); });
+		menu.addEventListener('mouseleave', function () {
+			if (!menu.contains(document.activeElement)) { setMenuOpen(false); }
+		});
+	}
 	// The builder page heartbeats into localStorage (builder.js); a beat
 	// fresher than HB.staleAfter means a builder tab is (very likely) open.
 	function freshestBeat(value) {

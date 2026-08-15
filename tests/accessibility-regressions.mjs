@@ -702,6 +702,21 @@ assert.match(
     'Duplicate-tab protection must follow both the native link and DBE’s downgrade fallback.'
 );
 assert.match(
+    adminBar,
+    /function setMenuOpen\(open\)[\s\S]+classList\.toggle\('hover', open\)[\s\S]+aria-expanded[\s\S]+trigger\.addEventListener\('focus'[\s\S]+setMenuOpen\(true\)/,
+    'Focusing the native Builderius trigger must expose its submenu and expanded state.'
+);
+assert.match(
+    adminBar,
+    /e\.key !== 'ArrowDown'[\s\S]+e\.key !== 'Enter'[\s\S]+e\.key !== ' '[\s\S]+first\.focus\(\)[\s\S]+e\.key !== 'Escape'[\s\S]+trigger\.focus\(\)/,
+    'The native Builderius menu must support keyboard entry and Escape focus return.'
+);
+assert.match(
+    adminBar,
+    /addEventListener\('focusout'[\s\S]+relatedTarget[\s\S]+setMenuOpen\(false\)/,
+    'The native Builderius menu must close after keyboard focus leaves it.'
+);
+assert.match(
     coreRuntime,
     /function createMutationRouter\(refresh\)[\s\S]+new MutationObserver\(refresh\)[\s\S]+observer\.observe\(observation\.node, observation\.options\)/,
     'Builder-chrome mutations must route through one shared observer with targeted roots.'
