@@ -236,7 +236,7 @@ foreach ( dbe_feature_presets() as $preset_id => $preset ) {
 
 /* -------------------------- Builderius-native feature retirement */
 
-$native_feature_ids = array( 'auto_bem', 'css_code_default', 'dblclick_rename', 'inline_rename', 'preview_resize', 'save_state_cue', 'scope_bar', 'tag_badges', 'undo_delete' );
+$native_feature_ids = array( 'auto_bem', 'css_code_default', 'dblclick_rename', 'inline_rename', 'preview_resize', 'save_state_cue', 'scope_bar', 'undo_delete' );
 $replaced_ids       = array_keys( dbe_builderius_replaced_features() );
 sort( $replaced_ids );
 
@@ -260,7 +260,7 @@ foreach ( $native_feature_ids as $feature_id ) {
 	);
 }
 
-foreach ( array( 'context_menu', 'favourites_reorder', 'keyboard_shortcuts' ) as $feature_id ) {
+foreach ( array( 'context_menu', 'favourites_reorder', 'keyboard_shortcuts', 'tag_badges' ) as $feature_id ) {
 	dbe_settings_test_assert(
 		! dbe_feature_replaced_by_builderius_for_version( $feature_id, '1.3.6-beta' ),
 		sprintf( 'Additive feature "%s" was retired prematurely.', $feature_id )

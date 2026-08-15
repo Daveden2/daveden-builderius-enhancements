@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
@@ -887,10 +888,27 @@ assert.match(
     /data-dbe-favourite-name[\s\S]+insertFavourite[\s\S]+Insert %s/,
     'Favourite controls must expose an action-led accessible name without changing tree rows.'
 );
+assert.ok(
+    composites.includes('function dbeTreeDisplayLabel(raw, tag)')
+        && composites.includes("var idx = raw.indexOf(' .');")
+        && composites.includes('var nativeTag = label.match(/^<([a-z][a-z0-9-]*)>$/i);')
+        && composites.includes("return '<' + tag + '>' + (!labelIsTag && label ? ' ' + label : '');"),
+    'Tag badges must recognise Builderius 1.3.6 native tag labels and remove class suffixes.'
+);
+const treeDisplayLabelSource = composites.match(/function dbeTreeDisplayLabel\(raw, tag\) \{[\s\S]*?\n        \}/)?.[0];
+assert.ok(treeDisplayLabelSource, 'The Navigator display-label helper must remain testable.');
+const treeDisplayLabelContext = {};
+runInNewContext(`${treeDisplayLabelSource}; result = dbeTreeDisplayLabel;`, treeDisplayLabelContext);
+assert.equal(treeDisplayLabelContext.result('<strong> .hero-title', 'strong'), '<strong>');
+assert.equal(treeDisplayLabelContext.result('strong .hero-title', 'strong'), '<strong>');
+assert.equal(
+    treeDisplayLabelContext.result('Documentation homepage .page-content.dbe-docs', 'main'),
+    '<main> Documentation homepage'
+);
 assert.match(
     composites,
-    /badge\.setAttribute\('aria-hidden', 'true'\)[\s\S]+spokenLabel\.textContent = raw/,
-    'Visual tag badges must preserve the native Navigator row name verbatim.'
+    /dbeTreeBadgeRecords\.push\(\{ node: span, html: span\.innerHTML, title: span\.getAttribute\('title'\) \}\)[\s\S]+span\.setAttribute\('title', displayLabel\)[\s\S]+spokenLabel\.textContent = displayLabel[\s\S]+record\.title === null[\s\S]+removeAttribute\('title'\)/,
+    'Decorated rows must share one class-free visible, tooltip and accessible label and restore native content on teardown.'
 );
 assert.match(
     composites,

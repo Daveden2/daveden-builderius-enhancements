@@ -1560,6 +1560,17 @@
         /* (a) tag + label, (b) keep-icon flag, (c) selected-row accent flag —
            each part gated on its own toggle. */
         var dbeTreeBadgeRecords = [];
+        function dbeTreeDisplayLabel(raw, tag) {
+            raw = String(raw || '').trim();
+            tag = String(tag || '').toLowerCase();
+            var idx = raw.indexOf(' .');
+            var label = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
+            var nativeTag = label.match(/^<([a-z][a-z0-9-]*)>$/i);
+            var labelIsTag = label.toLowerCase() === tag ||
+                (nativeTag && nativeTag[1].toLowerCase() === tag);
+            return '<' + tag + '>' + (!labelIsTag && label ? ' ' + label : '');
+        }
+
         function decorateTree() {
             var iframe = dbeQuery('previewFrame');
             var idoc = iframe && iframe.contentDocument;
@@ -1612,39 +1623,46 @@
                 if (!span || span.querySelector('.dbe-tag-badge')) { return; }
                 var tag = canvasTag(id);
                 if (!tag) { return; }
-                var raw = span.textContent.trim();
-                var idx = raw.indexOf(' .');
-                var label = idx >= 0 ? raw.slice(0, idx) : raw;
+                var raw = (span.getAttribute('title') || span.textContent).trim();
+                var tagText = '<' + tag + '>';
+                var displayLabel = dbeTreeDisplayLabel(raw, tag);
 
                 dbeTreeBadgeRecords = dbeTreeBadgeRecords.filter(function (record) { return record.node.isConnected; });
                 if (!dbeTreeBadgeRecords.some(function (record) { return record.node === span; })) {
-                    dbeTreeBadgeRecords.push({ node: span, html: span.innerHTML });
+                    dbeTreeBadgeRecords.push({ node: span, html: span.innerHTML, title: span.getAttribute('title') });
                 }
 
                 var badge = document.createElement('span');
                 badge.className = 'dbe-tag-badge';
-                badge.textContent = '<' + tag + '>';
+                badge.textContent = tagText;
                 badge.setAttribute('aria-hidden', 'true');
                 span.textContent = '';
+                span.setAttribute('title', displayLabel);
                 span.appendChild(badge);
-                if (label && label.toLowerCase() !== tag) {
+                if (displayLabel !== tagText) {
                     var visibleLabel = document.createElement('span');
                     visibleLabel.setAttribute('aria-hidden', 'true');
-                    visibleLabel.textContent = ' ' + label;
+                    visibleLabel.textContent = displayLabel.slice(tagText.length);
                     span.appendChild(visibleLabel);
                 }
-                // The badge is a visual scan aid, not a rename. Preserve the native
-                // row label verbatim for screen readers and voice-control matching.
+                // Expose the same class-free name visually, in the tooltip and to
+                // assistive technology so voice-control matching remains predictable.
                 var spokenLabel = document.createElement('span');
                 spokenLabel.className = 'dbe-visually-hidden';
-                spokenLabel.textContent = raw;
+                spokenLabel.textContent = displayLabel;
                 span.appendChild(spokenLabel);
             });
         }
 
         function dbeRestoreTreeDecorations() {
             dbeTreeBadgeRecords.forEach(function (record) {
-                if (record.node.isConnected) { record.node.innerHTML = record.html; }
+                if (!record.node.isConnected) { return; }
+                record.node.innerHTML = record.html;
+                if (record.title === null) {
+                    record.node.removeAttribute('title');
+                } else {
+                    record.node.setAttribute('title', record.title);
+                }
             });
             dbeTreeBadgeRecords = [];
             dbeQueryAll('navigatorRows').forEach(function (row) {
