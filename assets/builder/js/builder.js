@@ -1071,6 +1071,33 @@
             console.error('[DBE] Editing chunk failed to load; editing enhancements were not started.');
         }
     }
+
+    var dbeShortcutsApi = Object.freeze({
+        ensure: function () {},
+        open: function () {},
+        bind: function () {}
+    });
+    var dbeShortcutsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.shortcuts;
+    if (typeof dbeShortcutsChunk === 'function') {
+        dbeShortcutsChunk(Object.freeze({
+            on: on,
+            translate: dbeT,
+            config: CFG,
+            click: clickSeq,
+            waitFor: waitFor,
+            accelerator: dbeAccel,
+            bindOwnedEvent: dbeBindOwnedEvent,
+            setOwnedTimeout: dbeSetOwnedTimeout,
+            renameActive: renameActive,
+            setShortcutsApi: function (api) { dbeShortcutsApi = api; }
+        }));
+    } else {
+        document.documentElement.dataset.dbeChunkError = 'shortcuts:missing';
+        if (window.console && console.error) {
+            console.error('[DBE] Shortcuts chunk failed to load; shortcut discovery was not started.');
+        }
+    }
+
     var dbeCommandsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.commands;
     if (typeof dbeCommandsChunk === 'function') {
         dbeCommandsChunk(Object.freeze({
@@ -1179,6 +1206,7 @@
                 panelWrappers: dbePanelWrappers,
                 panelSideHidden: dbePanelSideHidden
             }),
+            shortcuts: dbeShortcutsApi,
             needNavigatorButtons: NEED_NAV_BUTTONS,
             needContextMenu: NEED_CTX_MENU,
             setCommandsApi: function (api) {

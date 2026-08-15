@@ -22,6 +22,7 @@ const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const integrations = read('assets/builder/js/chunks/integrations.js');
 const commands = read('assets/builder/js/chunks/commands.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
@@ -325,8 +326,8 @@ assert.match(
     'The command search field must use concise spoken copy independently of its visual placeholder.'
 );
 assert.match(
-    commands,
-    /function openShortcutsDialog\(\)[\s\S]+e\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeShortcutFocusReturn[\s\S]+target\.focus\(\)/,
+    shortcuts,
+    /function openShortcutsDialog\(\)[\s\S]+event\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeShortcutFocusReturn[\s\S]+target\.focus\(\)/,
     'Shortcut help must close explicitly on Escape and return focus to its invoker.'
 );
 assert.match(

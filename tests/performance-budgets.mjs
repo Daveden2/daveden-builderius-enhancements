@@ -28,7 +28,8 @@ const assetBudgets = new Map([
     ['assets/builder/js/chunks/editing.js', 70 * 1024],
     ['assets/builder/js/chunks/styles.js', 35 * 1024],
     ['assets/builder/js/chunks/integrations.js', 15 * 1024],
-    ['assets/builder/js/chunks/commands.js', 55 * 1024],
+    ['assets/builder/js/chunks/shortcuts.js', 8 * 1024],
+    ['assets/builder/js/chunks/commands.js', 54 * 1024],
     ['assets/builder/js/builder.js', 20 * 1024]
 ]);
 const chunkPaths = [...assetBudgets.keys()].filter((path) => path.includes('/chunks/'));

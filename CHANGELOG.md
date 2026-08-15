@@ -9,6 +9,9 @@ Four candidates are being evaluated independently: a preview context menu,
 preview-based element rename, reliable Navigator multiselect/move, and a safe
 custom-font manager for locally hosted Google Fonts and manually uploaded files.
 
+* Performance: shortcut discovery now loads as its own cacheable runtime chunk,
+  reducing the compressed commands chunk from its 16-byte safety margin to
+  more than 1.4 KB of enforced headroom without adding another controller.
 * Compatibility: audited the Builderius runtime adapter against Builderius and
   Builderius Pro 1.3.6-beta.
 * Fixed: Builderius Free now exposes its builder store to DBE through the

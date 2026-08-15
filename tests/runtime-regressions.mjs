@@ -18,6 +18,7 @@ const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const integrations = read('assets/builder/js/chunks/integrations.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const cssCache = read('includes/builder-css-cache.php');
@@ -106,7 +107,7 @@ assert.match(
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-integrations-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
+    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-integrations-js[\s\S]+dbe-builder-shortcuts-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
     'The core runtime and feature chunks must load synchronously before the feature host.'
 );
 assert.match(
@@ -138,6 +139,11 @@ assert.match(
     outputBuilder,
     /filemtime\( \$integrations_path \)[\s\S]+assets\/builder\/js\/chunks\/integrations\.js/,
     'The integrations chunk must use the same filemtime cache-busting contract as the host.'
+);
+assert.match(
+    outputBuilder,
+    /filemtime\( \$shortcuts_path \)[\s\S]+assets\/builder\/js\/chunks\/shortcuts\.js/,
+    'The shortcuts chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
@@ -278,6 +284,16 @@ assert.match(
     commands,
     /chunks\.commands = function \(host\)[\s\S]+dbeControllers\.register\(DBE_COMMANDS_OWNER[\s\S]+host\.setCommandsApi\(Object\.freeze\(/,
     'The commands chunk must register through an explicit host contract and export only shared actions.'
+);
+assert.match(
+    shortcuts,
+    /chunks\.shortcuts = function \(host\)[\s\S]+function openShortcutsDialog\(\)[\s\S]+host\.setShortcutsApi\(Object\.freeze\(/,
+    'Shortcut discovery must register through a narrow, independently cacheable chunk contract.'
+);
+assert.match(
+    builder,
+    /var dbeShortcutsChunk = window\.dbeBuilderChunks[\s\S]+dbeShortcutsChunk\(Object\.freeze\([\s\S]+setShortcutsApi[\s\S]+shortcuts: dbeShortcutsApi/,
+    'The feature host must initialise shortcut discovery before passing its frozen API to commands.'
 );
 assert.match(
     builder,

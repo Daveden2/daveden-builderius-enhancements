@@ -20,6 +20,7 @@ const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const commands = read('assets/builder/js/chunks/commands.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
@@ -117,7 +118,7 @@ assert.match(
     'DBE must leave native rename, duplicate and cut shortcuts to Builderius 1.3.6+.'
 );
 assert.match(
-    commands,
+    shortcuts,
     /nativeShortcutPanel[\s\S]+function dbeNativeShortcutGroups\(\)[\s\S]+!pair\[2\][\s\S]+function ensureNativeShortcuts\(\)[\s\S]+\.uniTabShortcuts[\s\S]+dbe-native-shortcuts-group[\s\S]+function openShortcutsDialog\(\)[\s\S]+dbeOpenNativeShortcuts\(\)/,
     'DBE must extend the native 1.3.6 shortcut panel instead of opening a duplicate reference.'
 );
