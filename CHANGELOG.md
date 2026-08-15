@@ -25,6 +25,13 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   controls on 1.3.6-beta and later while retaining them for older Builderius
   versions. The separate CSS token guide, minimap preference and style
   inspector remain available.
+* Changed: the enhanced element context menu now adopts Builderius 1.3.6-beta’s
+  native Cut, Rename, Auto-BEM, Wrap in and Expand children actions instead of
+  displaying DBE duplicates. Native shortcut labels are ignored when matching
+  commands, stock separators are replaced by DBE’s logical groups, and the
+  DBE wrapping toggle contributes only its additional Figure and Unwrap actions
+  when the native wrapper is present. Older Builderius versions retain the
+  complete DBE fallbacks.
 
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open

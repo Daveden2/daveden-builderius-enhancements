@@ -344,6 +344,16 @@ assert.match(
 );
 assert.match(
     commands,
+    /function nativeCtxLabel\(li\)[\s\S]+uniContextMenu__shortcut[\s\S]+function collectNativeItems\(container, regex\)[\s\S]+regex\.test\(nativeCtxLabel\(li\)\)/,
+    'Builderius 1.3.6 shortcut spans must not become part of native context-menu command names.'
+);
+assert.match(
+    commands,
+    /nativeContextItem\(container, \/\^Cut\$\/\)[\s\S]+collectNativeItems\(container, \/\^\(Copy\|Paste\|Cut\)\$\/\)[\s\S]+collectNativeItems\(container, \/\^Rename\$\/\)[\s\S]+collectNativeItems\(container, \/\^Auto-BEM\$\/\)[\s\S]+collectNativeItems\(container, \/\^Wrap in\$\/\)[\s\S]+collectNativeItems\(container, \/\^Expand children\$\/\)/,
+    'The enhanced menu must adopt Builderius 1.3.6 actions instead of adding duplicate Cut, rename, wrapping or expansion commands.'
+);
+assert.match(
+    commands,
     /function dbeNavigatorContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+row\.dispatchEvent\(new MouseEvent\('contextmenu'[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key'/,
     'Navigator rows must explicitly open their context menu from Shift+F10 and the Menu key.'
 );

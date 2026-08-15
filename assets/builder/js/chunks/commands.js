@@ -100,15 +100,17 @@
         var NEED_NAV_BUTTONS = host.needNavigatorButtons;
         var NEED_CTX_MENU = host.needContextMenu;
 
-        /* A menu row's label with any injected accel hint (.dbe-ctx-accel) left
-           out. When a menu item drives the menu it was activated from (Cut =
-           Copy then Remove), React can reuse the just-closed dialog still
-           enriched, so the native row reads "Copy⌘C" — the hint span must not
-           break the exact-label match. */
+        /* A menu row's label with shortcut hints left out. DBE adds
+           .dbe-ctx-accel on older Builderius versions; 1.3.6 adds its own
+           .uniContextMenu__shortcut spans. Neither is part of the command name.
+           When a menu item drives the menu it was activated from (Cut = Copy
+           then Remove), React can also reuse the just-closed enriched dialog,
+           so exact-label matching must ignore both forms. */
         function nativeCtxLabel(li) {
             var t = '';
             for (var n = li.firstChild; n; n = n.nextSibling) {
-                if (n.nodeType === 1 && n.classList && n.classList.contains('dbe-ctx-accel')) { continue; }
+                if (n.nodeType === 1 && n.classList &&
+                    (n.classList.contains('dbe-ctx-accel') || n.classList.contains('uniContextMenu__shortcut'))) { continue; }
                 t += n.textContent || '';
             }
             return t.trim();
@@ -677,10 +679,17 @@
         function collectNativeItems(container, regex) {
             var items = [].slice.call(container.querySelectorAll('.uniContextMenu__item'))
                 .filter(function (li) {
-                    return regex.test((li.textContent || '').trim()) && !li.classList.contains('dbe-ctx-item');
+                    return regex.test(nativeCtxLabel(li)) && !li.classList.contains('dbe-ctx-item');
                 });
             items.forEach(function (li) { li.parentNode && li.parentNode.removeChild(li); });
             return items;
+        }
+
+        function nativeContextItem(container, regex) {
+            return [].slice.call(container.querySelectorAll('.uniContextMenu__item'))
+                .find(function (li) {
+                    return !li.classList.contains('dbe-ctx-item') && regex.test(nativeCtxLabel(li));
+                }) || null;
         }
 
         /* The element context menu. With context_menu ON the items are re-laid into
@@ -730,7 +739,7 @@
                     container.insertBefore(note, container.firstChild);
                     // Single-target native actions don't apply to a multi-selection.
                     [].slice.call(container.querySelectorAll('.uniContextMenu__item')).forEach(function (li) {
-                        if (/^(Duplicate|Copy|Paste|Remove|Create Component)$/.test((li.textContent || '').trim())) {
+                        if (/^(Duplicate|Copy|Paste|Cut|Rename|Auto-BEM|Wrap in|Remove|Create Component)$/.test(nativeCtxLabel(li))) {
                             disableCtxItem(li, dbeT('singleElementOnly', 'Available when one element is selected'));
                         }
                     });
@@ -861,10 +870,13 @@
                 }
 
                 // "Expand children" -> open the whole subtree under this row (only
-                // offered when the row is expandable, i.e. has a chevron)
+                // offered when the row is expandable, i.e. has a chevron). From
+                // Builderius 1.3.6 the native menu owns this action; keep DBE's
+                // implementation only as the older-version fallback.
                 var expandLi = null;
                 var ctxRowBtn = contextTarget() && document.querySelector('.uniRightPanel .uni-tree-node-' + contextTarget());
-                if (!multiIds && on('collapse_expand_all') && ctxRowBtn && ctxRowBtn.querySelector('i')) {
+                var nativeExpandAvailable = !!nativeContextItem(container, /^Expand children$/);
+                if (!multiIds && !nativeExpandAvailable && on('collapse_expand_all') && ctxRowBtn && ctxRowBtn.querySelector('i')) {
                     expandLi = document.createElement('li');
                     expandLi.className = 'uniContextMenu__item dbe-ctx-item';
                     expandLi.setAttribute('role', 'menuitem');
@@ -881,6 +893,7 @@
                 // "Wrap in" -> div / template / collection. For a multi-selection it
                 // wraps all selected elements — possible only when they're siblings.
                 var wrapEnabled = on('wrap_in');
+                var nativeWrapAvailable = !!nativeContextItem(container, /^Wrap in$/);
                 var wrapDisabled = false;
                 if (wrapEnabled && multiIds) {
                     var mods0 = modules() || {};
@@ -953,18 +966,32 @@
                 }
 
                 // Cut + Add before / Add after (keyboard_shortcuts). Cut mirrors the
-                // Cmd/Ctrl+X shortcut (native Copy then Remove); Add-before/after open
-                // the quick element picker (deferred a tick so the menu closes first).
+                // Cmd/Ctrl+X shortcut (native Copy then Remove) on older Builderius;
+                // 1.3.6 owns Cut. Add-before/after open the quick element picker
+                // (deferred a tick so the menu closes first).
                 var cutLi = null, addBeforeLi = null, addAfterLi = null;
                 if (!multiIds && on('keyboard_shortcuts') && contextTarget()) {
                     var ksId = contextTarget();
-                    cutLi = makeCtxItem(dbeT('cut', 'Cut'), function () {
-                        driveContextMenuItem(ksId, 'Copy', function (ok) {
-                            if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); }); }
-                        });
-                    }, { accel: dbeAccel('X', { cmd: true }) });
+                    if (!nativeContextItem(container, /^Cut$/)) {
+                        cutLi = makeCtxItem(dbeT('cut', 'Cut'), function () {
+                            driveContextMenuItem(ksId, 'Copy', function (ok) {
+                                if (ok) { driveContextMenuItem(ksId, 'Remove', function () { undoToast(dbeT('cutDone', 'Cut element'), 'undo'); }); }
+                            });
+                        }, { accel: dbeAccel('X', { cmd: true }) });
+                    }
                     addBeforeLi = makeCtxItem(dbeT('addBefore', 'Add element before'), function () { setTimeout(function () { openElementPicker(ksId, -1); }, 60); }, { accel: dbeAccel('T', { cmd: true, alt: true }) });
                     addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
+                }
+
+                // Native Wrap in covers Div, Template and Collection in 1.3.6.
+                // Figure and Unwrap remain DBE additions; older Builderius keeps
+                // DBE's complete wrapping flyout.
+                var wrapFigureLi = null;
+                if (!multiIds && wrapEnabled && nativeWrapAvailable) {
+                    var figureId = contextTarget();
+                    wrapFigureLi = makeCtxItem(dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), dbeT('wrapIn', 'Wrap in'), dbeT('figureLabel', 'Figure')), function () {
+                        wrap('figure', [figureId]);
+                    });
                 }
 
                 // "Edit as HTML" (edit_as_html, Pro) — plain-element subtrees only;
@@ -1046,14 +1073,14 @@
                    native ones, so each feature still works with grouping turned off. */
                 if (!grouped) {
                     var injected = nameItems.concat(advancedItems,
-                        [stylesParent, cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
+                        [stylesParent, cutLi, addBeforeLi, addAfterLi, wrapFigureLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                     );
                     if (injected.length) {
                         injected[0].classList.add('dbe-ctx-item--first');
                         injected.forEach(function (li) { container.appendChild(li); });
                     }
                     if (removeNLi) { container.appendChild(removeNLi); }
-                    if (wrapEnabled) {
+                    if (wrapEnabled && (!nativeWrapAvailable || multiIds)) {
                         var flatWrap = makeParent(
                             multiIds ? dbeFmt(dbeT('wrapNIn', 'Wrap %s in'), multiIds.length) : dbeT('wrapIn', 'Wrap in'),
                             false,
@@ -1088,16 +1115,24 @@
                 // skipped, never a crash. The multi-select pass above already disabled
                 // the single-target ones, and that state rides along with the node.
                 var natDuplicate = collectNativeItems(container, /^Duplicate$/);
-                var natClip = collectNativeItems(container, /^(Copy|Paste)$/);
+                var natClip = collectNativeItems(container, /^(Copy|Paste|Cut)$/);
+                var natName = collectNativeItems(container, /^Rename$/);
+                var natBem = collectNativeItems(container, /^Auto-BEM$/);
+                var natWrap = collectNativeItems(container, /^Wrap in$/);
+                var natExpand = collectNativeItems(container, /^Expand children$/);
                 var natCreate = collectNativeItems(container, /^Create Component$/);
                 var natSave = collectNativeItems(container, /^Save\b/);
                 var natRemove = collectNativeItems(container, /^Remove$/);
+                // Native separators describe the stock ordering. DBE's regrouped
+                // menu draws its own cluster separators, so keeping both creates
+                // empty and doubled rules after the native rows are re-parented.
+                [].slice.call(container.querySelectorAll('.uniContextMenu__divider')).forEach(function (li) { li.remove(); });
 
                 // Structure cluster: Wrap in… flyout (the wrap targets are hoisted
                 // flat inside it — flyouts can't nest) + Unwrap.
                 var wrapLabel = multiIds ? dbeFmt(dbeT('wrapNIn', 'Wrap %s in'), multiIds.length) : dbeT('wrapIn', 'Wrap in');
                 var wrapParent = null;
-                if (wrapEnabled) {
+                if (wrapEnabled && (!nativeWrapAvailable || multiIds)) {
                     wrapParent = makeParent(multiIds ? dbeFmt(dbeT('wrapNInEllipsis', 'Wrap %s in…'), multiIds.length) : dbeT('wrapInEllipsis', 'Wrap in…'), false, function () {
                         return [
                             makeWrapItem('div', dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), wrapLabel, dbeT('divLabel', 'Div'))),
@@ -1126,25 +1161,29 @@
                 var insertParent = insertItems.length
                     ? makeParent(dbeT('insertActions', 'Insert…'), false, function () { return insertItems; })
                     : null;
-                var moveNavigateItems = [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean);
+                var moveNavigateItems = [moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi]
+                    .concat(natExpand, expandLi ? [expandLi] : []).filter(Boolean);
                 var moveNavigateParent = moveNavigateItems.length
                     ? makeParent(dbeT('moveNavigate', 'Move and navigate…'), false, function () { return moveNavigateItems; })
                     : null;
-                var moreToolsParent = advancedItems.length
-                    ? makeParent(dbeT('moreElementTools', 'More element tools…'), false, function () { return advancedItems; })
+                var allAdvancedItems = natBem.concat(advancedItems);
+                var moreToolsParent = allAdvancedItems.length
+                    ? makeParent(dbeT('moreElementTools', 'More element tools…'), false, function () { return allAdvancedItems; })
                     : null;
 
                 // Assemble the clusters in order; empty ones drop out. The first item
                 // of every cluster after the first gets a top-border separator via
                 // .dbe-ctx-item--first — no separator <li>, so the keyboard focus ring
                 // (which skips only non-action rows) is untouched.
+                var structureItems = [changeTagParent]
+                    .concat(multiIds ? [] : natWrap, [wrapParent, wrapFigureLi, unwrapLi]).filter(Boolean);
                 var clusters = [
                     natDuplicate,                                                    // Clone
                     natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
-                    nameItems,                                                       // Name
+                    natName.concat(nameItems),                                       // Name
                     stylesParent ? [stylesParent] : [],                              // Inspect / edit CSS
                     insertParent ? [insertParent] : [],                              // Insert
-                    [changeTagParent, wrapParent, unwrapLi].filter(Boolean),          // Structure
+                    structureItems,                                                  // Structure
                     moveNavigateParent ? [moveNavigateParent] : [],                  // Position / navigate
                     natCreate.concat(saveItem ? [saveItem] : []),                    // Reuse
                     moreToolsParent ? [moreToolsParent] : [],                        // Advanced
