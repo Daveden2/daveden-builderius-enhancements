@@ -1763,8 +1763,8 @@
                 ['Esc', on('multi_select') ?
                     dbeT('scEscape', 'Close menus and dialogs; clear the multi-selection') :
                     dbeT('scEscapeClose', 'Close menus and dialogs')],
-                ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)')],
-                [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }), dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)')]
+                ['Delete', dbeT('scDelete', 'Remove the selected element (Builderius)'), true],
+                [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }), dbeT('scCopyPaste', 'Copy / paste the selected element (Builderius)'), true]
             ].concat(on('save_shortcut') ? [
                 [sc('S', { cmd: true }), dbeT('scSave', 'Save the template')]
             ] : [])],
@@ -1781,8 +1781,8 @@
                     [sc('←', { alt: true }), dbeT('scMoveOut', 'Move the element out one level')]
                 ] : [],
                 [
-                    [sc('Z', { cmd: true }), dbeT('scUndo', 'Undo the last element change')],
-                    [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the element change')]
+                    [sc('Z', { cmd: true }), dbeT('scUndo', 'Undo the last element change'), true],
+                    [sc('Z', { cmd: true, shift: true }), dbeT('scRedo', 'Redo the element change'), true]
                 ],
                 on('multi_select') ? [
                     [sc('click', { cmd: true }), dbeT('scMultiToggle', 'Add or remove a row from the multi-selection')],
@@ -1814,13 +1814,13 @@
             ]]
         ]).concat(on('keyboard_shortcuts') ? [
             [dbeT('scGroupElements', 'Selected element'), [
-                [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate')],
-                [sc('X', { cmd: true }), dbeT('scCut', 'Cut')],
+                [sc('D', { cmd: true, shift: true }), dbeT('scDuplicate', 'Duplicate'), true],
+                [sc('X', { cmd: true }), dbeT('scCut', 'Cut'), true],
                 [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
                 [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')],
-                ['F2', dbeT('scRename', 'Rename')],
+                ['F2', dbeT('scRename', 'Rename'), true],
                 ['Esc', dbeT('scFinishCanvasText', 'Finish editing text in the canvas')],
-                [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)')]
+                [sc('C', { cmd: true }) + ' · ' + sc('V', { cmd: true }) + ' · Delete', dbeT('scCopyPasteDelete', 'Copy / paste / delete the element (Builderius)'), true]
             ]],
             [dbeT('scGroupAreas', 'Move focus to'), [
                 [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
@@ -1843,78 +1843,9 @@
            extra routes to that panel, using its native group/list classes so the
            result remains one reference rather than two competing surfaces. */
         function dbeNativeShortcutGroups() {
-            var groups = [];
-            var general = [['?', dbeT('scOpenOverlay', 'Open keyboard shortcuts')]];
-            if (on('save_shortcut')) { general.push([sc('S', { cmd: true }), dbeT('scSave', 'Save the template')]); }
-            if (on('command_palette')) { general.push([dbePaletteAccel(), dbeT('scOpenPalette', 'Open the command palette')]); }
-            groups.push([dbeT('scGroupGeneral', 'General'), general]);
-
-            var navigator = [];
-            if (on('navigator_keyboard')) {
-                navigator.push(
-                    ['↑ ↓', dbeT('scTreeMove', 'Move to the previous or next element and select it')],
-                    ['→', dbeT('scTreeExpand', 'Open a branch, then step into its first child')],
-                    ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
-                    ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
-                );
-            }
-            if (on('element_moves')) {
-                navigator.push(
-                    [sc('↑', { alt: true }) + ' · ' + sc('↓', { alt: true }), dbeT('scReorder', 'Move the element among its siblings')],
-                    [sc('→', { alt: true }), dbeT('scMoveIn', 'Move the element into its previous sibling')],
-                    [sc('←', { alt: true }), dbeT('scMoveOut', 'Move the element out one level')]
-                );
-            }
-            if (on('navigator_keyboard') || NEED_CTX_MENU || on('navigator_paste')) {
-                navigator.push([sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]);
-            }
-            if (navigator.length) { groups.push([dbeT('scGroupNavigator', 'Navigator'), navigator]); }
-
-            var canvas = [];
-            if (on('navigator_keyboard')) {
-                canvas.push(
-                    ['↑ ↓', dbeT('scCanvasMove', 'Move between visible elements')],
-                    ['→', dbeT('scCanvasChild', 'Open a branch, then select its first child')],
-                    ['←', dbeT('scCanvasParent', 'Close a branch, then select its parent')],
-                    ['Home · End', dbeT('scCanvasFirstLast', 'First / last visible element')]
-                );
-            }
-            if (on('keyboard_shortcuts')) {
-                canvas.push(
-                    ['Enter', dbeT('scEnterInteractive', 'Edit selected text; otherwise interact with the page')],
-                    ['Esc', dbeT('scExitInteractive', 'Return to selecting elements')]
-                );
-            }
-            if (canvas.length) { groups.push([dbeT('scGroupCanvas', 'Canvas'), canvas]); }
-
-            if (NEED_CTX_MENU) {
-                groups.push([dbeT('scGroupContextMenu', 'Context menu'), [
-                    ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
-                    ['Home · End', dbeT('scFirstLast', 'First / last item')],
-                    ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
-                    ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
-                ]]);
-            }
-
-            if (on('keyboard_shortcuts')) {
-                groups.push([dbeT('scGroupElements', 'Selected element'), [
-                    [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
-                    [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')]
-                ]]);
-                groups.push([dbeT('scGroupAreas', 'Move focus to'), [
-                    [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
-                    [sc('E', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Element settings')],
-                    [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas')],
-                    [sc('L', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Element library')],
-                    [sc('B', { cmd: true, alt: true }), dbeT('scGotoFooter', 'Footer bar')]
-                ]]);
-            }
-            if (on('ai_terminal_tabs')) {
-                groups.push([dbeT('scGroupSenseAi', 'Sense AI'), [
-                    [sc('`', { ctrl: true }), dbeT('scExitTerminal', 'Move focus out of the terminal')]
-                ]]);
-            }
-            return groups;
+            return SHORTCUT_GROUPS.map(function (group) {
+                return [group[0], group[1].filter(function (pair) { return !pair[2]; })];
+            }).filter(function (group) { return group[1].length; });
         }
 
         function ensureNativeShortcuts() {

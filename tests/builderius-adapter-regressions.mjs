@@ -113,7 +113,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /nativeShortcutPanel[\s\S]+function ensureNativeShortcuts\(\)[\s\S]+\.uniTabShortcuts[\s\S]+dbe-native-shortcuts-group[\s\S]+function openShortcutsDialog\(\)[\s\S]+dbeOpenNativeShortcuts\(\)/,
+    /nativeShortcutPanel[\s\S]+function dbeNativeShortcutGroups\(\)[\s\S]+!pair\[2\][\s\S]+function ensureNativeShortcuts\(\)[\s\S]+\.uniTabShortcuts[\s\S]+dbe-native-shortcuts-group[\s\S]+function openShortcutsDialog\(\)[\s\S]+dbeOpenNativeShortcuts\(\)/,
     'DBE must extend the native 1.3.6 shortcut panel instead of opening a duplicate reference.'
 );
 assert.match(
