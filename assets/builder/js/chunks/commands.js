@@ -288,8 +288,7 @@
             }, true);
         }
 
-        /* --- "Wrap in" / "Save to" submenus in the native tree context menu --- */
-        var submenuCloseTimer = null;
+        /* --- Branching actions in the native tree context menu --- */
 
         function removeSubmenus() {
             document.querySelectorAll('.dbe-ctx-submenu').forEach(function (el) { el.remove(); });
@@ -374,8 +373,6 @@
             menu.appendChild(ul);
             inner.appendChild(menu);
             fly.appendChild(inner);
-            fly.addEventListener('mouseenter', function () { clearTimeout(submenuCloseTimer); });
-            fly.addEventListener('mouseleave', function () { submenuCloseTimer = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, removeSubmenus, 180); });
             return fly;
         }
 
@@ -436,7 +433,6 @@
                 return li; // no flyout wiring: not hoverable, not keyboard-openable
             }
             function openFlyout() {
-                clearTimeout(submenuCloseTimer);
                 removeSubmenus();
                 var fly = makeFlyout(itemsFactory(), labelText);
                 // The native menu is a <dialog> shown with showModal(): it paints in
@@ -455,10 +451,21 @@
                 return fly;
             }
             li._dbeOpenFlyout = openFlyout; // keyboard channel (Enter / ArrowRight)
-            li.addEventListener('mouseenter', openFlyout);
-            li.addEventListener('mouseleave', function () {
-                submenuCloseTimer = dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, removeSubmenus, 180);
+            // Builderius 1.3.6 opens its native Wrap in and Save to branches on
+            // click. Follow that model for DBE branches too: mixed hover/click
+            // menus make the caret's behaviour unpredictable, and click works
+            // equally for mouse, touch and keyboard users. A second click closes
+            // the open branch; Enter and ArrowRight still call openFlyout above.
+            li.addEventListener('mousedown', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (li.getAttribute('aria-expanded') === 'true') {
+                    removeSubmenus();
+                    return;
+                }
+                openFlyout();
             });
+            li.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
             return li;
         }
 
@@ -4189,10 +4196,6 @@
             dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
             removeSubmenus();
             closeChipMenu();
-            if (submenuCloseTimer) {
-                clearTimeout(submenuCloseTimer);
-                submenuCloseTimer = null;
-            }
             document.querySelectorAll(
                 '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
                 '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +

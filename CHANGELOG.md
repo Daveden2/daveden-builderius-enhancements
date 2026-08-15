@@ -36,6 +36,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   pinned 20px from the top-right viewport edge when opened from the right-hand
   Navigator. DBE centres the modal while leaving its native choices and action
   handlers authoritative.
+* Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
+  interaction. Insert, Change tag, Move and navigate, and More element tools no
+  longer open merely because the pointer crosses them; click, Enter or
+  ArrowRight opens their flyout, matching native Wrap in and Save to.
 
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open

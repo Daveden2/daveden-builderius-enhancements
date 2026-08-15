@@ -42,6 +42,7 @@ const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
 const adminBar = read('includes/admin-bar.php');
+const contextParentFactory = commands.slice(commands.indexOf('function makeParent'), commands.indexOf('function makeCtxItem'));
 
 assert.match(
     a11y,
@@ -352,6 +353,16 @@ assert.match(
     commands,
     /nativeContextItem\(container, \/\^Cut\$\/\)[\s\S]+collectNativeItems\(container, \/\^\(Copy\|Paste\|Cut\)\$\/\)[\s\S]+collectNativeItems\(container, \/\^Rename\$\/\)[\s\S]+collectNativeItems\(container, \/\^Auto-BEM\$\/\)[\s\S]+collectNativeItems\(container, \/\^Wrap in\$\/\)[\s\S]+collectNativeItems\(container, \/\^Expand children\$\/\)/,
     'The enhanced menu must adopt Builderius 1.3.6 actions instead of adding duplicate Cut, rename, wrapping or expansion commands.'
+);
+assert.match(
+    contextParentFactory,
+    /li\.addEventListener\('mousedown',[\s\S]+aria-expanded[\s\S]+openFlyout\(\)/,
+    'DBE context-menu branches must follow Builderius 1.3.6 and open on click.'
+);
+assert.doesNotMatch(
+    contextParentFactory,
+    /mouseenter|mouseleave/,
+    'DBE context-menu branches must not mix hover-open behaviour with Builderius click-open branches.'
 );
 assert.match(
     contextMenu,
