@@ -374,6 +374,11 @@ assert.match(
     /function dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+aria-label[\s\S]+dbe-wrap-in-figure[\s\S]+wrap\('figure', \[targetId\]\)[\s\S]+function dbeEnhanceNativeWrapItem/,
     'The native Wrap in modal must include DBE Figure wrapping and an accessible close name.'
 );
+assert.match(
+    commands,
+    /dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+dialog\.setAttribute\('aria-label', dbeT\('wrapIn'[\s\S]+ev\.key !== 'Tab'[\s\S]+ev\.shiftKey[\s\S]+wrap-dialog-close[\s\S]+uni-tree-node-[\s\S]+first\.focus\(\)/,
+    'The Wrap in modal must be named, contain Tab focus, start on the first choice and return focus to its Navigator row.'
+);
 assert.doesNotMatch(
     commands,
     /wrapFigureLi/,
@@ -383,6 +388,11 @@ assert.match(
     contextMenu,
     /uniMiniModal--wrapIn[\s\S]+uniIconButton\s*\{[\s\S]+inline-size:\s*28px\s*!important;[\s\S]+block-size:\s*28px\s*!important;[\s\S]+focus-visible/,
     'The native Wrap in close button must expose a visible 28px target and keyboard focus treatment.'
+);
+assert.match(
+    contextMenu,
+    /uniWrapInModal__option:hover[\s\S]+dbe-hover-wash[\s\S]+uniWrapInModal__option:focus-visible[\s\S]+color-mix\(in srgb, var\(--dbe-focus\) 10%, transparent\)[\s\S]+outline:\s*2px solid var\(--dbe-focus\)/,
+    'Wrap in choices must have subtle hover and focus colours plus a visible focus ring.'
 );
 assert.match(
     commands,

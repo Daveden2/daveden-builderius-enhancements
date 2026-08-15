@@ -40,6 +40,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   modal instead of a separate context-menu command. The modal's unnamed 8x9px
   close control is now labelled and presented as a 28x28px target with visible
   keyboard focus.
+* Accessibility: the **Wrap in** modal now has an accessible name, starts focus
+  on Div, contains Tab and Shift+Tab within its choices and Close control, and
+  returns focus to the originating Navigator row when dismissed. Choices and
+  Close use subtle hover/focus colour washes with a clear focus outline.
 * Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or

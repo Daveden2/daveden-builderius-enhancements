@@ -557,29 +557,64 @@
            created afresh after the native row activates, so decorate each open. */
         function dbeDecorateNativeWrapDialog(dialog, targetId) {
             if (!dialog || !targetId) { return; }
+            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, dialog, ['aria-label', 'data-dbe-wrap-keyboard']);
+            dialog.setAttribute('aria-label', dbeT('wrapIn', 'Wrap in'));
             var close = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
             if (close) {
                 dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, close, ['aria-label']);
                 close.setAttribute('aria-label', dbeT('close', 'Close'));
             }
             var options = dialog.querySelector('.uniWrapInModal__options');
-            if (!options || options.querySelector('.dbe-wrap-in-figure')) { return; }
-            var button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'uniPanelButtonTertiaryOutlined uniWrapInModal__option dbe-wrap-in-figure';
-            var label = document.createElement('span');
-            label.textContent = dbeT('figureLabel', 'Figure');
-            button.appendChild(label);
-            button.appendChild(document.createElement('span'));
-            button.addEventListener('click', function (ev) {
-                ev.preventDefault();
-                ev.stopPropagation();
-                var closeButton = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
-                if (closeButton) { clickSeq(closeButton); }
-                else { try { dialog.close(); } catch (e) {} }
-                dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { wrap('figure', [targetId]); }, 80);
+            if (!options) { return; }
+            var button = options.querySelector('.dbe-wrap-in-figure');
+            if (!button) {
+                button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'uniPanelButtonTertiaryOutlined uniWrapInModal__option dbe-wrap-in-figure';
+                var label = document.createElement('span');
+                label.textContent = dbeT('figureLabel', 'Figure');
+                button.appendChild(label);
+                button.appendChild(document.createElement('span'));
+                button.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    var closeButton = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
+                    if (closeButton) { clickSeq(closeButton); }
+                    else { try { dialog.close(); } catch (e) {} }
+                    dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { wrap('figure', [targetId]); }, 80);
+                });
+                options.appendChild(button);
+            }
+            if (dialog.getAttribute('data-dbe-wrap-keyboard') !== '1') {
+                dialog.setAttribute('data-dbe-wrap-keyboard', '1');
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key', 'keydown', function (ev) {
+                    if (ev.key !== 'Tab') { return; }
+                    var choices = [].slice.call(options.querySelectorAll('.uniWrapInModal__option'));
+                    var focusables = choices.concat(close ? [close] : []);
+                    var at = focusables.indexOf(document.activeElement);
+                    if (ev.shiftKey && at <= 0) {
+                        ev.preventDefault();
+                        focusables[focusables.length - 1].focus();
+                    } else if (!ev.shiftKey && at === focusables.length - 1) {
+                        ev.preventDefault();
+                        focusables[0].focus();
+                    }
+                });
+                dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-close', 'close', function () {
+                    dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key');
+                    dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-close');
+                    dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
+                        var row = document.querySelector('.uniRightPanel .uni-tree-node-' + targetId);
+                        if (row) { try { row.focus(); } catch (e) {} }
+                    });
+                });
+            }
+            // Start on the task rather than the dismiss control. Shift+Tab still
+            // reaches Close immediately, and the modal cycle above contains focus.
+            dbeSetOwnedFrame(DBE_COMMANDS_OWNER, function () {
+                var first = options.querySelector('.uniWrapInModal__option');
+                if (dialog.open && first) { first.focus(); }
             });
-            options.appendChild(button);
         }
 
         function dbeWatchNativeWrapDialog(targetId) {
@@ -592,8 +627,11 @@
 
         function dbeEnhanceNativeWrapItem(item, targetId) {
             if (!item || item.getAttribute('data-dbe-wrap-dialog') === '1') { return; }
+            dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, item, ['data-dbe-wrap-dialog']);
             item.setAttribute('data-dbe-wrap-dialog', '1');
-            item.addEventListener('mousedown', function () { dbeWatchNativeWrapDialog(targetId); });
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, item, 'wrap-dialog-open', 'mousedown', function () {
+                dbeWatchNativeWrapDialog(targetId);
+            });
         }
 
         /* Expand the right-clicked row's whole subtree. Same chevron click channel
