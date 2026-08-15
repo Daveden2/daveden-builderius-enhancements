@@ -501,9 +501,9 @@ function dbe_features() {
 			'js'          => true,
 		),
 		'favourites_reorder'    => array(
-			'title'       => __( 'Rearrange favourites', 'daveden-builderius-enhancements' ),
-			'summary'     => __( 'Drag or arrow-key reordering of the favourites bar.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Adds a rearrange button to the favourites bar. Drag the icons, or use the arrow keys, to put them in your preferred order; the order is remembered in your browser.', 'daveden-builderius-enhancements' ),
+			'title'       => __( 'Keyboard-accessible favourite editing', 'daveden-builderius-enhancements' ),
+			'summary'     => __( 'Adds arrow-key reordering to Builderius’s favourites editor.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Extends Builderius’s native Edit favourites mode with accessible names, move announcements and Up/Down arrow-key reordering. Pointer dragging and persistence remain under Builderius’s control. On older Builderius versions without the native editor, DBE supplies its original drag-and-keyboard fallback.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'navigator',
 			'css'         => array( '23-favourites-reorder.css' ),
 			'shared_css'  => array( '02-nav-layout.css' ),

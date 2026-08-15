@@ -1708,19 +1708,17 @@
             }, true);
         }
 
-        /* Favourites bar reorder (favourites_reorder). The bar is the vertical
-           ul.uniModTree__favouritesList beside the tree; each li holds a hidden
-           remove button (shown by the native edit mode) and a tooltipItem wrapper
-           whose tooltipId__favModule_<Type> class is a stable identity. A
-           rearrange toggle at the top of the bar enters drag mode — outside it
-           nothing is draggable and clicks insert elements as normal. The order
-           persists in localStorage and is re-applied (idempotently — mutating
-           only when the order differs, which is what stops an observer feedback
-           loop) after every React re-render. */
+        /* Favourites editing (favourites_reorder). Builderius 1.3.6 supplies an
+           Edit favourites button, React-DnD ordering and store persistence. DBE
+           extends that native mode with names, announcements and Up/Down keyboard
+           movement. Older Builderius versions retain the original DBE toggle,
+           pointer drag and localStorage fallback below. */
         var DBE_FAV_KEY = 'dbeFavouritesOrder';
         var dbeFavStatus = null;
 
         function favList() { return document.querySelector('.uniModTree__favouritesList'); }
+
+        function nativeFavButton() { return document.querySelector('.editFavouritesIcon'); }
 
         function favItems() {
             var list = favList();
@@ -1741,7 +1739,11 @@
 
         function favLabel(li) {
             var tc = li.querySelector('[data-tooltip-content]');
-            return (tc && tc.getAttribute('data-tooltip-content')) || 'favourite';
+            var icon = li.querySelector('button.modIcon');
+            return (tc && tc.getAttribute('data-tooltip-content'))
+                || (icon && icon.getAttribute('data-dbe-fav-label'))
+                || (icon && icon.getAttribute('aria-label'))
+                || 'favourite';
         }
 
         function favAnnounce(msg) {
@@ -1768,6 +1770,8 @@
         function applyFavouritesOrder() {
             var list = favList();
             var saved = favSavedOrder();
+            // Native persistence is authoritative from Builderius 1.3.6 onward.
+            if (nativeFavButton()) { return; }
             if (!list || !saved) { return; }
             // Never fight the user mid-rearrange or the native edit mode.
             if (list.classList.contains('dbe-fav-reordering')) { return; }
@@ -1809,6 +1813,77 @@
                 favPersistOrder();
                 favAnnounce(dbeT('modeOffSaved', 'Rearrange mode off: order saved'));
             }
+        }
+
+        function setNativeFavLabels(list, editing) {
+            favItems().forEach(function (li) {
+                var icon = li.querySelector('button.modIcon');
+                if (!icon) { return; }
+                dbeRememberOwnedAttributes('a11y/composites', icon, ['aria-label']);
+                if (editing) {
+                    if (!icon.hasAttribute('data-dbe-fav-label')) {
+                        icon.setAttribute('data-dbe-fav-label', icon.getAttribute('aria-label') || '');
+                    }
+                    icon.setAttribute('aria-label', dbeFmt(dbeT('favArrowHint', '%s (press up or down arrow to move, Escape to finish)'), favLabel(li)));
+                } else {
+                    var previous = icon.getAttribute('data-dbe-fav-label');
+                    if (previous) { icon.setAttribute('aria-label', previous); }
+                    else if (icon.hasAttribute('data-dbe-fav-label')) { icon.removeAttribute('aria-label'); }
+                    icon.removeAttribute('data-dbe-fav-label');
+                }
+            });
+        }
+
+        function moveNativeFavourite(list, li, offset) {
+            var items = favItems();
+            var from = items.indexOf(li);
+            var to = from + offset;
+            if (from < 0 || to < 0 || to >= items.length) { return; }
+            var keys = items.map(favKey);
+            if (keys.some(function (key) { return !key; })) { return; }
+            var movedKey = keys.splice(from, 1)[0];
+            keys.splice(to, 0, movedKey);
+            try {
+                var sf = store();
+                var current = sf && sf.storeGet('pinnedModules');
+                if (!Array.isArray(current)) { return; }
+                var hidden = current.filter(function (key) { return keys.indexOf(key) === -1; });
+                var updated = hidden.concat(keys.slice().reverse());
+                sf.storeSet('pinnedModules', updated);
+                sf.storeSet('pinnedModulesUpdate', updated);
+            } catch (e) { return; }
+            favAnnounce(dbeFmt(dbeT('movedToPosition', 'Moved %1$s to position %2$s of %3$s'), favLabel(li), to + 1, items.length));
+            waitFor(function () {
+                return favItems().filter(function (item) { return favKey(item) === movedKey; })[0] || null;
+            }, function (moved) {
+                var focusTarget = moved && moved.querySelector('button.modIcon');
+                if (focusTarget) { focusTarget.focus(); }
+            });
+        }
+
+        function ensureNativeFavouritesReorder(list, button) {
+            var editing = !!list.querySelector('.uniModTree__favouritesListItem.editting');
+            dbeRememberOwnedAttributes('a11y/composites', button, ['aria-label', 'aria-pressed']);
+            button.setAttribute('aria-label', dbeT('editFavourites', 'Edit favourites'));
+            button.setAttribute('aria-pressed', editing ? 'true' : 'false');
+            setNativeFavLabels(list, editing);
+            dbeBindOwnedEvent('a11y/composites', list, 'native-favourites-reorder-keys', 'keydown', function (ev) {
+                if (!list.querySelector('.uniModTree__favouritesListItem.editting')) { return; }
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    clickSeq(button);
+                    button.focus();
+                    return;
+                }
+                if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') { return; }
+                var icon = ev.target.closest && ev.target.closest('button.modIcon');
+                var li = icon && icon.closest('li.uniModTree__favouritesListItem.editting');
+                if (!li) { return; }
+                ev.preventDefault();
+                ev.stopPropagation();
+                moveNativeFavourite(list, li, ev.key === 'ArrowUp' ? -1 : 1);
+            }, true);
         }
 
         function bindFavDrag(list) {
@@ -1915,6 +1990,13 @@
         function ensureFavouritesReorder() {
             var list = favList();
             if (!list) { return; }
+            var nativeButton = nativeFavButton();
+            if (nativeButton) {
+                document.querySelectorAll('.dbe-fav-reorder').forEach(function (node) { node.remove(); });
+                list.classList.remove('dbe-fav-reordering');
+                ensureNativeFavouritesReorder(list, nativeButton);
+                return;
+            }
             bindFavDrag(list);
             // The native edit-favourites mode owns the bar while active.
             if (list.classList.contains('dbe-fav-reordering') &&

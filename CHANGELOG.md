@@ -15,6 +15,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
   loading its older copies on 1.3.6-beta and later, hides those settings, and
   preserves their saved preferences so a parent-plugin downgrade remains safe.
+* Changed: **Rearrange favourites** now extends Builderius’s native editor with
+  accessible state, move announcements and Up/Down keyboard reordering. Native
+  pointer dragging and persistence remain authoritative; older Builderius
+  versions retain DBE’s complete fallback editor.
 
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open

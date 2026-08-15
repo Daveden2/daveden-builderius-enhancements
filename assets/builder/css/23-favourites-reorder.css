@@ -1,6 +1,12 @@
-/* Rearrange favourites: a toggle button at the top of the favourites bar
-   enters drag mode; icons then reorder by drag or arrow keys. Order lives in
-   localStorage and is re-applied after React re-renders. */
+/* Builderius 1.3.6 owns favourites editing, pointer drag and persistence. DBE
+   adds a visible keyboard position while that native mode is active. The
+   remaining .dbe-fav-* rules support the fallback editor on older versions. */
+
+.uniModTree__favouritesListItem.editting:focus-within {
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+    border-radius: var(--dbe-r-sm, 6px) !important;
+}
 
 .dbe-fav-reorder {
     list-style: none !important;

@@ -794,6 +794,21 @@ assert.match(
     'Favourites ordering, interaction and teardown must remain in one composite boundary.'
 );
 assert.match(
+    composites,
+    /function ensureNativeFavouritesReorder\(list, button\)[\s\S]+aria-pressed[\s\S]+native-favourites-reorder-keys[\s\S]+ArrowUp[\s\S]+ArrowDown[\s\S]+moveNativeFavourite/,
+    'Builderius native favourites editing must gain names, state and arrow-key reordering.'
+);
+assert.match(
+    composites,
+    /function moveNativeFavourite\(list, li, offset\)[\s\S]+storeSet\('pinnedModules', updated\)[\s\S]+storeSet\('pinnedModulesUpdate', updated\)[\s\S]+movedToPosition/,
+    'Keyboard favourite moves must use Builderius persistence and announce the new position.'
+);
+assert.match(
+    composites,
+    /function applyFavouritesOrder\(\)[\s\S]+if \(nativeFavButton\(\)\) \{ return; \}/,
+    'DBE local favourite persistence must step aside when the native editor exists.'
+);
+assert.match(
     editing,
     /dbe-cond-desc-[\s\S]+Has display conditions[\s\S]+aria-describedby/,
     'Navigator condition state must be exposed as a description rather than renaming the row.'
