@@ -78,14 +78,15 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   native wrapping modal and its Unwrap action when the native wrapper is
   present. Older Builderius versions retain the complete DBE fallbacks.
 * Improved: Builderius 1.3.6-beta’s native **Wrap in** mini-dialog now attaches
-  to the context-menu row that opened it instead of appearing in the viewport
-  centre or pinned to a corner. It opens to the left of a right-hand Navigator,
-  flips to the right when space is tight and retains a clamped fallback where
-  CSS anchor positioning is unavailable. Larger task dialogs such as Auto-BEM
-  remain centred.
+  to the live Navigator panel and originating row instead of appearing in the
+  viewport centre or pinned to a corner. It opens to the left of a right-hand
+  Navigator, flips to the right when space is tight, and recalculates its fully
+  clamped position when browser zoom changes. Larger task dialogs such as
+  Auto-BEM remain centred.
 * Fixed: both Builderius 1.3.6-beta’s native **Auto-BEM** task dialog and DBE's
   older fallback now enforce that centred placement instead of inheriting a
-  right-side position from the builder dialog layer.
+  right-side position from the builder dialog layer. Their responsive width and
+  class-name column are also enlarged so generated BEM names remain visible.
 * Fixed: context-menu class actions, class-chip menus and matching command
   palette entries now wrap exceptionally long class names within the viewport
   instead of clipping their final characters.

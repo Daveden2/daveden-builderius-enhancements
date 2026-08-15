@@ -13,33 +13,17 @@
     padding-block: 8px !important;
 }
 
-/* Builderius 1.3.6 positions the native Wrap in mini-modal from the context
-   menu pointer coordinates, which makes its destination feel disconnected
-   from the Wrap in row. DBE leaves a short-lived anchor at that row and places
-   the four-choice dialog beside it: left by default for the right-hand
-   Navigator, with a right-side fallback when the inline-start side is tight.
-   The JS left/top values are the Baseline fallback; anchor positioning tracks
-   relayout in supporting browsers. */
-.dbe-wrap-in-anchor {
-	position: fixed !important;
-	display: block !important;
-	pointer-events: none !important;
-	opacity: 0 !important;
-	anchor-name: --dbe-wrap-in-anchor;
-}
+/* Builderius 1.3.6 positions the native Wrap in mini-modal from context-menu
+   pointer coordinates. DBE instead recalculates from the live Navigator panel
+   and row, including after browser zoom, then clamps the four-choice dialog to
+   the current viewport. */
 dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
 	position: fixed !important;
 	inset: auto !important;
 	margin: 0 !important;
-}
-@supports (anchor-name: --a) {
-	dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
-		position-anchor: --dbe-wrap-in-anchor;
-		right: calc(anchor(left) + 6px) !important;
-		top: anchor(center) !important;
-		translate: 0 -50%;
-		position-try-fallbacks: flip-inline;
-	}
+	translate: none !important;
+	max-inline-size: calc(100vw - 16px) !important;
+	max-block-size: calc(100vh - 16px) !important;
 }
 
 /* Auto-BEM is a long, multi-field editing task rather than a short branch
@@ -50,6 +34,16 @@ dialog.uniMiniModal.uniMiniModal--autoBem {
 	position: fixed !important;
 	inset: 0 !important;
 	margin: auto !important;
+	inline-size: min(860px, calc(100vw - 32px)) !important;
+	max-inline-size: calc(100vw - 32px) !important;
+	max-block-size: calc(100vh - 32px) !important;
+}
+.uniMiniModal--autoBem .uniAutoBemModal__row {
+	grid-template-columns: minmax(0, 1fr) minmax(340px, .9fr) !important;
+}
+.uniMiniModal--autoBem .uniAutoBemModal__rowClassInput {
+	min-inline-size: 0 !important;
+	inline-size: 100% !important;
 }
 
 /* The stock close glyph is also its complete 8x9px hit area. Keep the glyph

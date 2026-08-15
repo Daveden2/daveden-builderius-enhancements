@@ -379,8 +379,13 @@ assert.doesNotMatch(
 );
 assert.match(
     contextMenu,
-    /\.dbe-wrap-in-anchor\s*\{[\s\S]+anchor-name:\s*--dbe-wrap-in-anchor[\s\S]+uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position-anchor:\s*--dbe-wrap-in-anchor[\s\S]+right:\s*calc\(anchor\(left\) \+ 6px\)[\s\S]+top:\s*anchor\(center\)[\s\S]+translate:\s*0 -50%[\s\S]+position-try-fallbacks:\s*flip-inline/,
-    'The native Wrap in dialog must attach to its context-menu row and flip inline when the preferred left side is unavailable.'
+    /uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position:\s*fixed\s*!important[\s\S]+translate:\s*none\s*!important[\s\S]+max-inline-size:\s*calc\(100vw - 16px\)[\s\S]+max-block-size:\s*calc\(100vh - 16px\)/,
+    'The native Wrap in dialog must use a viewport-capped fixed layer that can be recalculated after browser zoom.'
+);
+assert.doesNotMatch(
+    contextMenu + commands,
+    /\.dbe-wrap-in-anchor\s*\{|--dbe-wrap-in-anchor|function dbeSetNativeWrapAnchor/,
+    'Wrap in must not retain a temporary pixel anchor that becomes stale after browser zoom.'
 );
 assert.match(
     contextMenu,
@@ -399,18 +404,18 @@ assert.match(
 );
 assert.match(
     autoBem,
-    /dialog\.dbe-bem\s*\{[\s\S]+position:\s*fixed;[\s\S]+inset:\s*0;[\s\S]+margin:\s*auto;/,
-    'Auto-BEM must remain a deliberately centred task dialog rather than inherit context-menu coordinates.'
+    /dialog\.dbe-bem\s*\{[\s\S]+position:\s*fixed;[\s\S]+inset:\s*0;[\s\S]+margin:\s*auto;[\s\S]+inline-size:\s*min\(860px, calc\(100vw - 32px\)\)[\s\S]+grid-template-columns:\s*auto auto minmax\(0, 1fr\) minmax\(340px, \.9fr\)/,
+    'The fallback Auto-BEM task must stay centred and reserve enough width to show generated class names.'
 );
 assert.match(
     contextMenu,
-    /dialog\.uniMiniModal\.uniMiniModal--autoBem\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;/,
-    'Builderius 1.3.6 native Auto-BEM must use the same centred task-dialog placement as the DBE fallback.'
+    /dialog\.uniMiniModal\.uniMiniModal--autoBem\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;[\s\S]+inline-size:\s*min\(860px, calc\(100vw - 32px\)\)[\s\S]+uniAutoBemModal__row[\s\S]+grid-template-columns:\s*minmax\(0, 1fr\) minmax\(340px, \.9fr\)[\s\S]+uniAutoBemModal__rowClassInput/,
+    'Builderius 1.3.6 native Auto-BEM must stay centred and replace its 130px class-name column with a readable responsive width.'
 );
 assert.match(
     commands,
-    /function dbeSetNativeWrapAnchor\(source\)[\s\S]+getBoundingClientRect\(\)[\s\S]+function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+anchorRect\.left - dialogRect\.width[\s\S]+anchorRect\.right \+ gap[\s\S]+dbeSetNativeWrapAnchor\(item\)[\s\S]+dbeWatchNativeWrapDialog/,
-    'Wrap in must retain a clamped left-first/right-fallback placement when CSS anchor positioning is unavailable.'
+    /function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+uniRightPanel[\s\S]+panel\.getBoundingClientRect\(\)[\s\S]+row\.getBoundingClientRect\(\)[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight[\s\S]+anchorLeft - dialogRect\.width - gap[\s\S]+anchorRight \+ gap[\s\S]+function scheduleWrapDialogPosition\(\)[\s\S]+wrap-dialog-resize[\s\S]+wrap-dialog-visual-resize/,
+    'Wrap in must recalculate from live Navigator geometry and clamp both axes whenever browser or visual viewport zoom changes.'
 );
 assert.match(
     commands,
