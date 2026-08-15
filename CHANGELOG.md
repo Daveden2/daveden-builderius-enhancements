@@ -15,6 +15,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
   loading its older copies on 1.3.6-beta and later, hides those settings, and
   preserves their saved preferences so a parent-plugin downgrade remains safe.
+* Changed: Builderius 1.3.6-beta's native Save button now carries the unsaved
+  state and its notification region confirms successful saves. DBE retires its
+  additional visible **Save status** cue on 1.3.6-beta and later, reclaiming
+  top-bar space while retaining the cue for older Builderius versions.
 * Changed: **Rearrange favourites** now extends Builderius’s native editor with
   accessible state, move announcements and Up/Down keyboard reordering. Native
   pointer dragging and persistence remain authoritative; older Builderius
