@@ -186,6 +186,10 @@ function dbe_adminbar_focus_styles() {
 	}
 	?>
 <style id="dbe-adminbar-builderius-focus">
+#wpadminbar #wp-admin-bar-builderius {
+	--dbe-adminbar-accent: #72aee6;
+	--dbe-adminbar-interaction: rgba(114, 174, 230, 0.14);
+}
 #wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible {
 	outline: none;
 }
@@ -199,10 +203,22 @@ function dbe_adminbar_focus_styles() {
 #wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper svg path {
 	fill: currentColor;
 }
+#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:not([aria-disabled="true"]):hover,
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover {
+	background-color: var(--dbe-adminbar-interaction);
+	color: var(--dbe-adminbar-accent);
+}
 #wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitem"]:focus-visible,
 #wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:focus-visible {
-	box-shadow: inset 0 0 0 2px currentColor;
+	background-color: var(--dbe-adminbar-interaction);
+	box-shadow: inset 0 0 0 2px var(--dbe-adminbar-accent);
+	color: var(--dbe-adminbar-accent);
 	outline: none;
+}
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover > .ab-item,
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:focus-visible > .ab-item {
+	background-color: transparent;
+	color: inherit;
 }
 #wpadminbar #wp-admin-bar-builderius .builderius-status-item[aria-disabled="true"] {
 	cursor: default;
