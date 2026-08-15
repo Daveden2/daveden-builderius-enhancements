@@ -553,6 +553,53 @@
             return li;
         }
 
+        var dbeNativeWrapAnchor = null;
+
+        function dbeClearNativeWrapAnchor() {
+            if (dbeNativeWrapAnchor) { dbeNativeWrapAnchor.remove(); }
+            dbeNativeWrapAnchor = null;
+        }
+
+        function dbeSetNativeWrapAnchor(source) {
+            if (!source) { return; }
+            var rect = source.getBoundingClientRect();
+            dbeClearNativeWrapAnchor();
+            var anchor = document.createElement('span');
+            anchor.className = 'dbe-wrap-in-anchor';
+            anchor.setAttribute('aria-hidden', 'true');
+            anchor.style.left = Math.round(rect.left) + 'px';
+            anchor.style.top = Math.round(rect.top) + 'px';
+            anchor.style.width = Math.max(1, Math.round(rect.width)) + 'px';
+            anchor.style.height = Math.max(1, Math.round(rect.height)) + 'px';
+            document.body.appendChild(anchor);
+            dbeNativeWrapAnchor = anchor;
+        }
+
+        function dbePositionNativeWrapDialog(dialog, targetId) {
+            if (!dialog) { return; }
+            if (!dbeNativeWrapAnchor) {
+                dbeSetNativeWrapAnchor(document.querySelector('.uniRightPanel .uni-tree-node-' + targetId));
+            }
+            if (!dbeNativeWrapAnchor) { return; }
+            dialog.classList.add('dbe-wrap-in-anchored');
+
+            /* Anchor positioning tracks the source row in supporting browsers.
+               These one-shot coordinates are the Baseline fallback: left of the
+               opening row, vertically centred, then right when the left side is
+               too narrow. The inset is clamped so narrow viewports stay usable. */
+            var gap = 6;
+            var margin = 8;
+            var anchorRect = dbeNativeWrapAnchor.getBoundingClientRect();
+            var dialogRect = dialog.getBoundingClientRect();
+            var left = anchorRect.left - dialogRect.width - gap;
+            if (left < margin) { left = anchorRect.right + gap; }
+            left = Math.max(margin, Math.min(left, window.innerWidth - dialogRect.width - margin));
+            var top = anchorRect.top + (anchorRect.height - dialogRect.height) / 2;
+            top = Math.max(margin, Math.min(top, window.innerHeight - dialogRect.height - margin));
+            dialog.style.left = Math.round(left) + 'px';
+            dialog.style.top = Math.round(top) + 'px';
+        }
+
         /* Builderius 1.3.6 owns Div, Template and Collection wrapping through a
            native mini-modal. Keep those handlers authoritative, but add DBE's
            Figure wrapper as a fourth, native-looking choice instead of leaving
@@ -562,6 +609,7 @@
             if (!dialog || !targetId) { return; }
             dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, dialog, ['aria-label', 'data-dbe-wrap-keyboard']);
             dialog.setAttribute('aria-label', dbeT('wrapIn', 'Wrap in'));
+            dbePositionNativeWrapDialog(dialog, targetId);
             var close = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
             if (close) {
                 dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, close, ['aria-label']);
@@ -601,6 +649,7 @@
                     choices.forEach(function (choice, index) {
                         dbeUnbindOwnedEvent(DBE_COMMANDS_OWNER, choice, 'wrap-dialog-choice-return-' + index);
                     });
+                    dbeClearNativeWrapAnchor();
                 }
                 function returnWrapDialogFocus() {
                     if (focusReturnQueued) { return; }
@@ -656,6 +705,7 @@
             dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, item, ['data-dbe-wrap-dialog']);
             item.setAttribute('data-dbe-wrap-dialog', '1');
             dbeBindOwnedEvent(DBE_COMMANDS_OWNER, item, 'wrap-dialog-open', 'mousedown', function () {
+                dbeSetNativeWrapAnchor(item);
                 dbeWatchNativeWrapDialog(targetId);
             });
         }
@@ -4142,6 +4192,7 @@
             dbeDestroyOwnedActivity(DBE_COMMANDS_OWNER);
             dbeDestroyOwnedGroups(DBE_COMMANDS_OWNER);
             removeSubmenus();
+            dbeClearNativeWrapAnchor();
             closeChipMenu();
             document.querySelectorAll(
                 '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +

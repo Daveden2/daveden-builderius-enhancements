@@ -14,14 +14,30 @@
 }
 
 /* Builderius 1.3.6 positions the native Wrap in mini-modal from the context
-   menu pointer coordinates. When the Navigator is docked on the right, the
-   420px dialog is clamped 20px from that viewport edge and appears pinned to
-   the corner. It is a modal choice surface rather than a flyout, so centre it
-   in the viewport while preserving Builderius's native width and contents. */
-dialog.uniMiniModal.uniMiniModal--wrapIn {
+   menu pointer coordinates, which makes its destination feel disconnected
+   from the Wrap in row. DBE leaves a short-lived anchor at that row and places
+   the four-choice dialog beside it: left by default for the right-hand
+   Navigator, with a right-side fallback when the inline-start side is tight.
+   The JS left/top values are the Baseline fallback; anchor positioning tracks
+   relayout in supporting browsers. */
+.dbe-wrap-in-anchor {
 	position: fixed !important;
-	inset: 0 !important;
-	margin: auto !important;
+	display: block !important;
+	pointer-events: none !important;
+	visibility: hidden !important;
+	anchor-name: --dbe-wrap-in-anchor;
+}
+dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
+	position: fixed !important;
+	inset: auto !important;
+	margin: 0 !important;
+}
+@supports (anchor-name: --a) {
+	dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
+		position-anchor: --dbe-wrap-in-anchor;
+		position-area: inline-start center;
+		position-try-fallbacks: flip-inline;
+	}
 }
 
 /* The stock close glyph is also its complete 8x9px hit area. Keep the glyph

@@ -378,8 +378,13 @@ assert.doesNotMatch(
 );
 assert.match(
     contextMenu,
-    /dialog\.uniMiniModal\.uniMiniModal--wrapIn\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;/,
-    'The native Wrap in modal must remain centred instead of inheriting pointer-anchored corner positioning.'
+    /\.dbe-wrap-in-anchor\s*\{[\s\S]+anchor-name:\s*--dbe-wrap-in-anchor[\s\S]+uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position-anchor:\s*--dbe-wrap-in-anchor[\s\S]+position-area:\s*inline-start center[\s\S]+position-try-fallbacks:\s*flip-inline/,
+    'The native Wrap in dialog must attach to its context-menu row and flip inline when the preferred left side is unavailable.'
+);
+assert.match(
+    commands,
+    /function dbeSetNativeWrapAnchor\(source\)[\s\S]+getBoundingClientRect\(\)[\s\S]+function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+anchorRect\.left - dialogRect\.width[\s\S]+anchorRect\.right \+ gap[\s\S]+dbeSetNativeWrapAnchor\(item\)[\s\S]+dbeWatchNativeWrapDialog/,
+    'Wrap in must retain a clamped left-first/right-fallback placement when CSS anchor positioning is unavailable.'
 );
 assert.match(
     commands,

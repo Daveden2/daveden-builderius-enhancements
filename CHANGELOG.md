@@ -77,10 +77,12 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   DBE wrapping toggle contributes its additional Figure choice inside the
   native wrapping modal and its Unwrap action when the native wrapper is
   present. Older Builderius versions retain the complete DBE fallbacks.
-* Fixed: Builderius 1.3.6-beta’s native **Wrap in** mini-modal no longer appears
-  pinned 20px from the top-right viewport edge when opened from the right-hand
-  Navigator. DBE centres the modal while leaving its native choices and action
-  handlers authoritative.
+* Improved: Builderius 1.3.6-beta’s native **Wrap in** mini-dialog now attaches
+  to the context-menu row that opened it instead of appearing in the viewport
+  centre or pinned to a corner. It opens to the left of a right-hand Navigator,
+  flips to the right when space is tight and retains a clamped fallback where
+  CSS anchor positioning is unavailable. Larger task dialogs such as Auto-BEM
+  remain centred.
 * Improved: **Figure** is now the fourth choice inside the native **Wrap in**
   modal instead of a separate context-menu command. The modal's unnamed 8x9px
   close control is now labelled and presented as a 28x28px target with visible
