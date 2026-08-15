@@ -371,6 +371,21 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+aria-label[\s\S]+dbe-wrap-in-figure[\s\S]+wrap\('figure', \[targetId\]\)[\s\S]+function dbeEnhanceNativeWrapItem/,
+    'The native Wrap in modal must include DBE Figure wrapping and an accessible close name.'
+);
+assert.doesNotMatch(
+    commands,
+    /wrapFigureLi/,
+    'Figure wrapping must not remain as a separate top-level command when the native Wrap in modal is available.'
+);
+assert.match(
+    contextMenu,
+    /uniMiniModal--wrapIn[\s\S]+uniIconButton\s*\{[\s\S]+inline-size:\s*28px\s*!important;[\s\S]+block-size:\s*28px\s*!important;[\s\S]+focus-visible/,
+    'The native Wrap in close button must expose a visible 28px target and keyboard focus treatment.'
+);
+assert.match(
+    commands,
     /function dbeNavigatorContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+row\.dispatchEvent\(new MouseEvent\('contextmenu'[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key'/,
     'Navigator rows must explicitly open their context menu from Shift+F10 and the Menu key.'
 );

@@ -550,6 +550,52 @@
             return li;
         }
 
+        /* Builderius 1.3.6 owns Div, Template and Collection wrapping through a
+           native mini-modal. Keep those handlers authoritative, but add DBE's
+           Figure wrapper as a fourth, native-looking choice instead of leaving
+           it as an unrelated top-level context-menu command. The modal is
+           created afresh after the native row activates, so decorate each open. */
+        function dbeDecorateNativeWrapDialog(dialog, targetId) {
+            if (!dialog || !targetId) { return; }
+            var close = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
+            if (close) {
+                dbeRememberOwnedAttributes(DBE_COMMANDS_OWNER, close, ['aria-label']);
+                close.setAttribute('aria-label', dbeT('close', 'Close'));
+            }
+            var options = dialog.querySelector('.uniWrapInModal__options');
+            if (!options || options.querySelector('.dbe-wrap-in-figure')) { return; }
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'uniPanelButtonTertiaryOutlined uniWrapInModal__option dbe-wrap-in-figure';
+            var label = document.createElement('span');
+            label.textContent = dbeT('figureLabel', 'Figure');
+            button.appendChild(label);
+            button.appendChild(document.createElement('span'));
+            button.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                var closeButton = dialog.querySelector('.uniMiniModal__header > .uniIconButton');
+                if (closeButton) { clickSeq(closeButton); }
+                else { try { dialog.close(); } catch (e) {} }
+                dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { wrap('figure', [targetId]); }, 80);
+            });
+            options.appendChild(button);
+        }
+
+        function dbeWatchNativeWrapDialog(targetId) {
+            waitFor(function () {
+                return document.querySelector('dialog.uniMiniModal--wrapIn[open]');
+            }, function (dialog) {
+                if (dialog) { dbeDecorateNativeWrapDialog(dialog, targetId); }
+            }, 40, DBE_COMMANDS_OWNER);
+        }
+
+        function dbeEnhanceNativeWrapItem(item, targetId) {
+            if (!item || item.getAttribute('data-dbe-wrap-dialog') === '1') { return; }
+            item.setAttribute('data-dbe-wrap-dialog', '1');
+            item.addEventListener('mousedown', function () { dbeWatchNativeWrapDialog(targetId); });
+        }
+
         /* Expand the right-clicked row's whole subtree. Same chevron click channel
            as expandAll, scoped to the row's li; runs in short passes because deep
            rows that were never expanded may only mount after their parent opens. */
@@ -900,7 +946,11 @@
                 // "Wrap in" -> div / template / collection. For a multi-selection it
                 // wraps all selected elements — possible only when they're siblings.
                 var wrapEnabled = on('wrap_in');
-                var nativeWrapAvailable = !!nativeContextItem(container, /^Wrap in$/);
+                var nativeWrapItem = nativeContextItem(container, /^Wrap in$/);
+                var nativeWrapAvailable = !!nativeWrapItem;
+                if (!multiIds && wrapEnabled && nativeWrapItem && contextTarget()) {
+                    dbeEnhanceNativeWrapItem(nativeWrapItem, contextTarget());
+                }
                 var wrapDisabled = false;
                 if (wrapEnabled && multiIds) {
                     var mods0 = modules() || {};
@@ -990,17 +1040,6 @@
                     addAfterLi = makeCtxItem(dbeT('addAfter', 'Add element after'), function () { setTimeout(function () { openElementPicker(ksId, 1); }, 60); }, { accel: dbeAccel('Y', { cmd: true, alt: true }) });
                 }
 
-                // Native Wrap in covers Div, Template and Collection in 1.3.6.
-                // Figure and Unwrap remain DBE additions; older Builderius keeps
-                // DBE's complete wrapping flyout.
-                var wrapFigureLi = null;
-                if (!multiIds && wrapEnabled && nativeWrapAvailable) {
-                    var figureId = contextTarget();
-                    wrapFigureLi = makeCtxItem(dbeFmt(dbeT('wrapItemLabel', '%1$s %2$s'), dbeT('wrapIn', 'Wrap in'), dbeT('figureLabel', 'Figure')), function () {
-                        wrap('figure', [figureId]);
-                    });
-                }
-
                 // "Edit as HTML" (edit_as_html, Pro) — plain-element subtrees only;
                 // otherwise offered disabled with the reason as its tooltip.
                 var editHtmlLi = null;
@@ -1080,7 +1119,7 @@
                    native ones, so each feature still works with grouping turned off. */
                 if (!grouped) {
                     var injected = nameItems.concat(advancedItems,
-                        [stylesParent, cutLi, addBeforeLi, addAfterLi, wrapFigureLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
+                        [stylesParent, cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                     );
                     if (injected.length) {
                         injected[0].classList.add('dbe-ctx-item--first');
@@ -1183,7 +1222,7 @@
                 // .dbe-ctx-item--first — no separator <li>, so the keyboard focus ring
                 // (which skips only non-action rows) is untouched.
                 var structureItems = [changeTagParent]
-                    .concat(multiIds ? [] : natWrap, [wrapParent, wrapFigureLi, unwrapLi]).filter(Boolean);
+                    .concat(multiIds ? [] : natWrap, [wrapParent, unwrapLi]).filter(Boolean);
                 var clusters = [
                     natDuplicate,                                                    // Clone
                     natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
@@ -4200,7 +4239,7 @@
                 '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
                 '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +
                 '.dbe-canvas-selection-context, .dbe-collapse-subtrees, .dbe-expand-all, ' +
-                '.dbe-tree-search, .dbe-row-actions'
+                '.dbe-tree-search, .dbe-row-actions, .dbe-wrap-in-figure'
             ).forEach(function (node) { node.remove(); });
             document.querySelectorAll('.dbe-tree-filtered-out, .dbe-tree-dim').forEach(function (row) {
                 row.classList.remove('dbe-tree-filtered-out', 'dbe-tree-dim');

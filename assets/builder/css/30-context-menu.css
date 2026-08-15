@@ -24,6 +24,29 @@ dialog.uniMiniModal.uniMiniModal--wrapIn {
 	margin: auto !important;
 }
 
+/* The stock close glyph is also its complete 8x9px hit area. Keep the glyph
+   compact but give its button a clear, WCAG-sized target and focus treatment. */
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton {
+	display: inline-grid !important;
+	place-items: center !important;
+	inline-size: 28px !important;
+	block-size: 28px !important;
+	min-inline-size: 28px !important;
+	min-block-size: 28px !important;
+	border-radius: var(--dbe-r-sm) !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton svg {
+	inline-size: 12px !important;
+	block-size: 12px !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton:hover {
+	background: var(--dbe-hover-wash) !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton:focus-visible {
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: 2px !important;
+}
+
 /* Cluster separator: a hairline plus a small gap, not a chunky pad. The row's
    own 8px top padding does the breathing; this only adds the rule + 4px. */
 .dbe-ctx-item--first { border-block-start: 1px solid var(--dbe-sep-line) !important; margin-block-start: 4px !important; padding-block-start: 8px !important; }

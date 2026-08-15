@@ -29,13 +29,17 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   native Cut, Rename, Auto-BEM, Wrap in and Expand children actions instead of
   displaying DBE duplicates. Native shortcut labels are ignored when matching
   commands, stock separators are replaced by DBE’s logical groups, and the
-  DBE wrapping toggle contributes only its additional Figure and Unwrap actions
-  when the native wrapper is present. Older Builderius versions retain the
-  complete DBE fallbacks.
+  DBE wrapping toggle contributes its additional Figure choice inside the
+  native wrapping modal and its Unwrap action when the native wrapper is
+  present. Older Builderius versions retain the complete DBE fallbacks.
 * Fixed: Builderius 1.3.6-beta’s native **Wrap in** mini-modal no longer appears
   pinned 20px from the top-right viewport edge when opened from the right-hand
   Navigator. DBE centres the modal while leaving its native choices and action
   handlers authoritative.
+* Improved: **Figure** is now the fourth choice inside the native **Wrap in**
+  modal instead of a separate context-menu command. The modal's unnamed 8x9px
+  close control is now labelled and presented as a 28x28px target with visible
+  keyboard focus.
 * Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or
