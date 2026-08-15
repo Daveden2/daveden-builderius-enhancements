@@ -19,6 +19,12 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   accessible state, move announcements and Up/Down keyboard reordering. Native
   pointer dragging and persistence remain authoritative; older Builderius
   versions retain DBE’s complete fallback editor.
+* Changed: Builderius 1.3.6-beta’s persistent CSS code mode, native
+  Global/Template editors and Selector CSS/All CSS views replace DBE’s **CSS
+  code editor by default** and **CSS scope bar**. DBE stops loading those older
+  controls on 1.3.6-beta and later while retaining them for older Builderius
+  versions. The separate CSS token guide, minimap preference and style
+  inspector remain available.
 
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open
