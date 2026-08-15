@@ -35,7 +35,9 @@ dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
 @supports (anchor-name: --a) {
 	dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
 		position-anchor: --dbe-wrap-in-anchor;
-		position-area: inline-start center;
+		right: calc(anchor(left) + 6px) !important;
+		top: anchor(center) !important;
+		translate: 0 -50%;
 		position-try-fallbacks: flip-inline;
 	}
 }

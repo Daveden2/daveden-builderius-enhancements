@@ -378,7 +378,7 @@ assert.doesNotMatch(
 );
 assert.match(
     contextMenu,
-    /\.dbe-wrap-in-anchor\s*\{[\s\S]+anchor-name:\s*--dbe-wrap-in-anchor[\s\S]+uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position-anchor:\s*--dbe-wrap-in-anchor[\s\S]+position-area:\s*inline-start center[\s\S]+position-try-fallbacks:\s*flip-inline/,
+    /\.dbe-wrap-in-anchor\s*\{[\s\S]+anchor-name:\s*--dbe-wrap-in-anchor[\s\S]+uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position-anchor:\s*--dbe-wrap-in-anchor[\s\S]+right:\s*calc\(anchor\(left\) \+ 6px\)[\s\S]+top:\s*anchor\(center\)[\s\S]+translate:\s*0 -50%[\s\S]+position-try-fallbacks:\s*flip-inline/,
     'The native Wrap in dialog must attach to its context-menu row and flip inline when the preferred left side is unavailable.'
 );
 assert.match(
