@@ -50,13 +50,13 @@ assert.equal(
 );
 assert.match(
     coreRuntime,
-    /function captureStore\(reference\)[\s\S]+typeof reference\.storeGet !== 'function'[\s\S]+typeof reference\.storeSet !== 'function'[\s\S]+function store\(\) \{[\s\S]+captureStore\(window\[definition\.storeGlobal\]\)[\s\S]+return storeReference;/,
+    /function captureStore\(reference\)[\s\S]+typeof reference\.storeGet !== 'function'[\s\S]+typeof reference\.storeSet !== 'function'[\s\S]+function store\(\) \{[\s\S]+captureStore\(window\[definition\.bridgeGlobal\] \|\| window\[definition\.storeGlobal\]\)[\s\S]+return storeReference;/,
     'The private store must be validated and captured through the selected adapter.'
 );
 assert.match(
-    coreRuntime,
-    /function registerFreeStoreBridge\(\)[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+captureStore\(props && props\.storeFns\)[\s\S]+return null;[\s\S]+registerFreeStoreBridge\(\)[\s\S]+builderius\.api\.started/,
-    'Builderius Free must capture storeFns through the unused footer extension point without replacing another extension or missing an API that is already available.'
+    outputBuilder,
+    /dbe-builder-store-bridge[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+if \(component\) \{ return component; \}[\s\S]+w\.dbeBuilderiusStoreFns = props && props\.storeFns[\s\S]+builderius\.api\.started/,
+    'Builderius Free must capture storeFns from an early head listener without replacing another extension.'
 );
 
 [

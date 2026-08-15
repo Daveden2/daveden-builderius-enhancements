@@ -20,11 +20,12 @@
  * install/activate it. On 6.4 the header is ignored, so the dbe_activate()
  * guard and the runtime dbe_builderius_is_active() check below still apply.
  *
- * Targets Builderius 1.3.6-beta. Every selector, store access
- * (window.__builderiusStoreFns) and hook (Builderius.API.hooks) the builder
- * assets rely on was audited against that version — re-audit after any
- * Builderius update. All JS features fail soft (try/catch, presence checks),
- * so a selector drift degrades to "feature missing", never a broken builder.
+ * Targets Builderius 1.3.6-beta. Every selector, store access (the storeFns
+ * footer-extension property and Builderius Pro's private global fallback) and
+ * hook (Builderius.API.hooks) the builder assets rely on was audited against
+ * that version — re-audit after any Builderius update. All JS features fail
+ * soft (try/catch, presence checks), so a selector drift degrades to "feature
+ * missing", never a broken builder.
  *
  * CRITICAL — the plugin directory name MUST contain "builderius". In builder
  * mode Builderius removes EVERY hook whose callback file lives under

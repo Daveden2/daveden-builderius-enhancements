@@ -128,6 +128,31 @@ function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
+	?>
+	<script id="dbe-builder-store-bridge">
+	(function (w, d) {
+		function register() {
+			try {
+				var hooks = w.Builderius && w.Builderius.API && w.Builderius.API.hooks;
+				if (!hooks || typeof hooks.addFilter !== 'function') { return false; }
+				hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
+					/* Pro and other extensions own their footer component. Free
+					 * supplies no component, so use its empty slot without adding UI. */
+					if (component) { return component; }
+					return function DbeStoreBridge(props) {
+						w.dbeBuilderiusStoreFns = props && props.storeFns;
+						return null;
+					};
+				});
+				return true;
+			} catch (error) { return false; }
+		}
+		if (!register()) {
+			d.addEventListener('builderius.api.started', register, { once: true });
+		}
+	})(window, document);
+	</script>
+	<?php
 
 	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) || dbe_enabled( 'compact_panes' ) ) {
 		$bootstrap = array(

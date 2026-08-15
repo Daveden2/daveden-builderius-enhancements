@@ -8,6 +8,7 @@
     var DBE_BUILDERIUS_ADAPTERS = {
         '1.3': {
             testedVersion: '1.3.6-beta',
+            bridgeGlobal: 'dbeBuilderiusStoreFns',
             storeGlobal: '__builderiusStoreFns',
             selectors: {
                 mainPanel: '.uniMainPanel',
@@ -71,30 +72,7 @@
             root.dataset.dbeBuilderiusStore = 'captured';
             return true;
         }
-        function registerFreeStoreBridge() {
-            try {
-                var hooks = window.Builderius && window.Builderius.API && window.Builderius.API.hooks;
-                if (!hooks || typeof hooks.addFilter !== 'function') { return false; }
-                hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
-                    /* Pro and other extensions own their footer component.
-                       Free supplies no component, so use that empty slot to
-                       receive the same storeFns prop without adding UI. */
-                    if (component) { return component; }
-                    return function DbeStoreBridge(props) {
-                        captureStore(props && props.storeFns);
-                        return null;
-                    };
-                });
-                return true;
-            } catch (error) { return false; }
-        }
-        function bridgeFreeStore() {
-            if (storeReference || registerFreeStoreBridge() || !document.addEventListener) { return; }
-            document.addEventListener('builderius.api.started', registerFreeStoreBridge, { once: true });
-        }
-
-        captureStore(window[definition.storeGlobal]);
-        bridgeFreeStore();
+        captureStore(window[definition.bridgeGlobal] || window[definition.storeGlobal]);
 
         function selector(name) { return definition.selectors[name] || ''; }
         function query(name, queryRoot) {
@@ -110,7 +88,7 @@
         }
         function store() {
             if (!storeReference) {
-                captureStore(window[definition.storeGlobal]);
+                captureStore(window[definition.bridgeGlobal] || window[definition.storeGlobal]);
             }
             return storeReference;
         }
