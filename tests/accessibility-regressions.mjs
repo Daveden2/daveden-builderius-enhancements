@@ -723,8 +723,8 @@ assert.match(
 );
 assert.match(
     adminBar,
-    /function menuItems\(\)[\s\S]+\[role="menuitemradio"\], a\[role="menuitem"\][\s\S]+function setRovingItem\(item\)[\s\S]+tabindex[\s\S]+function focusItem\(index\)/,
-    'Every native preview choice and edit link must participate in one roving menu sequence.'
+    /function menuItems\(\)[\s\S]+\[role="menuitemradio"\], a\[role="menuitem"\][\s\S]+function setRovingItem\(item\)[\s\S]+tabindex[\s\S]+function focusItem\(index\)[\s\S]+setRovingItem\(null\)/,
+    'Every native preview choice and edit link must start outside the Tab order and participate in one roving menu sequence.'
 );
 assert.match(
     adminBar,

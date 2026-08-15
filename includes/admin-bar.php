@@ -305,6 +305,7 @@ function dbe_adminbar_second_tab_warning() {
 			setRovingItem(target);
 			target.focus();
 		}
+		setRovingItem(null);
 		trigger.setAttribute('aria-haspopup', 'menu');
 		trigger.setAttribute('aria-controls', submenuList.id);
 		trigger.addEventListener('focus', function () {
