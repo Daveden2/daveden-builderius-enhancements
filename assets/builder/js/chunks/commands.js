@@ -1754,6 +1754,7 @@
            accelerator hints: the Mac glyph stack (⌥⌘T) there, Ctrl+Alt+T
            elsewhere — never the dual "Cmd/Ctrl" spelling. */
         function sc(key, o) { return dbeAccel(key, o); }
+        var nativeShortcutPanel = !!(((CFG.builderius || {}).native || {}).shortcutPanel);
         var SHORTCUT_GROUPS = [
             [dbeT('scGroupGeneral', 'General'), [
                 ['?', dbeT('scOpenOverlay', 'Open keyboard shortcuts')],
@@ -1837,8 +1838,136 @@
                 [dbePaletteAccel(), dbeT('scOpenPalette', 'Open the command palette')]
             ]]
         ] : []);
+
+        /* Builderius 1.3.6 owns the primary shortcut reference. Add only DBE's
+           extra routes to that panel, using its native group/list classes so the
+           result remains one reference rather than two competing surfaces. */
+        function dbeNativeShortcutGroups() {
+            var groups = [];
+            var general = [['?', dbeT('scOpenOverlay', 'Open keyboard shortcuts')]];
+            if (on('save_shortcut')) { general.push([sc('S', { cmd: true }), dbeT('scSave', 'Save the template')]); }
+            if (on('command_palette')) { general.push([dbePaletteAccel(), dbeT('scOpenPalette', 'Open the command palette')]); }
+            groups.push([dbeT('scGroupGeneral', 'General'), general]);
+
+            var navigator = [];
+            if (on('navigator_keyboard')) {
+                navigator.push(
+                    ['↑ ↓', dbeT('scTreeMove', 'Move to the previous or next element and select it')],
+                    ['→', dbeT('scTreeExpand', 'Open a branch, then step into its first child')],
+                    ['←', dbeT('scTreeCollapse', 'Close a branch, then step out to the parent')],
+                    ['Home · End', dbeT('scTreeFirstLast', 'First / last element')]
+                );
+            }
+            if (on('element_moves')) {
+                navigator.push(
+                    [sc('↑', { alt: true }) + ' · ' + sc('↓', { alt: true }), dbeT('scReorder', 'Move the element among its siblings')],
+                    [sc('→', { alt: true }), dbeT('scMoveIn', 'Move the element into its previous sibling')],
+                    [sc('←', { alt: true }), dbeT('scMoveOut', 'Move the element out one level')]
+                );
+            }
+            if (on('navigator_keyboard') || NEED_CTX_MENU || on('navigator_paste')) {
+                navigator.push([sc('F10', { shift: true }), dbeT('scCtxOpen', 'Open the context menu on the focused row')]);
+            }
+            if (navigator.length) { groups.push([dbeT('scGroupNavigator', 'Navigator'), navigator]); }
+
+            var canvas = [];
+            if (on('navigator_keyboard')) {
+                canvas.push(
+                    ['↑ ↓', dbeT('scCanvasMove', 'Move between visible elements')],
+                    ['→', dbeT('scCanvasChild', 'Open a branch, then select its first child')],
+                    ['←', dbeT('scCanvasParent', 'Close a branch, then select its parent')],
+                    ['Home · End', dbeT('scCanvasFirstLast', 'First / last visible element')]
+                );
+            }
+            if (on('keyboard_shortcuts')) {
+                canvas.push(
+                    ['Enter', dbeT('scEnterInteractive', 'Edit selected text; otherwise interact with the page')],
+                    ['Esc', dbeT('scExitInteractive', 'Return to selecting elements')]
+                );
+            }
+            if (canvas.length) { groups.push([dbeT('scGroupCanvas', 'Canvas'), canvas]); }
+
+            if (NEED_CTX_MENU) {
+                groups.push([dbeT('scGroupContextMenu', 'Context menu'), [
+                    ['↑ ↓', dbeT('scMove', 'Move between items (wraps)')],
+                    ['Home · End', dbeT('scFirstLast', 'First / last item')],
+                    ['Enter · Space', dbeT('scActivate', 'Activate an item or open its submenu')],
+                    ['→ ←', dbeT('scSubmenu', 'Open / close a submenu')]
+                ]]);
+            }
+
+            if (on('keyboard_shortcuts')) {
+                groups.push([dbeT('scGroupElements', 'Selected element'), [
+                    [sc('T', { cmd: true, alt: true }), dbeT('scAddBefore', 'Add an element before')],
+                    [sc('Y', { cmd: true, alt: true }), dbeT('scAddAfter', 'Add an element after')]
+                ]]);
+                groups.push([dbeT('scGroupAreas', 'Move focus to'), [
+                    [sc('O', { cmd: true, alt: true }), dbeT('scGotoNavigator', 'Navigator')],
+                    [sc('E', { cmd: true, alt: true }), dbeT('scGotoSettings', 'Element settings')],
+                    [sc('P', { cmd: true, alt: true }), dbeT('scGotoCanvas', 'Canvas')],
+                    [sc('L', { cmd: true, alt: true }), dbeT('scGotoInserter', 'Element library')],
+                    [sc('B', { cmd: true, alt: true }), dbeT('scGotoFooter', 'Footer bar')]
+                ]]);
+            }
+            if (on('ai_terminal_tabs')) {
+                groups.push([dbeT('scGroupSenseAi', 'Sense AI'), [
+                    [sc('`', { ctrl: true }), dbeT('scExitTerminal', 'Move focus out of the terminal')]
+                ]]);
+            }
+            return groups;
+        }
+
+        function ensureNativeShortcuts() {
+            if (!nativeShortcutPanel) { return; }
+            var panel = document.querySelector('.uniTabShortcuts');
+            if (!panel || panel.querySelector('.dbe-native-shortcuts-group')) { return; }
+            dbeNativeShortcutGroups().forEach(function (group) {
+                var section = document.createElement('div');
+                section.className = 'uniTabShortcuts__group dbe-native-shortcuts-group';
+                section.dataset.dbeShortcutGroup = group[0];
+                var title = document.createElement('h4');
+                title.className = 'uniTabShortcuts__groupTitle';
+                title.textContent = 'DBE · ' + group[0];
+                var list = document.createElement('ul');
+                list.className = 'uniTabShortcuts__list';
+                group[1].forEach(function (pair) {
+                    var row = document.createElement('li');
+                    row.className = 'uniTabShortcuts__row';
+                    var label = document.createElement('span');
+                    label.textContent = pair[1];
+                    var shortcut = document.createElement('span');
+                    shortcut.className = 'uniContextMenu__shortcut';
+                    shortcut.textContent = pair[0];
+                    row.appendChild(label);
+                    row.appendChild(shortcut);
+                    list.appendChild(row);
+                });
+                section.appendChild(title);
+                section.appendChild(list);
+                panel.appendChild(section);
+            });
+        }
+
+        function dbeOpenNativeShortcuts() {
+            var panel = document.querySelector('.uniTabShortcuts');
+            if (panel) { ensureNativeShortcuts(); return true; }
+            var button = document.querySelector('.tooltipId__footer_shortcuts .uniPanelIconButton--footer');
+            if (!button) {
+                button = [].slice.call(document.querySelectorAll('.uniPanelIconButton--footer')).find(function (candidate) {
+                    return (candidate.textContent || '').trim() === 'Shortcuts';
+                });
+            }
+            if (!button) { return false; }
+            clickSeq(button);
+            waitFor(function () { return document.querySelector('.uniTabShortcuts'); }, function (mounted) {
+                if (mounted) { ensureNativeShortcuts(); }
+            });
+            return true;
+        }
+
         var dbeShortcutFocusReturn = null;
         function openShortcutsDialog() {
+            if (nativeShortcutPanel && dbeOpenNativeShortcuts()) { return; }
             var dlg = document.querySelector('dialog.dbe-shortcuts');
             if (!dlg) {
                 dlg = document.createElement('dialog');
@@ -4255,7 +4384,7 @@
         function dbeObserveCommands() {
             var needMain = on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') ||
                 on('reveal_selected') || on('preview_context_menu') || on('context_menu') || NEED_NAV_BUTTONS || on('tree_search') ||
-                on('navigator_row_actions');
+                on('navigator_row_actions') || on('shortcuts_overlay');
             dbeObserveChrome('commands-top', (on('command_palette') || on('save_split_button')) ? dbeQuery('topPanel') : null, {
                 childList: true,
                 subtree: true
@@ -4274,6 +4403,7 @@
             dbeObserveCommands();
             if (on('command_palette')) { ensurePaletteButton(); }
             if (on('save_split_button')) { ensureSaveMenuButton(); }
+            if (on('shortcuts_overlay')) { ensureNativeShortcuts(); }
             if (on('command_palette') || on('keyboard_shortcuts') || on('navigator_keyboard') || on('reveal_selected') || on('preview_context_menu') || on('preview_rename')) {
                 ensureKeyboardIframeBridge();
             }
@@ -4314,7 +4444,7 @@
                 '.dbe-palette-btn, dialog.dbe-palette, dialog.dbe-shortcuts, dialog.dbe-el-picker, ' +
                 '.dbe-canvas-editing-indicator, .dbe-canvas-status, .dbe-save-menu-btn, ' +
                 '.dbe-canvas-selection-context, .dbe-collapse-subtrees, .dbe-expand-all, ' +
-                '.dbe-tree-search, .dbe-row-actions, .dbe-wrap-in-figure'
+                '.dbe-tree-search, .dbe-row-actions, .dbe-wrap-in-figure, .dbe-native-shortcuts-group'
             ).forEach(function (node) { node.remove(); });
             document.querySelectorAll('.dbe-tree-filtered-out, .dbe-tree-dim').forEach(function (row) {
                 row.classList.remove('dbe-tree-filtered-out', 'dbe-tree-dim');

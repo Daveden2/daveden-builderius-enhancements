@@ -68,6 +68,12 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or
   ArrowRight opens their flyout, matching native Wrap in and Save to.
+* Changed: the **Keyboard shortcut reference** now extends Builderius
+  1.3.6-beta’s native Shortcuts panel with DBE-only commands instead of opening
+  a second, overlapping dialog. The `?` key and command palette both open the
+  native panel; older Builderius versions retain DBE’s complete fallback
+  dialog. DBE continues to yield Duplicate, Cut, Rename, Undo and Redo to the
+  native handlers while keeping its unique element, canvas and region routes.
 
 * Added (experimental): **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open

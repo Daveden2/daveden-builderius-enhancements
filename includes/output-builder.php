@@ -276,6 +276,7 @@ function dbe_print_builder_footer() {
 			'version' => $builderius_version,
 			'native'  => array(
 				'elementShortcuts' => '' !== $builderius_version && version_compare( $builderius_version, '1.3.6-beta', '>=' ),
+				'shortcutPanel'    => '' !== $builderius_version && version_compare( $builderius_version, '1.3.6-beta', '>=' ),
 			),
 		),
 	);

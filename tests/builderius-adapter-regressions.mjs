@@ -34,6 +34,11 @@ assert.match(
     'Builder config must expose the native 1.3.6 element-shortcut boundary.'
 );
 assert.match(
+    outputBuilder,
+    /'shortcutPanel'\s*=>[\s\S]{0,120}version_compare\( \$builderius_version, '1\.3\.6-beta', '>=' \)/,
+    'Builder config must expose the native 1.3.6 shortcut-panel boundary.'
+);
+assert.match(
     coreRuntime,
     /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.6-beta'/,
     'The audited Builderius 1.3 family must have an explicit tested version.'
@@ -105,6 +110,11 @@ assert.match(
     commands,
     /nativeElementShortcuts[\s\S]+!nativeElementShortcuts && e\.key === 'F2'[\s\S]+!nativeElementShortcuts && code === 'KeyD'[\s\S]+!nativeElementShortcuts && code === 'KeyX'/,
     'DBE must leave native rename, duplicate and cut shortcuts to Builderius 1.3.6+.'
+);
+assert.match(
+    commands,
+    /nativeShortcutPanel[\s\S]+function ensureNativeShortcuts\(\)[\s\S]+\.uniTabShortcuts[\s\S]+dbe-native-shortcuts-group[\s\S]+function openShortcutsDialog\(\)[\s\S]+dbeOpenNativeShortcuts\(\)/,
+    'DBE must extend the native 1.3.6 shortcut panel instead of opening a duplicate reference.'
 );
 assert.match(
     coreRuntime,
