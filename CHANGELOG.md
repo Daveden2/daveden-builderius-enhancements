@@ -83,6 +83,9 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   flips to the right when space is tight and retains a clamped fallback where
   CSS anchor positioning is unavailable. Larger task dialogs such as Auto-BEM
   remain centred.
+* Fixed: context-menu class actions, class-chip menus and matching command
+  palette entries now wrap exceptionally long class names within the viewport
+  instead of clipping their final characters.
 * Improved: **Figure** is now the fourth choice inside the native **Wrap in**
   modal instead of a separate context-menu command. The modal's unnamed 8x9px
   close control is now labelled and presented as a 28x28px target with visible

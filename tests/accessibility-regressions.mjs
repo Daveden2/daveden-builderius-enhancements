@@ -382,6 +382,21 @@ assert.match(
     'The native Wrap in dialog must attach to its context-menu row and flip inline when the preferred left side is unavailable.'
 );
 assert.match(
+    contextMenu,
+    /dbe-ctx-item--class[\s\S]+dbe-chip-menu \.uniContextMenu__item[\s\S]+max-inline-size:\s*min\(460px, calc\(100vw - 32px\)\)[\s\S]+white-space:\s*normal[\s\S]+overflow-wrap:\s*anywhere/,
+    'Class-bearing context menus must wrap unusually long class names within the viewport instead of clipping them.'
+);
+assert.match(
+    commands + styles,
+    /opts\.className[\s\S]+dbe-ctx-item--class/,
+    'Class-style actions must opt into the long-name-safe context-menu treatment.'
+);
+assert.match(
+    palette,
+    /\.dbe-palette__label,[\s\S]+\.dbe-palette__reason[\s\S]+overflow-wrap:\s*anywhere/,
+    'Command-palette class actions and disabled reasons must preserve long names.'
+);
+assert.match(
     commands,
     /function dbeSetNativeWrapAnchor\(source\)[\s\S]+getBoundingClientRect\(\)[\s\S]+function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+anchorRect\.left - dialogRect\.width[\s\S]+anchorRect\.right \+ gap[\s\S]+dbeSetNativeWrapAnchor\(item\)[\s\S]+dbeWatchNativeWrapDialog/,
     'Wrap in must retain a clamped left-first/right-fallback placement when CSS anchor positioning is unavailable.'

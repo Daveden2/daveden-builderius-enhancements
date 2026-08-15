@@ -480,6 +480,7 @@
             opts = opts || {};
             var li = document.createElement('li');
             li.className = 'uniContextMenu__item dbe-ctx-item';
+            if (opts.className) { li.classList.add(opts.className); }
             li.setAttribute('role', 'menuitem');
             if (opts.icon) {
                 var label = document.createElement('span');

@@ -24,7 +24,7 @@
 	position: fixed !important;
 	display: block !important;
 	pointer-events: none !important;
-	visibility: hidden !important;
+	opacity: 0 !important;
 	anchor-name: --dbe-wrap-in-anchor;
 }
 dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
@@ -160,6 +160,12 @@ li.dbe-ctx-heading {
    keeps space for it and the label stays legible; keep each row on one line so
    the flyout widens to fit rather than wrapping the text around the badge. */
 .dbe-ctx-submenu li { white-space: nowrap !important; }
+.dbe-ctx-submenu .dbe-ctx-item--class,
+.dbe-chip-menu .uniContextMenu__item {
+	max-inline-size: min(460px, calc(100vw - 32px)) !important;
+	white-space: normal !important;
+	overflow-wrap: anywhere !important;
+}
 .dbe-ctx-submenu .proBadge {
     position: static !important;
     inset: auto !important;

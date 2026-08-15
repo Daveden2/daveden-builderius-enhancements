@@ -1818,10 +1818,10 @@
             var selector = '.' + className;
             items.push(makeCtxItem(dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, dbeT('scopeGlobal', 'Global')), function () {
                 dbeOpenStyleEditor(id, selector, 'global');
-            }));
+            }, { className: 'dbe-ctx-item--class' }));
             items.push(makeCtxItem(dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, entityScopeLabel()), function () {
                 dbeOpenStyleEditor(id, selector, 'template');
-            }));
+            }, { className: 'dbe-ctx-item--class' }));
         });
         return items;
     }
