@@ -477,7 +477,8 @@
                 dbeRememberOwnedAttributes('a11y/composites', canvasStrip, ['role', 'aria-label']);
                 if (canvasStrip.getAttribute('role') !== 'tablist') { canvasStrip.setAttribute('role', 'tablist'); }
                 if (canvasStrip.getAttribute('aria-label') !== canvasLabel) { canvasStrip.setAttribute('aria-label', canvasLabel); }
-                dbeRovingItems(canvasStrip, canvasSel).forEach(function (tab) {
+                var canvasItems = dbeRovingItems(canvasStrip, canvasSel);
+                canvasItems.forEach(function (tab) {
                     dbeRememberOwnedAttributes('a11y/composites', tab, [
                         'role', 'aria-selected', 'aria-keyshortcuts', 'tabindex'
                     ]);
@@ -486,6 +487,17 @@
                     if (tab.getAttribute('aria-selected') !== selected) { tab.setAttribute('aria-selected', selected); }
                     if (tab.getAttribute('aria-keyshortcuts') !== 'Delete') { tab.setAttribute('aria-keyshortcuts', 'Delete'); }
                 });
+                // Builderius gives every native document button tabindex=0.
+                // On first decoration there is therefore no meaningful roving
+                // position to preserve; seed it from the active document. Once
+                // DBE has reduced the strip to one stop, later refreshes retain
+                // the user's arrow-key position through dbeSyncRoving().
+                var canvasStops = canvasItems.filter(function (tab) { return tab.getAttribute('tabindex') === '0'; });
+                if (canvasStops.length !== 1) {
+                    canvasItems.forEach(function (tab) {
+                        tab.setAttribute('tabindex', tab.classList.contains('active') ? '0' : '-1');
+                    });
+                }
                 dbeSyncRoving(canvasStrip, canvasSel, { activeClass: 'active' });
                 dbeBindOwnedEvent('a11y/composites', canvasStrip, 'canvas-tabs-keys', 'keydown', function (e) {
                     var focused = document.activeElement && document.activeElement.closest
