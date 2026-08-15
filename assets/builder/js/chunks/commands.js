@@ -609,6 +609,10 @@
                     }, 120);
                 }
                 dbeBindOwnedEvent(DBE_COMMANDS_OWNER, dialog, 'wrap-dialog-key', 'keydown', function (ev) {
+                    if (ev.key === 'Escape') {
+                        returnWrapDialogFocus();
+                        return;
+                    }
                     if (ev.key !== 'Tab') { return; }
                     if (!focusables.length) { return; }
                     var at = focusables.indexOf(document.activeElement);
