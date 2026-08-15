@@ -47,6 +47,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
 * Improved: keyboard focus indicators now sit inside bordered builder controls
   instead of adding a second outer ring. The same 2px high-contrast cue remains
   visible without overwhelming the surrounding interface.
+* Fixed: Builderius 1.3.6-beta's full-width canvas control now clears DBE's
+  persisted hidden-panel state correctly. The native control changed from a
+  panel button to an icon button, which left the two visibility states out of
+  sync and made restoring the editing panels appear to do nothing.
 * Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
   interaction. Insert, Change tag, Move and navigate, and More element tools no
   longer open merely because the pointer crosses them; click, Enter or

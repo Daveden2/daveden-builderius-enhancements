@@ -479,7 +479,7 @@
         // canvas (verified: right panel unmounts, canvas 1392 -> 1652, .active
         // marks the hidden state); the eye opens the entity's front-end URL in
         // a new browser tab.
-        document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton').forEach(function (b) {
+        document.querySelectorAll('.uniTopPanel__rightCol :is(.uniPanelButton, .uniPanelIconButton)').forEach(function (b) {
             if ((b.textContent || '').trim()) { return; }
             var d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';

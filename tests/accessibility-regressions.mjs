@@ -936,6 +936,21 @@ assert.match(
     /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
     'Wide-view panel visibility commands must not masquerade as compact-view controls.'
 );
+assert.match(
+    workspace,
+    /function dbeSidePanelsButton\(\)[\s\S]+:is\(\.uniPanelButton, \.uniPanelIconButton\)[\s\S]+M14\.4551/,
+    'The full-width canvas control must support both Builderius button classes.'
+);
+assert.match(
+    workspace,
+    /persisted-panels[\s\S]+nativeHidden = dbePanelCollapsed\(wrappers\.left\)[\s\S]+dbeSavePanelVisibility\([\s\S]+if \(nextHidden \|\| !nativeHidden\)/,
+    'The full-width control must reconcile persisted panel visibility with the native collapsed state.'
+);
+assert.match(
+    builder,
+    /uniTopPanel__rightCol :is\(\.uniPanelButton, \.uniPanelIconButton\)[\s\S]+M14\.4551[\s\S]+hideSidePanels/,
+    'The 1.3.6 full-width canvas icon must retain its accessible name and tooltip.'
+);
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');
 assert.match(
     compactPanes,

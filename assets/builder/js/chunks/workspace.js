@@ -931,7 +931,9 @@
         }
 
         function dbeSidePanelsButton() {
-            return [].slice.call(document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton')).filter(function (b) {
+            return [].slice.call(document.querySelectorAll(
+                '.uniTopPanel__rightCol :is(.uniPanelButton, .uniPanelIconButton)'
+            )).filter(function (b) {
                 var path = b.querySelector('svg path');
                 return path && (path.getAttribute('d') || '').indexOf('M14.4551') === 0;
             })[0] || null;
@@ -947,10 +949,21 @@
             if (on('tooltips') && button.getAttribute('data-dbe-tip') !== label) { button.setAttribute('data-dbe-tip', label); }
             if (on('command_palette')) {
                 dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, button, 'persisted-panels', 'click', function (event) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
+                    var wrappers = dbePanelWrappers();
+                    var nativeHidden = dbePanelCollapsed(wrappers.left)
+                        && (!wrappers.right || dbePanelCollapsed(wrappers.right));
                     var nextHidden = !dbePanelsAreHidden();
                     dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
+                    /* Builderius 1.3.6 changed this control from .uniPanelButton
+                       to .uniPanelIconButton. A stale DBE build could therefore
+                       leave its persisted classes hidden while the native state
+                       remained open (or vice versa). Keep the native click only
+                       when it is needed to reopen genuinely collapsed wrappers;
+                       every other transition is owned by the persisted state. */
+                    if (nextHidden || !nativeHidden) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                    }
                 }, true);
             }
         }
