@@ -3,6 +3,9 @@
    Dialog pattern matches the shortcuts overlay (71-shortcuts.css). */
 
 dialog.dbe-bem {
+    position: fixed;
+    inset: 0;
+    margin: auto;
     inline-size: min(560px, 92vw);
     max-block-size: 84vh;
     display: flex;

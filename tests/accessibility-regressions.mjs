@@ -40,6 +40,7 @@ const saveMenu = read('assets/builder/css/35-save-menu.css');
 const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const navigatorKeyboard = read('assets/builder/css/79-navigator-keyboard.css');
 const contextMenu = read('assets/builder/css/30-context-menu.css');
+const autoBem = read('assets/builder/css/33-auto-bem.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
@@ -395,6 +396,11 @@ assert.match(
     palette,
     /\.dbe-palette__label,[\s\S]+\.dbe-palette__reason[\s\S]+overflow-wrap:\s*anywhere/,
     'Command-palette class actions and disabled reasons must preserve long names.'
+);
+assert.match(
+    autoBem,
+    /dialog\.dbe-bem\s*\{[\s\S]+position:\s*fixed;[\s\S]+inset:\s*0;[\s\S]+margin:\s*auto;/,
+    'Auto-BEM must remain a deliberately centred task dialog rather than inherit context-menu coordinates.'
 );
 assert.match(
     commands,
