@@ -403,6 +403,11 @@ assert.match(
     'Auto-BEM must remain a deliberately centred task dialog rather than inherit context-menu coordinates.'
 );
 assert.match(
+    contextMenu,
+    /dialog\.uniMiniModal\.uniMiniModal--autoBem\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;/,
+    'Builderius 1.3.6 native Auto-BEM must use the same centred task-dialog placement as the DBE fallback.'
+);
+assert.match(
     commands,
     /function dbeSetNativeWrapAnchor\(source\)[\s\S]+getBoundingClientRect\(\)[\s\S]+function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+anchorRect\.left - dialogRect\.width[\s\S]+anchorRect\.right \+ gap[\s\S]+dbeSetNativeWrapAnchor\(item\)[\s\S]+dbeWatchNativeWrapDialog/,
     'Wrap in must retain a clamped left-first/right-fallback placement when CSS anchor positioning is unavailable.'

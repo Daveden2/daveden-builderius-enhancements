@@ -83,8 +83,9 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   flips to the right when space is tight and retains a clamped fallback where
   CSS anchor positioning is unavailable. Larger task dialogs such as Auto-BEM
   remain centred.
-* Fixed: the larger **Auto-BEM** task dialog now enforces that centred placement
-  instead of inheriting a right-side position from the builder dialog layer.
+* Fixed: both Builderius 1.3.6-beta’s native **Auto-BEM** task dialog and DBE's
+  older fallback now enforce that centred placement instead of inheriting a
+  right-side position from the builder dialog layer.
 * Fixed: context-menu class actions, class-chip menus and matching command
   palette entries now wrap exceptionally long class names within the viewport
   instead of clipping their final characters.

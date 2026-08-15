@@ -42,6 +42,16 @@ dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
 	}
 }
 
+/* Auto-BEM is a long, multi-field editing task rather than a short branch
+   choice. Builderius still gives its native 1.3.6 dialog the context-menu
+   pointer coordinates, so explicitly retain the centred modal treatment used
+   by DBE's older fallback implementation. */
+dialog.uniMiniModal.uniMiniModal--autoBem {
+	position: fixed !important;
+	inset: 0 !important;
+	margin: auto !important;
+}
+
 /* The stock close glyph is also its complete 8x9px hit area. Keep the glyph
    compact but give its button a clear, WCAG-sized target and focus treatment. */
 .uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton {
