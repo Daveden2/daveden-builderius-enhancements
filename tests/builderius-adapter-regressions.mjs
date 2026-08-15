@@ -41,7 +41,7 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.6-beta'/,
+    /const DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.6-beta'/,
     'The audited Builderius 1.3 family must have an explicit tested version.'
 );
 assert.equal(

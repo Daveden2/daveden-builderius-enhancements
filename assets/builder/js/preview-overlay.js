@@ -12,14 +12,14 @@
  */
 (function () {
 	'use strict';
-	var FIX_ID = 'dbe-overlay-label-fix';
+	const FIX_ID = 'dbe-overlay-label-fix';
 	/* The hexes below duplicate token values from 00-tokens.css — #2a6ecb =
 	   --dbe-accent-strong (dark), #067a57 = --dbe-component (light), #14161a =
 	   --dbe-on-accent (dark). They CANNOT reference the custom properties:
 	   this runs in the inner-preview iframe's shadow roots, a separate
 	   document the chrome CSS never reaches. If the tokens change, update
 	   both files (00-tokens.css carries the matching pointer). */
-	var CSS = [
+	const CSS = [
 		'.label { font-weight: 600; }',
 		':host([data-uni-overlay-type="hovered"][data-uni-overlay-mod-type="regular"]) .label,',
 		':host([data-uni-overlay-type="hovered"][data-uni-overlay-mod-type="component"]) .label { color: #14161a !important; }',
@@ -29,11 +29,11 @@
 		':host([data-uni-overlay-type="selected"][data-uni-overlay-mod-type="component"]) svg rect { stroke: #067a57 !important; stroke-width: 2; }'
 	].join('\n');
 
-	var observed = new WeakSet();
+	const observed = new WeakSet();
 
 	function ensureStyle(sr) {
 		if (sr.getElementById(FIX_ID)) { return; }
-		var s = document.createElement('style');
+		const s = document.createElement('style');
 		s.id = FIX_ID;
 		s.textContent = CSS;
 		sr.appendChild(s);
@@ -41,9 +41,9 @@
 
 	function patch(el) {
 		if (!el || el.nodeName !== 'BUILDER-OVERLAY-HANDLES') { return; }
-		var sr = el.shadowRoot;
+		const sr = el.shadowRoot;
 		// The shadow root is built in connectedCallback; retry once if we ran first.
-		if (!sr) { return void requestAnimationFrame(function () { patch(el); }); }
+		if (!sr) { return void requestAnimationFrame(() => { patch(el); }); }
 		ensureStyle(sr);
 		// The builder REUSES the overlay element across state changes (hovered ->
 		// selected) and rewrites its shadow content, wiping the injected style —
@@ -51,16 +51,16 @@
 		// so the observer cannot loop.
 		if (!observed.has(sr)) {
 			observed.add(sr);
-			new MutationObserver(function () { ensureStyle(sr); }).observe(sr, { childList: true });
+			new MutationObserver(() => { ensureStyle(sr); }).observe(sr, { childList: true });
 		}
 	}
 
 	function boot() {
 		document.querySelectorAll('builder-overlay-handles').forEach(patch);
-		new MutationObserver(function (muts) {
-			muts.forEach(function (m) {
+		new MutationObserver((muts) => {
+			muts.forEach((m) => {
 				if (m.type === 'attributes') { return void patch(m.target); }
-				m.addedNodes.forEach(function (n) {
+				m.addedNodes.forEach((n) => {
 					patch(n);
 					// An overlay inserted INSIDE an added wrapper is not itself in
 					// addedNodes — sweep the subtree too (cheap: overlays are rare).

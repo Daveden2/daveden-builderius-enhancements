@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string,string> Capability id => first available major.minor.
  */
-function dbe_release_availability() {
+function dbe_release_availability(): array {
 	return array(
 		'agent_abilities' => '2.2',
 		'style_inspector' => '2.3',
@@ -38,7 +38,7 @@ function dbe_release_availability() {
  * @param string $version Plugin version.
  * @return string Major.minor, or 0.0 for an invalid value.
  */
-function dbe_release_line( $version ) {
+function dbe_release_line( string $version ): string {
 	if ( preg_match( '/^(\d+)\.(\d+)/', (string) $version, $matches ) ) {
 		return (int) $matches[1] . '.' . (int) $matches[2];
 	}
@@ -55,7 +55,7 @@ function dbe_release_line( $version ) {
  * @param string $version    Plugin version to test.
  * @return bool
  */
-function dbe_release_feature_available_for_version( $capability, $version ) {
+function dbe_release_feature_available_for_version( string $capability, string $version ): bool {
 	$availability = dbe_release_availability();
 	if ( ! isset( $availability[ $capability ] ) ) {
 		return true;
@@ -72,7 +72,7 @@ function dbe_release_feature_available_for_version( $capability, $version ) {
  * @param string $capability Capability id from dbe_release_availability().
  * @return bool
  */
-function dbe_release_feature_available( $capability ) {
+function dbe_release_feature_available( string $capability ): bool {
 	$available = dbe_release_feature_available_for_version( $capability, DBE_VERSION );
 
 	/**
@@ -153,7 +153,7 @@ function dbe_feature_available( $feature_id ) {
  *
  * @return array<string,string> slug => label.
  */
-function dbe_tabs() {
+function dbe_tabs(): array {
 	$tabs = array(
 		'dashboard'     => __( 'Dashboard', 'daveden-builderius-enhancements' ),
 		'appearance'    => __( 'Appearance', 'daveden-builderius-enhancements' ),
@@ -177,7 +177,7 @@ function dbe_tabs() {
  *
  * @return array<string,array<int,array{title:string,description:string,features:array<int,string>}>>
  */
-function dbe_feature_sections() {
+function dbe_feature_sections(): array {
 	return array(
 		'appearance'    => array(
 			array(
@@ -272,7 +272,7 @@ function dbe_feature_sections() {
  *
  * @return array<string,array{title:string,description:string,features:array<int,string>}>
  */
-function dbe_feature_presets() {
+function dbe_feature_presets(): array {
 	$presets = array(
 		'accessibility' => array(
 			'title'       => __( 'Accessibility essentials', 'daveden-builderius-enhancements' ),
@@ -338,7 +338,7 @@ function dbe_feature_presets() {
  *
  * @return array<string,array<string,mixed>>
  */
-function dbe_features() {
+function dbe_features(): array {
 	return array(
 		/* ---------------------------------------------------------- Appearance */
 		'design_tokens'         => array(
@@ -910,7 +910,7 @@ function dbe_features() {
  *
  * @return array<string,array<string,mixed>>
  */
-function dbe_available_features() {
+function dbe_available_features(): array {
 	$features = dbe_features();
 	foreach ( array_keys( $features ) as $feature_id ) {
 		if ( ! dbe_feature_available( $feature_id ) ) {
@@ -940,7 +940,7 @@ function dbe_builderius_replaced_features() {
  *
  * @return array<string,array<string,mixed>>
  */
-function dbe_enum_settings() {
+function dbe_enum_settings(): array {
 	return array(
 		'theme_default'    => array(
 			'parent'  => 'theme_switcher',
@@ -995,7 +995,7 @@ function dbe_enum_settings() {
  *
  * @return array<string,array{label:string,description:string}>
  */
-function dbe_ability_groups() {
+function dbe_ability_groups(): array {
 	return array(
 		'read'    => array(
 			'label'       => __( 'Read', 'daveden-builderius-enhancements' ),
@@ -1029,7 +1029,7 @@ function dbe_ability_groups() {
  *
  * @return array<string,array<string,mixed>>
  */
-function dbe_abilities() {
+function dbe_abilities(): array {
 	return array(
 		/* --------------------------------------------------------------- Read */
 		'dbe/get-subtree-html'               => array(
@@ -1236,6 +1236,6 @@ function dbe_abilities() {
  * @param string $ability_id Ability id, e.g. "dbe/extract-release".
  * @return string e.g. "ability_extract_release".
  */
-function dbe_ability_option_key( $ability_id ) {
+function dbe_ability_option_key( string $ability_id ): string {
 	return 'ability_' . str_replace( '-', '_', substr( (string) $ability_id, 4 ) );
 }

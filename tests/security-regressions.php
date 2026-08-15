@@ -175,8 +175,8 @@ if ( function_exists( 'dbe_ability_css_patch' ) ) {
 	dbe_test_assert(
 		! is_wp_error( $patched_css )
 			&& 'replaced' === $patched_css['action']
-			&& 0 === strpos( $patched_css['css'], '.before { color: inherit; }' )
-			&& false !== strpos( $patched_css['css'], '.new { display: grid; }' )
+			&& str_starts_with( $patched_css['css'], '.before { color: inherit; }' )
+			&& str_contains( $patched_css['css'], '.new { display: grid; }' )
 			&& ".after { color: inherit; }\n" === substr( $patched_css['css'], -strlen( ".after { color: inherit; }\n" ) ),
 		'The extracted CSS domain no longer preserves bytes outside a managed block.'
 	);
@@ -267,7 +267,7 @@ if ( function_exists( 'dbe_ability_parse_fragment' ) ) {
 		'Encoded text became active raw markup in the ability parser.'
 	);
 	dbe_test_assert(
-		false === strpos( $encoded_text, '<img' ),
+		! str_contains( $encoded_text, '<img' ),
 		'The ability parser stored an executable element from an encoded text node.'
 	);
 }
@@ -283,11 +283,11 @@ if ( false !== $commands_js ) {
 }
 if ( false !== $editing_js ) {
 	dbe_test_assert(
-		false !== strpos( $editing_js, 'value: dbeEscapeRawText(opts.text)' ),
+		str_contains( $editing_js, 'value: dbeEscapeRawText(opts.text)' ),
 		'The Emmet text storage sink no longer encodes raw content.'
 	);
 	dbe_test_assert(
-		false !== strpos( $editing_js, 'var t = dbeEscapeRawText(ch.textContent' ),
+		str_contains( $editing_js, 'const t = dbeEscapeRawText(ch.textContent' ),
 		'The browser HTML parser no longer encodes DOM text nodes.'
 	);
 }

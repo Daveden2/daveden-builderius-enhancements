@@ -482,7 +482,7 @@ function dbe_ability_serialize( $config, $id, $depth, &$non_editable ) {
 	$kids    = (array) ( $idx[ $id ] ?? array() );
 
 	if ( ! $kids ) {
-		if ( strlen( $text ) <= 70 && false === strpos( $text, "\n" ) ) {
+		if ( strlen( $text ) <= 70 && ! str_contains( $text, "\n" ) ) {
 			return $pad . $open . $text . '</' . $tag . '>';
 		}
 		return $pad . $open . "\n" . $pad . '  ' . $text . "\n" . $pad . '</' . $tag . '>';

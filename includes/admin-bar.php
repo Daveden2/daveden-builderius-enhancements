@@ -264,8 +264,8 @@ function dbe_adminbar_second_tab_warning() {
 <script id="dbe-adminbar-open-template">
 (function () {
 	'use strict';
-	var HB = <?php echo wp_json_encode( $heartbeat ); ?>;
-	var MSG = 
+	const HB = <?php echo wp_json_encode( $heartbeat ); ?>;
+	const MSG =
 	<?php
 	echo wp_json_encode(
 		array(
@@ -276,18 +276,18 @@ function dbe_adminbar_second_tab_warning() {
 	?>
 	;
 	function enhanceBuilderiusMenu() {
-		var menu = document.getElementById('wp-admin-bar-builderius');
-		var trigger = menu && menu.querySelector(':scope > .ab-item');
-		var submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
-		var submenuList = submenu && submenu.querySelector(':scope > ul[id]');
+		const menu = document.getElementById('wp-admin-bar-builderius');
+		const trigger = menu && menu.querySelector(':scope > .ab-item');
+		const submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
+		const submenuList = submenu && submenu.querySelector(':scope > ul[id]');
 		if (!trigger || !submenu || !submenuList) { return; }
-		var preview = submenu.querySelector('#wp-admin-bar-builderius-preview-mode');
-		var previewContainer = preview && preview.querySelector(':scope > .ab-item');
-		var previewGroup = previewContainer && previewContainer.querySelector('.builderius-status-management-wrapper');
-		var previewHeading = previewGroup && previewGroup.querySelector('.status-heading');
-		var previewItems = previewGroup ? Array.prototype.slice.call(previewGroup.querySelectorAll('.builderius-status-item')) : [];
-		var suppressFocusOpen = false;
-		submenuList.querySelectorAll(':scope > li').forEach(function (item) {
+		const preview = submenu.querySelector('#wp-admin-bar-builderius-preview-mode');
+		const previewContainer = preview && preview.querySelector(':scope > .ab-item');
+		const previewGroup = previewContainer && previewContainer.querySelector('.builderius-status-management-wrapper');
+		const previewHeading = previewGroup && previewGroup.querySelector('.status-heading');
+		const previewItems = previewGroup ? Array.from(previewGroup.querySelectorAll('.builderius-status-item')) : [];
+		let suppressFocusOpen = false;
+		submenuList.querySelectorAll(':scope > li').forEach((item) => {
 			item.setAttribute('role', 'none');
 		});
 		if (previewContainer) { previewContainer.setAttribute('role', 'none'); }
@@ -298,23 +298,23 @@ function dbe_adminbar_second_tab_warning() {
 				previewGroup.setAttribute('aria-labelledby', previewHeading.id);
 			}
 		}
-		previewItems.forEach(function (item) {
-			var current = item.classList.contains('active');
+		previewItems.forEach((item) => {
+			const current = item.classList.contains('active');
 			item.setAttribute('role', 'menuitemradio');
 			item.setAttribute('tabindex', '-1');
 			item.setAttribute('aria-checked', current ? 'true' : 'false');
 			if (current) { item.setAttribute('aria-disabled', 'true'); }
 			else { item.removeAttribute('aria-disabled'); }
-			var indicator = item.querySelector('i');
+			const indicator = item.querySelector('i');
 			if (indicator) { indicator.setAttribute('aria-hidden', 'true'); }
 		});
 		submenuList.setAttribute('aria-labelledby', trigger.id || 'dbe-builderius-adminbar-trigger');
 		if (!trigger.id) { trigger.id = 'dbe-builderius-adminbar-trigger'; }
 		function menuItems() {
-			return Array.prototype.slice.call(submenu.querySelectorAll('[role="menuitemradio"], a[role="menuitem"]'));
+			return Array.from(submenu.querySelectorAll('[role="menuitemradio"], a[role="menuitem"]'));
 		}
 		function setRovingItem(item) {
-			menuItems().forEach(function (candidate) {
+			menuItems().forEach((candidate) => {
 				candidate.setAttribute('tabindex', candidate === item ? '0' : '-1');
 			});
 		}
@@ -324,9 +324,9 @@ function dbe_adminbar_second_tab_warning() {
 			if (!open) { setRovingItem(null); }
 		}
 		function focusItem(index) {
-			var items = menuItems();
+			const items = menuItems();
 			if (!items.length) { return; }
-			var target = items[(index + items.length) % items.length];
+			const target = items[(index + items.length) % items.length];
 			setMenuOpen(true);
 			setRovingItem(target);
 			target.focus();
@@ -334,15 +334,15 @@ function dbe_adminbar_second_tab_warning() {
 		setRovingItem(null);
 		trigger.setAttribute('aria-haspopup', 'menu');
 		trigger.setAttribute('aria-controls', submenuList.id);
-		trigger.addEventListener('focus', function () {
+		trigger.addEventListener('focus', () => {
 			if (!suppressFocusOpen) { setMenuOpen(true); }
 		});
-		trigger.addEventListener('keydown', function (e) {
+		trigger.addEventListener('keydown', (e) => {
 			if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ') { return; }
 			e.preventDefault();
 			focusItem(e.key === 'ArrowUp' ? menuItems().length - 1 : 0);
 		});
-		menu.addEventListener('keydown', function (e) {
+		menu.addEventListener('keydown', (e) => {
 			if (e.key === 'Escape' && menu.contains(document.activeElement)) {
 				e.preventDefault();
 				suppressFocusOpen = true;
@@ -351,9 +351,9 @@ function dbe_adminbar_second_tab_warning() {
 				setMenuOpen(false);
 				return;
 			}
-			var current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
-			var items = menuItems();
-			var index = items.indexOf(current);
+			const current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
+			const items = menuItems();
+			const index = items.indexOf(current);
 			if (index < 0) { return; }
 			if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
 				e.preventDefault();
@@ -367,18 +367,18 @@ function dbe_adminbar_second_tab_warning() {
 				if (current.getAttribute('aria-disabled') !== 'true') { current.click(); }
 			}
 		});
-		menu.addEventListener('focusin', function (e) {
-			var current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
+		menu.addEventListener('focusin', (e) => {
+			const current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
 			if (current && submenu.contains(current)) {
 				setMenuOpen(true);
 				setRovingItem(current);
 			}
 		});
-		menu.addEventListener('focusout', function (e) {
+		menu.addEventListener('focusout', (e) => {
 			if (!menu.contains(e.relatedTarget)) { setMenuOpen(false); }
 		});
-		menu.addEventListener('mouseenter', function () { setMenuOpen(true); });
-		menu.addEventListener('mouseleave', function () {
+		menu.addEventListener('mouseenter', () => { setMenuOpen(true); });
+		menu.addEventListener('mouseleave', () => {
 			if (!menu.contains(document.activeElement)) { setMenuOpen(false); }
 		});
 	}
@@ -394,25 +394,23 @@ function dbe_adminbar_second_tab_warning() {
 			return (Date.now() - value.t) <= HB.staleAfter ? value : null;
 		}
 		if (!value || !value.tabs || typeof value.tabs !== 'object' || Array.isArray(value.tabs)) { return null; }
-		return Object.keys(value.tabs).map(function (id) {
-			return value.tabs[id];
-		}).filter(function (beat) {
+		return Object.keys(value.tabs).map((id) => value.tabs[id]).filter((beat) => {
 			return beat && typeof beat.t === 'number' && (Date.now() - beat.t) <= HB.staleAfter;
-		}).sort(function (a, b) {
+		}).sort((a, b) => {
 			return b.t - a.t;
 		})[0] || null;
 	}
-	document.addEventListener('click', function (e) {
-		var a = e.target.closest && e.target.closest('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a');
+	document.addEventListener('click', (e) => {
+		const a = e.target.closest && e.target.closest('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a');
 		if (!a) { return; }
-		var raw = null;
+		let raw = null;
 		try { raw = localStorage.getItem(HB.key); } catch (err) {}
 		if (!raw) { return; }
-		var stored;
+		let stored;
 		try { stored = JSON.parse(raw); } catch (err) { return; }
-		var beat = freshestBeat(stored);
+		const beat = freshestBeat(stored);
 		if (!beat) { return; }
-		var msg = MSG.open
+		const msg = MSG.open
 			+ (beat.title ? ':\n“' + beat.title + '”' : '')
 			+ '\n\n' + MSG.warn;
 		if (!window.confirm(msg)) {

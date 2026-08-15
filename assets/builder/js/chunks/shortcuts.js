@@ -4,31 +4,31 @@
     /* Shortcut discovery is a coherent, independently cacheable command
        surface. The commands controller still owns its events and cleanup; this
        chunk supplies the native extension, fallback dialog and `?` binding. */
-    var chunks = window.dbeBuilderChunks || {};
+    const chunks = window.dbeBuilderChunks || {};
 
     chunks.shortcuts = function (host) {
-        var on = host.on;
-        var dbeT = host.translate;
-        var CFG = host.config;
-        var clickSeq = host.click;
-        var waitFor = host.waitFor;
-        var dbeAccel = host.accelerator;
-        var dbeBindOwnedEvent = host.bindOwnedEvent;
-        var dbeSetOwnedTimeout = host.setOwnedTimeout;
-        var renameActive = host.renameActive;
-        var DBE_COMMANDS_OWNER = 'commands';
+        const on = host.on;
+        const dbeT = host.translate;
+        const CFG = host.config;
+        const clickSeq = host.click;
+        const waitFor = host.waitFor;
+        const dbeAccel = host.accelerator;
+        const dbeBindOwnedEvent = host.bindOwnedEvent;
+        const dbeSetOwnedTimeout = host.setOwnedTimeout;
+        const renameActive = host.renameActive;
+        const DBE_COMMANDS_OWNER = 'commands';
 
         function sc(key, options) { return dbeAccel(key, options); }
         function dbePaletteAccel() {
-            var choice = (CFG.palette || {}).shortcut || 'mod-k';
+            const choice = (CFG.palette || {}).shortcut || 'mod-k';
             return dbeAccel(choice === 'mod-slash' ? '/' : 'K', {
                 cmd: true,
                 shift: choice === 'mod-shift-k'
             });
         }
 
-        var nativeShortcutPanel = !!(((CFG.builderius || {}).native || {}).shortcutPanel);
-        var SHORTCUT_GROUPS = [
+        const nativeShortcutPanel = !!(((CFG.builderius || {}).native || {}).shortcutPanel);
+        const SHORTCUT_GROUPS = [
             [dbeT('scGroupGeneral', 'General'), [
                 ['?', dbeT('scOpenOverlay', 'Open keyboard shortcuts')],
                 ['Esc', on('multi_select') ?
@@ -111,29 +111,29 @@
         ] : []);
 
         function dbeNativeShortcutGroups() {
-            return SHORTCUT_GROUPS.map(function (group) {
-                return [group[0], group[1].filter(function (pair) { return !pair[2]; })];
-            }).filter(function (group) { return group[1].length; });
+            return SHORTCUT_GROUPS.map((group) => {
+                return [group[0], group[1].filter((pair) => { return !pair[2]; })];
+            }).filter((group) => { return group[1].length; });
         }
 
         function ensureNativeShortcuts() {
             if (!nativeShortcutPanel) { return; }
-            var panel = document.querySelector('.uniTabShortcuts');
+            const panel = document.querySelector('.uniTabShortcuts');
             if (!panel || panel.querySelector('.dbe-native-shortcuts-group')) { return; }
-            dbeNativeShortcutGroups().forEach(function (group) {
-                var section = document.createElement('div');
+            dbeNativeShortcutGroups().forEach((group) => {
+                const section = document.createElement('div');
                 section.className = 'uniTabShortcuts__group dbe-native-shortcuts-group';
-                var title = document.createElement('h4');
+                const title = document.createElement('h4');
                 title.className = 'uniTabShortcuts__groupTitle';
                 title.textContent = 'DBE · ' + group[0];
-                var list = document.createElement('ul');
+                const list = document.createElement('ul');
                 list.className = 'uniTabShortcuts__list';
-                group[1].forEach(function (pair) {
-                    var row = document.createElement('li');
+                group[1].forEach((pair) => {
+                    const row = document.createElement('li');
                     row.className = 'uniTabShortcuts__row';
-                    var label = document.createElement('span');
+                    const label = document.createElement('span');
                     label.textContent = pair[1];
-                    var shortcut = document.createElement('span');
+                    const shortcut = document.createElement('span');
                     shortcut.className = 'uniContextMenu__shortcut';
                     shortcut.textContent = pair[0];
                     row.appendChild(label);
@@ -147,55 +147,55 @@
         }
 
         function dbeOpenNativeShortcuts() {
-            var panel = document.querySelector('.uniTabShortcuts');
+            const panel = document.querySelector('.uniTabShortcuts');
             if (panel) { ensureNativeShortcuts(); return true; }
-            var button = document.querySelector('.tooltipId__footer_shortcuts .uniPanelIconButton--footer');
+            const button = document.querySelector('.tooltipId__footer_shortcuts .uniPanelIconButton--footer');
             if (!button) { return false; }
             clickSeq(button);
-            waitFor(function () { return document.querySelector('.uniTabShortcuts'); }, ensureNativeShortcuts);
+            waitFor(() => { return document.querySelector('.uniTabShortcuts'); }, ensureNativeShortcuts);
             return true;
         }
 
-        var dbeShortcutFocusReturn = null;
+        let dbeShortcutFocusReturn = null;
         function openShortcutsDialog() {
             if (nativeShortcutPanel && dbeOpenNativeShortcuts()) { return; }
-            var dlg = document.querySelector('dialog.dbe-shortcuts');
+            let dlg = document.querySelector('dialog.dbe-shortcuts');
             if (!dlg) {
                 dlg = document.createElement('dialog');
                 dlg.className = 'dbe-shortcuts';
                 dlg.setAttribute('aria-label', dbeT('keyboardShortcuts', 'Keyboard shortcuts'));
-                var head = document.createElement('div');
+                const head = document.createElement('div');
                 head.className = 'dbe-shortcuts__head';
-                var title = document.createElement('h2');
+                const title = document.createElement('h2');
                 title.className = 'dbe-shortcuts__title';
                 title.textContent = dbeT('keyboardShortcuts', 'Keyboard shortcuts');
-                var close = document.createElement('button');
+                const close = document.createElement('button');
                 close.type = 'button';
                 close.className = 'dbe-shortcuts__close';
                 close.setAttribute('aria-label', dbeT('close', 'Close'));
                 close.textContent = '✕';
-                close.addEventListener('click', function () { dlg.close(); });
+                close.addEventListener('click', () => { dlg.close(); });
                 head.appendChild(title);
                 head.appendChild(close);
                 dlg.appendChild(head);
-                var table = document.createElement('table');
-                SHORTCUT_GROUPS.forEach(function (group) {
-                    var th = document.createElement('tr');
-                    var thCell = document.createElement('th');
+                const table = document.createElement('table');
+                SHORTCUT_GROUPS.forEach((group) => {
+                    const th = document.createElement('tr');
+                    const thCell = document.createElement('th');
                     thCell.colSpan = 2;
                     thCell.textContent = group[0];
                     th.appendChild(thCell);
                     table.appendChild(th);
-                    group[1].forEach(function (pair) {
-                        var tr = document.createElement('tr');
-                        var kd = document.createElement('td');
-                        pair[0].split(' · ').forEach(function (combo, index) {
+                    group[1].forEach((pair) => {
+                        const tr = document.createElement('tr');
+                        const kd = document.createElement('td');
+                        pair[0].split(' · ').forEach((combo, index) => {
                             if (index) { kd.appendChild(document.createTextNode(' ')); }
-                            var kbd = document.createElement('kbd');
+                            const kbd = document.createElement('kbd');
                             kbd.textContent = combo;
                             kd.appendChild(kbd);
                         });
-                        var description = document.createElement('td');
+                        const description = document.createElement('td');
                         description.textContent = pair[1];
                         tr.appendChild(kd);
                         tr.appendChild(description);
@@ -203,18 +203,18 @@
                     });
                 });
                 dlg.appendChild(table);
-                dlg.addEventListener('keydown', function (event) {
+                dlg.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape') {
                         event.preventDefault();
                         dlg.close();
                     }
                     event.stopPropagation();
                 });
-                dlg.addEventListener('close', function () {
-                    var target = dbeShortcutFocusReturn;
+                dlg.addEventListener('close', () => {
+                    const target = dbeShortcutFocusReturn;
                     dbeShortcutFocusReturn = null;
                     if (target && target.isConnected && typeof target.focus === 'function') {
-                        dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, function () { target.focus(); }, 0);
+                        dbeSetOwnedTimeout(DBE_COMMANDS_OWNER, () => { target.focus(); }, 0);
                     }
                 });
                 document.body.appendChild(dlg);
@@ -226,10 +226,10 @@
         }
 
         function bindShortcutsKey() {
-            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'shortcut-help-key', 'keydown', function (event) {
+            dbeBindOwnedEvent(DBE_COMMANDS_OWNER, document, 'shortcut-help-key', 'keydown', (event) => {
                 if (event.key !== '?') { return; }
                 if (renameActive()) { return; }
-                var target = event.target;
+                const target = event.target;
                 if (target && target.closest && target.closest('input, textarea, [contenteditable="true"], .monaco-editor')) { return; }
                 if (document.querySelector('dialog[open]')) { return; }
                 event.preventDefault();

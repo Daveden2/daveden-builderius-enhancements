@@ -753,9 +753,9 @@ function dbe_ability_fetch_rendered( $url, $cookies = array() ) {
 			if ( '' === $location ) {
 				return new WP_Error( 'dbe_fetch_failed', sprintf( 'The page redirected (HTTP %d) without a Location header.', $status ) );
 			}
-			if ( 0 === strpos( $location, '//' ) ) {
+			if ( str_starts_with( $location, '//' ) ) {
 				$location = (string) wp_parse_url( home_url(), PHP_URL_SCHEME ) . ':' . $location;
-			} elseif ( 0 === strpos( $location, '/' ) ) {
+			} elseif ( str_starts_with( $location, '/' ) ) {
 				$location = home_url( $location );
 			}
 			$valid = dbe_ability_validate_render_url( $location );
@@ -874,7 +874,7 @@ function dbe_ability_scan_rendered_html( $html, $input ) {
 
 	foreach ( (array) ( $input['expect'] ?? array() ) as $expected ) {
 		$expected = (string) $expected;
-		if ( '' !== $expected && false === strpos( $html, $expected ) ) {
+		if ( '' !== $expected && ! str_contains( $html, $expected ) ) {
 			$failures[] = array(
 				'check'   => 'expected_text_missing',
 				'message' => sprintf( 'Expected text not found: %s', $expected ),
@@ -883,7 +883,7 @@ function dbe_ability_scan_rendered_html( $html, $input ) {
 	}
 	foreach ( (array) ( $input['absent'] ?? array() ) as $forbidden ) {
 		$forbidden = (string) $forbidden;
-		if ( '' !== $forbidden && false !== strpos( $html, $forbidden ) ) {
+		if ( '' !== $forbidden && str_contains( $html, $forbidden ) ) {
 			$failures[] = array(
 				'check'   => 'forbidden_text_present',
 				'message' => sprintf( 'Text that should be absent was found: %s', $forbidden ),
@@ -906,7 +906,7 @@ function dbe_ability_scan_rendered_html( $html, $input ) {
 			}
 			$visible = false;
 			foreach ( $xpath->query( '//text()' ) as $node ) {
-				if ( false === strpos( $node->nodeValue, $label ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
+				if ( ! str_contains( $node->nodeValue, $label ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
 					continue;
 				}
 				$text   = $node->parentNode->textContent; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
@@ -1425,7 +1425,7 @@ function dbe_ability_get_dynamic_data_schema( $input ) {
 		foreach ( $type_index as $type_name => $t ) {
 			foreach ( (array) ( $t['fields'] ?? array() ) as $field ) {
 				$field_name = (string) ( $field['name'] ?? '' );
-				if ( false !== strpos( strtolower( $type_name ), $search ) || false !== strpos( strtolower( $field_name ), $search ) ) {
+				if ( str_contains( strtolower( $type_name ), $search ) || str_contains( strtolower( $field_name ), $search ) ) {
 					$row              = dbe_ability_compact_field( $field );
 					$row['on']        = $type_name;
 					$out['matches'][] = $row;
@@ -1837,7 +1837,7 @@ function dbe_ability_get_rendered_styles( $input ) {
 	foreach ( $rules as $rule ) {
 		$matched_by = array();
 		foreach ( $needles as $needle => $label ) {
-			if ( false !== strpos( $rule['selector'], $needle )
+			if ( str_contains( $rule['selector'], $needle )
 				&& preg_match( '/' . preg_quote( $needle, '/' ) . '(?![A-Za-z0-9_-])/', $rule['selector'] ) ) {
 				$matched_by[] = $label;
 			}

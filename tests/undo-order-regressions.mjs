@@ -114,7 +114,7 @@ assert.equal(
 
 assert.match(
     editing,
-    /var placement = dbeHistoryPlacement\(snapMods, snap\.indexes \|\| \{\}, p\.id\)[\s\S]+beforeId: placement\.beforeId[\s\S]+afterId: placement\.afterId/,
+    /const placement = dbeHistoryPlacement\(snapMods, snap\.indexes \|\| \{\}, p\.id\)[\s\S]+beforeId: placement\.beforeId[\s\S]+afterId: placement\.afterId/,
     'Deleted elements must record ordered placement from the Builderius history snapshot.'
 );
 assert.match(
@@ -124,7 +124,7 @@ assert.match(
 );
 assert.match(
     editing,
-    /var placement = dbeHistoryPlacement\(mods, store\(\)\.storeGet\('indexes'\) \|\| \{\}, rec\.id\)[\s\S]+index: placement\.index[\s\S]+beforeId: placement\.beforeId[\s\S]+afterId: placement\.afterId/,
+    /const placement = dbeHistoryPlacement\(mods, store\(\)\.storeGet\('indexes'\) \|\| \{\}, rec\.id\)[\s\S]+index: placement\.index[\s\S]+beforeId: placement\.beforeId[\s\S]+afterId: placement\.afterId/,
     'Redo records must retain the live position captured immediately before removal.'
 );
 assert.match(

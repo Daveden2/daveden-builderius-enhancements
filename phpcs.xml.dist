@@ -67,7 +67,7 @@
 	<!-- Minimum supported WordPress version (drives deprecation sniffs). -->
 	<config name="minimum_wp_version" value="6.4"/>
 
-	<!-- PHP cross-version compatibility down to the minimum we support. -->
-	<config name="testVersion" value="7.4-"/>
+	<!-- PHP cross-version compatibility from Builderius's minimum onwards. -->
+	<config name="testVersion" value="8.2-"/>
 	<rule ref="PHPCompatibilityWP"/>
 </ruleset>

@@ -20,7 +20,7 @@ const DBE_OPTION = 'daveden_builder_enhancements';
  *
  * @return array<string,mixed>
  */
-function dbe_default_options() {
+function dbe_default_options(): array {
 	$defaults = array();
 	foreach ( dbe_features() as $id => $feature ) {
 		$defaults[ $id ] = empty( $feature['experimental'] );
@@ -43,7 +43,7 @@ function dbe_default_options() {
  *
  * @return array<string,mixed>
  */
-function dbe_get_options() {
+function dbe_get_options(): array {
 	static $options = null;
 	if ( null === $options ) {
 		$options = wp_parse_args( (array) get_option( DBE_OPTION, array() ), dbe_default_options() );
@@ -61,7 +61,7 @@ function dbe_get_options() {
  *
  * @return bool
  */
-function dbe_builderius_pro_active() {
+function dbe_builderius_pro_active(): bool {
 	static $active = null;
 	if ( null === $active ) {
 		$plugin = 'builderius-pro/builderius-pro.php';
@@ -82,7 +82,7 @@ function dbe_builderius_pro_active() {
  * @param string $id Feature id from dbe_features().
  * @return bool
  */
-function dbe_enabled( $id ) {
+function dbe_enabled( string $id ): bool {
 	if ( ! dbe_feature_available( $id ) ) {
 		return false;
 	}
@@ -121,7 +121,7 @@ function dbe_enabled( $id ) {
  * @param string $id Feature id from dbe_features().
  * @return bool
  */
-function dbe_feature_output_permitted( $id ) {
+function dbe_feature_output_permitted( string $id ): bool {
 	if ( ! dbe_enabled( $id ) ) {
 		return false;
 	}
@@ -148,7 +148,7 @@ function dbe_feature_output_permitted( $id ) {
  *
  * @return bool
  */
-function dbe_abilities_enabled() {
+function dbe_abilities_enabled(): bool {
 	if ( ! dbe_release_feature_available( 'agent_abilities' ) ) {
 		return false;
 	}
@@ -165,7 +165,7 @@ function dbe_abilities_enabled() {
  * @param string $ability_id Ability id from dbe_abilities(), e.g. "dbe/publish".
  * @return bool
  */
-function dbe_ability_enabled( $ability_id ) {
+function dbe_ability_enabled( string $ability_id ): bool {
 	if ( ! dbe_abilities_enabled() ) {
 		return false;
 	}
@@ -183,7 +183,7 @@ function dbe_ability_enabled( $ability_id ) {
  * @param string $id Setting id from dbe_enum_settings().
  * @return string
  */
-function dbe_setting( $id ) {
+function dbe_setting( string $id ): string {
 	$options = dbe_get_options();
 	$enums   = dbe_enum_settings();
 	$value   = isset( $options[ $id ] ) ? (string) $options[ $id ] : '';
@@ -198,7 +198,7 @@ function dbe_setting( $id ) {
  *
  * @return bool
  */
-function dbe_any_enabled() {
+function dbe_any_enabled(): bool {
 	foreach ( array_keys( dbe_features() ) as $id ) {
 		if ( dbe_enabled( $id ) ) {
 			return true;
@@ -217,7 +217,7 @@ function dbe_any_enabled() {
  * @param mixed $input Raw posted value.
  * @return array<string,mixed>
  */
-function dbe_sanitise_options( $input ) {
+function dbe_sanitise_options( mixed $input ): array {
 	$input    = is_array( $input ) ? $input : array();
 	$clean    = array();
 	$features = dbe_features();

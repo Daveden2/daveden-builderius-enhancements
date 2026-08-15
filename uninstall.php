@@ -10,7 +10,7 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 /**
  * Remove DBE data from the current site's options table.
  */
-function dbe_uninstall_site_data() {
+function dbe_uninstall_site_data(): void {
 	global $wpdb;
 
 	delete_option( 'daveden_builder_enhancements' );

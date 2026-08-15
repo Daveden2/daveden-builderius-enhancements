@@ -165,7 +165,7 @@ function dbe_print_builder_head() {
 		?>
 		<script id="dbe-theme-bootstrap">
 		(function (d) {
-			var cfg = <?php echo wp_json_encode( $bootstrap ); ?>;
+			const cfg = <?php echo wp_json_encode( $bootstrap ); ?>;
 			function pick(key, fallback) {
 				try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
 			}
@@ -184,12 +184,12 @@ function dbe_print_builder_head() {
 				} catch (e) { return mode === 'auto' ? 'dark' : mode; }
 			}
 			if (cfg.theme) {
-				var mode = pick('dbeBuilderTheme', cfg.theme);
+				const mode = pick('dbeBuilderTheme', cfg.theme);
 				d.dataset.dbeThemeMode = mode;
 				d.dataset.dbeTheme = resolve(mode);
 				// Auto keeps following the OS live, not just at load.
 				try {
-					matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+					matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
 						if (d.dataset.dbeThemeMode === 'auto') { d.dataset.dbeTheme = resolve('auto'); }
 					});
 				} catch (e) {}
@@ -205,14 +205,14 @@ function dbe_print_builder_head() {
 			 * stored width. Clamp mirrors DBE_PANEL_MIN/MAX in builder.js.
 			 */
 			if (cfg.panelWidth) {
-				var pw = parseInt(pick('dbeBuilderPanelWidth', ''), 10);
-				if (!isNaN(pw)) {
+				const pw = Number.parseInt(pick('dbeBuilderPanelWidth', ''), 10);
+				if (!Number.isNaN(pw)) {
 					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
 				}
 			}
 			if (cfg.panelVisibility) {
 				try {
-					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
+					const panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
 					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
 					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
 				} catch (e) {}

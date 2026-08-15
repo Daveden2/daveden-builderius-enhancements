@@ -11,7 +11,7 @@
  * Text Domain:       daveden-builderius-enhancements
  * Domain Path:       /languages
  * Requires at least: 6.4
- * Requires PHP:      7.4
+ * Requires PHP:      8.2
  * Requires Plugins:  builderius
  *
  * Builderius (the free wordpress.org plugin, slug "builderius") is a hard
@@ -119,7 +119,7 @@ $dbe_update_checker->addResultFilter(
  *
  * @return bool
  */
-function dbe_builderius_is_active() {
+function dbe_builderius_is_active(): bool {
 	return function_exists( 'builderius_get_version' );
 }
 
@@ -144,7 +144,7 @@ add_action( 'plugins_loaded', 'dbe_bootstrap', 0 );
  * is activated per site — see dbe_builderius_is_active(). Everything these
  * files register (wp_head, wp_footer, admin_bar_menu) fires later still.
  */
-function dbe_bootstrap() {
+function dbe_bootstrap(): void {
 	if ( dbe_builderius_is_active() ) {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
@@ -179,7 +179,7 @@ function dbe_bootstrap() {
 /**
  * Warn that Builderius is required when the parent plugin is not active.
  */
-function dbe_builderius_missing_notice() {
+function dbe_builderius_missing_notice(): void {
 	if ( ! current_user_can( 'activate_plugins' ) ) {
 		return;
 	}
@@ -197,7 +197,7 @@ function dbe_builderius_missing_notice() {
  * language packs on its own; this covers translations shipped with the
  * plugin itself (it is distributed from GitHub, not wordpress.org).
  */
-function dbe_load_textdomain() {
+function dbe_load_textdomain(): void {
 	load_plugin_textdomain( 'daveden-builderius-enhancements', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 }
 add_action( 'init', 'dbe_load_textdomain' );
@@ -210,7 +210,7 @@ register_activation_hook( __FILE__, 'dbe_activate' );
  * to enhance without it, so we block activation with a friendly message rather
  * than let the plugin activate into a no-op state.
  */
-function dbe_activate() {
+function dbe_activate(): void {
 	if ( ! dbe_builderius_is_active() ) {
 		deactivate_plugins( plugin_basename( __FILE__ ) );
 		wp_die(

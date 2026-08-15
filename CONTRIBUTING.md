@@ -20,7 +20,7 @@ native equivalent lands in core Builderius.
 ## Development setup
 
 1. Clone the repository into `wp-content/plugins/daveden-builderius-enhancements`
-   on a local WordPress site (6.4+, PHP 7.4+) with Builderius active.
+   on a local WordPress site (6.4+, PHP 8.2+) with Builderius active.
 2. Activate **Daveden Builder Enhancements** and open the settings page
    (Builderius → Builder Enhance).
 3. Open any template in the builder (`?builderius` on the front end) to see

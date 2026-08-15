@@ -89,7 +89,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /var AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
+    /const AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
     'Area-jump shortcuts must run before editable targets suppress element commands.'
 );
 assert.match(
@@ -114,7 +114,7 @@ assert.match(
 );
 assert.match(
     a11y,
-    /host\.controllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyChrome\(\)/,
+    /host\.controllers\.register\('a11y\/chrome',[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyChrome\(\)/,
     'Builder landmarks must participate in the shared init, refresh and destroy lifecycle.'
 );
 assert.match(
@@ -134,7 +134,7 @@ assert.match(
 );
 assert.match(
     composites,
-    /dbeControllers\.register\('a11y\/composites',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yComposites\(\)/,
+    /dbeControllers\.register\('a11y\/composites',[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyA11yComposites\(\)/,
     'Breakpoint and footer composites must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -244,7 +244,7 @@ assert.doesNotMatch(
 );
 assert.match(
     integrations,
-    /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyTerminalIntegration\(\)/,
+    /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyTerminalIntegration\(\)/,
     'Sense AI terminal accessibility must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -279,7 +279,7 @@ assert.doesNotMatch(
 );
 assert.match(
     workspace,
-    /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyWorkspace\(\)/,
+    /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyWorkspace\(\)/,
     'Workspace features must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -309,7 +309,7 @@ assert.doesNotMatch(
 );
 assert.match(
     commands,
-    /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyCommands\(\)/,
+    /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyCommands\(\)/,
     'Command interfaces must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -550,7 +550,7 @@ assert.match(
 );
 assert.match(
     editing,
-    /function dbeNavigatorLabel\(row\)[\s\S]+dbe-visually-hidden[\s\S]+raw\.indexOf\(' \.'\)[\s\S]+function dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+current !== st\.oldLabel[\s\S]+commitRename\(st\.id, st\.oldLabel[\s\S]+function closeRename\(commit, restoreFocus\)[\s\S]+dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+var oldLabel = dbeNavigatorLabel\(row\) \|\| mods\[id\]\.label[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
+    /function dbeNavigatorLabel\(row\)[\s\S]+dbe-visually-hidden[\s\S]+raw\.indexOf\(' \.'\)[\s\S]+function dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+current !== st\.oldLabel[\s\S]+commitRename\(st\.id, st\.oldLabel[\s\S]+function closeRename\(commit, restoreFocus\)[\s\S]+dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+const oldLabel = dbeNavigatorLabel\(row\) \|\| mods\[id\]\.label[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
     'Inline rename must seed from the rendered 1.3.5 label, restore it on cancellation and return focus to its tree row.'
 );
 assert.match(
@@ -565,7 +565,7 @@ assert.match(
 );
 assert.match(
     editing,
-    /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape: function \(\) \{ dlg\.close\(\); \}/,
+    /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape \(\) \{ dlg\.close\(\); \}/,
     'Monaco editing dialogs must handle Escape through the editor event and command APIs.'
 );
 assert.match(
@@ -595,12 +595,12 @@ assert.doesNotMatch(
 );
 assert.match(
     builder,
-    /var NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)/,
+    /const NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)/,
     'The host must compute one toggle gate for the styles domain.'
 );
 assert.match(
     styles,
-    /var NEED_STYLES = host\.needStyles[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
+    /const NEED_STYLES = host\.needStyles[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
     'Style features must participate in one shared controller lifecycle.'
 );
 assert.match(
@@ -635,7 +635,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, function \(\) \{ clickSelectorUntilLoaded/,
+    /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, \(\) => \{ clickSelectorUntilLoaded/,
     'Styles navigation and selector polling must use controller-owned delayed work.'
 );
 assert.doesNotMatch(
@@ -690,7 +690,7 @@ assert.match(
 );
 assert.match(
     editing,
-    /var dbePresenceDirtyChanged = host\.presenceDirtyChanged[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
+    /const dbePresenceDirtyChanged = host\.presenceDirtyChanged[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
     'The visible save cue must publish its computed dirty transition to server presence.'
 );
 assert.match(
@@ -725,7 +725,7 @@ assert.match(
 );
 assert.match(
     adminBar,
-    /function freshestBeat\(value\)[\s\S]+value\.tabs[\s\S]+sort\(function \(a, b\)[\s\S]+var beat = freshestBeat\(stored\)/,
+    /function freshestBeat\(value\)[\s\S]+value\.tabs[\s\S]+sort\(\(a, b\) =>[\s\S]+const beat = freshestBeat\(stored\)/,
     'The admin-bar warning must accept legacy beats and choose the freshest v2 tab record.'
 );
 assert.match(
@@ -795,7 +795,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeChromeObserver = dbeRuntime\.createMutationRouter\(schedule\)[\s\S]+dbeChromeObserver\.observe\(key, node, options\)/,
+    /const dbeChromeObserver = dbeRuntime\.createMutationRouter\(schedule\)[\s\S]+dbeChromeObserver\.observe\(key, node, options\)/,
     'Feature controllers must register chrome roots through the core observer router.'
 );
 assert.equal(
@@ -911,7 +911,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
     commands,
-    /dbeRevealTimer|setInterval\(function \(\) \{[\s\S]{0,300}revealActiveInTree/,
+    /dbeRevealTimer|setInterval\(\(\) => \{[\s\S]{0,300}revealActiveInTree/,
     'Selection reveal must not return to permanent interval polling.'
 );
 assert.match(
@@ -931,8 +931,8 @@ assert.match(
 );
 assert.ok(
     composites.includes('function dbeTreeDisplayLabel(raw, tag)')
-        && composites.includes("var idx = raw.indexOf(' .');")
-        && composites.includes('var nativeTag = label.match(/^<([a-z][a-z0-9-]*)>$/i);')
+        && composites.includes("const idx = raw.indexOf(' .');")
+        && composites.includes('const nativeTag = label.match(/^<([a-z][a-z0-9-]*)>$/i);')
         && composites.includes("return '<' + tag + '>' + (!labelIsTag && label ? ' ' + label : '');"),
     'Tag badges must recognise Builderius 1.3.6 native tag labels and remove class suffixes.'
 );
@@ -1058,7 +1058,7 @@ assert.match(
 );
 assert.match(
     workspace,
-    /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, function \(\) \{ dbeFocusArea\(pane, true\); \}/,
+    /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, \(\) => \{ dbeFocusArea\(pane, true\); \}/,
     'Compact view changes must be announced and move focus to the chosen destination.'
 );
 assert.match(

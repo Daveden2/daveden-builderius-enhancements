@@ -898,7 +898,7 @@ function dbe_ability_js_structure_errors( $code ) {
 
 		// Regex literal vs division.
 		if ( '/' === $c ) {
-			$is_regex = '' === $prev_significant || false !== strpos( '(=,:;!&|?{}[+-*%^~<>', $prev_significant );
+			$is_regex = '' === $prev_significant || str_contains( '(=,:;!&|?{}[+-*%^~<>', $prev_significant );
 			if ( ! $is_regex ) {
 				// …or after a keyword such as return.
 				if ( preg_match( '/([A-Za-z_$][A-Za-z0-9_$]*)\s*$/', substr( $code, max( 0, $i - 32 ), min( 32, $i ) ), $m ) ) {

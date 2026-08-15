@@ -53,7 +53,7 @@ For workflow: `Cmd`/`Ctrl`+`S` to save, a save-state cue for Builderius versions
 
 ## Requirements
 
-- WordPress 6.4 or later, PHP 7.4 or later
+- WordPress 6.4 or later, PHP 8.2 or later
 - **Builderius** (the free wordpress.org plugin) active. DBE is currently audited against 1.3.6-beta; on WordPress 6.5+ the hard dependency is enforced natively through the `Requires Plugins` header.
 - A handful of features need **Builderius Pro**. They are labelled on the settings screen and stay hidden without it.
 

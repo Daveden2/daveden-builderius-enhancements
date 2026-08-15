@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "homepage": "https://github.com/Daveden2/daveden-builderius-enhancements",
     "require": {
-        "php": ">=7.4"
+        "php": ">=8.2"
     },
     "require-dev": {
         "squizlabs/php_codesniffer": "^3.11",

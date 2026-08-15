@@ -152,7 +152,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
+    /const dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
     'The feature runtime must capture the core factory and configured context.'
 );
 assert.match(
@@ -162,7 +162,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeA11yChunk = window\.dbeBuilderChunks[\s\S]+dbeA11yChunk\(Object\.freeze\([\s\S]+setAttributeRecorder/,
+    /const dbeA11yChunk = window\.dbeBuilderChunks[\s\S]+dbeA11yChunk\(Object\.freeze\([\s\S]+setAttributeRecorder/,
     'The feature host must provide the accessibility chunk a frozen, narrow service surface.'
 );
 assert.match(
@@ -177,7 +177,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+setNavigatorApi[\s\S]+setEnsureGroup/,
+    /const dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+setNavigatorApi[\s\S]+setEnsureGroup/,
     'The feature host must provide the composites chunk grouped frozen services and receive its shared Navigator API.'
 );
 assert.doesNotMatch(
@@ -202,7 +202,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeWorkspaceChunk = window\.dbeBuilderChunks[\s\S]+dbeWorkspaceChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+canvas: Object\.freeze[\s\S]+setWorkspaceApi/,
+    /const dbeWorkspaceChunk = window\.dbeBuilderChunks[\s\S]+dbeWorkspaceChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+canvas: Object\.freeze[\s\S]+setWorkspaceApi/,
     'The feature host must provide grouped workspace services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -227,7 +227,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeEditingChunk = window\.dbeBuilderChunks[\s\S]+dbeEditingChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setEditingApi/,
+    /const dbeEditingChunk = window\.dbeBuilderChunks[\s\S]+dbeEditingChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setEditingApi/,
     'The feature host must provide grouped editing services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -247,7 +247,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setStylesApi/,
+    /const dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setStylesApi/,
     'The feature host must provide grouped styles services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -267,7 +267,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeIntegrationsChunk = window\.dbeBuilderChunks[\s\S]+dbeIntegrationsChunk\(Object\.freeze\([\s\S]+observeFooter:[\s\S]+editing: Object\.freeze[\s\S]+setIntegrationsApi[\s\S]+dbeRegisterTerminalIntegration\(\)[\s\S]+dbeRegisterPresenceIntegration\(\)/,
+    /const dbeIntegrationsChunk = window\.dbeBuilderChunks[\s\S]+dbeIntegrationsChunk\(Object\.freeze\([\s\S]+observeFooter:[\s\S]+editing: Object\.freeze[\s\S]+setIntegrationsApi[\s\S]+dbeRegisterTerminalIntegration\(\)[\s\S]+dbeRegisterPresenceIntegration\(\)/,
     'The feature host must provide integrations shared services and invoke both lifecycle registrars.'
 );
 assert.doesNotMatch(
@@ -292,12 +292,12 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeShortcutsChunk = window\.dbeBuilderChunks[\s\S]+dbeShortcutsChunk\(Object\.freeze\([\s\S]+setShortcutsApi[\s\S]+shortcuts: dbeShortcutsApi/,
+    /const dbeShortcutsChunk = window\.dbeBuilderChunks[\s\S]+dbeShortcutsChunk\(Object\.freeze\([\s\S]+setShortcutsApi[\s\S]+shortcuts: dbeShortcutsApi/,
     'The feature host must initialise shortcut discovery before passing its frozen API to commands.'
 );
 assert.match(
     builder,
-    /var dbeCommandsChunk = window\.dbeBuilderChunks[\s\S]+dbeCommandsChunk\(Object\.freeze\([\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+styles: Object\.freeze[\s\S]+workspace: Object\.freeze[\s\S]+setCommandsApi/,
+    /const dbeCommandsChunk = window\.dbeBuilderChunks[\s\S]+dbeCommandsChunk\(Object\.freeze\([\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+styles: Object\.freeze[\s\S]+workspace: Object\.freeze[\s\S]+setCommandsApi/,
     'The feature host must provide grouped frozen command services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -307,7 +307,7 @@ assert.doesNotMatch(
 );
 assert.match(
     commands,
-    /host\.setCommandsApi\(Object\.freeze\([\s\S]+driveContextMenuItem:[\s\S]+makeContextItem:[\s\S]+canvasInteractive:[\s\S]+syncSelectionContext:/,
+    /host\.setCommandsApi\(Object\.freeze\([\s\S]+driveContextMenuItem,[\s\S]+makeContextItem:[\s\S]+canvasInteractive:[\s\S]+syncSelectionContext:/,
     'The commands chunk must export its small cross-domain service surface explicitly.'
 );
 assert.match(
@@ -322,7 +322,7 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /function createTranslations\(config\)[\s\S]+translate: translate[\s\S]+format: format[\s\S]+plural: plural/,
+    /function createTranslations\(config\)[\s\S]+translate,[\s\S]+format,[\s\S]+plural/,
     'Translations and formatting must live in the shared runtime context.'
 );
 assert.match(
@@ -332,11 +332,11 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeScheduleRefresh = dbeRuntime\.createScheduler\([\s\S]+function schedule\(reason\) \{[\s\S]+dbeScheduleRefresh\(\)/,
+    /const dbeScheduleRefresh = dbeRuntime\.createScheduler\([\s\S]+function schedule\(reason\) \{[\s\S]+dbeScheduleRefresh\(\)/,
     'The feature refresh pass must run through the shared scheduler.'
 );
 const sharedRefresh = builder.slice(
-    builder.indexOf('var dbeScheduleRefresh = dbeRuntime.createScheduler'),
+    builder.indexOf('const dbeScheduleRefresh = dbeRuntime.createScheduler'),
     builder.indexOf('function schedule(reason)')
 );
 assert.match(
@@ -407,7 +407,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /var previewRenamePath = !!previewHeading && on\('preview_rename'\)[\s\S]+dbeDiscardPreviewContext\(false\)[\s\S]+dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+commitRename\(id, next\)[\s\S]+current\.label === next/,
+    /const previewRenamePath = !!previewHeading && on\('preview_rename'\)[\s\S]+dbeDiscardPreviewContext\(false\)[\s\S]+dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+commitRename\(id, next\)[\s\S]+current\.label === next/,
     'Preview Rename must replace the Navigator-inline route, use the native rename channel, and verify the updated module label.'
 );
 const contextMenuFeature = features.slice(
@@ -439,7 +439,7 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /function createMutationRouter\(refresh\)[\s\S]+observe: observe[\s\S]+disconnect: disconnect/,
+    /function createMutationRouter\(refresh\)[\s\S]+observe,[\s\S]+disconnect/,
     'The shared observer router must expose registration and lifecycle cleanup.'
 );
 assert.match(
@@ -449,12 +449,12 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /function createControllerRegistry\(context\)[\s\S]+register: register[\s\S]+init: init[\s\S]+refresh: refresh[\s\S]+destroy: destroy/,
+    /function createControllerRegistry\(context\)[\s\S]+register,[\s\S]+init,[\s\S]+refresh,[\s\S]+destroy/,
     'The core runtime must expose the shared controller lifecycle registry.'
 );
 assert.match(
     coreRuntime,
-    /Controller ' \+ item\.id \+ ' failed during ' \+ phase[\s\S]+controllers\.forEach\(function \(item\)[\s\S]+invoke\(item, 'refresh'/,
+    /Controller ' \+ item\.id \+ ' failed during ' \+ phase[\s\S]+controllers\.forEach\(\(item\) =>[\s\S]+invoke\(item, 'refresh'/,
     'A controller failure must be diagnosed and isolated from the remaining controllers.'
 );
 assert.match(
