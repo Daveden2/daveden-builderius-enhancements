@@ -3295,9 +3295,17 @@
         }
 
         function dbeBindKeyboardFrameDocument(frame) {
-            var doc;
-            try { doc = frame && frame.contentDocument; } catch (e) { return; }
-            if (!doc) { return; }
+            var doc, root;
+            try {
+                doc = frame && frame.isConnected ? frame.contentDocument : null;
+                root = doc && doc.documentElement;
+            } catch (e) { return; }
+            // Persistent canvas tabs replace the preview iframe document while
+            // the shared chrome observer is refreshing. During that short swap
+            // contentDocument can exist before it has a documentElement (or the
+            // frame can already have been detached). Do not bind a stale realm;
+            // the iframe load event or next refresh will attach to the live one.
+            if (!doc || !root || root.nodeType !== 1) { return; }
             dbeReleaseCommandFrameDocuments(doc);
             var record = dbeCommandFrameDocuments.filter(function (item) { return item.doc === doc; })[0];
             if (!record) {
@@ -3314,7 +3322,13 @@
                 record.observer = new MutationObserver(function () {
                     dbeSyncCanvasEditingIndicator(doc);
                 });
-                record.observer.observe(doc.documentElement, { childList: true, subtree: true });
+                try {
+                    record.observer.observe(root, { childList: true, subtree: true });
+                } catch (e) {
+                    record.observer.disconnect();
+                    record.observer = null;
+                    return;
+                }
             }
             if (on('keyboard_shortcuts')) { dbeSyncCanvasEditingIndicator(doc); }
             if (on('navigator_keyboard') || on('keyboard_shortcuts')) {

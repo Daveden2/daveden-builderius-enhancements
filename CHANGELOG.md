@@ -24,6 +24,10 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   tab semantics and one roving Tab stop; Left/Right, Home and End move focus,
   Enter/Space switches documents, Delete closes through Builderius's native
   action, and the template/component opener receives an accessible name.
+* Fixed: switching a persistent canvas tab no longer lets DBE's command and
+  shortcut bridge observe the preview document during Builderius's transient
+  iframe replacement. The bridge waits for the live document instead of
+  logging a controller refresh error.
 * Changed: **Rearrange favourites** now extends Builderius’s native editor with
   accessible state, move announcements and Up/Down keyboard reordering. Native
   pointer dragging and persistence remain authoritative; older Builderius

@@ -341,6 +341,11 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbeBindKeyboardFrameDocument\(frame\)[\s\S]+frame\.isConnected[\s\S]+doc\.documentElement[\s\S]+!root \|\| root\.nodeType !== 1[\s\S]+record\.observer\.observe\(root[\s\S]+record\.observer = null/,
+    'Persistent canvas-tab swaps must not observe a detached or unhydrated preview document.'
+);
+assert.match(
+    commands,
     /function dbeReleaseCommandFrameDocuments\(keepDoc\)[\s\S]+dbeUnbindOwnedEvent\(DBE_COMMANDS_OWNER, record\.doc[\s\S]+record\.observer\.disconnect\(\)[\s\S]+function ensureKeyboardIframeBridge\(\)[\s\S]+canvas-frame-load/,
     'Reloaded preview documents must release listeners and observers before the new bridge binds.'
 );
