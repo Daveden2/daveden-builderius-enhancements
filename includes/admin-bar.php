@@ -175,6 +175,43 @@ function dbe_adminbar_edit_template( WP_Admin_Bar $wp_admin_bar ) {
 add_action( 'admin_bar_menu', 'dbe_adminbar_edit_template', 9999 );
 
 /**
+ * Keep keyboard focus visible on Builderius' native top-level admin-bar item.
+ *
+ * Builderius' coloured inner wrapper covers WordPress' focused background, so
+ * use one inset ring and suppress any competing outer outline.
+ */
+function dbe_adminbar_focus_styles() {
+	if ( ! dbe_enabled( 'presence_heartbeat' ) || ! is_user_logged_in() || is_admin() || ! is_admin_bar_showing() ) {
+		return;
+	}
+	?>
+<style id="dbe-adminbar-builderius-focus">
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible {
+	outline: none;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper {
+	background-color: transparent;
+	box-shadow: inset 0 0 0 2px currentColor;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper span {
+	color: inherit;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper svg path {
+	fill: currentColor;
+}
+@media (forced-colors: active) {
+	#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper {
+		box-shadow: none;
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+	}
+}
+</style>
+	<?php
+}
+add_action( 'wp_head', 'dbe_adminbar_focus_styles', 999 );
+
+/**
  * Front-end click guard: confirm before opening the builder when a builder
  * tab already appears to be open (fresh heartbeat in localStorage).
  */

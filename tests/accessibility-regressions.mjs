@@ -713,6 +713,11 @@ assert.match(
 );
 assert.match(
     adminBar,
+    /dbe-adminbar-builderius-focus[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
+    'The native Builderius trigger must expose one inset focus cue with a forced-colours fallback.'
+);
+assert.match(
+    adminBar,
     /e\.key !== 'ArrowDown'[\s\S]+e\.key !== 'Enter'[\s\S]+e\.key !== ' '[\s\S]+first\.focus\(\)[\s\S]+e\.key !== 'Escape'[\s\S]+trigger\.focus\(\)/,
     'The native Builderius menu must support keyboard entry and Escape focus return.'
 );
