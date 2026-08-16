@@ -954,13 +954,18 @@ assert.match(
 );
 assert.match(
     composites,
-    /function dbeRememberTreeDragOrigin\(e\)[\s\S]+:scope > \.uniModTree__itemWrapper[\s\S]+wrapper\.contains\(e\.target\)[\s\S]+function dbeGuardTreeDragStart\(e\)[\s\S]+e\.preventDefault\(\)/,
+    /function dbeRememberTreeDragOrigin\(e\)[\s\S]+:scope > \.uniModTree__itemWrapper[\s\S]+wrapper\.contains\(e\.target\)[\s\S]+function dbeGuardTreeDragStart\(e\)[\s\S]+if \(!item\) \{[\s\S]+return;[\s\S]+e\.preventDefault\(\)/,
     'Navigator dragging must begin on the visible row rather than an ancestor indentation area.'
 );
 assert.match(
     treeRows,
     /\.uniModTree__itemDrag > \.uniModTree__list\s*\{[\s\S]+cursor:\s*default !important;/,
     'Blocked Navigator indentation must not advertise the native grab interaction.'
+);
+assert.match(
+    treeRows,
+    /\.uniModTree__itemDrag:hover\s*\{\s*cursor:\s*default !important;\s*\}[\s\S]+\.uniModTree__itemDrag > \.uniModTree__itemWrapper\s*\{\s*cursor:\s*grab !important;\s*\}/,
+    'Navigator grab affordance must be limited to the visible row wrapper.'
 );
 assert.match(
     composites,

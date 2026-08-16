@@ -1587,6 +1587,14 @@
         function dbeGuardTreeDragStart(e) {
             if (!on('tree_row_styling')) { return; }
             const item = e.target && e.target.closest && e.target.closest('li.uniModTree__itemDrag');
+            // Leave every non-Navigator drag alone. Besides protecting favourites,
+            // properties and other native draggable controls, this makes the guard
+            // fail safely if a future Builderius release removes or renames its
+            // current tree-item class.
+            if (!item) {
+                dbeTreeDragOrigin = null;
+                return;
+            }
             if (!dbeTreeDragOrigin || item !== dbeTreeDragOrigin) { e.preventDefault(); }
             dbeTreeDragOrigin = null;
         }

@@ -25,9 +25,14 @@
 /* Drag handle strip removed: the row's li carries draggable="true", so a drag
    starts from anywhere on the visible row. The JS guard prevents the nested-list
    indentation from acting as an invisible ancestor drag target, while the
-   explicit default cursor above stops that blocked area inheriting Builderius's
-   grab affordance. The 8px strip was decoration only; hiding it reclaims width
-   and de-clutters the tree. */
+   explicit default cursors stop blocked areas inheriting Builderius's broad
+   .uniModTree__itemDrag:hover grab affordance. That native selector also covers
+   the gap below every row and all descendant space in an expanded item, so keep
+   the grab cursor on the visible wrapper only. The 8px strip was decoration
+   only; hiding it reclaims width and de-clutters the tree. */
+.uniModTree__itemDrag:hover { cursor: default !important; }
+.uniModTree__itemDrag > .uniModTree__itemWrapper { cursor: grab !important; }
+.uniModTree__itemDrag > .uniModTree__itemWrapper:active { cursor: grabbing !important; }
 .uniModTree__itemDragHandleWrapper { display: none !important; }
 /* The handle also used to recolour as the "drop INSIDE this element" cue —
    re-route that state onto the target row itself. */
