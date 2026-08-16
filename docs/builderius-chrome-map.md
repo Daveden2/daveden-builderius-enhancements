@@ -64,7 +64,7 @@ The preview iframe where the page renders (`.uniIframePanel__outerWrapper` /
 Collection has several). The rendered document exposes ordinary linked/inline
 CSS through `document.styleSheets`, while Builderius's saved Global and
 Template/Component styles are constructable sheets in
-`document.adoptedStyleSheets`; a live style inspector must read both collections.
+`document.adoptedStyleSheets`.
 Native nested style rules remain children of their parent `CSSStyleRule`, so a
 rule walker must recurse through style rules as well as conditional at-rules and
 resolve each child selector against its parent context. Inherited-rule
@@ -95,7 +95,6 @@ above the bar.
 | --- | --- | --- |
 | Modal dialog | `.uniModal` | e.g. the breakpoints table (`.uniBreakpointsTable`) |
 | Context menu | `.uniBuilderContextMenu` | Right-click menu |
-| DBE style inspector | `.dbe-style-inspector` | Persistent non-modal panel over the canvas/Navigator edge |
 | Sense AI terminal | `.uniAiChat` | AI chat |
 | Native tooltip | `.builderiusTooltip.react-tooltip` | react-tooltip; anchors are `.tooltipItem.tooltipId__<id>` carrying `data-tooltip-content` |
 

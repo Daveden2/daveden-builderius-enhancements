@@ -389,13 +389,8 @@ assert.doesNotMatch(
 );
 assert.match(
     contextMenu,
-    /dbe-ctx-item--class[\s\S]+dbe-chip-menu \.uniContextMenu__item[\s\S]+max-inline-size:\s*min\(460px, calc\(100vw - 32px\)\)[\s\S]+white-space:\s*normal[\s\S]+overflow-wrap:\s*anywhere/,
+    /dbe-chip-menu \.uniContextMenu__item[\s\S]+max-inline-size:\s*min\(460px, calc\(100vw - 32px\)\)[\s\S]+white-space:\s*normal[\s\S]+overflow-wrap:\s*anywhere/,
     'Class-bearing context menus must wrap unusually long class names within the viewport instead of clipping them.'
-);
-assert.match(
-    commands + styles,
-    /opts\.className[\s\S]+dbe-ctx-item--class/,
-    'Class-style actions must opt into the long-name-safe context-menu treatment.'
 );
 assert.match(
     palette,
@@ -610,7 +605,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)[\s\S]+refreshOpenStyleInspector\(\)/,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)/,
     'Style interfaces must refresh through their controller rather than the global scheduler.'
 );
 assert.match(
@@ -620,13 +615,8 @@ assert.match(
 );
 assert.match(
     styles,
-    /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-style-inspector[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
+    /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
     'Style teardown must settle transitions, cancel work, remove generated UI and restore Monaco.'
-);
-assert.match(
-    styles,
-    /function dbeCloseStyleInspector\(panel\)[\s\S]+preferred && preferred\.isConnected[\s\S]+target\.focus\(\)/,
-    'Style inspector dismissal must return focus to a stable invoking control.'
 );
 assert.match(
     styles,
@@ -1112,5 +1102,3 @@ assert.match(
 assert.match(tokens, /--dbe-focus:\s*Highlight/, 'The focus token must resolve to a system colour in forced-colour mode.');
 
 console.log('Accessibility source regressions passed.');
-
-

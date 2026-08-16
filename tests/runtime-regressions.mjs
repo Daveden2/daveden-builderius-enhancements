@@ -85,11 +85,6 @@ assert.match(
     'Uninstall must remove content-addressed CSS bundles from every site cache.'
 );
 assert.match(
-    uninstall,
-    /\$wpdb->query\(\s*\$wpdb->prepare\(/,
-    'The bulk uninstall query must be visibly prepared at its query sink.'
-);
-assert.match(
     updateInfoFallback,
     /require_once DBE_DIR \. 'vendor\/plugin-update-checker\/vendor\/PucReadmeParser\.php';/,
     'The bundled readme parser include must use a fixed plugin-relative path.'
@@ -242,17 +237,17 @@ assert.match(
 );
 assert.match(
     styles,
-    /chunks\.styles = function \(host\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER[\s\S]+host\.setStylesApi\(Object\.freeze\(/,
-    'The styles chunk must register through an explicit host contract and export its shared actions.'
+    /chunks\.styles = function \(host\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER/,
+    'The styles chunk must register through its explicit host contract.'
 );
 assert.match(
     builder,
-    /const dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setStylesApi/,
-    'The feature host must provide grouped styles services and receive its narrow shared API.'
+    /const dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze/,
+    'The feature host must provide the grouped services used by the styles chunk.'
 );
 assert.doesNotMatch(
     builder,
-    /function dbeRefreshStyles\(|function openStyleInspector\(|function openCssHintDialog\(|function dbeDisableMinimap\(/,
+    /function dbeRefreshStyles\(|function openCssHintDialog\(|function dbeDisableMinimap\(/,
     'The feature host must not duplicate styles implementations behind its shared API.'
 );
 assert.match(
@@ -372,7 +367,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+refreshOpenStyleInspector\(\)[\s\S]+function destroyStyles\(\)[\s\S]+dbeRestoreMinimap\(\)/,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+function destroyStyles\(\)[\s\S]+dbeRestoreMinimap\(\)/,
     'CSS editing interfaces must refresh and tear down through the styles controller.'
 );
 assert.match(

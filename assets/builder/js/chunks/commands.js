@@ -86,11 +86,7 @@
         const dbeEmmetStructureError = host.editing.emmetStructureError;
         const dbeEmmetInsert = host.editing.emmetInsert;
         const dbeMoveLocation = host.editing.moveLocation;
-        const dbeStyleActionItems = host.styles.actionItems;
-        const openStyleInspector = host.styles.openInspector;
-        const dbeOpenStyleEditor = host.styles.openEditor;
         const moduleClasses = host.styles.moduleClasses;
-        const entityScopeLabel = host.styles.entityScopeLabel;
         const dbeFocusArea = host.workspace.focusArea;
         const dbeCompactActive = host.workspace.compactActive;
         const dbeToggleSidePanels = host.workspace.toggleSidePanels;
@@ -1238,25 +1234,12 @@
                     })();
                 }
 
-                // Style inspector: one flyout keeps the primary menu compact while
-                // exposing inspect, %local%, and both scopes for every applied class.
-                let stylesParent = null;
-                if (!multiIds && on('style_inspector') && contextTarget()) {
-                    (function () {
-                        const siId = contextTarget();
-                        const siMod = (modules() || {})[siId];
-                        if (!siMod || !bemClassable(siMod)) { return; }
-                        stylesParent = makeParent(dbeT('stylesMenu', 'Styles…'), false, () => {
-                            return dbeStyleActionItems(siId);
-                        });
-                    })();
-                }
 
                 /* --- Flat layout (context_menu off): append injected items after the
                    native ones, so each feature still works with grouping turned off. */
                 if (!grouped) {
                     const injected = nameItems.concat(advancedItems,
-                        [stylesParent, cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
+                        [cutLi, addBeforeLi, addAfterLi, unwrapLi, moveUpLi, moveDownLi, moveInLi, moveOutLi, selectParentLi, expandLi].filter(Boolean)
                     );
                     if (injected.length) {
                         injected[0].classList.add('dbe-ctx-item--first');
@@ -1364,7 +1347,6 @@
                     natDuplicate,                                                    // Clone
                     natClip.concat(cutLi ? [cutLi] : []),                            // Clipboard (+ Cut)
                     natName.concat(nameItems),                                       // Name
-                    stylesParent ? [stylesParent] : [],                              // Inspect / edit CSS
                     insertParent ? [insertParent] : [],                              // Insert
                     structureItems,                                                  // Structure
                     moveNavigateParent ? [moveNavigateParent] : [],                  // Position / navigate
@@ -2168,19 +2150,6 @@
                         });
                     } }
                 );
-                if (on('style_inspector')) {
-                    commands.push(
-                        { group: 'styles', label: dbeT('inspectStyles', 'Inspect styles…'), run () { runClose(() => { openStyleInspector(id); }); } },
-                        { group: 'styles', label: dbeT('editElementStyles', 'Edit element styles (%local%)'), run () { runClose(() => { dbeOpenStyleEditor(id, '%local%', null); }); } }
-                    );
-                    moduleClasses((modules() || {})[id]).forEach((className) => {
-                        const selector = '.' + className;
-                        commands.push(
-                            { group: 'styles', label: dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, dbeT('scopeGlobal', 'Global')), run () { runClose(() => { dbeOpenStyleEditor(id, selector, 'global'); }); } },
-                            { group: 'styles', label: dbeFmt(dbeT('editClassStyles', 'Edit %1$s — %2$s'), selector, entityScopeLabel()), run () { runClose(() => { dbeOpenStyleEditor(id, selector, 'template'); }); } }
-                        );
-                    });
-                }
                 commands.push(
                     { group: 'structure', label: dbeT('addBefore', 'Add element before'), accel: dbeAccel('T', { cmd: true, alt: true }), run () { runClose(() => { openElementPicker(id, -1); }); } },
                     { group: 'structure', label: dbeT('addAfter', 'Add element after'), accel: dbeAccel('Y', { cmd: true, alt: true }), run () { runClose(() => { openElementPicker(id, 1); }); } }

@@ -97,12 +97,6 @@
     let moduleClasses = function () { return []; };
     let bemModuleTag = function () { return ''; };
     let dbeHasUnsavedChanges = function () { return false; };
-    /* Styles-domain entry points are assigned after the commands chunk has
-       registered. Command wrappers resolve them only when an action runs. */
-    let dbeStyleActionItems = function () { return []; };
-    let openStyleInspector = function () {};
-    let dbeOpenStyleEditor = function () {};
-    let entityScopeLabel = function () { return ''; };
     let dbePresenceDirtyChanged = function () {};
     let dbeRegisterTerminalIntegration = function () {};
     let dbeRegisterPresenceIntegration = function () {};
@@ -818,9 +812,9 @@
     /* Which feature groups need which wiring. */
     const NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
     const NEED_NAV_BUTTONS = on('collapse_expand_all');
-    const NEED_STYLES = on('css_code_default') || on('scope_bar') || on('style_inspector') ||
+    const NEED_STYLES = on('css_code_default') || on('scope_bar') ||
         on('css_hint_dialog') || on('hide_minimap');
-    const NEED_CTX_MENU = on('preview_context_menu') || on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
+    const NEED_CTX_MENU = on('preview_context_menu') || on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
     const dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
     if (typeof dbeA11yChunk === 'function') {
@@ -1192,13 +1186,7 @@
                 emmetInsert: dbeEmmetInsert,
                 moveLocation: dbeMoveLocation
             }),
-            styles: Object.freeze({
-                actionItems () { return dbeStyleActionItems.apply(null, arguments); },
-                openInspector () { return openStyleInspector.apply(null, arguments); },
-                openEditor () { return dbeOpenStyleEditor.apply(null, arguments); },
-                moduleClasses () { return moduleClasses.apply(null, arguments); },
-                entityScopeLabel () { return entityScopeLabel.apply(null, arguments); }
-            }),
+            styles: Object.freeze({ moduleClasses }),
             workspace: Object.freeze({
                 focusArea: dbeFocusArea,
                 compactActive: dbeCompactActive,
@@ -1239,13 +1227,7 @@
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             editing: Object.freeze({ moduleClasses, moduleTag: bemModuleTag }),
             commands: Object.freeze({ makeContextItem: makeCtxItem, closeSelectedClass: driveSelectedClose }),
-            needStyles: NEED_STYLES,
-            setStylesApi (api) {
-                dbeStyleActionItems = api.actionItems;
-                openStyleInspector = api.openInspector;
-                dbeOpenStyleEditor = api.openEditor;
-                entityScopeLabel = api.entityScopeLabel;
-            }
+            needStyles: NEED_STYLES
         }));
     } else {
         document.documentElement.dataset.dbeChunkError = 'styles:missing';
