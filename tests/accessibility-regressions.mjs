@@ -1146,6 +1146,21 @@ assert.match(
     /\.uniScopeControl\s*\{[\s\S]+display:\s*flex !important[\s\S]+inline-size:\s*100% !important[\s\S]+\.uniScopeControl button\s*\{[\s\S]+flex:\s*1 1 0 !important/,
     'Global and Template scope tabs must divide the full code-mode sidebar width.'
 );
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn\s*\{[\s\S]+background:\s*var\(--dbe-l2-hi\) !important;[\s\S]+border:\s*1px solid var\(--dbe-line-hi\) !important;[\s\S]+color:\s*var\(--dbe-text-2\) !important;/,
+    'The add-template button must use a theme-resolved raised surface and readable icon colour.'
+);
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn svg path\s*\{[\s\S]+fill:\s*currentColor !important;[\s\S]+\.uniIframeTabs__navigatorBtn:hover\s*\{[\s\S]+border-color:\s*var\(--dbe-accent\) !important;[\s\S]+\.uniIframeTabs__navigatorBtn:active\s*\{[\s\S]+color:\s*var\(--dbe-text\) !important;/,
+    'The add-template glyph must inherit its foreground and retain noticeable hover and pressed states.'
+);
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn:focus-visible\s*\{[\s\S]+outline:\s*2px solid var\(--dbe-focus\) !important;[\s\S]+outline-offset:\s*-2px !important;/,
+    'The add-template button must retain a single visible keyboard focus ring.'
+);
 
 [tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize, compactPanes].forEach((css) => {
     assert.match(css, /@media \(forced-colors: active\)/, 'Accessibility CSS must retain a forced-colours treatment.');

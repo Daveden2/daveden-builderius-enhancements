@@ -66,6 +66,38 @@
 .uniIframeTabButton__closeIcon:hover { background: var(--dbe-hover-wash) !important; }
 .uniIframeTabButton__closeIcon:hover svg path { fill: var(--dbe-text) !important; }
 
+/* The add-template button keeps Builderius's fixed #202022 surface and
+   hard-coded icon fill even after the tab strip switches to the light theme,
+   producing a black-on-black control. Give this secondary action a raised
+   neutral surface in both themes; dark mode gains enough elevation to remain
+   discoverable without competing with the active document tab. */
+.uniIframeTabs__navigatorBtn {
+    background: var(--dbe-l2-hi) !important;
+    border: 1px solid var(--dbe-line-hi) !important;
+    border-radius: var(--dbe-r-sm) !important;
+    color: var(--dbe-text-2) !important;
+    transition: background var(--dbe-t), border-color var(--dbe-t), color var(--dbe-t) !important;
+}
+.uniIframeTabs__navigatorBtn svg path {
+    fill: currentColor !important;
+}
+.uniIframeTabs__navigatorBtn:hover {
+    background: var(--dbe-accent-tint-hi) !important;
+    border-color: var(--dbe-accent) !important;
+    color: var(--dbe-accent) !important;
+}
+.uniIframeTabs__navigatorBtn:active {
+    background: var(--dbe-accent-tint-hi) !important;
+    color: var(--dbe-text) !important;
+}
+.uniIframeTabs__navigatorBtn:focus-visible {
+    background: var(--dbe-accent-tint-hi) !important;
+    border-color: var(--dbe-focus) !important;
+    color: var(--dbe-text) !important;
+    outline: 2px solid var(--dbe-focus) !important;
+    outline-offset: -2px !important;
+}
+
 /* --- Global/Template scope switchers (Selectors tab + CSS vars tab) ---
    Stock: filled segmented chips that read as buttons, not as the view switch
    they are. Same accent-underline treatment as the panel tabs above — the
@@ -138,6 +170,10 @@
     .uniFooterPanelBar .uniPanelIconButton--footer.locked {
         color: GrayText !important;
         opacity: 1 !important;
+    }
+    .uniIframeTabs__navigatorBtn {
+        border-color: ButtonText !important;
+        color: ButtonText !important;
     }
 }
 
