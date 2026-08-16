@@ -1122,8 +1122,13 @@ assert.match(
 );
 assert.match(
     builder,
-    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Toggle CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+aria-pressed/,
+    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Enable CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+aria-pressed/,
     'Both CSS-mode controls must receive a tooltip, accessible name and exposed pressed state.'
+);
+assert.match(
+    strings,
+    /'tipToggleCssEditor'\s*=>\s*__\( 'Enable CSS code editor'/,
+    'The CSS-mode accessible name must describe the enabled state rather than redundantly saying toggle.'
 );
 assert.match(
     a11y,

@@ -384,7 +384,7 @@
         ['.uniRightPanel .uniPanelHeader__icons .dbe-expand-all', dbeT('expandAllElements', 'Expand all elements')],
         ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)')],
         ['.uniLeftPanel .uniIconConditionsMode', dbeT('tipDynamicConditions', 'Dynamic data conditions')],
-        ['.uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
+        ['.uniIconCssMode', dbeT('tipToggleCssEditor', 'Enable CSS code editor')],
         ['.uniPanelButton--builderiusMenu', dbeT('tipBuilderiusMenu', 'Builderius menu')],
         ['.uniGlobalBreakpoints__modalIcon', dbeT('tipBreakpointSettings', 'Breakpoint settings')],
         ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],

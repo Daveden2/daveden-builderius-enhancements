@@ -1538,7 +1538,7 @@ msgid "Dynamic data conditions"
 msgstr ""
 
 #: includes/i18n-builder.php:196
-msgid "Toggle CSS code editor"
+msgid "Enable CSS code editor"
 msgstr ""
 
 #: includes/i18n-builder.php:197

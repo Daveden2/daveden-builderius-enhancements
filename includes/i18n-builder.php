@@ -193,7 +193,7 @@ function dbe_builder_strings() {
 
 		// Icon tooltips.
 		'tipDynamicConditions'          => __( 'Dynamic data conditions', 'daveden-builderius-enhancements' ),
-		'tipToggleCssEditor'            => __( 'Toggle CSS code editor', 'daveden-builderius-enhancements' ),
+		'tipToggleCssEditor'            => __( 'Enable CSS code editor', 'daveden-builderius-enhancements' ),
 		'tipBuilderiusMenu'             => __( 'Builderius menu', 'daveden-builderius-enhancements' ),
 		'tipBreakpointSettings'         => __( 'Breakpoint settings', 'daveden-builderius-enhancements' ),
 		'tipReloadPreview'              => __( 'Reload preview', 'daveden-builderius-enhancements' ),
