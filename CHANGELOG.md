@@ -3,11 +3,12 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
-## 2.1.0 (exploration)
+## 2.0.3 (development)
 
-Four candidates are being evaluated independently: a preview context menu,
-preview-based element rename, reliable Navigator multiselect/move, and a safe
-custom-font manager for locally hosted Google Fonts and manually uploaded files.
+This compatibility release adapts DBE to Builderius and Builderius Pro
+1.3.6-beta, adds an experimental preview context menu and preview-based element
+rename, and modernises the development baseline for PHP 8.2 and current
+JavaScript linting.
 
 * Changed: the front-end admin bar now uses Builderius 1.3.6-beta's native
   **Edit: {name}** item instead of adding DBE's duplicate. Older Builderius
@@ -67,7 +68,7 @@ custom-font manager for locally hosted Google Fonts and manually uploaded files.
   code editor by default** and **CSS scope bar**. DBE stops loading those older
   controls on 1.3.6-beta and later while retaining them for older Builderius
   versions. The separate CSS token guide, minimap preference and style
-  inspector remain available.
+  token guide and minimap preference remain available.
 * Fixed: the native Global/Template tabs in the code-mode Styles panel now
   divide the full sidebar width evenly instead of shrink-wrapping their labels.
 * Changed: the enhanced element context menu now adopts Builderius 1.3.6-beta’s

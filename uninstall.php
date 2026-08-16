@@ -51,5 +51,3 @@ if ( is_multisite() ) {
 // The bundled Plugin Update Checker keeps its update-check state in its own
 // options row (and the site-wide copy on multisite).
 delete_site_option( 'external_updates-daveden-builderius-enhancements' );
-
-

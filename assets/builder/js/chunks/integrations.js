@@ -20,8 +20,6 @@
         const dbeSetOwnedInterval = host.setOwnedInterval;
         const dbeDestroyOwnedActivity = host.destroyOwnedActivity;
         const dbeDestroyOwnedGroups = host.destroyOwnedGroups;
-        const dbeHasUnsavedChanges = host.editing.hasUnsavedChanges;
-
         /* Sense AI terminal tabs. When a remote agent (Claude Code, Gemini
            CLI…) is connected, the panel shows a strip of session tabs above
            the terminal. Retrofit the strip as an APG tablist, the new-session
@@ -412,5 +410,4 @@
         }));
     };
 })();
-
 

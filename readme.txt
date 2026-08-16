@@ -3,7 +3,7 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.1.0-dev-1
+Stable tag: 2.0.3-dev-1
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -62,8 +62,8 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
-= 2.1.0 =
-Exploration of a preview context menu, preview-based element rename, reliable Navigator multiselect/move, and safe locally hosted custom-font management.
+= 2.0.3 =
+Builderius 1.3.6 compatibility, a preview context menu and preview-based element rename.
 
 = 2.0.1 =
 A fix for element names lost when editing a component as HTML.

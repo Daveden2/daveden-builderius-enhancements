@@ -11,7 +11,6 @@
         const dbeFmt = host.format;
         const dbeQuery = host.query;
         const store = host.builderius.store;
-        const modules = host.builderius.modules;
         const activeId = host.builderius.activeId;
         const clickSeq = host.click;
         const waitFor = host.waitFor;
@@ -21,10 +20,6 @@
         const dbeSetOwnedTimeout = host.setOwnedTimeout;
         const dbeSetOwnedFrame = host.setOwnedFrame;
         const dbeDestroyOwnedActivity = host.destroyOwnedActivity;
-        const moduleClasses = host.editing.moduleClasses;
-        const bemModuleTag = host.editing.moduleTag;
-        const makeCtxItem = host.commands.makeContextItem;
-        const driveSelectedClose = host.commands.closeSelectedClass;
         const NEED_STYLES = host.needStyles;
 
     /* Reliable state detection. .monaco-editor and .uniModCssCatWrapper are NOT
@@ -38,6 +33,10 @@
         const strip = lp.querySelector('.uniPanelTabs');           // native tab strip (absent in code mode)
         const active = strip && strip.querySelector('.uniPanelTabs__tab.active:not(.dbe-code-tab)');
         return active ? (active.textContent || '').trim() : null;
+    }
+
+    function dbeStyleCurrentSelector() {
+        try { return store().storeGet('activeSelector') || ''; } catch (e) { return ''; }
     }
 
     /* (f) Styles tab -> default to the CSS code editor, and disable the visual
@@ -1150,10 +1149,6 @@
         dbeSwitchingScope = false;
         dbeScopeFinish = null;
         dbeSelScopeMemo = { global: { css: null, sel: null, hit: false }, entity: { css: null, sel: null, hit: false } };
-        dbeStyleScopeSelectorMemo = {
-            global: { css: null, selectors: {} },
-            entity: { css: null, selectors: {} }
-        };
         dbeRestoreMinimap();
     }
 

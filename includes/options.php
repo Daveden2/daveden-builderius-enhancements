@@ -216,4 +216,3 @@ function dbe_sanitise_options( mixed $input ): array {
 
 	return $clean;
 }
-

@@ -891,6 +891,3 @@ function dbe_enum_settings(): array {
 		),
 	);
 }
-
-
-

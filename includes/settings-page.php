@@ -115,7 +115,6 @@ function dbe_tab_icon( $slug ) {
 		'styles'        => '<path d="M8.5 3.5H8a2 2 0 0 0-2 2V9a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3.5a2 2 0 0 0 2 2h.5"/><path d="M15.5 3.5h.5a2 2 0 0 1 2 2V9a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3.5a2 2 0 0 1-2 2h-.5"/>',
 		// A save disc.
 		'workflow'      => '<path d="M19.5 20.5h-15a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1H16l4.5 4.5v11.5a1 1 0 0 1-1 1Z"/><path d="M16.5 20.5v-7h-9v7M7.5 3.5v4.5h6"/>',
-		// A small machine: the agent.ntColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9.5 16.8h5"/>',
 	);
 	if ( empty( $paths[ $slug ] ) ) {
 		return '';
@@ -579,14 +578,14 @@ function dbe_render_dashboard_panel() {
 				}
 				$total   = 0;
 				$enabled = 0;
-					foreach ( $features as $id => $feature ) {
-						if ( $feature['tab'] === $tab_slug ) {
-							++$total;
-							if ( dbe_enabled( $id ) ) {
-								++$enabled;
-							}
+				foreach ( $features as $id => $feature ) {
+					if ( $feature['tab'] === $tab_slug ) {
+						++$total;
+						if ( dbe_enabled( $id ) ) {
+							++$enabled;
 						}
 					}
+				}
 				?>
 				<li>
 					<?php
@@ -783,4 +782,3 @@ function dbe_render_settings_page() {
 	</div>
 	<?php
 }
-
