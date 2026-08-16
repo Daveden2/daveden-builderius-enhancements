@@ -572,35 +572,37 @@
         }
 
         /* Side-panel resize (panel_resize): drag the inner edge of either side panel
-           to set ONE shared width for both — the settings/styles panel (left) and the
-           Navigator (right) always match. The width is a single CSS custom property,
-           --dbe-panel-width on <body>, that every panel-width rule reads (see
-           75-panel-resize.css), so moving either handle moves both. The left panel is
+           to set that panel's OWN width — the settings/styles panel (left) and the
+           Navigator (right) are independent. Each side is a CSS custom property,
+           --dbe-panel-width-left / --dbe-panel-width-right on <body>, that the
+           panel-width rules read (see 75-panel-resize.css). The left panel is
            a normal flex item (the canvas reflows on its own); the right panel is an
            absolutely-positioned overlay whose reserved space lives in the iframe
-           panel's own margin — 75-panel-resize.css re-points both at the variable,
+           panel's own margin — 75-panel-resize.css re-points both at their variable,
            scoped to when the Navigator is actually mounted so a closed panel still
-           gives the space back. Width persists in localStorage and re-applies after
-           native re-renders. Keyboard: arrows nudge, Home/End jump to the clamp ends. */
-        const DBE_PANEL_KEY = 'dbeBuilderPanelWidth';
+           gives the space back. Each width persists in localStorage (the pre-split
+           shared key seeds both sides once) and re-applies after native re-renders.
+           Keyboard: arrows nudge, Home/End jump to the clamp ends. */
+        const DBE_PANEL_KEY = 'dbeBuilderPanelWidth'; // legacy shared-width key: seed only
+        const DBE_PANEL_KEYS = { left: 'dbeBuilderPanelWidthLeft', right: 'dbeBuilderPanelWidthRight' };
         const DBE_PANEL_MIN = 260;
         const DBE_PANEL_MAX = 600;
         const DBE_PANEL_DEFAULT = 320;
 
-        function dbePanelWidth() {
-            const v = parseInt(getComputedStyle(document.body).getPropertyValue('--dbe-panel-width'), 10);
+        function dbePanelWidth(side) {
+            const v = parseInt(getComputedStyle(document.body).getPropertyValue('--dbe-panel-width-' + side), 10);
             return isNaN(v) ? DBE_PANEL_DEFAULT : v;
         }
-        function dbeSetPanelWidth(w) {
+        function dbeSetPanelWidth(side, w) {
             w = Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, Math.round(w)));
-            document.body.style.setProperty('--dbe-panel-width', w + 'px');
-            try { localStorage.setItem(DBE_PANEL_KEY, String(w)); } catch (e) {}
+            document.body.style.setProperty('--dbe-panel-width-' + side, w + 'px');
+            try { localStorage.setItem(DBE_PANEL_KEYS[side], String(w)); } catch (e) {}
             dbeSyncPanelHandlesAria();
             return w;
         }
         function dbeSyncPanelHandlesAria() {
-            const w = dbePanelWidth();
             document.querySelectorAll('.dbe-panel-handle').forEach((h) => {
+                const w = dbePanelWidth(h.getAttribute('data-side'));
                 h.setAttribute('aria-valuemin', String(DBE_PANEL_MIN));
                 h.setAttribute('aria-valuemax', String(DBE_PANEL_MAX));
                 h.setAttribute('aria-valuenow', String(w));
@@ -635,7 +637,7 @@
                 drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, () => {
                     if (!drag) { return; }
                     drag.raf = 0;
-                    dbeSetPanelWidth(w);
+                    dbeSetPanelWidth(side, w);
                 });
             });
             function endPanelDrag() {
@@ -648,7 +650,7 @@
 
             h.addEventListener('keydown', (ev) => {
                 const step = ev.shiftKey ? 40 : 10;
-                const w = dbePanelWidth();
+                const w = dbePanelWidth(side);
                 let next;
                 switch (ev.key) {
                     case 'ArrowRight':
@@ -662,7 +664,7 @@
                 // Keep arrows off the builder's global canvas-nudge shortcuts.
                 ev.preventDefault();
                 ev.stopPropagation();
-                dbeSetPanelWidth(next);
+                dbeSetPanelWidth(side, next);
             });
             return h;
         }
@@ -1065,21 +1067,27 @@
             dbeSyncPanelHandlesAria();
         }
 
-        /* Seed --dbe-panel-width from the stored value before the handles mount.
-           The FIRST-paint seed actually happens earlier, in the wp_head bootstrap
-           (output-builder.php), inline on <html> — this script only runs once the
-           SPA has mounted, ~1s after the canvas painted, and seeding only here
-           made a stored width visibly snap the canvas. This body-level write
-           remains the live channel the drag handles use, and a belt-and-braces
-           re-seed in case head output was filtered away. Clamp mirrors the
-           bootstrap's. */
+        /* Seed --dbe-panel-width-left/right from the stored values before the
+           handles mount. The FIRST-paint seed actually happens earlier, in the
+           wp_head bootstrap (output-builder.php), inline on <html> — this script
+           only runs once the SPA has mounted, ~1s after the canvas painted, and
+           seeding only here made a stored width visibly snap the canvas. This
+           body-level write remains the live channel the drag handles use, and a
+           belt-and-braces re-seed in case head output was filtered away. The
+           pre-split shared key seeds a side that has never stored its own width.
+           Clamp mirrors the bootstrap's. */
         function applyStoredPanelWidth() {
-            let v;
-            try { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); } catch (e) {}
-            if (!isNaN(v)) {
-                document.body.style.setProperty('--dbe-panel-width',
-                    Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, v)) + 'px');
-            }
+            ['left', 'right'].forEach((side) => {
+                let v;
+                try {
+                    v = parseInt(localStorage.getItem(DBE_PANEL_KEYS[side]), 10);
+                    if (isNaN(v)) { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); }
+                } catch (e) {}
+                if (!isNaN(v)) {
+                    document.body.style.setProperty('--dbe-panel-width-' + side,
+                        Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, v)) + 'px');
+                }
+            });
         }
 
         /* Detachable Navigator (panel_detach, experimental): float the Navigator free
@@ -1358,12 +1366,14 @@
                 'dbe-left-panel-hidden', 'dbe-right-panel-hidden'
             );
             delete root.dataset.dbeCompactPane;
-            ['--dbe-panel-width', '--dbe-nav-x', '--dbe-nav-y', '--dbe-nav-w', '--dbe-nav-h'].forEach((name) => {
+            ['--dbe-panel-width', '--dbe-panel-width-left', '--dbe-panel-width-right', '--dbe-nav-x', '--dbe-nav-y', '--dbe-nav-w', '--dbe-nav-h'].forEach((name) => {
                 root.style.removeProperty(name);
             });
             if (body) {
                 body.classList.remove('dbe-nav-detached', 'dbe-nav-dragging', 'dbe-panel-resizing');
                 body.style.removeProperty('--dbe-panel-width');
+                body.style.removeProperty('--dbe-panel-width-left');
+                body.style.removeProperty('--dbe-panel-width-right');
             }
             const canvas = dbeQuery('canvasPanel');
             if (canvas) { canvas.classList.remove('dbe-preview-resizing'); }

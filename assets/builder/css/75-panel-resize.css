@@ -1,19 +1,24 @@
-/* Side-panel resize (panel_resize): one shared width for both side panels, held
-   in --dbe-panel-width on <body> (seeded from localStorage by builder.js, with a
-   320px first-run fallback here). Dragging either grip rewrites the variable, so
-   the settings/styles panel (left) and the Navigator (right) always match.
+/* Side-panel resize (panel_resize): an independent width per side panel, held
+   in --dbe-panel-width-left / --dbe-panel-width-right on <body> (seeded from
+   localStorage by builder.js, with 320px first-run fallbacks here). Dragging a
+   grip rewrites only its own side's variable, so the settings/styles panel
+   (left) and the Navigator (right) size separately.
 
    Left panel is a normal flex item, so setting its width reflows the canvas on
    its own. The right panel is an absolutely-positioned overlay inside
    .uniIframePanel and the canvas reserves its space through the iframe panel's
-   OWN inline margin-right/width — both are re-pointed at the variable below,
-   scoped with :has(.uniRightPanel) so a closed Navigator hands the space back to
-   the native layout. Stylesheet !important beats Builderius' inline styles. */
+   OWN inline margin-right/width — both are re-pointed at the right variable
+   below, scoped with :has(.uniRightPanel) so a closed Navigator hands the space
+   back to the native layout. Stylesheet !important beats Builderius' inline
+   styles. */
 
-:root { --dbe-panel-width: 320px; }
+:root {
+    --dbe-panel-width-left: 320px;
+    --dbe-panel-width-right: 320px;
+}
 
 /* Neutralise Builderius' own left-panel resize bar. panel_resize takes over panel
-   sizing with one shared width (--dbe-panel-width, forced above), so the native
+   sizing with its own per-side widths (forced above), so the native
    bar can no longer resize anything — but it straddles our grip, swallows the
    pointer, and shows a misleading ew-resize cursor down the whole edge. Drop it
    from the pointer flow so our grip owns the edge. Gated with the stylesheet: this
@@ -32,20 +37,20 @@
 /* Left settings/inserter panel. */
 html:not(.dbe-panels-hidden) .uniLeftPanelOuter {
     position: relative !important; /* anchor for the absolute grip */
-    inline-size: var(--dbe-panel-width) !important;
-    min-inline-size: var(--dbe-panel-width) !important;
-    max-inline-size: var(--dbe-panel-width) !important;
+    inline-size: var(--dbe-panel-width-left) !important;
+    min-inline-size: var(--dbe-panel-width-left) !important;
+    max-inline-size: var(--dbe-panel-width-left) !important;
 }
 
 /* Right Navigator panel + the canvas space it reserves. */
 html:not(.dbe-panels-hidden) .uniIframePanel:has(.uniRightPanel) {
-    margin-inline-end: var(--dbe-panel-width) !important;
-    inline-size: calc(100% - var(--dbe-panel-width)) !important;
+    margin-inline-end: var(--dbe-panel-width-right) !important;
+    inline-size: calc(100% - var(--dbe-panel-width-right)) !important;
 }
 html:not(.dbe-panels-hidden) .uniMainPanel div:has(> .uniRightPanel) {
-    inline-size: var(--dbe-panel-width) !important;
-    min-inline-size: var(--dbe-panel-width) !important;
-    max-inline-size: var(--dbe-panel-width) !important;
+    inline-size: var(--dbe-panel-width-right) !important;
+    min-inline-size: var(--dbe-panel-width-right) !important;
+    max-inline-size: var(--dbe-panel-width-right) !important;
 }
 
 /* The grips have no edge to sit on while the panels are hidden. */

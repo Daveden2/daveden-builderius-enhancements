@@ -44,9 +44,11 @@ dialog.dbe-preview-rename::backdrop { background: rgb(0 0 0 / 0.4); }
 	font: 500 13px/1.4 var(--dbe-ui-font);
 }
 .dbe-preview-rename__input:focus {
+	/* Pull the outline in over the recoloured border so the two read as one
+	   2px ring rather than a gapped double indicator. */
 	border-color: var(--dbe-accent);
 	outline: 2px solid var(--dbe-accent);
-	outline-offset: 1px;
+	outline-offset: -1px;
 }
 .dbe-preview-rename__input::selection {
 	background: var(--dbe-accent-strong);

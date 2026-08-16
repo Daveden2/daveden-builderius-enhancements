@@ -847,6 +847,14 @@
         on('css_hint_dialog') || on('hide_minimap');
     const NEED_CTX_MENU = on('preview_context_menu') || on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
+    /* PHP skips a chunk's script tag when every feature it serves is disabled
+       and records the decision in config.chunks, so only an EXPECTED chunk
+       that is absent counts as a load failure worth reporting. An absent
+       config.chunks (older PHP output) keeps every chunk expected. */
+    function dbeChunkExpected(key) {
+        return !CFG.chunks || CFG.chunks[key] !== false;
+    }
+
     const dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
     if (typeof dbeA11yChunk === 'function') {
         dbeA11yChunk(Object.freeze({
@@ -861,7 +869,7 @@
             labelChromeIcons,
             setAttributeRecorder (callback) { dbeRememberChromeAttributes = callback; }
         }));
-    } else {
+    } else if (dbeChunkExpected('a11y')) {
         document.documentElement.dataset.dbeChunkError = 'a11y:missing';
         if (window.console && console.error) {
             console.error('[DBE] Accessibility chunk failed to load; chrome accessibility enhancements were not started.');
@@ -937,7 +945,7 @@
             },
             setEnsureGroup (callback) { dbeEnsureGroup = callback; }
         }));
-    } else {
+    } else if (dbeChunkExpected('a11yComposites')) {
         document.documentElement.dataset.dbeChunkError = 'a11y/composites:missing';
         if (window.console && console.error) {
             console.error('[DBE] Accessibility composites chunk failed to load; composite keyboard enhancements were not started.');
@@ -972,7 +980,7 @@
                 dbePresenceDirtyChanged = api.presenceDirtyChanged;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('integrations')) {
         document.documentElement.dataset.dbeChunkError = 'integrations:missing';
         if (window.console && console.error) {
             console.error('[DBE] Integrations chunk failed to load; terminal and presence enhancements were not started.');
@@ -1020,7 +1028,7 @@
                 dbeSetPanelVisibility = api.setPanelVisibility;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('workspace')) {
         document.documentElement.dataset.dbeChunkError = 'workspace:missing';
         if (window.console && console.error) {
             console.error('[DBE] Workspace chunk failed to load; responsive and workspace enhancements were not started.');
@@ -1092,7 +1100,7 @@
                 dbeHasUnsavedChanges = api.hasUnsavedChanges;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('editing')) {
         document.documentElement.dataset.dbeChunkError = 'editing:missing';
         if (window.console && console.error) {
             console.error('[DBE] Editing chunk failed to load; editing enhancements were not started.');
@@ -1118,7 +1126,7 @@
             renameActive,
             setShortcutsApi (api) { dbeShortcutsApi = api; }
         }));
-    } else {
+    } else if (dbeChunkExpected('shortcuts')) {
         document.documentElement.dataset.dbeChunkError = 'shortcuts:missing';
         if (window.console && console.error) {
             console.error('[DBE] Shortcuts chunk failed to load; shortcut discovery was not started.');
@@ -1241,7 +1249,7 @@
                 driveSelectedClose = api.closeSelectedClass;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('commands')) {
         document.documentElement.dataset.dbeChunkError = 'commands:missing';
         if (window.console && console.error) {
             console.error('[DBE] Commands chunk failed to load; command and Navigator interaction enhancements were not started.');
@@ -1261,7 +1269,7 @@
             commands: Object.freeze({ makeContextItem: makeCtxItem, closeSelectedClass: driveSelectedClose }),
             needStyles: NEED_STYLES
         }));
-    } else {
+    } else if (dbeChunkExpected('styles')) {
         document.documentElement.dataset.dbeChunkError = 'styles:missing';
         if (window.console && console.error) {
             console.error('[DBE] Styles chunk failed to load; CSS editing enhancements were not started.');

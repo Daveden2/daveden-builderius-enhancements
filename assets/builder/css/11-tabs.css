@@ -235,13 +235,13 @@
    CSS vars tab — pinning the float to the docked width and keeping the
    canvas squeezed beside a panel that is no longer there. */
 html:not(.dbe-panels-hidden) body:not(.dbe-nav-detached) .uniMainPanel div:has(> .uniRightPanel):has(.uniVarsCss) {
-    min-width: var(--dbe-panel-width, 380px) !important;
-    width: var(--dbe-panel-width, 380px) !important;
-    max-width: var(--dbe-panel-width, 420px) !important;
+    min-width: var(--dbe-panel-width-right, 380px) !important;
+    width: var(--dbe-panel-width-right, 380px) !important;
+    max-width: var(--dbe-panel-width-right, 420px) !important;
 }
 html:not(.dbe-panels-hidden) body:not(.dbe-nav-detached) .uniMainPanel:has(.uniVarsCss) .uniIframePanel {
-    margin-right: var(--dbe-panel-width, 380px) !important;
-    width: calc(100% - var(--dbe-panel-width, 380px)) !important;
+    margin-right: var(--dbe-panel-width-right, 380px) !important;
+    width: calc(100% - var(--dbe-panel-width-right, 380px)) !important;
 }
 
 /* --- CSS vars rows ---

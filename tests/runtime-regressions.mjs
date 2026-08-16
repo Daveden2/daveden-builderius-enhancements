@@ -102,49 +102,41 @@ assert.match(
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-integrations-js[\s\S]+dbe-builder-shortcuts-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
-    'The core runtime and feature chunks must load synchronously before the feature host.'
+    /'a11y' {12}=> array\([\s\S]+'a11y-composites' => array\([\s\S]+'workspace' {7}=> array\([\s\S]+'editing' {9}=> array\([\s\S]+'styles' {10}=> array\([\s\S]+'integrations' {4}=> array\([\s\S]+'shortcuts' {7}=> array\([\s\S]+'commands' {8}=> array\(/,
+    'The chunk manifest must keep dependency order: adapters and services before the controllers that consume them.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$a11y_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y\.js/,
-    'The accessibility chunk must use the same filemtime cache-busting contract as the host.'
+    /dbe-builder-runtime-js[\s\S]+foreach \( \$manifest as \$stem => \$chunk \) \{\n\t\tif \( ! \$needed\[ \$stem \] \) \{\n\t\t\tcontinue;[\s\S]+dbe-builder-' \. esc_attr\( \$stem \) \. '-js[\s\S]+dbe-builder-enhancements-js/,
+    'The core runtime must print first, then only the needed chunks in manifest order, then the feature host.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$a11y_composites_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y-composites\.js/,
-    'The composites chunk must use the same filemtime cache-busting contract as the host.'
+    /filemtime\( \$chunk_paths\[ \$stem \] \)[\s\S]*assets\/builder\/js\/chunks\/' \. \$stem \. '\.js/,
+    'Every chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$workspace_path \)[\s\S]+assets\/builder\/js\/chunks\/workspace\.js/,
-    'The workspace chunk must use the same filemtime cache-busting contract as the host.'
+    /if \( \$needed\['commands'\] \) \{\n\t\t\$needed\['a11y-composites'\] = true;\n\t\t\$needed\['workspace'\] {7}= true;\n\t\t\$needed\['editing'\] {9}= true;\n\t\t\$needed\['shortcuts'\] {7}= true;/,
+    'The commands chunk must always bring the service chunks it consumes through the set*Api hooks.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$editing_path \)[\s\S]+assets\/builder\/js\/chunks\/editing\.js/,
-    'The editing chunk must use the same filemtime cache-busting contract as the host.'
+    /\$config\['chunks'\]\[ \$chunk\['config'\] \] = \$needed\[ \$stem \];/,
+    'The chunk delivery decision must be recorded in config.chunks for the runtime.'
 );
 assert.match(
-    outputBuilder,
-    /filemtime\( \$styles_path \)[\s\S]+assets\/builder\/js\/chunks\/styles\.js/,
-    'The styles chunk must use the same filemtime cache-busting contract as the host.'
+    builder,
+    /function dbeChunkExpected\(key\) \{\n {8}return !CFG\.chunks \|\| CFG\.chunks\[key\] !== false;/,
+    'The runtime must treat an absent config.chunks as every chunk expected.'
 );
-assert.match(
-    outputBuilder,
-    /filemtime\( \$integrations_path \)[\s\S]+assets\/builder\/js\/chunks\/integrations\.js/,
-    'The integrations chunk must use the same filemtime cache-busting contract as the host.'
-);
-assert.match(
-    outputBuilder,
-    /filemtime\( \$shortcuts_path \)[\s\S]+assets\/builder\/js\/chunks\/shortcuts\.js/,
-    'The shortcuts chunk must use the same filemtime cache-busting contract as the host.'
-);
-assert.match(
-    outputBuilder,
-    /filemtime\( \$commands_path \)[\s\S]+assets\/builder\/js\/chunks\/commands\.js/,
-    'The commands chunk must use the same filemtime cache-busting contract as the host.'
-);
+for (const key of ['a11y', 'a11yComposites', 'integrations', 'workspace', 'editing', 'shortcuts', 'commands', 'styles']) {
+    assert.match(
+        builder,
+        new RegExp(String.raw`\} else if \(dbeChunkExpected\('${key}'\)\) \{`),
+        `A deliberately omitted ${key} chunk must not be reported as a load failure.`
+    );
+}
 assert.match(
     builder,
     /const dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
@@ -418,10 +410,10 @@ const previewContextMenuFeature = features.slice(
     features.indexOf("'preview_context_menu'  =>"),
     features.indexOf("'preview_rename'        =>")
 );
-assert.match(
+assert.doesNotMatch(
     previewContextMenuFeature,
-    /'experimental'\s*=> true/,
-    'The 2.1 preview context menu must remain opt-in while its exploration gate is open.'
+    /'experimental'/,
+    'The preview context menu ships as a stable, default-on toggle from 2.0.3.'
 );
 const previewRenameFeature = features.slice(
     features.indexOf("'preview_rename'        =>"),
@@ -429,8 +421,13 @@ const previewRenameFeature = features.slice(
 );
 assert.match(
     previewRenameFeature,
-    /'86-preview-rename\.css'[\s\S]+'experimental'\s*=> true/,
-    'The 2.1 preview rename dialog must ship its interface styles and remain opt-in.'
+    /'86-preview-rename\.css'/,
+    'The preview rename dialog must ship its interface styles.'
+);
+assert.doesNotMatch(
+    previewRenameFeature,
+    /'experimental'/,
+    'Preview rename ships as a stable, default-on toggle from 2.0.3.'
 );
 assert.match(
     coreRuntime,

@@ -12,6 +12,29 @@
 }
 .uniLeftPanel .uniNavigatorItems .uniCatTitle:focus { cursor: pointer !important; }
 
+/* The native WordPress-admin links (Dashboard, Builderius Home, Templates,
+   Releases, Form Submissions, Settings) ship stripped of the row treatment the
+   page/template items get: no padding, transparent background, no border and a
+   wider list gap, so they hug the panel edge and the focus outline above
+   collapses onto their text. Restore the native item card (padding 16px,
+   --primary-2 surface + border, 4px gap) so every row in the menu reads,
+   hovers and focuses the same way. The --action variant shares the native
+   reset, so it is restored alongside. The card colours are scoped away from
+   the light theme, where 60-theme.css repaints all menu rows as light cards
+   (the native --primary-2 surface stays dark under the palette remap). */
+.uniLeftPanel .uniNavigatorItems__item--link,
+.uniLeftPanel .uniNavigatorItems__item--action {
+	padding: 16px !important;
+}
+html:not([data-dbe-theme="light"]) .uniLeftPanel .uniNavigatorItems__item--link,
+html:not([data-dbe-theme="light"]) .uniLeftPanel .uniNavigatorItems__item--action {
+	background: var(--primary-2) !important;
+	border: 1px solid var(--primary-2) !important;
+}
+.uniLeftPanel .uniNavigatorItems__items[class*=" link"] {
+	gap: 4px !important;
+}
+
 /* The Builderius logo path ships a hard near-black fill, so it disappears
    against the dark builder chrome once the menu button is active. Paint it in
    the button's own text colour so it stays visible in both themes. */

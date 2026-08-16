@@ -973,24 +973,32 @@
                 /* --- Build the injected items (appended flat or grouped below) --- */
 
                 // Navigator menus retain inline rename; preview menus use the
-                // explicit Navigator-name dialog when the 2.1 candidate is on.
+                // explicit Navigator-name dialog. Builderius 1.3.6 already
+                // supplies a native Rename row, so reuse and reroute that row
+                // instead of appending a second visible Rename action.
                 const nameItems = [];
                 const advancedItems = [];
                 const previewRenamePath = !!previewHeading && on('preview_rename');
                 const previewRenameTarget = previewRenamePath && dbePreviewContextState
                     ? dbePreviewContextState.element : null;
                 if (!multiIds && (on('inline_rename') || previewRenamePath)) {
-                    const renameLi = document.createElement('li');
-                    renameLi.className = 'uniContextMenu__item dbe-ctx-item';
-                    renameLi.setAttribute('role', 'menuitem');
-                    renameLi.textContent = dbeT('rename', 'Rename');
-                    if (on('keyboard_shortcuts') || previewRenamePath) {
-                        renameLi.classList.add('dbe-ctx-item--accel');
-                        const renameAcc = document.createElement('span');
-                        renameAcc.className = 'dbe-ctx-accel';
-                        renameAcc.textContent = 'F2';
-                        renameAcc.setAttribute('aria-hidden', 'true');
-                        renameLi.appendChild(renameAcc);
+                    const nativePreviewRename = previewRenamePath
+                        ? nativeContextItem(container, /^Rename$/)
+                        : null;
+                    const renameLi = nativePreviewRename || document.createElement('li');
+                    renameLi.classList.add('dbe-ctx-item');
+                    if (!nativePreviewRename) {
+                        renameLi.classList.add('uniContextMenu__item');
+                        renameLi.setAttribute('role', 'menuitem');
+                        renameLi.textContent = dbeT('rename', 'Rename');
+                        if (on('keyboard_shortcuts') || previewRenamePath) {
+                            renameLi.classList.add('dbe-ctx-item--accel');
+                            const renameAcc = document.createElement('span');
+                            renameAcc.className = 'dbe-ctx-accel';
+                            renameAcc.textContent = 'F2';
+                            renameAcc.setAttribute('aria-hidden', 'true');
+                            renameLi.appendChild(renameAcc);
+                        }
                     }
                     renameLi.addEventListener('mousedown', (ev) => {
                         ev.preventDefault();
@@ -1007,6 +1015,15 @@
                             startRename(id);
                         }
                     });
+                    if (nativePreviewRename) {
+                        // Builderius delegates the native row's click from the
+                        // menu ancestor. Stop that second activation after our
+                        // mousedown route has closed the menu.
+                        renameLi.addEventListener('click', (ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                        });
+                    }
                     nameItems.push(renameLi);
 
                     // "Reset label" — back to the builder default (the HTML tag).

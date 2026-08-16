@@ -481,6 +481,11 @@ assert.match(
 );
 assert.match(
     commands,
+    /const nativePreviewRename = previewRenamePath[\s\S]+nativeContextItem\(container, \/\^Rename\$\/\)[\s\S]+const renameLi = nativePreviewRename \|\| document\.createElement\('li'\)[\s\S]+renameLi\.classList\.add\('dbe-ctx-item'\)[\s\S]+nativePreviewRename[\s\S]+ev\.stopPropagation\(\)/,
+    'Preview rename must reroute Builderius\u2019s native Rename row instead of adding a duplicate action.'
+);
+assert.match(
+    commands,
     /function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+aria-labelledby[\s\S]+form\.noValidate = true[\s\S]+previewRenameLabel[\s\S]+function restoreFocus\(\)[\s\S]+dbeRestorePreviewContextTarget\(focusState\)[\s\S]+aria-invalid[\s\S]+next\.length > 120[\s\S]+dlg\.addEventListener\('keydown'[\s\S]+e\.key === 'Escape'/,
     'Preview rename must clearly name its field, validate input, support Escape and restore canvas focus.'
 );
