@@ -151,6 +151,11 @@ html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions svg pa
 .uniPanelHeader__icons .uniPanelIconButton:hover {
     color: var(--dbe-text) !important;
 }
+/* Builderius 1.3.6's new global CSS-mode button hard-codes its path fill to
+   #202022. In dark mode the button correctly changes its own foreground token,
+   but the glyph ignores it and stays black against the dark active/hover
+   surface. Keep the native button states and make only its glyph inherit them. */
+.uniTopPanel .uniTopPanelCssModeBtn svg path { fill: currentColor !important; }
 
 /* --- Native context menu (a <dialog> in the top layer) --- */
 .uniBuilderContextMenu {

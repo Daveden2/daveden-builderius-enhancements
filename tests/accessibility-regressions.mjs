@@ -27,6 +27,7 @@ const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
+const theme = read('assets/builder/css/60-theme.css');
 const palette = read('assets/builder/css/82-command-palette.css');
 const saveCue = read('assets/builder/css/72-save-cue.css');
 const tokens = read('assets/builder/css/00-tokens.css');
@@ -1088,6 +1089,11 @@ assert.match(
     builder,
     /uniTopPanel__rightCol :is\(\.uniPanelButton, \.uniPanelIconButton\)[\s\S]+M14\.4551[\s\S]+hideSidePanels/,
     'The 1.3.6 full-width canvas icon must retain its accessible name and tooltip.'
+);
+assert.match(
+    theme,
+    /\.uniTopPanel \.uniTopPanelCssModeBtn svg path\s*\{\s*fill:\s*currentColor !important;/,
+    'The Builderius 1.3.6 CSS-mode glyph must inherit its contrast-safe button colour.'
 );
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');
 assert.match(
