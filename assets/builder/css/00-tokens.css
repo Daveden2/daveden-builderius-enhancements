@@ -40,6 +40,11 @@ html[data-dbe-theme="light"]   { color-scheme: light; }
     --dbe-r-sm: 6px;   /* inputs, buttons, tabs, chips, tree rows */
     --dbe-r-md: 8px;   /* cards / tiles */
 
+    /* Top-toolbar rhythm: related controls stay tight, functional groups get
+       one extra step of separation. */
+    --dbe-topbar-item-gap: 4px;
+    --dbe-topbar-group-gap: 8px;
+
     --dbe-t: 120ms ease;
 }
 

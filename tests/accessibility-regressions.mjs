@@ -793,6 +793,21 @@ assert.match(
     'The fluid top-bar layout must cover the measured DBE/native-control collision range.'
 );
 assert.match(
+    tokens,
+    /--dbe-topbar-item-gap:\s*4px[\s\S]+--dbe-topbar-group-gap:\s*8px/,
+    'The top bar must keep a constrained 4px item / 8px group spacing rhythm.'
+);
+assert.match(
+    topbar,
+    /\.uniTopPanel__rightCol\s*\{[\s\S]+gap:\s*var\(--dbe-topbar-item-gap\) !important[\s\S]+\.uniApplicantsSelect,[\s\S]+\.uniHistoryBtns,[\s\S]+\.tooltipId__topPanel_fullscreen,[\s\S]+\.saveBtn[\s\S]+margin-inline-start:\s*calc\(var\(--dbe-topbar-group-gap\) - var\(--dbe-topbar-item-gap\)\) !important/,
+    'The right top bar must separate context, history, preview and Save groups without restructuring them.'
+);
+assert.match(
+    topbar,
+    /@media \(max-width: 1023px\)[\s\S]+\.uniApplicantsSelect,[\s\S]+\.saveBtn[\s\S]+margin-inline-start:\s*0 !important/,
+    'The top bar must surrender extra group spacing before compact mode is needed.'
+);
+assert.match(
     palette,
     /\.dbe-palette__input:focus-visible\s*\{[\s\S]*outline:\s*2px solid var\(--dbe-focus\)/,
     'Palette search must retain a visible focus indicator.'
@@ -870,6 +885,11 @@ assert.match(
     compactPanes,
     /\.dbe-save-menu-btn[\s\S]+display:\s*flex !important[\s\S]+:has\(> \.dbe-save-menu-btn\) \.saveBtn/,
     'Compact mode must preserve both halves of the Save split button.'
+);
+assert.match(
+    compactPanes,
+    /\.uniHistoryBtns,[\s\S]+\.tooltipId__topPanel_fullscreen,[\s\S]+\.tooltipId__topPanel_preview[\s\S]+display:\s*none !important/,
+    'Compact mode must remove native history and preview wrappers before they overlap essential controls.'
 );
 const saveFeature = features.slice(
     features.indexOf("'save_split_button'     => array("),

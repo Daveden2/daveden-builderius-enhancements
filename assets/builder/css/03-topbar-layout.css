@@ -24,6 +24,24 @@
     min-inline-size: 24px; /* WCAG 2.5.8 pointer-target size */
 }
 
+/* The right column mixes five functional groups: workspace controls,
+   template context, history, preview and Save. Builderius gives every sibling
+   the same 4px gap, so the groups read as one continuous icon strip. Keep the
+   native close spacing inside each group, then add one extra 4px step before
+   each later group for an 8px total separation. Selectors target the existing
+   group containers; React ownership and keyboard order stay untouched. */
+.uniTopPanel__rightCol {
+    gap: var(--dbe-topbar-item-gap) !important;
+}
+.uniTopPanel__rightCol > :is(
+    .uniApplicantsSelect,
+    .uniHistoryBtns,
+    .tooltipId__topPanel_fullscreen,
+    .saveBtn
+):not(:first-child) {
+    margin-inline-start: calc(var(--dbe-topbar-group-gap) - var(--dbe-topbar-item-gap)) !important;
+}
+
 @media (max-width: 1599px) {
     /* min-inline-size auto (not 0): the flex content-based minimum. It lets
        the columns drop their 350px reservations while still refusing to
@@ -72,5 +90,16 @@
    dot's appearance is the cue — presence, not colour alone, the same
    convention as a notification badge (1.4.1). */
 @media (max-width: 1023px) {
+    /* Preserve the 4px within-group rhythm but surrender the extra group step
+       before hiding secondary controls in the compact layout. */
+    .uniTopPanel__rightCol > :is(
+        .uniApplicantsSelect,
+        .uniHistoryBtns,
+        .tooltipId__topPanel_fullscreen,
+        .saveBtn
+    ):not(:first-child) {
+        margin-inline-start: 0 !important;
+    }
+
     .dbe-save-cue__short { display: none !important; }
 }
