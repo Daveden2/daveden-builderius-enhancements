@@ -384,7 +384,7 @@
         ['.uniRightPanel .uniPanelHeader__icons .dbe-expand-all', dbeT('expandAllElements', 'Expand all elements')],
         ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)')],
         ['.uniLeftPanel .uniIconConditionsMode', dbeT('tipDynamicConditions', 'Dynamic data conditions')],
-        ['.uniLeftPanel .uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
+        ['.uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
         ['.uniPanelButton--builderiusMenu', dbeT('tipBuilderiusMenu', 'Builderius menu')],
         ['.uniGlobalBreakpoints__modalIcon', dbeT('tipBreakpointSettings', 'Breakpoint settings')],
         ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],
@@ -415,6 +415,17 @@
     function labelChromeIcons() {
         DBE_TIPS.forEach((pair) => {
             document.querySelectorAll(pair[0]).forEach((el) => { setTip(el, pair[1]); });
+        });
+        // Builderius 1.3.6 moved CSS code mode into a persistent top-toolbar
+        // toggle but exposes neither its name nor its pressed state. The class
+        // change is covered by the top-toolbar class observer, so keep the ARIA
+        // state in step with the native active class without a dedicated listener.
+        document.querySelectorAll('.uniTopPanelCssModeBtn').forEach((button) => {
+            const pressed = button.classList.contains('active') ? 'true' : 'false';
+            dbeRememberChromeAttributes(button, ['aria-pressed']);
+            if (button.getAttribute('aria-pressed') !== pressed) {
+                button.setAttribute('aria-pressed', pressed);
+            }
         });
         adoptNativeTips();
         // Snippet/variable list rows (the JavaScript and Dynamic Data footer

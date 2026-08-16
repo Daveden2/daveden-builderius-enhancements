@@ -77,7 +77,14 @@
                 });
             }
             const top = host.query('topPanel');
-            if (top) { host.observe('a11y-chrome-top', top, { childList: true, subtree: true }); }
+            if (top) {
+                host.observe('a11y-chrome-top', top, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+            }
             const footer = host.query('footerPanel');
             if (footer && host.on('tooltips')) {
                 host.observe('a11y-chrome-footer', footer, { childList: true, subtree: true });

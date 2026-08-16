@@ -1091,9 +1091,24 @@ assert.match(
     'The 1.3.6 full-width canvas icon must retain its accessible name and tooltip.'
 );
 assert.match(
-    theme,
-    /\.uniTopPanel \.uniTopPanelCssModeBtn svg path\s*\{\s*fill:\s*currentColor !important;/,
-    'The Builderius 1.3.6 CSS-mode glyph must inherit its contrast-safe button colour.'
+    controls,
+    /\.uniTopPanel \.uniTopPanelCssModeBtn\.active\s*\{[\s\S]+background:\s*var\(--dbe-icon-toggle-active-bg\) !important;[\s\S]+box-shadow:\s*inset 0 0 0 1px var\(--dbe-accent\) !important;[\s\S]+color:\s*var\(--dbe-accent\) !important;/,
+    'The Builderius 1.3.6 CSS-mode toggle must use a persistent contrast-safe active state.'
+);
+assert.match(
+    controls,
+    /\.uniTopPanel \.uniTopPanelCssModeBtn\.active:focus-visible\s*\{\s*box-shadow:\s*none !important;\s*\}[\s\S]+\.uniTopPanel \.uniTopPanelCssModeBtn svg path\s*\{\s*fill:\s*currentColor !important;/,
+    'The CSS-mode toggle must inherit its glyph colour and avoid a doubled active/focus ring.'
+);
+assert.match(
+    builder,
+    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Toggle CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+aria-pressed/,
+    'Both CSS-mode controls must receive a tooltip, accessible name and exposed pressed state.'
+);
+assert.match(
+    a11y,
+    /a11y-chrome-top[\s\S]+attributes:\s*true[\s\S]+attributeFilter:\s*\['class'\]/,
+    'The top-toolbar observer must refresh the CSS-mode pressed state when Builderius changes its active class.'
 );
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');
 assert.match(
