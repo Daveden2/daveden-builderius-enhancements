@@ -958,6 +958,11 @@ assert.match(
     'Navigator dragging must begin on the visible row rather than an ancestor indentation area.'
 );
 assert.match(
+    treeRows,
+    /\.uniModTree__itemDrag > \.uniModTree__list\s*\{[\s\S]+cursor:\s*default !important;/,
+    'Blocked Navigator indentation must not advertise the native grab interaction.'
+);
+assert.match(
     composites,
     /tree-drag-origin'[\s\S]+pointerdown[\s\S]+tree-drag-start'[\s\S]+dragstart[\s\S]+tree-drag-end'[\s\S]+dragend[\s\S]+tree-drag-cancel'[\s\S]+pointercancel/,
     'The tree drag-origin guard must use reversible composite-controller listeners.'
