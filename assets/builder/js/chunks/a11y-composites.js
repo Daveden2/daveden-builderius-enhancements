@@ -30,6 +30,7 @@
         const dbeRememberOwnedAttributes = host.rememberOwnedAttributes;
         const dbeBindOwnedEvent = host.bindOwnedEvent;
         const dbeSetOwnedTimeout = host.setOwnedTimeout;
+        const dbeClearOwnedTimeout = host.clearOwnedTimeout;
         const dbeSetOwnedFrame = host.setOwnedFrame;
         const dbeDestroyOwnedActivity = host.destroyOwnedActivity;
         const dbeDestroyOwnedGroups = host.destroyOwnedGroups;
@@ -2179,6 +2180,7 @@
            selects, clickSeq(chevron <i>) toggles — both async re-renders, so focus is
            re-asserted by node id afterwards. */
         const NAV_ROW_SEL = 'button.uniModTree__item';
+        let dbeNavAriaSnapshot = null;
 
         function navRootList() {
             // Outermost element list — querySelector returns the first in document
@@ -2263,9 +2265,47 @@
             if (chev) { clickSeq(chev); }
         }
 
-        /* Stamp the APG tree semantics. Idempotent (only writes when a value changes)
-           so it is cheap to re-run every schedule() tick, keeping level/expanded/
-           selected/roving in sync through Builderius' React re-renders.
+        function navAriaSnapshotChanged(previous, next) {
+            if (!previous || previous.root !== next.root || previous.selection !== next.selection ||
+                previous.rows.length !== next.rows.length) {
+                return true;
+            }
+            for (let i = 0; i < next.rows.length; i++) {
+                const before = previous.rows[i];
+                const after = next.rows[i];
+                if (before.node !== after.node || before.list !== after.list || before.id !== after.id ||
+                    before.expanded !== after.expanded || before.expandable !== after.expandable) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function navAriaSnapshot(root) {
+            return {
+                root,
+                selection: activeId() || '',
+                rows: [].slice.call(root.querySelectorAll(NAV_ROW_SEL)).map((btn) => {
+                    const li = navRowLi(btn);
+                    return {
+                        node: btn,
+                        list: li && li.parentElement,
+                        id: navRowId(btn) || '',
+                        expanded: navRowExpanded(btn),
+                        expandable: navRowExpandable(btn)
+                    };
+                })
+            };
+        }
+
+        /* Stamp the APG tree semantics only when its observable state changes.
+           The shared main-panel observer also sees preview iframe/tab mutations;
+           Builderius emits those across many frames during a document switch.
+           Re-walking 100+ unchanged Navigator rows on every frame delayed the
+           preview even though every write below was idempotent. Node identity,
+           parent-list identity and order catch React replacement/reparenting;
+           selection and disclosure state cover the in-place changes that affect
+           the APG attributes.
 
            ONE top-down traversal: levels derive from the parent's level + 1,
            sibling position/count are computed once per <ul>, and each wrapper is
@@ -2278,13 +2318,18 @@
            attribute writes above. */
         function navSyncAria() {
             const root = navRootList();
-            if (!root) { return; }
+            if (!root) {
+                dbeNavAriaSnapshot = null;
+                return;
+            }
+            const snapshot = navAriaSnapshot(root);
+            if (!navAriaSnapshotChanged(dbeNavAriaSnapshot, snapshot)) { return; }
             dbeRememberOwnedAttributes('a11y/composites', root, ['role', 'aria-label']);
             if (root.getAttribute('role') !== 'tree') { root.setAttribute('role', 'tree'); }
             const label = dbeT('elementsTree', 'Elements');
             if (root.getAttribute('aria-label') !== label) { root.setAttribute('aria-label', label); }
 
-            const sel = activeId();
+            const sel = snapshot.selection;
             const rows = [], visRows = [];
 
             function stampRow(btn, level, pos, size, visible) {
@@ -2350,6 +2395,7 @@
             }
 
             walkList(root, 1, true);
+            dbeNavAriaSnapshot = snapshot;
 
             // Roving tab stop: keep the row that already holds it (so a keyboard
             // user's position survives a re-render), else the selected row, else the
@@ -2468,6 +2514,8 @@
         let dbeCompositeControllerActive = false;
         let dbeCompositeFooterTimer = 0;
         let dbeCompositeFooterAttempts = 0;
+        let dbeCompositeRefreshTimer = 0;
+        const DBE_COMPOSITE_SETTLE_MS = 32;
         function dbeObserveA11yComposites() {
             const top = dbeQuery('topPanel');
             if ((on('topbar_toolbar') || on('builderius_menu')) && top) {
@@ -2508,6 +2556,15 @@
                 applyFavouritesOrder();
             }
         }
+        function dbeScheduleA11yCompositeRefresh() {
+            if (dbeCompositeRefreshTimer) {
+                dbeClearOwnedTimeout('a11y/composites', dbeCompositeRefreshTimer);
+            }
+            dbeCompositeRefreshTimer = dbeSetOwnedTimeout('a11y/composites', () => {
+                dbeCompositeRefreshTimer = 0;
+                dbeRefreshA11yComposites();
+            }, DBE_COMPOSITE_SETTLE_MS);
+        }
         function dbeRetryCompositeFooter() {
             if (!on('footer_toolbar') || dbeQuery('footerBar') || dbeCompositeFooterAttempts >= 30) {
                 dbeCompositeFooterTimer = 0;
@@ -2522,6 +2579,11 @@
         }
         function destroyA11yComposites() {
             dbeCompositeControllerActive = false;
+            dbeNavAriaSnapshot = null;
+            if (dbeCompositeRefreshTimer) {
+                dbeClearOwnedTimeout('a11y/composites', dbeCompositeRefreshTimer);
+                dbeCompositeRefreshTimer = 0;
+            }
             if (dbeCompositeFooterTimer) {
                 clearTimeout(dbeCompositeFooterTimer);
                 dbeCompositeFooterTimer = 0;
@@ -2561,7 +2623,16 @@
                 dbeRetryCompositeFooter();
             },
             refresh (reason) {
-                if (reason) { dbeRefreshA11yComposites(); }
+                if (!reason) { return; }
+                if (reason === 'mutation') {
+                    dbeScheduleA11yCompositeRefresh();
+                    return;
+                }
+                if (dbeCompositeRefreshTimer) {
+                    dbeClearOwnedTimeout('a11y/composites', dbeCompositeRefreshTimer);
+                    dbeCompositeRefreshTimer = 0;
+                }
+                dbeRefreshA11yComposites();
             },
             destroy () {
                 destroyA11yComposites();

@@ -979,6 +979,11 @@ assert.match(
 );
 assert.match(
     composites,
+    /let dbeNavAriaSnapshot = null[\s\S]+function navAriaSnapshotChanged\(previous, next\)[\s\S]+previous\.root !== next\.root[\s\S]+before\.node !== after\.node[\s\S]+function navSyncAria\(\)[\s\S]+if \(!navAriaSnapshotChanged\(dbeNavAriaSnapshot, snapshot\)\) \{ return; \}/,
+    'Unrelated preview mutations must not re-synchronise an unchanged Navigator tree.'
+);
+assert.match(
+    composites,
     /function navPreserveDisclosureFocus\(e\)[\s\S]+chev\.parentElement !== row[\s\S]+branch\.contains\(activeRow\)[\s\S]+e\.preventDefault\(\)[\s\S]+navigator-disclosure-focus[\s\S]+mousedown/,
     'Navigator disclosures must preserve visible row focus unless a collapse would hide the focused descendant.'
 );

@@ -898,6 +898,7 @@
             rememberOwnedAttributes: dbeRememberOwnedAttributes,
             bindOwnedEvent: dbeBindOwnedEvent,
             setOwnedTimeout: dbeSetOwnedTimeout,
+            clearOwnedTimeout: dbeClearOwnedTimeout,
             setOwnedFrame: dbeSetOwnedFrame,
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             destroyOwnedGroups: dbeDestroyOwnedGroups,
