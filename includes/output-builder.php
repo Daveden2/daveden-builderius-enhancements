@@ -313,17 +313,6 @@ function dbe_print_builder_footer() {
 		'settings'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-settings' ) : '',
 	);
 
-	// Server-side presence beats ride the presence_heartbeat toggle; the
-	// nonce enables cookie-authenticated REST from the builder page.
-	if ( dbe_feature_output_permitted( 'presence_heartbeat' ) ) {
-		$config['presence'] = array(
-			'url'                => rest_url( 'dbe/v1/presence' ),
-			'nonce'              => wp_create_nonce( 'wp_rest' ),
-			'interval'           => 20000,
-			'transitionInterval' => 2500,
-		);
-	}
-
 	$runtime_src         = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
 	$a11y_src            = add_query_arg( 'ver', (string) filemtime( $a11y_path ), DBE_URL . 'assets/builder/js/chunks/a11y.js' );
 	$a11y_composites_src = add_query_arg( 'ver', (string) filemtime( $a11y_composites_path ), DBE_URL . 'assets/builder/js/chunks/a11y-composites.js' );
@@ -348,3 +337,4 @@ function dbe_print_builder_footer() {
 	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );
+

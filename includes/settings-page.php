@@ -115,8 +115,7 @@ function dbe_tab_icon( $slug ) {
 		'styles'        => '<path d="M8.5 3.5H8a2 2 0 0 0-2 2V9a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3.5a2 2 0 0 0 2 2h.5"/><path d="M15.5 3.5h.5a2 2 0 0 1 2 2V9a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3.5a2 2 0 0 1-2 2h-.5"/>',
 		// A save disc.
 		'workflow'      => '<path d="M19.5 20.5h-15a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1H16l4.5 4.5v11.5a1 1 0 0 1-1 1Z"/><path d="M16.5 20.5v-7h-9v7M7.5 3.5v4.5h6"/>',
-		// A small machine: the agent.
-		'abilities'     => '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4.5M8.5 4.5h7"/><circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9.5 16.8h5"/>',
+		// A small machine: the agent.ntColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9.5 16.8h5"/>',
 	);
 	if ( empty( $paths[ $slug ] ) ) {
 		return '';
@@ -479,140 +478,6 @@ function dbe_render_feature_tab( $tab_slug, $features ) {
 }
 
 /**
- * One agent-ability toggle row. Reuses the .dbe-field markup so search,
- * filtering and reset-to-defaults treat abilities like any other toggle.
- *
- * @param string $ability_id Ability id, e.g. "dbe/extract-release".
- * @param array  $ability    Registry entry from dbe_abilities().
- */
-function dbe_render_ability_toggle( $ability_id, $ability ) {
-	$options    = dbe_get_options();
-	$key        = dbe_ability_option_key( $ability_id );
-	$field_id   = 'dbe-a-' . $key;
-	$desc_id    = $field_id . '-desc';
-	$note_id    = $field_id . '-warning';
-	$danger     = ! empty( $ability['danger'] );
-	$caution    = ! empty( $ability['caution'] );
-	$risk_label = isset( $ability['risk_label'] ) ? (string) $ability['risk_label'] : __( 'Destructive', 'daveden-builderius-enhancements' );
-	$risk_note  = isset( $ability['risk_note'] ) ? (string) $ability['risk_note'] : __( 'Off by default. Turn it on only while you need it, approve each run when the agent asks for confirmation, and switch it off again afterwards.', 'daveden-builderius-enhancements' );
-	$access     = isset( $ability['group'] ) ? $ability['group'] : 'read';
-	$groups     = dbe_ability_groups();
-	$label      = isset( $groups[ $access ]['label'] ) ? $groups[ $access ]['label'] : __( 'Read', 'daveden-builderius-enhancements' );
-	?>
-	<div
-		class="dbe-field dbe-field--ability dbe-field--ability-<?php echo esc_attr( $access ); ?><?php echo $danger ? ' dbe-field--danger' : ''; ?>"
-		data-default="<?php echo $danger ? '0' : '1'; ?>"
-		data-experimental="0"
-		data-unavailable="0"
-		data-ability-access="<?php echo esc_attr( $access ); ?>"
-	>
-		<div class="dbe-field__name">
-			<span class="dbe-field__titlerow">
-				<?php if ( $danger ) : ?>
-					<span class="dbe-danger-icon" aria-hidden="true">&#9888;</span>
-				<?php endif; ?>
-				<label class="dbe-field__title" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $ability['title'] ); ?></label>
-			</span>
-			<span class="dbe-field__badges">
-				<span class="dbe-ability-access dbe-ability-access--<?php echo esc_attr( $access ); ?>"><?php echo esc_html( $label ); ?></span>
-				<?php if ( $danger ) : ?>
-					<span class="dbe-badge dbe-badge--danger"><?php echo esc_html( $risk_label ); ?><span class="screen-reader-text"><?php esc_html_e( ', high-risk ability, off by default', 'daveden-builderius-enhancements' ); ?></span></span>
-				<?php elseif ( $caution ) : ?>
-					<span class="dbe-badge dbe-badge--caution"><?php esc_html_e( 'Caution', 'daveden-builderius-enhancements' ); ?></span>
-				<?php endif; ?>
-			</span>
-		</div>
-		<div class="dbe-field__control">
-			<input
-				type="checkbox"
-				class="dbe-switch"
-				id="<?php echo esc_attr( $field_id ); ?>"
-				name="<?php echo esc_attr( DBE_OPTION . '[' . $key . ']' ); ?>"
-				value="1"
-				aria-describedby="<?php echo esc_attr( $danger ? $desc_id . ' ' . $note_id : $desc_id ); ?>"
-				<?php checked( ! empty( $options[ $key ] ) ); ?>
-			>
-		</div>
-		<div class="dbe-field__body">
-			<p class="dbe-field__desc" id="<?php echo esc_attr( $desc_id ); ?>">
-				<?php echo esc_html( $ability['summary'] ); ?>
-				<?php // The id an agent actually sees, so a row maps to what it controls. ?>
-				<code class="dbe-ability-id"><?php echo esc_html( $ability_id ); ?></code>
-			</p>
-			<?php if ( $danger ) : ?>
-				<p class="dbe-field__danger-note" id="<?php echo esc_attr( $note_id ); ?>">
-					<?php echo esc_html( $risk_note ); ?>
-				</p>
-			<?php endif; ?>
-		</div>
-	</div>
-	<?php
-}
-
-/**
- * The Agent abilities panel: the master switch, then every ability grouped
- * by Read, Write or Execute access. Individual toggles stay editable with
- * the master off
- * (choices are kept for when it is turned back on); a disabled ability is
- * never registered, so it does not exist for a connected agent at all.
- */
-function dbe_render_abilities_panel() {
-	$options   = dbe_get_options();
-	$abilities = dbe_abilities();
-	?>
-	<p class="dbe-panel__intro">
-		<?php esc_html_e( 'These switches control the dbe/* WordPress abilities available to connected AI agents. Read abilities inspect saved state, Write abilities change development state, and Execute abilities restore, delete, publish or rebuild it. A disabled ability is not registered, so agents cannot see or run it. Changes apply from the next request.', 'daveden-builderius-enhancements' ); ?>
-	</p>
-	<?php if ( ! function_exists( 'wp_register_ability' ) ) : ?>
-		<p class="dbe-panel__note">
-			<?php esc_html_e( 'The WordPress Abilities API is not currently available on this site, so no ability is active regardless of these switches. Your choices are saved and take effect when a plugin that provides the API (such as Novamira) is active.', 'daveden-builderius-enhancements' ); ?>
-		</p>
-	<?php endif; ?>
-	<?php // dbe-field--master keeps this row out of the tab's "N of M on" count: it governs the abilities below rather than being one of them. ?>
-	<div class="dbe-field dbe-field--master" data-default="0" data-experimental="0" data-unavailable="0">
-		<div class="dbe-field__name">
-			<label class="dbe-field__title" for="dbe-a-master"><?php esc_html_e( 'Enable agent abilities', 'daveden-builderius-enhancements' ); ?></label>
-		</div>
-		<div class="dbe-field__control">
-			<input
-				type="checkbox"
-				class="dbe-switch"
-				id="dbe-a-master"
-				name="<?php echo esc_attr( DBE_OPTION . '[abilities_enabled]' ); ?>"
-				value="1"
-				aria-describedby="dbe-a-master-desc"
-				<?php checked( ! empty( $options['abilities_enabled'] ) ); ?>
-			>
-		</div>
-		<div class="dbe-field__body">
-			<p class="dbe-field__desc" id="dbe-a-master-desc">
-				<?php esc_html_e( 'Master switch for every ability below. Editing abilities additionally require the Builderius development capability, and abilities that accept raw markup require the unfiltered_html capability.', 'daveden-builderius-enhancements' ); ?>
-			</p>
-		</div>
-	</div>
-	<?php foreach ( dbe_ability_groups() as $group_slug => $group ) : ?>
-		<?php $group_id = 'dbe-ability-group-' . $group_slug; ?>
-		<section class="dbe-feature-group dbe-ability-group dbe-ability-group--<?php echo esc_attr( $group_slug ); ?>" aria-labelledby="<?php echo esc_attr( $group_id ); ?>">
-			<?php // Same tinted band and columns as a feature tab's section heading; column two stays empty because the master switch above governs the lot. ?>
-			<div class="dbe-feature-group__head">
-				<h3 class="dbe-ability-group__title" id="<?php echo esc_attr( $group_id ); ?>">
-					<span class="dbe-ability-access dbe-ability-access--<?php echo esc_attr( $group_slug ); ?>"><?php echo esc_html( $group['label'] ); ?></span>
-				</h3>
-				<p class="dbe-ability-group__desc"><?php echo esc_html( $group['description'] ); ?></p>
-			</div>
-		<?php
-		foreach ( $abilities as $ability_id => $ability ) {
-			if ( $ability['group'] === $group_slug ) {
-				dbe_render_ability_toggle( $ability_id, $ability );
-			}
-		}
-		?>
-		</section>
-	<?php endforeach; ?>
-	<?php
-}
-
-/**
  * The Dashboard panel: what the plugin is, version, repository and support
  * links, and a per-tab summary of enabled features. No form fields.
  */
@@ -623,13 +488,7 @@ function dbe_render_dashboard_panel() {
 	?>
 	<div class="dbe-dashboard">
 		<p><?php esc_html_e( 'Daveden Builder Enhancements adds independent appearance, accessibility, editing and workflow tools to Builderius.', 'daveden-builderius-enhancements' ); ?></p>
-		<p>
-			<?php if ( dbe_release_feature_available( 'agent_abilities' ) ) : ?>
-				<?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools and agent features can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?>
-			<?php else : ?>
-				<?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?>
-			<?php endif; ?>
-		</p>
+		<p><?php esc_html_e( 'Appearance and accessibility features affect only the editing interface. Editing tools can change saved templates, components and CSS; turning them off or deactivating the plugin does not undo changes already saved.', 'daveden-builderius-enhancements' ); ?></p>
 		<p class="dbe-dashboard__meta">
 			<?php
 			printf(
@@ -720,14 +579,6 @@ function dbe_render_dashboard_panel() {
 				}
 				$total   = 0;
 				$enabled = 0;
-				if ( 'abilities' === $tab_slug ) {
-					foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-						++$total;
-						if ( dbe_ability_enabled( $ability_id ) ) {
-							++$enabled;
-						}
-					}
-				} else {
 					foreach ( $features as $id => $feature ) {
 						if ( $feature['tab'] === $tab_slug ) {
 							++$total;
@@ -736,7 +587,6 @@ function dbe_render_dashboard_panel() {
 							}
 						}
 					}
-				}
 				?>
 				<li>
 					<?php
@@ -895,8 +745,6 @@ function dbe_render_settings_page() {
 					<?php
 					if ( 'dashboard' === $slug ) {
 						dbe_render_dashboard_panel();
-					} elseif ( 'abilities' === $slug ) {
-						dbe_render_abilities_panel();
 					} else {
 						dbe_render_feature_tab( $slug, $features );
 					}
@@ -935,3 +783,4 @@ function dbe_render_settings_page() {
 	</div>
 	<?php
 }
+

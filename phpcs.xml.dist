@@ -61,7 +61,6 @@
 
 	<!-- DOMDocument exposes these PHP-native properties in camelCase. -->
 	<rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
-		<exclude-pattern>*/includes/abilities.php</exclude-pattern>
 	</rule>
 
 	<!-- Minimum supported WordPress version (drives deprecation sniffs). -->
@@ -71,3 +70,4 @@
 	<config name="testVersion" value="8.2-"/>
 	<rule ref="PHPCompatibilityWP"/>
 </ruleset>
+

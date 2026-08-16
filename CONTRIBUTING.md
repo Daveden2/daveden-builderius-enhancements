@@ -48,11 +48,6 @@ bundle.
   fallback.
 - `includes/builder-css-cache.php` — signatures, atomically writes and prunes
   the site-specific generated CSS bundles under uploads.
-- `includes/abilities.php` — shared Builderius entity, commit, lock and GraphQL
-  services, plus the ordered registrar for agent-facing abilities.
-- `includes/abilities/` — domain-owned ability schemas and callbacks. Keep
-  public IDs, permissions and error contracts stable when moving a domain;
-  reuse the shared transaction services instead of duplicating them.
 - `assets/builder/js/builder.js` — the small shared host. Physical chunks under
   `assets/builder/js/chunks/` own the accessibility, workspace, editing, styles,
   integrations and commands domains.
@@ -120,3 +115,4 @@ Versioning and releases are handled by the maintainer through a
 `develop → main` pull request, merged with a merge commit, then a tag and a
 GitHub release (the bundled update checker serves updates from releases). See
 [RELEASING.md](RELEASING.md) for the full checklist.
+

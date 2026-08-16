@@ -28,13 +28,6 @@ function dbe_default_options(): array {
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		$defaults[ $id ] = $setting['default'];
 	}
-	// Agent abilities: the master switch is opt-in, individual abilities
-	// default on underneath it, and destructive/code-executing (danger)
-	// abilities are individually opt-in as well.
-	$defaults['abilities_enabled'] = false;
-	foreach ( dbe_abilities() as $ability_id => $ability ) {
-		$defaults[ dbe_ability_option_key( $ability_id ) ] = empty( $ability['danger'] );
-	}
 	return $defaults;
 }
 
@@ -144,40 +137,6 @@ function dbe_feature_output_permitted( string $id ): bool {
 }
 
 /**
- * Whether the agent abilities are enabled at all (the master switch).
- *
- * @return bool
- */
-function dbe_abilities_enabled(): bool {
-	if ( ! dbe_release_feature_available( 'agent_abilities' ) ) {
-		return false;
-	}
-	$options = dbe_get_options();
-	return ! empty( $options['abilities_enabled'] );
-}
-
-/**
- * Whether one agent ability is active: the master switch AND its own toggle.
- *
- * Registration in includes/abilities.php gates on this, so a disabled
- * ability is never registered and never appears to a connected agent.
- *
- * @param string $ability_id Ability id from dbe_abilities(), e.g. "dbe/publish".
- * @return bool
- */
-function dbe_ability_enabled( string $ability_id ): bool {
-	if ( ! dbe_abilities_enabled() ) {
-		return false;
-	}
-	$registry = dbe_abilities();
-	if ( ! isset( $registry[ $ability_id ] ) ) {
-		return false;
-	}
-	$options = dbe_get_options();
-	return ! empty( $options[ dbe_ability_option_key( $ability_id ) ] );
-}
-
-/**
  * An enum setting's current value.
  *
  * @param string $id Setting id from dbe_enum_settings().
@@ -240,20 +199,6 @@ function dbe_sanitise_options( mixed $input ): array {
 		}
 		$clean[ $id ] = ! empty( $input[ $id ] );
 	}
-	if ( dbe_release_feature_available( 'agent_abilities' ) ) {
-		$clean['abilities_enabled'] = ! empty( $input['abilities_enabled'] );
-		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-			$key           = dbe_ability_option_key( $ability_id );
-			$clean[ $key ] = ! empty( $input[ $key ] );
-		}
-	} else {
-		$clean['abilities_enabled'] = ! empty( $saved['abilities_enabled'] );
-		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-			$key           = dbe_ability_option_key( $ability_id );
-			$clean[ $key ] = ! empty( $saved[ $key ] );
-		}
-	}
-
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		// A select renders disabled whenever its parent feature is Pro-locked or
 		// simply switched off, and a disabled control is absent from the POST.
@@ -271,3 +216,4 @@ function dbe_sanitise_options( mixed $input ): array {
 
 	return $clean;
 }
+

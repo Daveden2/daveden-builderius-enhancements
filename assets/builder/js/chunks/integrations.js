@@ -300,16 +300,12 @@
             }, on('ai_terminal_tabs'));
         }
 
-        /* Presence has two audiences: the front-end admin-bar guard reads a
-           local heartbeat before opening a second builder tab, while server-side
-           agent abilities read the REST heartbeat before committing changes. */
+        /* Local presence lets the front-end admin-bar guard detect another
+           open builder tab for the same template. */
         const DBE_PRESENCE_OWNER = 'integrations/presence';
         let dbePresenceActive = false;
         let dbePresenceHeartbeat = null;
-        let dbePresenceServer = null;
         let dbePresenceTabId = '';
-        let dbePresenceServerLastDirty = null;
-        let dbePresenceServerLastSent = 0;
         let dbePresenceDirtyChanged = function () {};
 
         function dbePresenceLocalRecords() {
@@ -375,66 +371,15 @@
             } catch (e) {}
         }
 
-        function dbePresenceSlug() {
-            try { return new URLSearchParams(location.search).get('builderius_template') || ''; }
-            catch (e) { return ''; }
-        }
-
-        function dbePresenceDirty() {
-            return dbeHasUnsavedChanges();
-        }
-
-        function dbePresenceSendServerBeat(force, clear, knownDirty) {
-            const server = dbePresenceServer || {};
-            const slug = dbePresenceSlug();
-            if (!server.url || !server.nonce || !slug || !dbePresenceTabId) { return; }
-            const dirty = clear ? false : (typeof knownDirty === 'boolean' ? knownDirty : dbePresenceDirty());
-            const now = Date.now();
-            if (!force && dirty === dbePresenceServerLastDirty &&
-                (now - dbePresenceServerLastSent) < (server.interval || 20000)) { return; }
-            dbePresenceServerLastDirty = dirty;
-            dbePresenceServerLastSent = now;
-            try {
-                fetch(server.url, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    keepalive: true,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-WP-Nonce': server.nonce
-                    },
-                    body: JSON.stringify({ entity: slug, tab: dbePresenceTabId, dirty })
-                }).catch(() => {});
-            } catch (e) {}
-        }
 
         function dbePresenceInit() {
             dbePresenceActive = true;
             dbePresenceHeartbeat = CFG.heartbeat || {};
-            dbePresenceServer = CFG.presence || {};
             dbePresenceTabId = dbePresenceCreateTabId();
-            dbePresenceServerLastDirty = null;
-            dbePresenceServerLastSent = 0;
 
             dbePresenceWriteLocalBeat();
             dbeSetOwnedInterval(DBE_PRESENCE_OWNER, dbePresenceWriteLocalBeat, dbePresenceHeartbeat.interval || 2500);
 
-            if (dbePresenceServer.url && dbePresenceServer.nonce) {
-                dbePresenceDirtyChanged = function (dirty) {
-                    dbePresenceSendServerBeat(false, false, dirty);
-                };
-                dbePresenceSendServerBeat(true);
-                dbeSetOwnedInterval(DBE_PRESENCE_OWNER, () => {
-                    if (dbePresenceServerLastDirty === true) {
-                        dbePresenceSendServerBeat(true, false, true);
-                    }
-                }, dbePresenceServer.interval || 20000);
-                if (!on('save_state_cue')) {
-                    dbeSetOwnedInterval(DBE_PRESENCE_OWNER, () => {
-                        dbePresenceSendServerBeat(false);
-                    }, dbePresenceServer.transitionInterval || 2500);
-                }
-            }
         }
 
         function dbePresenceDestroy() {
@@ -442,11 +387,7 @@
             dbePresenceDirtyChanged = function () {};
             dbeDestroyOwnedActivity(DBE_PRESENCE_OWNER);
             dbePresenceClearLocalBeat();
-            dbePresenceSendServerBeat(true, true);
             dbePresenceHeartbeat = null;
-            dbePresenceServer = null;
-            dbePresenceServerLastDirty = null;
-            dbePresenceServerLastSent = 0;
         }
 
         function registerPresenceIntegration() {
@@ -471,3 +412,5 @@
         }));
     };
 })();
+
+

@@ -1941,10 +1941,9 @@
        ({name: slug, title: label}); the declared props live on each
        component's own config in componentsData[slug].settings, entry
        `componentTmplProperties` ([{type,name,label,placeholder}]) — the same
-       shape the server ability reads from template.settings. Serialising a
-       component needs none of this (the slug + overrides are on the instance);
-       the registry is for validating pasted props and defaulting new-instance
-       labels. Kept as the client twin of dbe_ability_component_registry(). */
+       shape used by template.settings. Serialising a component needs none of
+       this (the slug + overrides are on the instance); the registry validates
+       pasted props and supplies default labels for new instances. */
     function dbeComponentRegistry() {
         const reg = {};
         const list = store().storeGet('componentsList') || [];
@@ -5273,3 +5272,4 @@
 
     window.dbeBuilderChunks = chunks;
 }());
+

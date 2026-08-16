@@ -16,19 +16,6 @@ function dbe_uninstall_site_data(): void {
 	delete_option( 'daveden_builder_enhancements' );
 	delete_option( 'external_updates-daveden-builderius-enhancements' );
 
-	$presence      = $wpdb->esc_like( '_transient_dbe_presence_' ) . '%';
-	$presence_ttl  = $wpdb->esc_like( '_transient_timeout_dbe_presence_' ) . '%';
-	$ability_locks = $wpdb->esc_like( 'dbe_ability_lock_' ) . '%';
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- bulk removal of plugin-owned wildcard keys during uninstall.
-	$wpdb->query(
-		$wpdb->prepare(
-			"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s",
-			$presence,
-			$presence_ttl,
-			$ability_locks
-		)
-	);
-
 	$uploads = wp_upload_dir( null, false, true );
 	if ( empty( $uploads['error'] ) && ! empty( $uploads['basedir'] ) ) {
 		$cache_directory = trailingslashit( $uploads['basedir'] ) . 'dbe-builder-css';
@@ -64,3 +51,5 @@ if ( is_multisite() ) {
 // The bundled Plugin Update Checker keeps its update-check state in its own
 // options row (and the site-wide copy on multisite).
 delete_site_option( 'external_updates-daveden-builderius-enhancements' );
+
+

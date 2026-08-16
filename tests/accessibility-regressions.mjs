@@ -684,29 +684,9 @@ assert.doesNotMatch(
     'Dirty state must not return to a timing-based selection hold that can absorb real edits.'
 );
 assert.match(
-    integrations,
-    /function dbePresenceDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
-    'Server presence must use the same corrected dirty-state contract as the visible save cue.'
-);
-assert.match(
-    editing,
-    /const dbePresenceDirtyChanged = host\.presenceDirtyChanged[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
-    'The visible save cue must publish its computed dirty transition to server presence.'
-);
-assert.match(
     builder,
     /function dbeSetOwnedInterval\(owner, callback, delay\)[\s\S]+function dbeDestroyOwnedActivity\(owner\)[\s\S]+clearInterval\(interval\.id\)/,
     'Controller-owned intervals must be cancelled with their lifecycle.'
-);
-assert.match(
-    integrations,
-    /dbePresenceServerLastDirty === true[\s\S]{0,180}dbePresenceServer\.interval \|\| 20000/,
-    'Server presence must renew only a dirty record on the slow cadence.'
-);
-assert.match(
-    integrations,
-    /if \(!on\('save_state_cue'\)\)[\s\S]{0,240}dbePresenceServer\.transitionInterval \|\| 2500/,
-    'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
 );
 assert.match(
     integrations,
@@ -720,7 +700,7 @@ assert.match(
 );
 assert.match(
     integrations,
-    /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)[\s\S]+dbePresenceSendServerBeat\(true, true\)/,
+    /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)/,
     'Presence teardown must release its publisher, intervals and per-tab records.'
 );
 assert.match(
@@ -902,7 +882,7 @@ assert.match(
 );
 const saveFeature = features.slice(
     features.indexOf("'save_split_button'     => array("),
-    features.indexOf("'css_block_guard'", features.indexOf("'save_split_button'     => array("))
+    features.indexOf("'presence_heartbeat'", features.indexOf("'save_split_button'     => array("))
 );
 assert.doesNotMatch(
     saveFeature,
@@ -1132,3 +1112,5 @@ assert.match(
 assert.match(tokens, /--dbe-focus:\s*Highlight/, 'The focus token must resolve to a system colour in forced-colour mode.');
 
 console.log('Accessibility source regressions passed.');
+
+
