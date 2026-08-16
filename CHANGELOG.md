@@ -3,12 +3,12 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
-## 2.0.3 (development)
+## 2.0.3
 
 This compatibility release adapts DBE to Builderius and Builderius Pro
-1.3.6-beta, adds an experimental preview context menu and preview-based element
-rename, and modernises the development baseline for PHP 8.2 and current
-JavaScript linting.
+1.3.6-beta, adds a stable preview context menu and preview-based element rename,
+and modernises the development baseline for PHP 8.2 and current JavaScript
+linting.
 
 * Changed: the front-end admin bar now uses Builderius 1.3.6-beta's native
   **Edit: {name}** item instead of adding DBE's duplicate. Older Builderius
@@ -125,16 +125,36 @@ JavaScript linting.
   dialog. DBE continues to yield Duplicate, Cut, Rename, Undo and Redo to the
   native handlers while keeping its unique element, canvas and region routes.
 
-* Added (experimental): **Preview right-click menu**. In canvas selection mode,
+* Performance: the builder runtime now uses deferred scripts and delivers only
+  the JavaScript chunks required by the enabled feature set. Dependency order
+  remains explicit, deliberately omitted chunks no longer report false loading
+  failures, and installs with a smaller toggle set transfer and execute less
+  code.
+* Fixed: opening a Builderius URL for a named template now aligns the stored
+  persistent-tab state before the SPA starts. The requested document loads once
+  and remains selected instead of being replaced by the previously active tab
+  after a second preview load.
+* Improved: **Resizable side panels** now remembers an independent width for
+  the settings panel and Navigator. Existing installs seed both sides from the
+  former shared width until each side is resized, preserving the old preference
+  without keeping the panels locked together.
+* Fixed: WordPress-admin links and actions in Builderius's menu regain the same
+  full-row card, spacing, hover and focus treatment as template rows in both
+  themes. The preview rename field also uses one joined high-contrast focus
+  ring instead of a gapped double indicator.
+* Added: **Preview right-click menu**. In canvas selection mode,
   right-click a rendered element or press Shift+F10/Menu to select it and open
   the same labelled, keyboard-operable command menu used by the Navigator.
   Interaction mode and editable, form, Monaco and embedded content retain their
   native context menus; closing returns focus to the rendered target.
-* Added (experimental): **Rename from the preview**. Rename in the preview menu
+* Added: **Rename from the preview**. Rename in the preview menu
   and F2 on a canvas-focused element now open a compact Navigator-name dialog
   without changing visible text or the HTML tag. Empty and overlong names stay
   open with an accessible error; Save uses the existing Builderius rename
   channel, while Cancel and Escape restore focus without changing the name.
+  Builderius 1.3.6-beta's native Rename row is reused for this route, so the
+  preview menu presents one Rename action rather than overlapping native and
+  DBE copies.
 
 ## 2.0.2
 Minor security fixes and new ways to support the project.
