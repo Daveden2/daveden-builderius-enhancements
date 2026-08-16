@@ -421,10 +421,17 @@
         // change is covered by the top-toolbar class observer, so keep the ARIA
         // state in step with the native active class without a dedicated listener.
         document.querySelectorAll('.uniTopPanelCssModeBtn').forEach((button) => {
-            const pressed = button.classList.contains('active') ? 'true' : 'false';
-            dbeRememberChromeAttributes(button, ['aria-pressed']);
+            const active = button.classList.contains('active');
+            const pressed = active ? 'true' : 'false';
+            const tip = active
+                ? dbeT('tipDisableCssEditor', 'Disable CSS code editor')
+                : dbeT('tipToggleCssEditor', 'Enable CSS code editor');
+            dbeRememberChromeAttributes(button, ['aria-pressed', 'data-dbe-tip']);
             if (button.getAttribute('aria-pressed') !== pressed) {
                 button.setAttribute('aria-pressed', pressed);
+            }
+            if (button.getAttribute('data-dbe-tip') !== tip) {
+                button.setAttribute('data-dbe-tip', tip);
             }
         });
         adoptNativeTips();

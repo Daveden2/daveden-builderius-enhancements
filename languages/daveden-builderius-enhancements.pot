@@ -3207,6 +3207,10 @@ msgstr ""
 msgid "Already <%s>"
 msgstr ""
 
+#: includes/i18n-builder.php:722
+msgid "Disable CSS code editor"
+msgstr ""
+
 #: includes/settings-page.php:45
 #: includes/settings-page.php:53
 msgid "Builder Enhancements"

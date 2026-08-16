@@ -719,5 +719,6 @@ function dbe_builder_strings() {
 		'tagInvalid'                    => __( 'Not a usable HTML tag: %s', 'daveden-builderius-enhancements' ),
 		/* translators: %s: the element's current HTML tag. */
 		'tagAlready'                    => __( 'Already <%s>', 'daveden-builderius-enhancements' ),
+		'tipDisableCssEditor'           => __( 'Disable CSS code editor', 'daveden-builderius-enhancements' ),
 	);
 }

@@ -1122,13 +1122,13 @@ assert.match(
 );
 assert.match(
     builder,
-    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Enable CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+aria-pressed/,
-    'Both CSS-mode controls must receive a tooltip, accessible name and exposed pressed state.'
+    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Enable CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+tipDisableCssEditor[\s\S]+aria-pressed[\s\S]+data-dbe-tip/,
+    'Both CSS-mode controls must receive an accessible name, exposed pressed state and state-aware tooltip.'
 );
 assert.match(
     strings,
-    /'tipToggleCssEditor'\s*=>\s*__\( 'Enable CSS code editor'/,
-    'The CSS-mode accessible name must describe the enabled state rather than redundantly saying toggle.'
+    /'tipToggleCssEditor'\s*=>\s*__\( 'Enable CSS code editor'[\s\S]+tipDisableCssEditor'\s*=>\s*__\( 'Disable CSS code editor'/,
+    'The CSS-mode accessible name and state-aware tooltip actions must remain localisable.'
 );
 assert.match(
     a11y,
