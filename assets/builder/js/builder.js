@@ -316,11 +316,12 @@
        it: the title attribute, and — Builderius labels many icons with a
        react-tooltip anchor (.tooltipItem[data-tooltip-content], one shared
        floating chip keyed off the hovered anchor's content) — the
-       data-tooltip-content, both on el itself (footer items carry it directly)
-       and on any inner wrapper (the breakpoint/reload icons wrap it a level
-       down). Dropping the content leaves the native chip nothing to show, so
-       only our .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it
-       self-heals after a React re-render re-adds the attribute. */
+       data-tooltip-content, both on el itself (footer items carry it directly),
+       on any inner wrapper (the breakpoint/reload icons wrap it a level down)
+       and on a wrapping tooltip anchor (panel-header and favourites controls).
+       Dropping the content leaves the native chip nothing to show, so only our
+       .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it self-heals
+       after a React re-render re-adds the attribute. */
     function setTip(el, label) {
         if (!el) { return; }
         if (on('tooltips')) {
@@ -330,6 +331,12 @@
         if (!el.getAttribute('aria-label')) { el.setAttribute('aria-label', label); }
         if (el.hasAttribute('title')) { el.removeAttribute('title'); }
         if (el.hasAttribute('data-tooltip-content')) { el.removeAttribute('data-tooltip-content'); }
+        const nativeAnchor = el.closest && el.closest('.tooltipItem[data-tooltip-content]');
+        if (nativeAnchor && nativeAnchor !== el) {
+            if (on('tooltips')) { dbeRememberChromeAttributes(nativeAnchor, ['data-tooltip-content', 'title']); }
+            nativeAnchor.removeAttribute('data-tooltip-content');
+            if (nativeAnchor.hasAttribute('title')) { nativeAnchor.removeAttribute('title'); }
+        }
         el.querySelectorAll('[data-tooltip-content]').forEach((a) => {
             if (on('tooltips')) { dbeRememberChromeAttributes(a, ['data-tooltip-content']); }
             a.removeAttribute('data-tooltip-content');
@@ -390,7 +397,7 @@
         ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],
         ['.uniIconButton.caretIcon', dbeT('tipSaveOptions', 'Save options')],
         ['.uniModTree__footer button.uniPanelIconButton', dbeT('tipDeleteSelected', 'Delete selected element (click twice to confirm)')],
-        ['.uniModTree__footer .editFavouritesIcon', dbeT('tipEditFavourites', 'Edit favourite elements')],
+        ['.uniModTree__footer .editFavouritesIcon', dbeT('tipEditFavourites', 'Edit favourites')],
         ['.uniFooterPanelBar .collapsePanelIcon', dbeT('tipCollapseBottomPanel', 'Collapse bottom panel')],
         ['.uniBreakpointsTable__addNew', dbeT('tipAddBreakpoint', 'Add breakpoint')],
         ['.uniBreakpointsTable__delete', dbeT('tipDeleteBreakpoint', 'Delete breakpoint')],
@@ -468,7 +475,10 @@
         // The stock Navigator button is a collapse-all/expand-all toggle whose
         // icon swaps per click — label follows the icon (collapse-all state
         // draws the "M0.53125 7..." bar path).
-        const stock = document.querySelector('.uniRightPanel .uniPanelHeader__icons > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees)');
+        const stock = document.querySelector(
+            '.uniRightPanel .uniPanelHeader__icons > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees), ' +
+            '.uniRightPanel .uniPanelHeader__icons > .tooltipItem > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees)'
+        );
         if (stock) {
             let d = stock.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
@@ -479,12 +489,15 @@
         // as the Navigator (here it folds the element GROUPS), plus a close X
         // (onClick = closeLeftPanelPage, so "panel" not "Inserter" — the header
         // component is shared by every left-panel page).
-        document.querySelectorAll('.uniLeftPanel .uniPanelHeader__icons > button').forEach((b) => {
+        document.querySelectorAll(
+            '.uniLeftPanel .uniPanelHeader__icons > button, ' +
+            '.uniLeftPanel .uniPanelHeader__icons > .tooltipItem > button'
+        ).forEach((b) => {
             if (/dbe-|uniIconCssMode|uniIconConditionsMode/.test(b.className)) { return; }
             let d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
             if (d.indexOf('M0.53125') === 0) { setTip(b, dbeT('collapseAllGroups', 'Collapse all groups')); }
-            else if (d.indexOf('M11.6445') === 0) { setTip(b, dbeT('expandAllGroups', 'Expand all groups')); }
+            else if (d.indexOf('M11.6445') === 0 || d.indexOf('M13.6445') === 0) { setTip(b, dbeT('expandAllGroups', 'Expand all groups')); }
             else if (d.indexOf('M11.9198') === 0) { setTip(b, dbeT('closePanel', 'Close panel')); }
         });
         // Top-bar right: the square icon hides both side panels for a full-width

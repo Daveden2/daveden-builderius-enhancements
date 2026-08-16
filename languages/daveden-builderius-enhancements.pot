@@ -1563,7 +1563,7 @@ msgid "Delete selected element (click twice to confirm)"
 msgstr ""
 
 #: includes/i18n-builder.php:202
-msgid "Edit favourite elements"
+msgid "Edit favourites"
 msgstr ""
 
 #. translators: %s: favourite element name.

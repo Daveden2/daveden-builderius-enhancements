@@ -129,6 +129,16 @@ assert.match(
     'The chrome controller must own reversible tooltip event listeners.'
 );
 assert.match(
+    builder,
+    /function setTip\(el, label\)[\s\S]+closest\('\.tooltipItem\[data-tooltip-content\]'\)[\s\S]+nativeAnchor\.removeAttribute\('data-tooltip-content'\)/,
+    'DBE tooltips must suppress a native tooltip wrapper so controls such as Edit favourites never show duplicate chips.'
+);
+assert.match(
+    builder,
+    /\.uniRightPanel \.uniPanelHeader__icons > \.tooltipItem > button[\s\S]+\.uniLeftPanel \.uniPanelHeader__icons > \.tooltipItem > button[\s\S]+M13\.6445[\s\S]+expandAllGroups[\s\S]+M11\.9198[\s\S]+closePanel/,
+    'Builderius 1.3.6 wrapped panel-header controls must retain Expand all and Close names and tooltips.'
+);
+assert.match(
     a11y,
     /function observeChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
     'The chrome controller must declare its own shared observation roots.'

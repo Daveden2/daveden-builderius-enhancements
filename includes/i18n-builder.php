@@ -199,7 +199,7 @@ function dbe_builder_strings() {
 		'tipReloadPreview'              => __( 'Reload preview', 'daveden-builderius-enhancements' ),
 		'tipSaveOptions'                => __( 'Save options', 'daveden-builderius-enhancements' ),
 		'tipDeleteSelected'             => __( 'Delete selected element (click twice to confirm)', 'daveden-builderius-enhancements' ),
-		'tipEditFavourites'             => __( 'Edit favourite elements', 'daveden-builderius-enhancements' ),
+		'tipEditFavourites'             => __( 'Edit favourites', 'daveden-builderius-enhancements' ),
 		/* translators: %s: favourite element name. */
 		'tipRemoveFavourite'            => __( 'Remove %s from favourites', 'daveden-builderius-enhancements' ),
 		'tipRemoveFavouriteFallback'    => __( 'Remove from favourites', 'daveden-builderius-enhancements' ),
