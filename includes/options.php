@@ -20,20 +20,13 @@ const DBE_OPTION = 'daveden_builder_enhancements';
  *
  * @return array<string,mixed>
  */
-function dbe_default_options() {
+function dbe_default_options(): array {
 	$defaults = array();
 	foreach ( dbe_features() as $id => $feature ) {
 		$defaults[ $id ] = empty( $feature['experimental'] );
 	}
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		$defaults[ $id ] = $setting['default'];
-	}
-	// Agent abilities: the master switch is opt-in, individual abilities
-	// default on underneath it, and destructive/code-executing (danger)
-	// abilities are individually opt-in as well.
-	$defaults['abilities_enabled'] = false;
-	foreach ( dbe_abilities() as $ability_id => $ability ) {
-		$defaults[ dbe_ability_option_key( $ability_id ) ] = empty( $ability['danger'] );
 	}
 	return $defaults;
 }
@@ -43,7 +36,7 @@ function dbe_default_options() {
  *
  * @return array<string,mixed>
  */
-function dbe_get_options() {
+function dbe_get_options(): array {
 	static $options = null;
 	if ( null === $options ) {
 		$options = wp_parse_args( (array) get_option( DBE_OPTION, array() ), dbe_default_options() );
@@ -61,7 +54,7 @@ function dbe_get_options() {
  *
  * @return bool
  */
-function dbe_builderius_pro_active() {
+function dbe_builderius_pro_active(): bool {
 	static $active = null;
 	if ( null === $active ) {
 		$plugin = 'builderius-pro/builderius-pro.php';
@@ -82,8 +75,8 @@ function dbe_builderius_pro_active() {
  * @param string $id Feature id from dbe_features().
  * @return bool
  */
-function dbe_enabled( $id ) {
-	if ( ! dbe_release_feature_available( $id ) ) {
+function dbe_enabled( string $id ): bool {
+	if ( ! dbe_feature_available( $id ) ) {
 		return false;
 	}
 	$options = dbe_get_options();
@@ -121,7 +114,7 @@ function dbe_enabled( $id ) {
  * @param string $id Feature id from dbe_features().
  * @return bool
  */
-function dbe_feature_output_permitted( $id ) {
+function dbe_feature_output_permitted( string $id ): bool {
 	if ( ! dbe_enabled( $id ) ) {
 		return false;
 	}
@@ -144,46 +137,12 @@ function dbe_feature_output_permitted( $id ) {
 }
 
 /**
- * Whether the agent abilities are enabled at all (the master switch).
- *
- * @return bool
- */
-function dbe_abilities_enabled() {
-	if ( ! dbe_release_feature_available( 'agent_abilities' ) ) {
-		return false;
-	}
-	$options = dbe_get_options();
-	return ! empty( $options['abilities_enabled'] );
-}
-
-/**
- * Whether one agent ability is active: the master switch AND its own toggle.
- *
- * Registration in includes/abilities.php gates on this, so a disabled
- * ability is never registered and never appears to a connected agent.
- *
- * @param string $ability_id Ability id from dbe_abilities(), e.g. "dbe/publish".
- * @return bool
- */
-function dbe_ability_enabled( $ability_id ) {
-	if ( ! dbe_abilities_enabled() ) {
-		return false;
-	}
-	$registry = dbe_abilities();
-	if ( ! isset( $registry[ $ability_id ] ) ) {
-		return false;
-	}
-	$options = dbe_get_options();
-	return ! empty( $options[ dbe_ability_option_key( $ability_id ) ] );
-}
-
-/**
  * An enum setting's current value.
  *
  * @param string $id Setting id from dbe_enum_settings().
  * @return string
  */
-function dbe_setting( $id ) {
+function dbe_setting( string $id ): string {
 	$options = dbe_get_options();
 	$enums   = dbe_enum_settings();
 	$value   = isset( $options[ $id ] ) ? (string) $options[ $id ] : '';
@@ -198,7 +157,7 @@ function dbe_setting( $id ) {
  *
  * @return bool
  */
-function dbe_any_enabled() {
+function dbe_any_enabled(): bool {
 	foreach ( array_keys( dbe_features() ) as $id ) {
 		if ( dbe_enabled( $id ) ) {
 			return true;
@@ -217,7 +176,7 @@ function dbe_any_enabled() {
  * @param mixed $input Raw posted value.
  * @return array<string,mixed>
  */
-function dbe_sanitise_options( $input ) {
+function dbe_sanitise_options( mixed $input ): array {
 	$input    = is_array( $input ) ? $input : array();
 	$clean    = array();
 	$features = dbe_features();
@@ -225,9 +184,9 @@ function dbe_sanitise_options( $input ) {
 	$pro      = dbe_builderius_pro_active();
 
 	foreach ( $features as $id => $feature ) {
-		// A feature staged for a later release has no field in this release's
-		// settings form. Preserve its saved value across a temporary downgrade.
-		if ( ! dbe_release_feature_available( $id ) ) {
+		// A staged or parent-replaced feature has no field in this settings form.
+		// Preserve its preference across a DBE or Builderius downgrade.
+		if ( ! dbe_feature_available( $id ) ) {
 			$clean[ $id ] = ! empty( $saved[ $id ] );
 			continue;
 		}
@@ -240,20 +199,6 @@ function dbe_sanitise_options( $input ) {
 		}
 		$clean[ $id ] = ! empty( $input[ $id ] );
 	}
-	if ( dbe_release_feature_available( 'agent_abilities' ) ) {
-		$clean['abilities_enabled'] = ! empty( $input['abilities_enabled'] );
-		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-			$key           = dbe_ability_option_key( $ability_id );
-			$clean[ $key ] = ! empty( $input[ $key ] );
-		}
-	} else {
-		$clean['abilities_enabled'] = ! empty( $saved['abilities_enabled'] );
-		foreach ( array_keys( dbe_abilities() ) as $ability_id ) {
-			$key           = dbe_ability_option_key( $ability_id );
-			$clean[ $key ] = ! empty( $saved[ $key ] );
-		}
-	}
-
 	foreach ( dbe_enum_settings() as $id => $setting ) {
 		// A select renders disabled whenever its parent feature is Pro-locked or
 		// simply switched off, and a disabled control is absent from the POST.

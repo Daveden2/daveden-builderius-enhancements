@@ -136,6 +136,10 @@ dialog.dbe-palette::backdrop { background: rgb(0 0 0 / 0.4); }
 	gap: 2px;
 	min-inline-size: 0;
 }
+.dbe-palette__label,
+.dbe-palette__reason {
+	overflow-wrap: anywhere;
+}
 .dbe-palette__reason {
 	font-size: 12px;
 	line-height: 1.35;

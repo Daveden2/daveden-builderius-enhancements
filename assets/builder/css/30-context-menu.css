@@ -13,6 +13,75 @@
     padding-block: 8px !important;
 }
 
+/* Builderius 1.3.6 positions the native Wrap in mini-modal from context-menu
+   pointer coordinates. DBE instead recalculates from the live Navigator panel
+   and row, including after browser zoom, then clamps the four-choice dialog to
+   the current viewport. */
+dialog.uniMiniModal.uniMiniModal--wrapIn.dbe-wrap-in-anchored {
+	position: fixed !important;
+	inset: auto !important;
+	margin: 0 !important;
+	translate: none !important;
+	max-inline-size: calc(100vw - 16px) !important;
+	max-block-size: calc(100vh - 16px) !important;
+}
+
+/* Auto-BEM is a long, multi-field editing task rather than a short branch
+   choice. Builderius still gives its native 1.3.6 dialog the context-menu
+   pointer coordinates, so explicitly retain the centred modal treatment used
+   by DBE's older fallback implementation. */
+dialog.uniMiniModal.uniMiniModal--autoBem {
+	position: fixed !important;
+	inset: 0 !important;
+	margin: auto !important;
+	inline-size: min(860px, calc(100vw - 32px)) !important;
+	max-inline-size: calc(100vw - 32px) !important;
+	max-block-size: calc(100vh - 32px) !important;
+}
+.uniMiniModal--autoBem .uniAutoBemModal__row {
+	grid-template-columns: minmax(0, 1fr) minmax(340px, .9fr) !important;
+}
+.uniMiniModal--autoBem .uniAutoBemModal__rowClassInput {
+	min-inline-size: 0 !important;
+	inline-size: 100% !important;
+}
+
+/* The stock close glyph is also its complete 8x9px hit area. Keep the glyph
+   compact but give its button a clear, WCAG-sized target and focus treatment. */
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton {
+	display: inline-grid !important;
+	place-items: center !important;
+	inline-size: 28px !important;
+	block-size: 28px !important;
+	min-inline-size: 28px !important;
+	min-block-size: 28px !important;
+	border-radius: var(--dbe-r-sm) !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton svg {
+	inline-size: 12px !important;
+	block-size: 12px !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton:hover {
+	background: var(--dbe-hover-wash) !important;
+}
+.uniMiniModal--wrapIn .uniMiniModal__header > .uniIconButton:focus-visible {
+	background: color-mix(in srgb, var(--dbe-focus) 10%, transparent) !important;
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: -2px !important;
+}
+
+/* Native and injected wrapping choices share one restrained interaction model:
+   a neutral hover wash, then a low-key accent wash plus one inset focus ring.
+   Keeping the ring inside avoids doubling the native option border. */
+.uniMiniModal--wrapIn .uniWrapInModal__option:hover {
+	background: var(--dbe-hover-wash) !important;
+}
+.uniMiniModal--wrapIn .uniWrapInModal__option:focus-visible {
+	background: color-mix(in srgb, var(--dbe-focus) 10%, transparent) !important;
+	outline: 2px solid var(--dbe-focus) !important;
+	outline-offset: -2px !important;
+}
+
 /* Cluster separator: a hairline plus a small gap, not a chunky pad. The row's
    own 8px top padding does the breathing; this only adds the rule + 4px. */
 .dbe-ctx-item--first { border-block-start: 1px solid var(--dbe-sep-line) !important; margin-block-start: 4px !important; padding-block-start: 8px !important; }
@@ -97,6 +166,11 @@ li.dbe-ctx-heading {
    keeps space for it and the label stays legible; keep each row on one line so
    the flyout widens to fit rather than wrapping the text around the badge. */
 .dbe-ctx-submenu li { white-space: nowrap !important; }
+.dbe-chip-menu .uniContextMenu__item {
+	max-inline-size: min(460px, calc(100vw - 32px)) !important;
+	white-space: normal !important;
+	overflow-wrap: anywhere !important;
+}
 .dbe-ctx-submenu .proBadge {
     position: static !important;
     inset: auto !important;

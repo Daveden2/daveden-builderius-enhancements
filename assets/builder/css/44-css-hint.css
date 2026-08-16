@@ -37,7 +37,7 @@
 .dbe-css-hint-btn:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
 .dbe-css-hint-btn:focus-visible {
     outline: 2px solid var(--dbe-focus);
-    outline-offset: 1px;
+    outline-offset: -2px;
 }
 /* Info dot. */
 .dbe-css-hint-i {
@@ -81,7 +81,7 @@
 .dbe-css-hint-dismiss:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
 .dbe-css-hint-dismiss:focus-visible {
     outline: 2px solid var(--dbe-focus);
-    outline-offset: 1px;
+    outline-offset: -2px;
 }
 /* Collapsed: only the info dot remains. */
 .dbe-css-hint.is-collapsed .dbe-css-hint-label,
@@ -140,7 +140,7 @@
 .dbe-css-hint-dialog__close:hover { color: var(--dbe-text); background: var(--dbe-hover-wash); }
 .dbe-css-hint-dialog__close:focus-visible {
     outline: 2px solid var(--dbe-focus);
-    outline-offset: 1px;
+    outline-offset: -2px;
 }
 .dbe-css-hint-dialog__body {
     padding-block: 12px;

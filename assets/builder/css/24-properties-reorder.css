@@ -30,7 +30,7 @@
 }
 .dbe-prop-reorder-btn:focus-visible {
     outline: 2px solid var(--dbe-focus) !important;
-    outline-offset: 1px !important;
+    outline-offset: -2px !important;
 }
 
 /* Drag-mode affordances on the property rows. */

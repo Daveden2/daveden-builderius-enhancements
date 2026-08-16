@@ -151,7 +151,6 @@ html[data-dbe-theme="light"] .uniModuleCssClassesSelect__list li .actions svg pa
 .uniPanelHeader__icons .uniPanelIconButton:hover {
     color: var(--dbe-text) !important;
 }
-
 /* --- Native context menu (a <dialog> in the top layer) --- */
 .uniBuilderContextMenu {
     background: var(--dbe-menu-bg) !important;
@@ -480,19 +479,19 @@ html[data-dbe-theme="light"] .uniAiChat__remoteTokenInput {
    a near-black tile — with the title on var(--base-2). Once --base-2 is remapped
    to a dark foreground (above) the tile is black-text-on-black. Repaint the
    tiles as light cards so the dark title reads; hover/focus carry the accent
-   like the inserter tiles. The plain "link" variant (WordPress Admin rows) is
-   transparent + var(--primary-4) and already themes via the palette remap, so
-   it's excluded — only its hover accent needs darkening. */
+   like the inserter tiles. The "link"/"action" variants (WordPress Admin rows)
+   are included: 80-builderius-menu.css restores their native card treatment,
+   so they take the same light repaint as every other row. */
 html[data-dbe-theme="light"] .uniNavigatorItems__items { border-top-color: var(--dbe-line) !important; }
-html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link) {
+html[data-dbe-theme="light"] .uniNavigatorItems__item {
     background: var(--dbe-l2) !important;
     border: 1px solid var(--dbe-line) !important;
     border-radius: var(--dbe-r-sm) !important;
     color: var(--dbe-text-2) !important;
     transition: background var(--dbe-t), border-color var(--dbe-t), color var(--dbe-t) !important;
 }
-html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):hover,
-html[data-dbe-theme="light"] .uniNavigatorItems__item:not(.uniNavigatorItems__item--link):focus-visible {
+html[data-dbe-theme="light"] .uniNavigatorItems__item:hover,
+html[data-dbe-theme="light"] .uniNavigatorItems__item:focus-visible {
     background: var(--dbe-l2-hi) !important;
     border-color: var(--dbe-accent) !important;
     color: var(--dbe-accent) !important;
@@ -503,7 +502,6 @@ html[data-dbe-theme="light"] .uniNavigatorItems__item[disabled] {
     color: var(--dbe-muted) !important;
 }
 html[data-dbe-theme="light"] .uniNavigatorItems__item:hover svg path { stroke: var(--dbe-accent) !important; }
-html[data-dbe-theme="light"] .uniNavigatorItems__item--link:hover { color: var(--dbe-accent) !important; }
 
 /* --- Leak audit pass 10: Navigator context-menu hover band --- */
 /* Native paints the hovered/open menu item with background: var(--primary-1)
@@ -957,7 +955,7 @@ html[data-dbe-theme="light"] .uniFormField__settingLabelInline.nonEmptyValue {
    base rule's
    !important also pins the native :focus-within/:active recolours to the
    same white-on-accent pair, so every state stays AA; the focus CUE is the
-   2px --dbe-focus ring from 13-focus.css, offset over the panel surface
+   2px --dbe-focus inset ring from 13-focus.css
    (≥3:1 against it in both themes). The icon takes currentColor so it
    tracks the label in every state. */
 html[data-dbe-theme="light"] .uniFooterPanelContent .uniPanelButtonSecondary,

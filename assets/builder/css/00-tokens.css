@@ -31,12 +31,19 @@ html[data-dbe-theme="light"]   { color-scheme: light; }
     --dbe-accent-tint: color-mix(in srgb, var(--dbe-accent) 12%, transparent);      /* hover wash on tree rows */
     --dbe-accent-tint-hi: color-mix(in srgb, var(--dbe-accent) 20%, var(--dbe-l1)); /* selected row / checked segment */
     --dbe-hover-wash: color-mix(in srgb, var(--dbe-text) 7%, transparent);          /* neutral hover on bars/buttons */
+    --dbe-icon-toggle-active-bg: var(--dbe-l2-hi);                                  /* persistent toolbar toggle surface */
+    --dbe-icon-toggle-active-hover-bg: color-mix(in srgb, var(--dbe-accent) 8%, var(--dbe-l2-hi));
     --dbe-sep-line: color-mix(in srgb, var(--dbe-text) 10%, transparent);           /* separators inside menus */
     --dbe-warn-line: var(--dbe-lvl-global); /* attention hairline (tooltip chip) */
 
     /* Radius — replaces the flat 3px throughout */
     --dbe-r-sm: 6px;   /* inputs, buttons, tabs, chips, tree rows */
     --dbe-r-md: 8px;   /* cards / tiles */
+
+    /* Top-toolbar rhythm: related controls stay tight, functional groups get
+       one extra step of separation. */
+    --dbe-topbar-item-gap: 4px;
+    --dbe-topbar-group-gap: 8px;
 
     --dbe-t: 120ms ease;
 }

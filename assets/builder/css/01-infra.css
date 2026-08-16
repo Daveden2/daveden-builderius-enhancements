@@ -44,7 +44,7 @@ html.dbe-auto-ctx dialog.uniBuilderContextMenu { visibility: hidden !important; 
 .dbe-undo-toast__action:focus-visible {
     border-radius: var(--dbe-r-sm) !important;
     outline: 2px solid var(--dbe-focus) !important;
-    outline-offset: 2px !important;
+    outline-offset: -2px !important;
 }
 .dbe-undo-toast__action:disabled { cursor: wait !important; opacity: .6 !important; }
 @media (prefers-reduced-motion: reduce) {

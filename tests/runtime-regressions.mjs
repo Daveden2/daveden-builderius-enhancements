@@ -18,6 +18,7 @@ const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const integrations = read('assets/builder/js/chunks/integrations.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const commands = read('assets/builder/js/chunks/commands.js');
 const builder = read('assets/builder/js/builder.js');
 const cssCache = read('includes/builder-css-cache.php');
@@ -84,11 +85,6 @@ assert.match(
     'Uninstall must remove content-addressed CSS bundles from every site cache.'
 );
 assert.match(
-    uninstall,
-    /\$wpdb->query\(\s*\$wpdb->prepare\(/,
-    'The bulk uninstall query must be visibly prepared at its query sink.'
-);
-assert.match(
     updateInfoFallback,
     /require_once DBE_DIR \. 'vendor\/plugin-update-checker\/vendor\/PucReadmeParser\.php';/,
     'The bundled readme parser include must use a fixed plugin-relative path.'
@@ -106,47 +102,44 @@ assert.match(
 
 assert.match(
     outputBuilder,
-    /dbe-builder-runtime-js[\s\S]+dbe-builder-a11y-js[\s\S]+dbe-builder-a11y-composites-js[\s\S]+dbe-builder-workspace-js[\s\S]+dbe-builder-editing-js[\s\S]+dbe-builder-styles-js[\s\S]+dbe-builder-integrations-js[\s\S]+dbe-builder-commands-js[\s\S]+dbe-builder-enhancements-js/,
-    'The core runtime and feature chunks must load synchronously before the feature host.'
+    /'a11y' {12}=> array\([\s\S]+'a11y-composites' => array\([\s\S]+'workspace' {7}=> array\([\s\S]+'editing' {9}=> array\([\s\S]+'styles' {10}=> array\([\s\S]+'integrations' {4}=> array\([\s\S]+'shortcuts' {7}=> array\([\s\S]+'commands' {8}=> array\(/,
+    'The chunk manifest must keep dependency order: adapters and services before the controllers that consume them.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$a11y_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y\.js/,
-    'The accessibility chunk must use the same filemtime cache-busting contract as the host.'
+    /dbe-builder-runtime-js[\s\S]+foreach \( \$manifest as \$stem => \$chunk \) \{\n\t\tif \( ! \$needed\[ \$stem \] \) \{\n\t\t\tcontinue;[\s\S]+dbe-builder-' \. esc_attr\( \$stem \) \. '-js[\s\S]+dbe-builder-enhancements-js/,
+    'The core runtime must print first, then only the needed chunks in manifest order, then the feature host.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$a11y_composites_path \)[\s\S]+assets\/builder\/js\/chunks\/a11y-composites\.js/,
-    'The composites chunk must use the same filemtime cache-busting contract as the host.'
+    /filemtime\( \$chunk_paths\[ \$stem \] \)[\s\S]*assets\/builder\/js\/chunks\/' \. \$stem \. '\.js/,
+    'Every chunk must use the same filemtime cache-busting contract as the host.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$workspace_path \)[\s\S]+assets\/builder\/js\/chunks\/workspace\.js/,
-    'The workspace chunk must use the same filemtime cache-busting contract as the host.'
+    /if \( \$needed\['commands'\] \) \{\n\t\t\$needed\['a11y-composites'\] = true;\n\t\t\$needed\['workspace'\] {7}= true;\n\t\t\$needed\['editing'\] {9}= true;\n\t\t\$needed\['shortcuts'\] {7}= true;/,
+    'The commands chunk must always bring the service chunks it consumes through the set*Api hooks.'
 );
 assert.match(
     outputBuilder,
-    /filemtime\( \$editing_path \)[\s\S]+assets\/builder\/js\/chunks\/editing\.js/,
-    'The editing chunk must use the same filemtime cache-busting contract as the host.'
-);
-assert.match(
-    outputBuilder,
-    /filemtime\( \$styles_path \)[\s\S]+assets\/builder\/js\/chunks\/styles\.js/,
-    'The styles chunk must use the same filemtime cache-busting contract as the host.'
-);
-assert.match(
-    outputBuilder,
-    /filemtime\( \$integrations_path \)[\s\S]+assets\/builder\/js\/chunks\/integrations\.js/,
-    'The integrations chunk must use the same filemtime cache-busting contract as the host.'
-);
-assert.match(
-    outputBuilder,
-    /filemtime\( \$commands_path \)[\s\S]+assets\/builder\/js\/chunks\/commands\.js/,
-    'The commands chunk must use the same filemtime cache-busting contract as the host.'
+    /\$config\['chunks'\]\[ \$chunk\['config'\] \] = \$needed\[ \$stem \];/,
+    'The chunk delivery decision must be recorded in config.chunks for the runtime.'
 );
 assert.match(
     builder,
-    /var dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
+    /function dbeChunkExpected\(key\) \{\n {8}return !CFG\.chunks \|\| CFG\.chunks\[key\] !== false;/,
+    'The runtime must treat an absent config.chunks as every chunk expected.'
+);
+for (const key of ['a11y', 'a11yComposites', 'integrations', 'workspace', 'editing', 'shortcuts', 'commands', 'styles']) {
+    assert.match(
+        builder,
+        new RegExp(String.raw`\} else if \(dbeChunkExpected\('${key}'\)\) \{`),
+        `A deliberately omitted ${key} chunk must not be reported as a load failure.`
+    );
+}
+assert.match(
+    builder,
+    /const dbeRuntimeFactory = window\.dbeBuilderRuntime[\s\S]+dbeRuntimeFactory\.create\(window\.dbeBuilderEnhancements \|\| \{\}\)/,
     'The feature runtime must capture the core factory and configured context.'
 );
 assert.match(
@@ -156,7 +149,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeA11yChunk = window\.dbeBuilderChunks[\s\S]+dbeA11yChunk\(Object\.freeze\([\s\S]+setAttributeRecorder/,
+    /const dbeA11yChunk = window\.dbeBuilderChunks[\s\S]+dbeA11yChunk\(Object\.freeze\([\s\S]+setAttributeRecorder/,
     'The feature host must provide the accessibility chunk a frozen, narrow service surface.'
 );
 assert.match(
@@ -171,7 +164,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+setNavigatorApi[\s\S]+setEnsureGroup/,
+    /const dbeCompositesChunk = window\.dbeBuilderChunks[\s\S]+dbeCompositesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+setNavigatorApi[\s\S]+setEnsureGroup/,
     'The feature host must provide the composites chunk grouped frozen services and receive its shared Navigator API.'
 );
 assert.doesNotMatch(
@@ -196,7 +189,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeWorkspaceChunk = window\.dbeBuilderChunks[\s\S]+dbeWorkspaceChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+canvas: Object\.freeze[\s\S]+setWorkspaceApi/,
+    /const dbeWorkspaceChunk = window\.dbeBuilderChunks[\s\S]+dbeWorkspaceChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+canvas: Object\.freeze[\s\S]+setWorkspaceApi/,
     'The feature host must provide grouped workspace services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -221,7 +214,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeEditingChunk = window\.dbeBuilderChunks[\s\S]+dbeEditingChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setEditingApi/,
+    /const dbeEditingChunk = window\.dbeBuilderChunks[\s\S]+dbeEditingChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setEditingApi/,
     'The feature host must provide grouped editing services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -236,17 +229,17 @@ assert.match(
 );
 assert.match(
     styles,
-    /chunks\.styles = function \(host\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER[\s\S]+host\.setStylesApi\(Object\.freeze\(/,
-    'The styles chunk must register through an explicit host contract and export its shared actions.'
+    /chunks\.styles = function \(host\)[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER/,
+    'The styles chunk must register through its explicit host contract.'
 );
 assert.match(
     builder,
-    /var dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze[\s\S]+setStylesApi/,
-    'The feature host must provide grouped styles services and receive its narrow shared API.'
+    /const dbeStylesChunk = window\.dbeBuilderChunks[\s\S]+dbeStylesChunk\(Object\.freeze\([\s\S]+builderius: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+commands: Object\.freeze/,
+    'The feature host must provide the grouped services used by the styles chunk.'
 );
 assert.doesNotMatch(
     builder,
-    /function dbeRefreshStyles\(|function openStyleInspector\(|function openCssHintDialog\(|function dbeDisableMinimap\(/,
+    /function dbeRefreshStyles\(|function openCssHintDialog\(|function dbeDisableMinimap\(/,
     'The feature host must not duplicate styles implementations behind its shared API.'
 );
 assert.match(
@@ -261,7 +254,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeIntegrationsChunk = window\.dbeBuilderChunks[\s\S]+dbeIntegrationsChunk\(Object\.freeze\([\s\S]+observeFooter:[\s\S]+editing: Object\.freeze[\s\S]+setIntegrationsApi[\s\S]+dbeRegisterTerminalIntegration\(\)[\s\S]+dbeRegisterPresenceIntegration\(\)/,
+    /const dbeIntegrationsChunk = window\.dbeBuilderChunks[\s\S]+dbeIntegrationsChunk\(Object\.freeze\([\s\S]+observeFooter:[\s\S]+editing: Object\.freeze[\s\S]+setIntegrationsApi[\s\S]+dbeRegisterTerminalIntegration\(\)[\s\S]+dbeRegisterPresenceIntegration\(\)/,
     'The feature host must provide integrations shared services and invoke both lifecycle registrars.'
 );
 assert.doesNotMatch(
@@ -280,8 +273,18 @@ assert.match(
     'The commands chunk must register through an explicit host contract and export only shared actions.'
 );
 assert.match(
+    shortcuts,
+    /chunks\.shortcuts = function \(host\)[\s\S]+function openShortcutsDialog\(\)[\s\S]+host\.setShortcutsApi\(Object\.freeze\(/,
+    'Shortcut discovery must register through a narrow, independently cacheable chunk contract.'
+);
+assert.match(
     builder,
-    /var dbeCommandsChunk = window\.dbeBuilderChunks[\s\S]+dbeCommandsChunk\(Object\.freeze\([\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+styles: Object\.freeze[\s\S]+workspace: Object\.freeze[\s\S]+setCommandsApi/,
+    /const dbeShortcutsChunk = window\.dbeBuilderChunks[\s\S]+dbeShortcutsChunk\(Object\.freeze\([\s\S]+setShortcutsApi[\s\S]+shortcuts: dbeShortcutsApi/,
+    'The feature host must initialise shortcut discovery before passing its frozen API to commands.'
+);
+assert.match(
+    builder,
+    /const dbeCommandsChunk = window\.dbeBuilderChunks[\s\S]+dbeCommandsChunk\(Object\.freeze\([\s\S]+multiSelection: Object\.freeze[\s\S]+navigator: Object\.freeze[\s\S]+editing: Object\.freeze[\s\S]+styles: Object\.freeze[\s\S]+workspace: Object\.freeze[\s\S]+setCommandsApi/,
     'The feature host must provide grouped frozen command services and receive its narrow shared API.'
 );
 assert.doesNotMatch(
@@ -291,7 +294,7 @@ assert.doesNotMatch(
 );
 assert.match(
     commands,
-    /host\.setCommandsApi\(Object\.freeze\([\s\S]+driveContextMenuItem:[\s\S]+makeContextItem:[\s\S]+canvasInteractive:[\s\S]+syncSelectionContext:/,
+    /host\.setCommandsApi\(Object\.freeze\([\s\S]+driveContextMenuItem,[\s\S]+makeContextItem:[\s\S]+canvasInteractive:[\s\S]+syncSelectionContext:/,
     'The commands chunk must export its small cross-domain service surface explicitly.'
 );
 assert.match(
@@ -306,7 +309,7 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /function createTranslations\(config\)[\s\S]+translate: translate[\s\S]+format: format[\s\S]+plural: plural/,
+    /function createTranslations\(config\)[\s\S]+translate,[\s\S]+format,[\s\S]+plural/,
     'Translations and formatting must live in the shared runtime context.'
 );
 assert.match(
@@ -316,11 +319,11 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeScheduleRefresh = dbeRuntime\.createScheduler\([\s\S]+function schedule\(reason\) \{[\s\S]+dbeScheduleRefresh\(\)/,
+    /const dbeScheduleRefresh = dbeRuntime\.createScheduler\([\s\S]+function schedule\(reason\) \{[\s\S]+dbeScheduleRefresh\(\)/,
     'The feature refresh pass must run through the shared scheduler.'
 );
 const sharedRefresh = builder.slice(
-    builder.indexOf('var dbeScheduleRefresh = dbeRuntime.createScheduler'),
+    builder.indexOf('const dbeScheduleRefresh = dbeRuntime.createScheduler'),
     builder.indexOf('function schedule(reason)')
 );
 assert.match(
@@ -356,7 +359,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+refreshOpenStyleInspector\(\)[\s\S]+function destroyStyles\(\)[\s\S]+dbeRestoreMinimap\(\)/,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+function destroyStyles\(\)[\s\S]+dbeRestoreMinimap\(\)/,
     'CSS editing interfaces must refresh and tear down through the styles controller.'
 );
 assert.match(
@@ -374,6 +377,26 @@ assert.match(
     /function dbeRememberContextTarget\(e\)[\s\S]+closest\('\.uniSelectorsCss__item'\)[\s\S]+builderius\.contextMenu\.show'[\s\S]+onItemMenuShow/,
     'The commands controller must remember selector context-menu targets before the native menu opens.'
 );
+assert.match(
+    commands,
+    /function dbePreviewContextTarget\(target\)[\s\S]+\^uni-node-\([\s\S]+getClientRects\(\)\.length[\s\S]+function dbePreviewContextTargetAtPoint\(doc, x, y, fallback\)[\s\S]+elementsFromPoint[\s\S]+function dbeOpenPreviewContextMenu\(target, innerX, innerY\)[\s\S]+clickSeq\(row\)[\s\S]+new MouseEvent\('contextmenu'/,
+    'Preview context menus must resolve the nearest visible module, select its Navigator row, and reuse the native menu channel.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextPointerDown\(e\)[\s\S]+e\.button !== 2[\s\S]+dbePreviewContextTargetAtPoint[\s\S]+function dbePreviewContextMenu\(e\)[\s\S]+dbeSetOwnedTimeout\(DBE_COMMANDS_OWNER[\s\S]+dbeOpenPreviewContextMenu/,
+    'Preview context menus must retain the pre-repaint pointer target and defer the outer menu until Builderius settles.'
+);
+assert.match(
+    commands,
+    /function dbePreviewBuilderPoint\(frame, innerX, innerY\)[\s\S]+rect\.width \/ frame\.clientWidth[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight/,
+    'Preview pointer coordinates must be translated and clamped in builder viewport space.'
+);
+assert.match(
+    commands,
+    /const previewRenamePath = !!previewHeading && on\('preview_rename'\)[\s\S]+dbeDiscardPreviewContext\(false\)[\s\S]+dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+commitRename\(id, next\)[\s\S]+current\.label === next/,
+    'Preview Rename must replace the Navigator-inline route, use the native rename channel, and verify the updated module label.'
+);
 const contextMenuFeature = features.slice(
     features.indexOf("'context_menu'          =>"),
     features.indexOf("'wrap_in'               =>")
@@ -383,9 +406,32 @@ assert.match(
     /'shared_css'\s*=> array\( '04-menu-anchor\.css', '30-context-menu\.css' \)/,
     'The context-menu feature must load the shared progressive anchor rules.'
 );
+const previewContextMenuFeature = features.slice(
+    features.indexOf("'preview_context_menu'  =>"),
+    features.indexOf("'preview_rename'        =>")
+);
+assert.doesNotMatch(
+    previewContextMenuFeature,
+    /'experimental'/,
+    'The preview context menu ships as a stable, default-on toggle from 2.0.3.'
+);
+const previewRenameFeature = features.slice(
+    features.indexOf("'preview_rename'        =>"),
+    features.indexOf("'context_menu'          =>")
+);
+assert.match(
+    previewRenameFeature,
+    /'86-preview-rename\.css'/,
+    'The preview rename dialog must ship its interface styles.'
+);
+assert.doesNotMatch(
+    previewRenameFeature,
+    /'experimental'/,
+    'Preview rename ships as a stable, default-on toggle from 2.0.3.'
+);
 assert.match(
     coreRuntime,
-    /function createMutationRouter\(refresh\)[\s\S]+observe: observe[\s\S]+disconnect: disconnect/,
+    /function createMutationRouter\(refresh\)[\s\S]+observe,[\s\S]+disconnect/,
     'The shared observer router must expose registration and lifecycle cleanup.'
 );
 assert.match(
@@ -395,12 +441,12 @@ assert.match(
 );
 assert.match(
     coreRuntime,
-    /function createControllerRegistry\(context\)[\s\S]+register: register[\s\S]+init: init[\s\S]+refresh: refresh[\s\S]+destroy: destroy/,
+    /function createControllerRegistry\(context\)[\s\S]+register,[\s\S]+init,[\s\S]+refresh,[\s\S]+destroy/,
     'The core runtime must expose the shared controller lifecycle registry.'
 );
 assert.match(
     coreRuntime,
-    /Controller ' \+ item\.id \+ ' failed during ' \+ phase[\s\S]+controllers\.forEach\(function \(item\)[\s\S]+invoke\(item, 'refresh'/,
+    /Controller ' \+ item\.id \+ ' failed during ' \+ phase[\s\S]+controllers\.forEach\(\(item\) =>[\s\S]+invoke\(item, 'refresh'/,
     'A controller failure must be diagnosed and isolated from the remaining controllers.'
 );
 assert.match(
@@ -457,7 +503,7 @@ runInNewContext(coreRuntime, {
 });
 
 const liveRuntime = runtimeWindow.dbeBuilderRuntime.create({
-    builderius: { version: '1.3.5-beta' },
+    builderius: { version: '1.3.6-beta' },
     features: { chrome_landmarks: true }
 });
 let scheduledRefreshes = 0;

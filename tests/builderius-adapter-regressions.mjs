@@ -20,17 +20,28 @@ const workspace = read('assets/builder/js/chunks/workspace.js');
 const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const commands = read('assets/builder/js/chunks/commands.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const outputBuilder = read('includes/output-builder.php');
 
 assert.match(
     outputBuilder,
-    /'builderius'\s*=> array\([\s\S]{0,180}'version'\s*=> function_exists\( 'builderius_get_version' \) \? builderius_get_version\(\) : ''/,
+    /'builderius'\s*=> array\([\s\S]{0,180}'version'\s*=> \$builderius_version/,
     'Builder config must carry the authoritative parent-plugin version.'
 );
 assert.match(
+    outputBuilder,
+    /'native'\s*=> array\([\s\S]{0,180}'elementShortcuts'\s*=>[\s\S]{0,180}version_compare\( \$builderius_version, '1\.3\.6-beta', '>=' \)/,
+    'Builder config must expose the native 1.3.6 element-shortcut boundary.'
+);
+assert.match(
+    outputBuilder,
+    /'shortcutPanel'\s*=>[\s\S]{0,120}version_compare\( \$builderius_version, '1\.3\.6-beta', '>=' \)/,
+    'Builder config must expose the native 1.3.6 shortcut-panel boundary.'
+);
+assert.match(
     coreRuntime,
-    /var DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.5-beta'/,
+    /const DBE_BUILDERIUS_ADAPTERS = \{[\s\S]+?'1\.3': \{[\s\S]+?testedVersion: '1\.3\.6-beta'/,
     'The audited Builderius 1.3 family must have an explicit tested version.'
 );
 assert.equal(
@@ -40,8 +51,13 @@ assert.equal(
 );
 assert.match(
     coreRuntime,
-    /var storeReference = window\[definition\.storeGlobal\][\s\S]+function store\(\) \{[\s\S]+return storeReference;/,
-    'The private store must be captured through the selected adapter before Builderius removes its globals.'
+    /function captureStore\(reference\)[\s\S]+typeof reference\.storeGet !== 'function'[\s\S]+typeof reference\.storeSet !== 'function'[\s\S]+function store\(\) \{[\s\S]+captureStore\(window\[definition\.bridgeGlobal\] \|\| window\[definition\.storeGlobal\]\)[\s\S]+return storeReference;/,
+    'The private store must be validated and captured through the selected adapter.'
+);
+assert.match(
+    outputBuilder,
+    /dbe-builder-store-bridge[\s\S]+var createElement = w\.React && w\.React\.createElement[\s\S]+hooks\.addFilter\('builderius\.FooterPanelExtraButtons', 'dbe-store-bridge'[\s\S]+w\.dbeBuilderiusStoreFns = props && props\.storeFns[\s\S]+createElement\(component, props\)[\s\S]+builderius\.api\.started/,
+    'Builderius Free must capture storeFns from an early head listener while rendering the existing footer extension unchanged.'
 );
 
 [
@@ -95,6 +111,16 @@ assert.match(
     commands,
     /function dbeObserveCommands\(\)[\s\S]+dbeQuery\('topPanel'\)[\s\S]+dbeQuery\('mainPanel'\)/,
     'Controller-owned command observer roots must resolve through the adapter host.'
+);
+assert.match(
+    commands,
+    /nativeElementShortcuts[\s\S]+!nativeElementShortcuts && e\.key === 'F2'[\s\S]+!nativeElementShortcuts && code === 'KeyD'[\s\S]+!nativeElementShortcuts && code === 'KeyX'/,
+    'DBE must leave native rename, duplicate and cut shortcuts to Builderius 1.3.6+.'
+);
+assert.match(
+    shortcuts,
+    /nativeShortcutPanel[\s\S]+function dbeNativeShortcutGroups\(\)[\s\S]+!pair\[2\][\s\S]+function ensureNativeShortcuts\(\)[\s\S]+\.uniTabShortcuts[\s\S]+dbe-native-shortcuts-group[\s\S]+function openShortcutsDialog\(\)[\s\S]+dbeOpenNativeShortcuts\(\)/,
+    'DBE must extend the native 1.3.6 shortcut panel instead of opening a duplicate reference.'
 );
 assert.match(
     coreRuntime,

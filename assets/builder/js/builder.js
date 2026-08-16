@@ -3,109 +3,103 @@
 
     /* core-runtime.js loads immediately before this feature runtime. Capture its
        private API once; all feature wiring remains toggle-gated below. */
-    var dbeRuntimeFactory = window.dbeBuilderRuntime;
+    const dbeRuntimeFactory = window.dbeBuilderRuntime;
     if (!dbeRuntimeFactory || typeof dbeRuntimeFactory.create !== 'function') {
         if (window.console && console.error) { console.error('[DBE] Core runtime failed to load; enhancements were not started.'); }
         return;
     }
-    var dbeRuntime = dbeRuntimeFactory.create(window.dbeBuilderEnhancements || {});
-    var CFG = dbeRuntime.config;
-    var on = dbeRuntime.on;
-    var dbeT = dbeRuntime.translate;
-    var dbeFmt = dbeRuntime.format;
-    var dbeTn = dbeRuntime.plural;
-    var dbeBuilderius = dbeRuntime.builderius;
-    var dbeSelector = dbeBuilderius.selector;
-    var dbeQuery = dbeBuilderius.query;
-    var dbeQueryAll = dbeBuilderius.queryAll;
-    var dbeNavigatorRow = dbeBuilderius.navigatorRow;
-    var store = dbeBuilderius.store;
-    var modules = dbeBuilderius.modules;
-    var activeId = dbeBuilderius.activeId;
-    var dbeControllers = dbeRuntime.createControllerRegistry(dbeRuntime);
+    const dbeRuntime = dbeRuntimeFactory.create(window.dbeBuilderEnhancements || {});
+    const CFG = dbeRuntime.config;
+    const on = dbeRuntime.on;
+    const dbeT = dbeRuntime.translate;
+    const dbeFmt = dbeRuntime.format;
+    const dbeTn = dbeRuntime.plural;
+    const dbeBuilderius = dbeRuntime.builderius;
+    const dbeSelector = dbeBuilderius.selector;
+    const dbeQuery = dbeBuilderius.query;
+    const dbeQueryAll = dbeBuilderius.queryAll;
+    const dbeNavigatorRow = dbeBuilderius.navigatorRow;
+    const store = dbeBuilderius.store;
+    const modules = dbeBuilderius.modules;
+    const activeId = dbeBuilderius.activeId;
+    const dbeControllers = dbeRuntime.createControllerRegistry(dbeRuntime);
 
-    var lastCtxId = null;
-    var dbeRememberChromeAttributes = function () {};
-    var NAV_ROW_SEL = 'button.uniModTree__item';
-    var navRootList = function () { return null; };
-    var navRowId = function () { return null; };
-    var navRowById = function () { return null; };
-    var navRowLi = function () { return null; };
-    var navRowExpandable = function () { return false; };
-    var navRowExpanded = function () { return false; };
-    var navParentRow = function () { return null; };
-    var navVisibleRows = function () { return []; };
-    var navFocus = function () {};
-    var navSelect = function () {};
-    var navToggleExpand = function () {};
-    var dbeFocusArea = function () {};
-    var dbeCompactActive = function () { return false; };
-    var dbePanelWrappers = function () { return { left: null, right: null }; };
-    var dbePanelSideHidden = function () { return false; };
-    var dbeToggleSidePanels = function () {};
-    var dbeSetPanelVisibility = function () {};
-    var driveContextMenuItem = function (id, label, callback) {
+    let lastCtxId = null;
+    let dbeRememberChromeAttributes = function () {};
+    let NAV_ROW_SEL = 'button.uniModTree__item';
+    let navRootList = function () { return null; };
+    let navRowId = function () { return null; };
+    let navRowById = function () { return null; };
+    let navRowLi = function () { return null; };
+    let navRowExpandable = function () { return false; };
+    let navRowExpanded = function () { return false; };
+    let navParentRow = function () { return null; };
+    let navVisibleRows = function () { return []; };
+    let navFocus = function () {};
+    let navSelect = function () {};
+    let navToggleExpand = function () {};
+    let dbeFocusArea = function () {};
+    let dbeCompactActive = function () { return false; };
+    let dbePanelWrappers = function () { return { left: null, right: null }; };
+    let dbePanelSideHidden = function () { return false; };
+    let dbeToggleSidePanels = function () {};
+    let dbeSetPanelVisibility = function () {};
+    let driveContextMenuItem = function (id, label, callback) {
         if (callback) { callback(false); }
     };
-    var makeCtxItem = function () { return null; };
-    var dbeCanvasInteractive = function () { return false; };
-    var dbeSetCanvasInteractive = function () { return false; };
-    var dbeSyncSelectionContext = function () {};
-    var scrollRowIntoTree = function () {};
-    var expandSubtree = function () {};
-    var driveSelectedClose = function (callback) {
+    let makeCtxItem = function () { return null; };
+    let dbeCanvasInteractive = function () { return false; };
+    let dbeSetCanvasInteractive = function () { return false; };
+    let dbeSyncSelectionContext = function () {};
+    let scrollRowIntoTree = function () {};
+    let expandSubtree = function () {};
+    let driveSelectedClose = function (callback) {
         if (callback) { callback(false); }
     };
     /* Editing-domain entry points are assigned by chunks/editing.js before the
        controller registry boots. Wrappers passed to earlier chunks resolve these
        late-bound functions only when an interaction actually runs. */
-    var storeMoveModule = function () { return false; };
-    var undoToast = function () {};
-    var renameActive = function () { return false; };
-    var moveSibling = function () {};
-    var indentElement = function () {};
-    var outdentElement = function () {};
-    var selectParentOf = function () {};
-    var startRename = function () {};
-    var defaultLabelFor = function () { return ''; };
-    var commitRename = function () {};
-    var wrap = function () {};
-    var unwrap = function () {};
-    var bemClassable = function () { return false; };
-    var openAutoBemDialog = function () {};
-    var dbeIndentTarget = function () { return null; };
-    var dbeCanOutdent = function () { return false; };
-    var dbeHtmlEditable = function () { return false; };
-    var openEditHtmlDialog = function () {};
-    var openImportHtmlDialog = function () {};
-    var DBE_HTML_MODULES = {};
-    var DBE_TAG_CHOICES = [];
-    var dbeChangeTagEligible = function () { return false; };
-    var dbeChangeTag = function () {};
-    var dbeCleanTagInput = function (value) { return value; };
-    var dbeInsertSection = function () {};
-    var dbeInsertSibling = function () {};
-    var dbeElementModule = function () { return null; };
-    var dbeDecodeEntities = function (value) { return value; };
-    var dbeAttrBlocked = function () { return false; };
-    var dbeUpdateModuleSettings = function () { return false; };
-    var dbeAddClasses = function () { return false; };
-    var dbeEmmetParse = function () { return null; };
-    var dbeEmmetStructureError = function () { return null; };
-    var dbeEmmetInsert = function () { return false; };
-    var dbeMoveLocation = function () { return null; };
-    var moduleClasses = function () { return []; };
-    var bemModuleTag = function () { return ''; };
-    var dbeHasUnsavedChanges = function () { return false; };
-    /* Styles-domain entry points are assigned after the commands chunk has
-       registered. Command wrappers resolve them only when an action runs. */
-    var dbeStyleActionItems = function () { return []; };
-    var openStyleInspector = function () {};
-    var dbeOpenStyleEditor = function () {};
-    var entityScopeLabel = function () { return ''; };
-    var dbePresenceDirtyChanged = function () {};
-    var dbeRegisterTerminalIntegration = function () {};
-    var dbeRegisterPresenceIntegration = function () {};
+    let storeMoveModule = function () { return false; };
+    let undoToast = function () {};
+    let renameActive = function () { return false; };
+    let moveSibling = function () {};
+    let indentElement = function () {};
+    let outdentElement = function () {};
+    let selectParentOf = function () {};
+    let startRename = function () {};
+    let defaultLabelFor = function () { return ''; };
+    let commitRename = function () {};
+    let wrap = function () {};
+    let unwrap = function () {};
+    let bemClassable = function () { return false; };
+    let openAutoBemDialog = function () {};
+    let dbeIndentTarget = function () { return null; };
+    let dbeCanOutdent = function () { return false; };
+    let dbeHtmlEditable = function () { return false; };
+    let openEditHtmlDialog = function () {};
+    let openImportHtmlDialog = function () {};
+    let DBE_HTML_MODULES = {};
+    let DBE_TAG_CHOICES = [];
+    let dbeChangeTagEligible = function () { return false; };
+    let dbeChangeTag = function () {};
+    let dbeCleanTagInput = function (value) { return value; };
+    let dbeInsertSection = function () {};
+    let dbeInsertSibling = function () {};
+    let dbeElementModule = function () { return null; };
+    let dbeDecodeEntities = function (value) { return value; };
+    let dbeAttrBlocked = function () { return false; };
+    let dbeUpdateModuleSettings = function () { return false; };
+    let dbeAddClasses = function () { return false; };
+    let dbeEmmetParse = function () { return null; };
+    let dbeEmmetStructureError = function () { return null; };
+    let dbeEmmetInsert = function () { return false; };
+    let dbeMoveLocation = function () { return null; };
+    let moduleClasses = function () { return []; };
+    let bemModuleTag = function () { return ''; };
+    let dbeHasUnsavedChanges = function () { return false; };
+    let dbePresenceDirtyChanged = function () {};
+    let dbeRegisterTerminalIntegration = function () {};
+    let dbeRegisterPresenceIntegration = function () {};
 
     /* The site's breakpoints, [{name:'--tablet', label:'Tablet', width:991}]
        in top-bar button order (base first, width:null for the base entry).
@@ -120,15 +114,15 @@
        are cached; the builder's own breakpoint actions invalidate the cache.
        A failed scan (panel not mounted yet) is NOT cached, so callers retry
        exactly as before. */
-    var dbeBpCache = null;
-    var dbeBpHooked = false;
+    let dbeBpCache = null;
+    let dbeBpHooked = false;
     function dbeHookBreakpointInvalidation() {
         if (dbeBpHooked) { return; }
         dbeBpHooked = true;
         try {
-            var hooks = window.Builderius.API.hooks;
-            ['builderius.breakpoints.set', 'builderius.Setting.breakpointsAndStrategyUpdated'].forEach(function (h) {
-                hooks.addAction(h, 'dbeBreakpointsCache', function () { dbeBpCache = null; });
+            const hooks = window.Builderius.API.hooks;
+            ['builderius.breakpoints.set', 'builderius.Setting.breakpointsAndStrategyUpdated'].forEach((h) => {
+                hooks.addAction(h, 'dbeBreakpointsCache', () => { dbeBpCache = null; });
             });
         } catch (e) { dbeBpHooked = false; } // hooks not ready — retry on the next call
     }
@@ -136,19 +130,19 @@
         if (dbeBpCache) { return dbeBpCache; }
         dbeHookBreakpointInvalidation();
         try {
-            var host = document.querySelector('.uniGlobalBreakpoints');
+            const host = document.querySelector('.uniGlobalBreakpoints');
             if (!host) { return null; }
-            var fk = Object.keys(host).find(function (k) { return k.indexOf('__reactFiber$') === 0; });
+            const fk = Object.keys(host).find((k) => { return k.indexOf('__reactFiber$') === 0; });
             if (!fk) { return null; }
-            var found = null;
+            let found = null;
             function scan(val, depth) {
                 if (found || !val || depth > 10) { return; }
                 if (Array.isArray(val)) {
-                    if (val.length && val.length < 20 && val.every(function (it) {
+                    if (val.length && val.length < 20 && val.every((it) => {
                         return it && typeof it === 'object' &&
                             typeof it.width === 'number' && typeof it.label === 'string' && 'name' in it;
                     })) { found = val; return; }
-                    for (var j = 0; j < val.length && !found; j++) { scan(val[j], depth + 1); }
+                    for (let j = 0; j < val.length && !found; j++) { scan(val[j], depth + 1); }
                     return;
                 }
                 if (typeof val === 'object') {
@@ -157,12 +151,12 @@
                     if (val.children) { scan(val.children, depth + 1); }
                 }
             }
-            var f = host[fk];
-            for (var i = 0; i < 12 && f && !found; i++, f = f.return) {
+            let f = host[fk];
+            for (let i = 0; i < 12 && f && !found; i++, f = f.return) {
                 scan(f.memoizedProps, 0);
             }
             if (!found) { return null; }
-            dbeBpCache = found.map(function (it) {
+            dbeBpCache = found.map((it) => {
                 return {
                     name: it.name || '',
                     label: it.label || '',
@@ -188,10 +182,10 @@
        "Remove N elements" deletes them all (each capture-undoable). Dragging
        a selected row brings the rest of the selection along (see the
        multi-drag block below). */
-    var dbeMultiSel = new Set();
-    var dbeMultiAnchor = null;
+    const dbeMultiSel = new Set();
+    let dbeMultiAnchor = null;
     // Case-insensitive: userAgentData reports "macOS", navigator.platform "MacIntel".
-    var dbeIsMac = /mac|ip(hone|ad|od)/i.test(
+    const dbeIsMac = /mac|ip(hone|ad|od)/i.test(
         (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
     );
 
@@ -205,7 +199,7 @@
         if (dbeIsMac) {
             return (o.ctrl ? '⌃' : '') + (o.alt ? '⌥' : '') + (o.shift ? '⇧' : '') + (o.cmd ? '⌘' : '') + key;
         }
-        var p = [];
+        const p = [];
         if (o.cmd || o.ctrl) { p.push('Ctrl'); }
         if (o.alt) { p.push('Alt'); }
         if (o.shift) { p.push('Shift'); }
@@ -228,8 +222,8 @@
     }
 
     function domRowIds() {
-        return [].slice.call(document.querySelectorAll('.uniRightPanel .uniModTree__item')).map(function (b) {
-            var m = b.className.toString().match(/uni-tree-node-(\w+)/);
+        return [].slice.call(document.querySelectorAll('.uniRightPanel .uniModTree__item')).map((b) => {
+            const m = b.className.toString().match(/uni-tree-node-(\w+)/);
             return m ? m[1] : null;
         }).filter(Boolean);
     }
@@ -237,7 +231,7 @@
     function toggleMultiSel(id) {
         // Seed with the current single selection so Cmd+click extends it.
         if (!dbeMultiSel.size) {
-            var act = activeId();
+            const act = activeId();
             if (act && act !== id) { dbeMultiSel.add(act); }
         }
         if (dbeMultiSel.has(id)) { dbeMultiSel.delete(id); } else { dbeMultiSel.add(id); }
@@ -246,13 +240,13 @@
     }
 
     function rangeMultiSel(id) {
-        var anchor = dbeMultiAnchor || activeId();
+        const anchor = dbeMultiAnchor || activeId();
         if (!anchor || anchor === id) { toggleMultiSel(id); return; }
-        var order = domRowIds();
-        var a = order.indexOf(anchor), b = order.indexOf(id);
+        const order = domRowIds();
+        let a = order.indexOf(anchor), b = order.indexOf(id);
         if (a === -1 || b === -1) { toggleMultiSel(id); return; }
-        if (a > b) { var t = a; a = b; b = t; }
-        for (var i = a; i <= b; i++) { dbeMultiSel.add(order[i]); }
+        if (a > b) { const t = a; a = b; b = t; }
+        for (let i = a; i <= b; i++) { dbeMultiSel.add(order[i]); }
         dbeMultiAnchor = id;
         schedule();
     }
@@ -262,8 +256,8 @@
        order). */
     function multiCtxIds() {
         if (dbeMultiSel.size < 2 || !lastCtxId || !dbeMultiSel.has(lastCtxId)) { return null; }
-        var mods = modules() || {};
-        return Object.keys(mods).filter(function (id) { return dbeMultiSel.has(id); });
+        const mods = modules() || {};
+        return Object.keys(mods).filter((id) => { return dbeMultiSel.has(id); });
     }
 
     function dbeSetDisabledReason(li, label, reason) {
@@ -279,8 +273,8 @@
         dbeSetDisabledReason(li, (li.textContent || '').trim(), reason);
         // Native items' React handlers sit on ancestor containers — stopping
         // propagation at the item blocks them without touching the handlers.
-        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-            li.addEventListener(t, function (ev) { ev.preventDefault(); ev.stopPropagation(); }, true);
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((t) => {
+            li.addEventListener(t, (ev) => { ev.preventDefault(); ev.stopPropagation(); }, true);
         });
     }
 
@@ -288,7 +282,7 @@
        fires Module.deleted, so each is individually undoable with Cmd+Z).
        Rows deleted along with a selected ancestor are skipped. */
     function removeMulti(ids, doneMsg) {
-        var i = 0, removed = 0, retried = false;
+        let i = 0, removed = 0, retried = false;
         function next() {
             if (i >= ids.length) {
                 undoToast(doneMsg || dbeFmt(dbeTn(removed,
@@ -296,9 +290,9 @@
                     'removedElementsMany', 'Deleted %s elements (Cmd+Z restores one at a time)'), removed), removed ? 'undo' : null);
                 return;
             }
-            var id = ids[i];
+            const id = ids[i];
             if (!document.querySelector('.uniRightPanel .uni-tree-node-' + id)) { i += 1; retried = false; next(); return; }
-            driveContextMenuItem(id, 'Remove', function (ok) {
+            driveContextMenuItem(id, 'Remove', (ok) => {
                 if (ok) { removed += 1; i += 1; retried = false; }
                 else if (!retried) { retried = true; } // one retry — the first menu can race the closing user menu
                 else { i += 1; retried = false; }
@@ -322,11 +316,12 @@
        it: the title attribute, and — Builderius labels many icons with a
        react-tooltip anchor (.tooltipItem[data-tooltip-content], one shared
        floating chip keyed off the hovered anchor's content) — the
-       data-tooltip-content, both on el itself (footer items carry it directly)
-       and on any inner wrapper (the breakpoint/reload icons wrap it a level
-       down). Dropping the content leaves the native chip nothing to show, so
-       only our .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it
-       self-heals after a React re-render re-adds the attribute. */
+       data-tooltip-content, both on el itself (footer items carry it directly),
+       on any inner wrapper (the breakpoint/reload icons wrap it a level down)
+       and on a wrapping tooltip anchor (panel-header and favourites controls).
+       Dropping the content leaves the native chip nothing to show, so only our
+       .dbe-tooltip appears. Runs every labelChromeIcons() pass, so it self-heals
+       after a React re-render re-adds the attribute. */
     function setTip(el, label) {
         if (!el) { return; }
         if (on('tooltips')) {
@@ -336,7 +331,13 @@
         if (!el.getAttribute('aria-label')) { el.setAttribute('aria-label', label); }
         if (el.hasAttribute('title')) { el.removeAttribute('title'); }
         if (el.hasAttribute('data-tooltip-content')) { el.removeAttribute('data-tooltip-content'); }
-        el.querySelectorAll('[data-tooltip-content]').forEach(function (a) {
+        const nativeAnchor = el.closest && el.closest('.tooltipItem[data-tooltip-content]');
+        if (nativeAnchor && nativeAnchor !== el) {
+            if (on('tooltips')) { dbeRememberChromeAttributes(nativeAnchor, ['data-tooltip-content', 'title']); }
+            nativeAnchor.removeAttribute('data-tooltip-content');
+            if (nativeAnchor.hasAttribute('title')) { nativeAnchor.removeAttribute('title'); }
+        }
+        el.querySelectorAll('[data-tooltip-content]').forEach((a) => {
             if (on('tooltips')) { dbeRememberChromeAttributes(a, ['data-tooltip-content']); }
             a.removeAttribute('data-tooltip-content');
         });
@@ -353,10 +354,10 @@
     function adoptNativeTips() {
         document.querySelectorAll(
             '.uniModTree__favouritesList [data-tooltip-content], .uniFooterPanelBar [data-tooltip-content]'
-        ).forEach(function (a) {
-            var label = (a.getAttribute('data-tooltip-content') || '').trim();
+        ).forEach((a) => {
+            const label = (a.getAttribute('data-tooltip-content') || '').trim();
             if (!label) { return; }
-            var control = a.matches('button, [role="button"]') ? a : a.querySelector('button, [role="button"]');
+            const control = a.matches('button, [role="button"]') ? a : a.querySelector('button, [role="button"]');
             setTip(control || a, label);
             // The tooltip anchor often wraps the actual favourite button. Once
             // its copy has moved onto the control, disable the duplicate native
@@ -373,9 +374,9 @@
         // favourite button's adopted label so each destructive action names
         // its target and uses the same tooltip treatment as the rest of the
         // favourites bar.
-        document.querySelectorAll('.uniModTree__favouritesListItem .closeIcon').forEach(function (btn) {
-            var favourite = btn.parentElement && btn.parentElement.querySelector('.modIcon');
-            var name = favourite && (
+        document.querySelectorAll('.uniModTree__favouritesListItem .closeIcon').forEach((btn) => {
+            const favourite = btn.parentElement && btn.parentElement.querySelector('.modIcon');
+            const name = favourite && (
                 favourite.getAttribute('data-dbe-favourite-name')
                 || favourite.getAttribute('aria-label')
                 || favourite.getAttribute('data-dbe-tip')
@@ -386,17 +387,17 @@
         });
     }
 
-    var DBE_TIPS = [
+    const DBE_TIPS = [
         ['.uniRightPanel .uniPanelHeader__icons .dbe-expand-all', dbeT('expandAllElements', 'Expand all elements')],
         ['.uniRightPanel .uniPanelHeader__icons .dbe-collapse-subtrees', dbeT('collapseSubtreesTip', 'Collapse subtrees (keeps top-level elements open)')],
         ['.uniLeftPanel .uniIconConditionsMode', dbeT('tipDynamicConditions', 'Dynamic data conditions')],
-        ['.uniLeftPanel .uniIconCssMode', dbeT('tipToggleCssEditor', 'Toggle CSS code editor')],
+        ['.uniIconCssMode', dbeT('tipToggleCssEditor', 'Enable CSS code editor')],
         ['.uniPanelButton--builderiusMenu', dbeT('tipBuilderiusMenu', 'Builderius menu')],
         ['.uniGlobalBreakpoints__modalIcon', dbeT('tipBreakpointSettings', 'Breakpoint settings')],
         ['.uniReloadIframeBtn', dbeT('tipReloadPreview', 'Reload preview')],
         ['.uniIconButton.caretIcon', dbeT('tipSaveOptions', 'Save options')],
         ['.uniModTree__footer button.uniPanelIconButton', dbeT('tipDeleteSelected', 'Delete selected element (click twice to confirm)')],
-        ['.uniModTree__footer .editFavouritesIcon', dbeT('tipEditFavourites', 'Edit favourite elements')],
+        ['.uniModTree__footer .editFavouritesIcon', dbeT('tipEditFavourites', 'Edit favourites')],
         ['.uniFooterPanelBar .collapsePanelIcon', dbeT('tipCollapseBottomPanel', 'Collapse bottom panel')],
         ['.uniBreakpointsTable__addNew', dbeT('tipAddBreakpoint', 'Add breakpoint')],
         ['.uniBreakpointsTable__delete', dbeT('tipDeleteBreakpoint', 'Delete breakpoint')],
@@ -411,7 +412,7 @@
     /* Fallback breakpoint labels, used only when dbeBreakpoints() can't read
        the real list from the builder. Order is base canvas first, then
        breakpoints large-to-small. */
-    var DBE_BP_LABELS = [
+    const DBE_BP_LABELS = [
         dbeT('bpFallbackBase', 'Base styles (full width)'),
         dbeT('bpFallbackDesktop', 'Desktop (max 1279px)'),
         dbeT('bpFallbackTablet', 'Tablet (max 991px)'),
@@ -419,8 +420,26 @@
     ];
 
     function labelChromeIcons() {
-        DBE_TIPS.forEach(function (pair) {
-            document.querySelectorAll(pair[0]).forEach(function (el) { setTip(el, pair[1]); });
+        DBE_TIPS.forEach((pair) => {
+            document.querySelectorAll(pair[0]).forEach((el) => { setTip(el, pair[1]); });
+        });
+        // Builderius 1.3.6 moved CSS code mode into a persistent top-toolbar
+        // toggle but exposes neither its name nor its pressed state. The class
+        // change is covered by the top-toolbar class observer, so keep the ARIA
+        // state in step with the native active class without a dedicated listener.
+        document.querySelectorAll('.uniTopPanelCssModeBtn').forEach((button) => {
+            const active = button.classList.contains('active');
+            const pressed = active ? 'true' : 'false';
+            const tip = active
+                ? dbeT('tipDisableCssEditor', 'Disable CSS code editor')
+                : dbeT('tipToggleCssEditor', 'Enable CSS code editor');
+            dbeRememberChromeAttributes(button, ['aria-pressed', 'data-dbe-tip']);
+            if (button.getAttribute('aria-pressed') !== pressed) {
+                button.setAttribute('aria-pressed', pressed);
+            }
+            if (button.getAttribute('data-dbe-tip') !== tip) {
+                button.setAttribute('data-dbe-tip', tip);
+            }
         });
         adoptNativeTips();
         // Snippet/variable list rows (the JavaScript and Dynamic Data footer
@@ -428,10 +447,10 @@
         // menu is icon-only with no name anywhere (4.1.2). Name it after the
         // row's own title, and declare the menu it pops open. Renaming
         // re-renders the row, so a stale name cannot outlive its item.
-        document.querySelectorAll('.uniTabDataVars__varsList ul li').forEach(function (row) {
-            var btn = row.querySelector('button.iconBoxWrapper');
+        document.querySelectorAll('.uniTabDataVars__varsList ul li').forEach((row) => {
+            const btn = row.querySelector('button.iconBoxWrapper');
             if (!btn) { return; }
-            var title = row.querySelector('button.varTitle');
+            let title = row.querySelector('button.varTitle');
             title = title ? (title.textContent || '').trim() : '';
             setTip(btn, title
                 ? dbeFmt(dbeT('tipItemActions', 'Actions for %s'), title)
@@ -444,9 +463,9 @@
         // Top-bar breakpoint buttons carry no name anywhere in the DOM; label
         // them from the site's real breakpoints (order matches the buttons:
         // base first, then large-to-small), falling back to the static list.
-        var bps = dbeBreakpoints();
-        document.querySelectorAll('.uniPanelButtonBreakpoint').forEach(function (b, i) {
-            var bp = bps && bps[i];
+        const bps = dbeBreakpoints();
+        document.querySelectorAll('.uniPanelButtonBreakpoint').forEach((b, i) => {
+            const bp = bps && bps[i];
             if (bp) {
                 setTip(b, bp.width ? dbeFmt(dbeT('bpMax', '%1$s (max %2$spx)'), bp.label, bp.width) : dbeFmt(dbeT('bpBase', '%s (base styles, full width)'), bp.label));
             } else {
@@ -456,9 +475,12 @@
         // The stock Navigator button is a collapse-all/expand-all toggle whose
         // icon swaps per click — label follows the icon (collapse-all state
         // draws the "M0.53125 7..." bar path).
-        var stock = document.querySelector('.uniRightPanel .uniPanelHeader__icons > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees)');
+        const stock = document.querySelector(
+            '.uniRightPanel .uniPanelHeader__icons > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees), ' +
+            '.uniRightPanel .uniPanelHeader__icons > .tooltipItem > button:not(.dbe-expand-all):not(.dbe-collapse-subtrees)'
+        );
         if (stock) {
-            var d = stock.querySelector('svg path');
+            let d = stock.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
             setTip(stock, d.indexOf('M0.53125') === 0 ? dbeT('collapseAll', 'Collapse all') : dbeT('expandAll', 'Expand all'));
         }
@@ -467,21 +489,24 @@
         // as the Navigator (here it folds the element GROUPS), plus a close X
         // (onClick = closeLeftPanelPage, so "panel" not "Inserter" — the header
         // component is shared by every left-panel page).
-        document.querySelectorAll('.uniLeftPanel .uniPanelHeader__icons > button').forEach(function (b) {
+        document.querySelectorAll(
+            '.uniLeftPanel .uniPanelHeader__icons > button, ' +
+            '.uniLeftPanel .uniPanelHeader__icons > .tooltipItem > button'
+        ).forEach((b) => {
             if (/dbe-|uniIconCssMode|uniIconConditionsMode/.test(b.className)) { return; }
-            var d = b.querySelector('svg path');
+            let d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
             if (d.indexOf('M0.53125') === 0) { setTip(b, dbeT('collapseAllGroups', 'Collapse all groups')); }
-            else if (d.indexOf('M11.6445') === 0) { setTip(b, dbeT('expandAllGroups', 'Expand all groups')); }
+            else if (d.indexOf('M11.6445') === 0 || d.indexOf('M13.6445') === 0) { setTip(b, dbeT('expandAllGroups', 'Expand all groups')); }
             else if (d.indexOf('M11.9198') === 0) { setTip(b, dbeT('closePanel', 'Close panel')); }
         });
         // Top-bar right: the square icon hides both side panels for a full-width
         // canvas (verified: right panel unmounts, canvas 1392 -> 1652, .active
         // marks the hidden state); the eye opens the entity's front-end URL in
         // a new browser tab.
-        document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton').forEach(function (b) {
+        document.querySelectorAll('.uniTopPanel__rightCol :is(.uniPanelButton, .uniPanelIconButton)').forEach((b) => {
             if ((b.textContent || '').trim()) { return; }
-            var d = b.querySelector('svg path');
+            let d = b.querySelector('svg path');
             d = d ? (d.getAttribute('d') || '') : '';
             if (d.indexOf('M14.4551') === 0) {
                 setTip(b, b.classList.contains('active') ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)'));
@@ -500,11 +525,11 @@
        clear of the busy toolbar row rather than overlapping a neighbour beside
        it. Anchored to the element, not the cursor, so keyboard focus behaves
        identically. */
-    var tipEl = null, tipTimer = null, tipTarget = null;
+    let tipEl = null, tipTimer = null, tipTarget = null;
     function placeTip(r, w, h) {
-        var M = 4, G = 8;
-        var clampX = function (x) { return Math.min(Math.max(M, x), window.innerWidth - w - M); };
-        var clampY = function (y) { return Math.min(Math.max(M, y), window.innerHeight - h - M); };
+        const M = 4, G = 8;
+        const clampX = function (x) { return Math.min(Math.max(M, x), window.innerWidth - w - M); };
+        const clampY = function (y) { return Math.min(Math.max(M, y), window.innerHeight - h - M); };
         // 1. Above, centred — anything with headroom.
         if (r.top - h - G >= M) {
             return [clampX(r.left + r.width / 2 - w / 2), r.top - h - G];
@@ -514,8 +539,8 @@
             return [clampX(r.left + r.width / 2 - w / 2), r.bottom + G];
         }
         // 3. Beside, vertically centred — last resort (no room above or below).
-        var spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
-        var x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
+        const spaceRight = window.innerWidth - r.right, spaceLeft = r.left;
+        const x = spaceRight >= spaceLeft ? r.right + G : r.left - w - G;
         return [clampX(x), clampY(r.top + r.height / 2 - h / 2)];
     }
     /* Where to mount the chip. A chip on <body> renders BEHIND a showModal()
@@ -525,28 +550,28 @@
        the backdrop. These dialogs carry no transform/filter, so the chip's
        position:fixed viewport coordinates still hold. Everything else uses body. */
     function tipHost(target) {
-        var dlg = target.closest && target.closest('dialog');
+        const dlg = target.closest && target.closest('dialog');
         if (dlg) { try { if (dlg.matches(':modal')) { return dlg; } } catch (e) {} }
         return document.body;
     }
     function showTip(target, instant) {
-        var label = target.getAttribute('data-dbe-tip');
+        const label = target.getAttribute('data-dbe-tip');
         if (!label) { return; }
         clearTimeout(tipTimer);
         tipTarget = target;
-        tipTimer = setTimeout(function () {
+        tipTimer = setTimeout(() => {
             if (tipTarget !== target || !document.contains(target)) { return; }
             if (!tipEl) {
                 tipEl = document.createElement('div');
                 tipEl.className = 'dbe-tooltip';
                 tipEl.setAttribute('aria-hidden', 'true');
             }
-            var host = tipHost(target);
+            const host = tipHost(target);
             if (tipEl.parentNode !== host) { host.appendChild(tipEl); }
             tipEl.textContent = label;
-            var r = target.getBoundingClientRect();
+            const r = target.getBoundingClientRect();
             tipEl.style.left = '0px'; tipEl.style.top = '0px';
-            var pos = placeTip(r, tipEl.offsetWidth, tipEl.offsetHeight);
+            const pos = placeTip(r, tipEl.offsetWidth, tipEl.offsetHeight);
             tipEl.style.left = pos[0] + 'px'; tipEl.style.top = pos[1] + 'px';
             tipEl.classList.add('is-visible');
         }, instant ? 0 : 250);
@@ -556,14 +581,14 @@
         tipTarget = null;
         if (tipEl) { tipEl.classList.remove('is-visible'); }
     }
-    var dbeTooltipsBound = false;
+    let dbeTooltipsBound = false;
     function dbeTooltipMouseover(e) {
-        var t = e.target.closest && e.target.closest('[data-dbe-tip]');
+        const t = e.target.closest && e.target.closest('[data-dbe-tip]');
         if (t) { if (t !== tipTarget) { showTip(t, false); } }
         else if (tipTarget) { hideTip(); }
     }
     function dbeTooltipFocusin(e) {
-        var t = e.target.closest && e.target.closest('[data-dbe-tip]');
+        const t = e.target.closest && e.target.closest('[data-dbe-tip]');
         if (t) { showTip(t, true); }
     }
     function dbeTooltipKeydown(e) { if (e.key === 'Escape') { hideTip(); } }
@@ -592,8 +617,8 @@
     }
 
     function clickSeq(el) {
-        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-            var Ev = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((t) => {
+            const Ev = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
             el.dispatchEvent(new Ev(t, { bubbles: true, cancelable: true, view: window }));
         });
     }
@@ -602,9 +627,10 @@
        callbacks suppress animation frames; controller-owned calls still use
        the host lifecycle so teardown can cancel them. */
     function waitFor(test, cb, maxTries, owner) {
-        var n = 0, max = maxTries || 60;
+        let n = 0;
+        const max = maxTries || 60;
         (function loop() {
-            var v; try { v = test(); } catch (e) { v = null; }
+            let v; try { v = test(); } catch (e) { v = null; }
             if (v) { cb(v); }
             else if (n++ < max) {
                 if (owner) { dbeSetOwnedTimeout(owner, loop, 25); }
@@ -614,26 +640,26 @@
         })();
     }
 
-    var dbeOwnedAttributeRecords = [];
-    var dbeGroupBindings = [];
-    var dbeOwnedEventBindings = [];
-    var dbeOwnedTimers = [];
-    var dbeOwnedIntervals = [];
-    var dbeOwnedFrames = [];
-    var dbeOwnedHookBindings = [];
-    var dbeOwnedHookApi = null;
-    var dbeEnsureGroup = function () {};
+    let dbeOwnedAttributeRecords = [];
+    let dbeGroupBindings = [];
+    let dbeOwnedEventBindings = [];
+    let dbeOwnedTimers = [];
+    let dbeOwnedIntervals = [];
+    let dbeOwnedFrames = [];
+    let dbeOwnedHookBindings = [];
+    let dbeOwnedHookApi = null;
+    let dbeEnsureGroup = function () {};
     function dbePruneGroupState() {
-        dbeGroupBindings = dbeGroupBindings.filter(function (binding) {
+        dbeGroupBindings = dbeGroupBindings.filter((binding) => {
             if (binding.node.isConnected) { return true; }
             binding.node.removeEventListener('keydown', binding.handler);
             if (binding.frame) { cancelAnimationFrame(binding.frame); }
             return false;
         });
-        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter(function (record) {
+        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter((record) => {
             return record.node.isConnected;
         });
-        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) {
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter((binding) => {
             if (binding.node === document || typeof binding.node.isConnected !== 'boolean' || binding.node.isConnected) { return true; }
             binding.node.removeEventListener(binding.type, binding.handler, binding.options);
             return false;
@@ -641,64 +667,64 @@
     }
     function dbeRememberOwnedAttributes(owner, node, attributes) {
         if (!owner || !node) { return; }
-        var record = dbeOwnedAttributeRecords.filter(function (item) {
+        let record = dbeOwnedAttributeRecords.filter((item) => {
             return item.owner === owner && item.node === node;
         })[0];
         if (!record) {
-            record = { owner: owner, node: node, attributes: {} };
+            record = { owner, node, attributes: {} };
             dbeOwnedAttributeRecords.push(record);
         }
-        attributes.forEach(function (name) {
+        attributes.forEach((name) => {
             if (Object.prototype.hasOwnProperty.call(record.attributes, name)) { return; }
             record.attributes[name] = node.hasAttribute(name) ? node.getAttribute(name) : null;
         });
     }
     function dbeRestoreOwnedAttributes(owner) {
-        dbeOwnedAttributeRecords.filter(function (record) { return record.owner === owner; }).forEach(function (record) {
-            Object.keys(record.attributes).forEach(function (name) {
-                var value = record.attributes[name];
+        dbeOwnedAttributeRecords.filter((record) => { return record.owner === owner; }).forEach((record) => {
+            Object.keys(record.attributes).forEach((name) => {
+                const value = record.attributes[name];
                 if (value === null) { record.node.removeAttribute(name); }
                 else { record.node.setAttribute(name, value); }
             });
         });
-        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter(function (record) { return record.owner !== owner; });
+        dbeOwnedAttributeRecords = dbeOwnedAttributeRecords.filter((record) => { return record.owner !== owner; });
     }
     function dbeDestroyOwnedGroups(owner) {
-        dbeGroupBindings.filter(function (binding) { return binding.owner === owner; }).forEach(function (binding) {
+        dbeGroupBindings.filter((binding) => { return binding.owner === owner; }).forEach((binding) => {
             binding.node.removeEventListener('keydown', binding.handler);
             if (binding.frame) { cancelAnimationFrame(binding.frame); }
         });
-        dbeGroupBindings = dbeGroupBindings.filter(function (binding) { return binding.owner !== owner; });
+        dbeGroupBindings = dbeGroupBindings.filter((binding) => { return binding.owner !== owner; });
         dbeRestoreOwnedAttributes(owner);
     }
     function dbeBindOwnedEvent(owner, node, key, type, handler, options) {
-        if (!owner || !node || dbeOwnedEventBindings.some(function (binding) {
+        if (!owner || !node || dbeOwnedEventBindings.some((binding) => {
             return binding.owner === owner && binding.node === node && binding.key === key;
         })) { return; }
         node.addEventListener(type, handler, options);
         dbeOwnedEventBindings.push({
-            owner: owner,
-            node: node,
-            key: key,
-            type: type,
-            handler: handler,
-            options: options
+            owner,
+            node,
+            key,
+            type,
+            handler,
+            options
         });
     }
     function dbeUnbindOwnedEvent(owner, node, key) {
-        dbeOwnedEventBindings.filter(function (binding) {
+        dbeOwnedEventBindings.filter((binding) => {
             return binding.owner === owner && binding.node === node && binding.key === key;
-        }).forEach(function (binding) {
+        }).forEach((binding) => {
             binding.node.removeEventListener(binding.type, binding.handler, binding.options);
         });
-        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) {
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter((binding) => {
             return binding.owner !== owner || binding.node !== node || binding.key !== key;
         });
     }
     function dbeSetOwnedTimeout(owner, callback, delay) {
-        var timer = { owner: owner, id: 0 };
-        timer.id = setTimeout(function () {
-            dbeOwnedTimers = dbeOwnedTimers.filter(function (item) { return item !== timer; });
+        const timer = { owner, id: 0 };
+        timer.id = setTimeout(() => {
+            dbeOwnedTimers = dbeOwnedTimers.filter((item) => { return item !== timer; });
             callback();
         }, delay);
         dbeOwnedTimers.push(timer);
@@ -707,41 +733,41 @@
     function dbeClearOwnedTimeout(owner, id) {
         if (!id) { return; }
         clearTimeout(id);
-        dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) {
+        dbeOwnedTimers = dbeOwnedTimers.filter((timer) => {
             return timer.owner !== owner || timer.id !== id;
         });
     }
     function dbeSetOwnedInterval(owner, callback, delay) {
-        var interval = { owner: owner, id: setInterval(callback, delay) };
+        const interval = { owner, id: setInterval(callback, delay) };
         dbeOwnedIntervals.push(interval);
         return interval.id;
     }
     function dbeSetOwnedFrame(owner, callback) {
-        var frame = { owner: owner, id: 0 };
-        frame.id = requestAnimationFrame(function () {
-            dbeOwnedFrames = dbeOwnedFrames.filter(function (item) { return item !== frame; });
+        const frame = { owner, id: 0 };
+        frame.id = requestAnimationFrame(() => {
+            dbeOwnedFrames = dbeOwnedFrames.filter((item) => { return item !== frame; });
             callback();
         });
         dbeOwnedFrames.push(frame);
         return frame.id;
     }
     function dbeDestroyOwnedActivity(owner) {
-        dbeOwnedEventBindings.filter(function (binding) { return binding.owner === owner; }).forEach(function (binding) {
+        dbeOwnedEventBindings.filter((binding) => { return binding.owner === owner; }).forEach((binding) => {
             binding.node.removeEventListener(binding.type, binding.handler, binding.options);
         });
-        dbeOwnedEventBindings = dbeOwnedEventBindings.filter(function (binding) { return binding.owner !== owner; });
-        dbeOwnedTimers.filter(function (timer) { return timer.owner === owner; }).forEach(function (timer) {
+        dbeOwnedEventBindings = dbeOwnedEventBindings.filter((binding) => { return binding.owner !== owner; });
+        dbeOwnedTimers.filter((timer) => { return timer.owner === owner; }).forEach((timer) => {
             clearTimeout(timer.id);
         });
-        dbeOwnedTimers = dbeOwnedTimers.filter(function (timer) { return timer.owner !== owner; });
-        dbeOwnedIntervals.filter(function (interval) { return interval.owner === owner; }).forEach(function (interval) {
+        dbeOwnedTimers = dbeOwnedTimers.filter((timer) => { return timer.owner !== owner; });
+        dbeOwnedIntervals.filter((interval) => { return interval.owner === owner; }).forEach((interval) => {
             clearInterval(interval.id);
         });
-        dbeOwnedIntervals = dbeOwnedIntervals.filter(function (interval) { return interval.owner !== owner; });
-        dbeOwnedFrames.filter(function (frame) { return frame.owner === owner; }).forEach(function (frame) {
+        dbeOwnedIntervals = dbeOwnedIntervals.filter((interval) => { return interval.owner !== owner; });
+        dbeOwnedFrames.filter((frame) => { return frame.owner === owner; }).forEach((frame) => {
             cancelAnimationFrame(frame.id);
         });
-        dbeOwnedFrames = dbeOwnedFrames.filter(function (frame) { return frame.owner !== owner; });
+        dbeOwnedFrames = dbeOwnedFrames.filter((frame) => { return frame.owner !== owner; });
     }
     function dbeOwnedHooksApi() {
         if (dbeOwnedHookApi) { return dbeOwnedHookApi; }
@@ -749,21 +775,21 @@
         return dbeOwnedHookApi;
     }
     function dbeBindOwnedHook(owner, hook, namespace, callback) {
-        var api = dbeOwnedHooksApi();
-        if (!owner || !api || typeof api.addAction !== 'function' || dbeOwnedHookBindings.some(function (item) {
+        const api = dbeOwnedHooksApi();
+        if (!owner || !api || typeof api.addAction !== 'function' || dbeOwnedHookBindings.some((item) => {
             return item.owner === owner && item.hook === hook && item.namespace === namespace;
         })) { return; }
         api.addAction(hook, namespace, callback);
-        dbeOwnedHookBindings.push({ owner: owner, hook: hook, namespace: namespace });
+        dbeOwnedHookBindings.push({ owner, hook, namespace });
     }
     function dbeDestroyOwnedHooks(owner) {
-        var api = dbeOwnedHooksApi();
+        const api = dbeOwnedHooksApi();
         if (api && typeof api.removeAction === 'function') {
-            dbeOwnedHookBindings.filter(function (item) { return item.owner === owner; }).forEach(function (item) {
+            dbeOwnedHookBindings.filter((item) => { return item.owner === owner; }).forEach((item) => {
                 api.removeAction(item.hook, item.namespace);
             });
         }
-        dbeOwnedHookBindings = dbeOwnedHookBindings.filter(function (item) { return item.owner !== owner; });
+        dbeOwnedHookBindings = dbeOwnedHookBindings.filter((item) => { return item.owner !== owner; });
         // Builderius removes window.Builderius after boot. Retain only this API
         // reference so controllers can unsubscribe and later initialise again.
     }
@@ -777,7 +803,7 @@
        the registrations as one set so the detached node is released. The two
        observers with specialised callbacks (preview-document editing state and
        the temporary canvas-width guard) deliberately remain independent. */
-    var dbeChromeObserver = dbeRuntime.createMutationRouter(schedule);
+    const dbeChromeObserver = dbeRuntime.createMutationRouter(schedule);
     function dbeObserveChrome(key, node, options) {
         dbeChromeObserver.observe(key, node, options);
     }
@@ -787,14 +813,14 @@
        active. */
     function dbeObserveFooter(bar, owner) {
         if (!window.MutationObserver) { return; }
-        var prefix = owner || 'footer-shared';
+        const prefix = owner || 'footer-shared';
         if (bar) {
             // Bar: button active/locked class + add/remove (small subtree).
             dbeObserveChrome(prefix + '-bar', bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
         }
         // Panel: open/collapse (content mounts/unmounts, height/style change).
         // Shallow — no subtree — so the Monaco editors inside do not spam it.
-        var fp = dbeQuery('footerPanel');
+        const fp = dbeQuery('footerPanel');
         if (fp) {
             dbeObserveChrome(prefix + '-panel', fp, { childList: true, attributes: true, attributeFilter: ['class', 'style'] });
         }
@@ -803,7 +829,7 @@
         // shallow panel observer above cannot see. childList-only, so the
         // Monaco editors deeper inside still do not spam it. Node-tracked:
         // the content remounts when the tool or scope switches.
-        var sc = document.querySelector('.uniFooterTabScopeContent');
+        const sc = document.querySelector('.uniFooterTabScopeContent');
         if (sc) {
             dbeObserveChrome(prefix + '-scope-content', sc, { childList: true });
         }
@@ -815,37 +841,45 @@
     }
 
     /* Which feature groups need which wiring. */
-    var NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
-    var NEED_NAV_BUTTONS = on('collapse_expand_all');
-    var NEED_STYLES = on('css_code_default') || on('scope_bar') || on('style_inspector') ||
+    const NEED_TREE = on('tag_badges') || on('icon_declutter') || on('tree_row_styling') || on('multi_select');
+    const NEED_NAV_BUTTONS = on('collapse_expand_all');
+    const NEED_STYLES = on('css_code_default') || on('scope_bar') ||
         on('css_hint_dialog') || on('hide_minimap');
-    var NEED_CTX_MENU = on('context_menu') || on('style_inspector') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
+    const NEED_CTX_MENU = on('preview_context_menu') || on('context_menu') || on('wrap_in') || on('inline_rename') || on('multi_select') || on('collapse_expand_all') || on('auto_bem') || on('element_moves') || on('keyboard_shortcuts') || on('edit_as_html') || on('import_html') || on('tag_change');
 
-    var dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
+    /* PHP skips a chunk's script tag when every feature it serves is disabled
+       and records the decision in config.chunks, so only an EXPECTED chunk
+       that is absent counts as a load failure worth reporting. An absent
+       config.chunks (older PHP output) keeps every chunk expected. */
+    function dbeChunkExpected(key) {
+        return !CFG.chunks || CFG.chunks[key] !== false;
+    }
+
+    const dbeA11yChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11y;
     if (typeof dbeA11yChunk === 'function') {
         dbeA11yChunk(Object.freeze({
-            on: on,
+            on,
             translate: dbeT,
             query: dbeQuery,
             controllers: dbeControllers,
             observe: dbeObserveChrome,
             areaAriaShortcut: dbeAreaAriaShortcut,
-            bindTooltips: bindTooltips,
-            unbindTooltips: unbindTooltips,
-            labelChromeIcons: labelChromeIcons,
-            setAttributeRecorder: function (callback) { dbeRememberChromeAttributes = callback; }
+            bindTooltips,
+            unbindTooltips,
+            labelChromeIcons,
+            setAttributeRecorder (callback) { dbeRememberChromeAttributes = callback; }
         }));
-    } else {
+    } else if (dbeChunkExpected('a11y')) {
         document.documentElement.dataset.dbeChunkError = 'a11y:missing';
         if (window.console && console.error) {
             console.error('[DBE] Accessibility chunk failed to load; chrome accessibility enhancements were not started.');
         }
     }
 
-    var dbeCompositesChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11yComposites;
+    const dbeCompositesChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.a11yComposites;
     if (typeof dbeCompositesChunk === 'function') {
         dbeCompositesChunk(Object.freeze({
-            on: on,
+            on,
             translate: dbeT,
             format: dbeFmt,
             plural: dbeTn,
@@ -853,25 +887,26 @@
             builderius: Object.freeze({
                 queryAll: dbeQueryAll,
                 navigatorRow: dbeNavigatorRow,
-                modules: modules,
-                activeId: activeId,
-                store: store,
-                moveModule: function () { return storeMoveModule.apply(null, arguments); }
+                modules,
+                activeId,
+                store,
+                moveModule () { return storeMoveModule.apply(null, arguments); }
             }),
             breakpoints: dbeBreakpoints,
             breakpointLabels: DBE_BP_LABELS,
             click: clickSeq,
-            waitFor: waitFor,
-            schedule: schedule,
+            waitFor,
+            schedule,
             controllers: dbeControllers,
             observe: dbeObserveChrome,
             observeFooter: dbeObserveFooter,
             unobserveFooter: dbeUnobserveFooter,
             pruneGroupState: dbePruneGroupState,
-            groupBindings: function () { return dbeGroupBindings; },
+            groupBindings () { return dbeGroupBindings; },
             rememberOwnedAttributes: dbeRememberOwnedAttributes,
             bindOwnedEvent: dbeBindOwnedEvent,
             setOwnedTimeout: dbeSetOwnedTimeout,
+            clearOwnedTimeout: dbeClearOwnedTimeout,
             setOwnedFrame: dbeSetOwnedFrame,
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             destroyOwnedGroups: dbeDestroyOwnedGroups,
@@ -882,19 +917,19 @@
                 rowIds: domRowIds,
                 toggle: toggleMultiSel,
                 range: rangeMultiSel,
-                renameActive: function () { return renameActive(); }
+                renameActive () { return renameActive(); }
             }),
             navigator: Object.freeze({
-                moveSibling: function () { return moveSibling.apply(null, arguments); },
-                indent: function () { return indentElement.apply(null, arguments); },
-                outdent: function () { return outdentElement.apply(null, arguments); },
-                scrollIntoView: function (row) { return scrollRowIntoTree(row); }
+                moveSibling () { return moveSibling.apply(null, arguments); },
+                indent () { return indentElement.apply(null, arguments); },
+                outdent () { return outdentElement.apply(null, arguments); },
+                scrollIntoView (row) { return scrollRowIntoTree(row); }
             }),
             feedback: Object.freeze({
-                undo: function () { return undoToast.apply(null, arguments); }
+                undo () { return undoToast.apply(null, arguments); }
             }),
             needTree: NEED_TREE,
-            setNavigatorApi: function (api) {
+            setNavigatorApi (api) {
                 NAV_ROW_SEL = api.rowSelector;
                 navRootList = api.rootList;
                 navRowId = api.rowId;
@@ -908,19 +943,19 @@
                 navSelect = api.select;
                 navToggleExpand = api.toggleExpand;
             },
-            setEnsureGroup: function (callback) { dbeEnsureGroup = callback; }
+            setEnsureGroup (callback) { dbeEnsureGroup = callback; }
         }));
-    } else {
+    } else if (dbeChunkExpected('a11yComposites')) {
         document.documentElement.dataset.dbeChunkError = 'a11y/composites:missing';
         if (window.console && console.error) {
             console.error('[DBE] Accessibility composites chunk failed to load; composite keyboard enhancements were not started.');
         }
     }
 
-    var dbeIntegrationsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.integrations;
+    const dbeIntegrationsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.integrations;
     if (typeof dbeIntegrationsChunk === 'function') {
         dbeIntegrationsChunk(Object.freeze({
-            on: on,
+            on,
             config: CFG,
             translate: dbeT,
             query: dbeQuery,
@@ -928,7 +963,7 @@
             observe: dbeObserveChrome,
             observeFooter: dbeObserveFooter,
             unobserveFooter: dbeUnobserveFooter,
-            ensureGroup: function () { return dbeEnsureGroup.apply(null, arguments); },
+            ensureGroup () { return dbeEnsureGroup.apply(null, arguments); },
             rememberOwnedAttributes: dbeRememberOwnedAttributes,
             bindOwnedEvent: dbeBindOwnedEvent,
             unbindOwnedEvent: dbeUnbindOwnedEvent,
@@ -937,15 +972,15 @@
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             destroyOwnedGroups: dbeDestroyOwnedGroups,
             editing: Object.freeze({
-                hasUnsavedChanges: function () { return dbeHasUnsavedChanges(); }
+                hasUnsavedChanges () { return dbeHasUnsavedChanges(); }
             }),
-            setIntegrationsApi: function (api) {
+            setIntegrationsApi (api) {
                 dbeRegisterTerminalIntegration = api.registerTerminal;
                 dbeRegisterPresenceIntegration = api.registerPresence;
                 dbePresenceDirtyChanged = api.presenceDirtyChanged;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('integrations')) {
         document.documentElement.dataset.dbeChunkError = 'integrations:missing';
         if (window.console && console.error) {
             console.error('[DBE] Integrations chunk failed to load; terminal and presence enhancements were not started.');
@@ -954,25 +989,25 @@
     dbeRegisterTerminalIntegration();
 
 
-    var dbeWorkspaceChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.workspace;
+    const dbeWorkspaceChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.workspace;
     if (typeof dbeWorkspaceChunk === 'function') {
         dbeWorkspaceChunk(Object.freeze({
-            on: on,
+            on,
             translate: dbeT,
             format: dbeFmt,
             config: CFG,
             query: dbeQuery,
             builderius: Object.freeze({
                 navigatorRow: dbeNavigatorRow,
-                activeId: activeId
+                activeId
             }),
             breakpoints: dbeBreakpoints,
-            schedule: schedule,
+            schedule,
             tooltip: setTip,
-            syncSelectionContext: function () { return dbeSyncSelectionContext(); },
+            syncSelectionContext () { return dbeSyncSelectionContext(); },
             canvas: Object.freeze({
-                interactive: function () { return dbeCanvasInteractive(); },
-                setInteractive: function (interactive) { return dbeSetCanvasInteractive(interactive); }
+                interactive () { return dbeCanvasInteractive(); },
+                setInteractive (interactive) { return dbeSetCanvasInteractive(interactive); }
             }),
             controllers: dbeControllers,
             observe: dbeObserveChrome,
@@ -984,7 +1019,7 @@
             setOwnedFrame: dbeSetOwnedFrame,
             destroyOwnedActivity: dbeDestroyOwnedActivity,
             destroyOwnedGroups: dbeDestroyOwnedGroups,
-            setWorkspaceApi: function (api) {
+            setWorkspaceApi (api) {
                 dbeFocusArea = api.focusArea;
                 dbeCompactActive = api.compactActive;
                 dbePanelWrappers = api.panelWrappers;
@@ -993,7 +1028,7 @@
                 dbeSetPanelVisibility = api.setPanelVisibility;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('workspace')) {
         document.documentElement.dataset.dbeChunkError = 'workspace:missing';
         if (window.console && console.error) {
             console.error('[DBE] Workspace chunk failed to load; responsive and workspace enhancements were not started.');
@@ -1001,13 +1036,13 @@
     }
 
 
-    var dbeEditingChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.editing;
+    const dbeEditingChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.editing;
     if (typeof dbeEditingChunk === 'function') {
         dbeEditingChunk(Object.freeze({
-            on: on, translate: dbeT, format: dbeFmt, plural: dbeTn,
+            on, translate: dbeT, format: dbeFmt, plural: dbeTn,
             query: dbeQuery, selector: dbeSelector,
-            builderius: Object.freeze({ store: store, modules: modules, activeId: activeId }),
-            click: clickSeq, waitFor: waitFor, schedule: schedule,
+            builderius: Object.freeze({ store, modules, activeId }),
+            click: clickSeq, waitFor, schedule,
             controllers: dbeControllers, observe: dbeObserveChrome,
             rememberOwnedAttributes: dbeRememberOwnedAttributes,
             restoreOwnedAttributes: dbeRestoreOwnedAttributes,
@@ -1018,13 +1053,13 @@
             platform: Object.freeze({ isMac: dbeIsMac }),
             multiSelection: Object.freeze({ clear: clearMultiSel }),
             navigator: Object.freeze({ rowById: navRowById, select: navSelect }),
-            context: Object.freeze({ getTarget: function () { return lastCtxId; } }),
+            context: Object.freeze({ getTarget () { return lastCtxId; } }),
             commands: Object.freeze({
-                driveContextMenuItem: function () { return driveContextMenuItem.apply(null, arguments); },
-                expandNavigatorSubtree: function () { return expandSubtree.apply(null, arguments); }
+                driveContextMenuItem () { return driveContextMenuItem.apply(null, arguments); },
+                expandNavigatorSubtree () { return expandSubtree.apply(null, arguments); }
             }),
-            presenceDirtyChanged: function (dirty) { return dbePresenceDirtyChanged(dirty); },
-            setEditingApi: function (api) {
+            presenceDirtyChanged (dirty) { return dbePresenceDirtyChanged(dirty); },
+            setEditingApi (api) {
                 storeMoveModule = api.storeMoveModule;
                 undoToast = api.undoToast;
                 renameActive = api.renameActive;
@@ -1065,29 +1100,56 @@
                 dbeHasUnsavedChanges = api.hasUnsavedChanges;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('editing')) {
         document.documentElement.dataset.dbeChunkError = 'editing:missing';
         if (window.console && console.error) {
             console.error('[DBE] Editing chunk failed to load; editing enhancements were not started.');
         }
     }
-    var dbeCommandsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.commands;
+
+    let dbeShortcutsApi = Object.freeze({
+        ensure () {},
+        open () {},
+        bind () {}
+    });
+    const dbeShortcutsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.shortcuts;
+    if (typeof dbeShortcutsChunk === 'function') {
+        dbeShortcutsChunk(Object.freeze({
+            on,
+            translate: dbeT,
+            config: CFG,
+            click: clickSeq,
+            waitFor,
+            accelerator: dbeAccel,
+            bindOwnedEvent: dbeBindOwnedEvent,
+            setOwnedTimeout: dbeSetOwnedTimeout,
+            renameActive,
+            setShortcutsApi (api) { dbeShortcutsApi = api; }
+        }));
+    } else if (dbeChunkExpected('shortcuts')) {
+        document.documentElement.dataset.dbeChunkError = 'shortcuts:missing';
+        if (window.console && console.error) {
+            console.error('[DBE] Shortcuts chunk failed to load; shortcut discovery was not started.');
+        }
+    }
+
+    const dbeCommandsChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.commands;
     if (typeof dbeCommandsChunk === 'function') {
         dbeCommandsChunk(Object.freeze({
-            on: on,
+            on,
             translate: dbeT,
             format: dbeFmt,
             plural: dbeTn,
             config: CFG,
             query: dbeQuery,
             builderius: Object.freeze({
-                modules: modules,
-                activeId: activeId,
-                store: store
+                modules,
+                activeId,
+                store
             }),
             click: clickSeq,
-            waitFor: waitFor,
-            schedule: schedule,
+            waitFor,
+            schedule,
             tooltip: setTip,
             accelerator: dbeAccel,
             controllers: dbeControllers,
@@ -1104,14 +1166,14 @@
             destroyOwnedGroups: dbeDestroyOwnedGroups,
             feedback: Object.freeze({ undo: undoToast }),
             context: Object.freeze({
-                getTarget: function () { return lastCtxId; },
-                setTarget: function (id) { lastCtxId = id; }
+                getTarget () { return lastCtxId; },
+                setTarget (id) { lastCtxId = id; }
             }),
             multiSelection: Object.freeze({
                 state: dbeMultiSel,
                 isMac: dbeIsMac,
                 clear: clearMultiSel,
-                renameActive: renameActive,
+                renameActive,
                 contextIds: multiCtxIds,
                 remove: removeMulti,
                 setDisabledReason: dbeSetDisabledReason,
@@ -1129,18 +1191,18 @@
                 visibleRows: navVisibleRows,
                 focus: navFocus,
                 toggleExpand: navToggleExpand,
-                moveSibling: moveSibling,
+                moveSibling,
                 indent: indentElement,
                 outdent: outdentElement,
                 selectParent: selectParentOf
             }),
             editing: Object.freeze({
-                startRename: startRename,
+                startRename,
                 defaultLabel: defaultLabelFor,
-                commitRename: commitRename,
-                wrap: wrap,
-                unwrap: unwrap,
-                bemClassable: bemClassable,
+                commitRename,
+                wrap,
+                unwrap,
+                bemClassable,
                 openAutoBem: openAutoBemDialog,
                 indentTarget: dbeIndentTarget,
                 canOutdent: dbeCanOutdent,
@@ -1164,13 +1226,7 @@
                 emmetInsert: dbeEmmetInsert,
                 moveLocation: dbeMoveLocation
             }),
-            styles: Object.freeze({
-                actionItems: function () { return dbeStyleActionItems.apply(null, arguments); },
-                openInspector: function () { return openStyleInspector.apply(null, arguments); },
-                openEditor: function () { return dbeOpenStyleEditor.apply(null, arguments); },
-                moduleClasses: function () { return moduleClasses.apply(null, arguments); },
-                entityScopeLabel: function () { return entityScopeLabel.apply(null, arguments); }
-            }),
+            styles: Object.freeze({ moduleClasses }),
             workspace: Object.freeze({
                 focusArea: dbeFocusArea,
                 compactActive: dbeCompactActive,
@@ -1179,9 +1235,10 @@
                 panelWrappers: dbePanelWrappers,
                 panelSideHidden: dbePanelSideHidden
             }),
+            shortcuts: dbeShortcutsApi,
             needNavigatorButtons: NEED_NAV_BUTTONS,
             needContextMenu: NEED_CTX_MENU,
-            setCommandsApi: function (api) {
+            setCommandsApi (api) {
                 driveContextMenuItem = api.driveContextMenuItem;
                 makeCtxItem = api.makeContextItem;
                 dbeCanvasInteractive = api.canvasInteractive;
@@ -1192,33 +1249,27 @@
                 driveSelectedClose = api.closeSelectedClass;
             }
         }));
-    } else {
+    } else if (dbeChunkExpected('commands')) {
         document.documentElement.dataset.dbeChunkError = 'commands:missing';
         if (window.console && console.error) {
             console.error('[DBE] Commands chunk failed to load; command and Navigator interaction enhancements were not started.');
         }
     }
 
-    var dbeStylesChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.styles;
+    const dbeStylesChunk = window.dbeBuilderChunks && window.dbeBuilderChunks.styles;
     if (typeof dbeStylesChunk === 'function') {
         dbeStylesChunk(Object.freeze({
-            on: on, translate: dbeT, format: dbeFmt, query: dbeQuery,
-            builderius: Object.freeze({ store: store, modules: modules, activeId: activeId }),
-            click: clickSeq, waitFor: waitFor, schedule: schedule,
+            on, translate: dbeT, format: dbeFmt, query: dbeQuery,
+            builderius: Object.freeze({ store, modules, activeId }),
+            click: clickSeq, waitFor, schedule,
             controllers: dbeControllers, observe: dbeObserveChrome,
             setOwnedTimeout: dbeSetOwnedTimeout, setOwnedFrame: dbeSetOwnedFrame,
             destroyOwnedActivity: dbeDestroyOwnedActivity,
-            editing: Object.freeze({ moduleClasses: moduleClasses, moduleTag: bemModuleTag }),
+            editing: Object.freeze({ moduleClasses, moduleTag: bemModuleTag }),
             commands: Object.freeze({ makeContextItem: makeCtxItem, closeSelectedClass: driveSelectedClose }),
-            needStyles: NEED_STYLES,
-            setStylesApi: function (api) {
-                dbeStyleActionItems = api.actionItems;
-                openStyleInspector = api.openInspector;
-                dbeOpenStyleEditor = api.openEditor;
-                entityScopeLabel = api.entityScopeLabel;
-            }
+            needStyles: NEED_STYLES
         }));
-    } else {
+    } else if (dbeChunkExpected('styles')) {
         document.documentElement.dataset.dbeChunkError = 'styles:missing';
         if (window.console && console.error) {
             console.error('[DBE] Styles chunk failed to load; CSS editing enhancements were not started.');
@@ -1227,9 +1278,9 @@
 
     dbeRegisterPresenceIntegration();
 
-    var dbeScheduleReason = 'scheduled';
-    var dbeScheduleRefresh = dbeRuntime.createScheduler(function () {
-            var refreshReason = dbeScheduleReason;
+    let dbeScheduleReason = 'scheduled';
+    const dbeScheduleRefresh = dbeRuntime.createScheduler(() => {
+            const refreshReason = dbeScheduleReason;
             dbeScheduleReason = 'scheduled';
             dbeControllers.refresh(refreshReason);
     });
@@ -1240,7 +1291,7 @@
     }
 
     function boot() {
-        var panel = dbeQuery('navigatorPanel');
+        const panel = dbeQuery('navigatorPanel');
         if (!panel) { return void setTimeout(boot, 500); }
         dbeControllers.init();
         schedule('boot');

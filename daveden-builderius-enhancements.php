@@ -3,7 +3,7 @@
  * Plugin Name:       Daveden Builder Enhancements
  * Plugin URI:        https://github.com/Daveden2/daveden-builderius-enhancements
  * Description:       Quality-of-life, theming and accessibility enhancements for the Builderius builder UI, each behind its own toggle.
- * Version:           2.0.2
+ * Version:           2.0.3
  * Author:            Daveden Digital
  * Author URI:        https://daveden.co.uk
  * License:           GPL-2.0-or-later
@@ -11,7 +11,7 @@
  * Text Domain:       daveden-builderius-enhancements
  * Domain Path:       /languages
  * Requires at least: 6.4
- * Requires PHP:      7.4
+ * Requires PHP:      8.2
  * Requires Plugins:  builderius
  *
  * Builderius (the free wordpress.org plugin, slug "builderius") is a hard
@@ -20,11 +20,12 @@
  * install/activate it. On 6.4 the header is ignored, so the dbe_activate()
  * guard and the runtime dbe_builderius_is_active() check below still apply.
  *
- * Targets Builderius 1.3.5-beta. Every selector, store access
- * (window.__builderiusStoreFns) and hook (Builderius.API.hooks) the builder
- * assets rely on was audited against that version — re-audit after any
- * Builderius update. All JS features fail soft (try/catch, presence checks),
- * so a selector drift degrades to "feature missing", never a broken builder.
+ * Targets Builderius 1.3.6-beta. Every selector, store access (the storeFns
+ * footer-extension property and Builderius Pro's private global fallback) and
+ * hook (Builderius.API.hooks) the builder assets rely on was audited against
+ * that version — re-audit after any Builderius update. All JS features fail
+ * soft (try/catch, presence checks), so a selector drift degrades to "feature
+ * missing", never a broken builder.
  *
  * CRITICAL — the plugin directory name MUST contain "builderius". In builder
  * mode Builderius removes EVERY hook whose callback file lives under
@@ -55,7 +56,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DBE_VERSION', '2.0.2' );
+define( 'DBE_VERSION', '2.0.3' );
 define( 'DBE_FILE', __FILE__ );
 define( 'DBE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DBE_URL', plugin_dir_url( __FILE__ ) );
@@ -118,7 +119,7 @@ $dbe_update_checker->addResultFilter(
  *
  * @return bool
  */
-function dbe_builderius_is_active() {
+function dbe_builderius_is_active(): bool {
 	return function_exists( 'builderius_get_version' );
 }
 
@@ -143,33 +144,11 @@ add_action( 'plugins_loaded', 'dbe_bootstrap', 0 );
  * is activated per site — see dbe_builderius_is_active(). Everything these
  * files register (wp_head, wp_footer, admin_bar_menu) fires later still.
  */
-function dbe_bootstrap() {
+function dbe_bootstrap(): void {
 	if ( dbe_builderius_is_active() ) {
 		require_once DBE_DIR . 'includes/output-builder.php';
 		require_once DBE_DIR . 'includes/output-preview.php';
 		require_once DBE_DIR . 'includes/admin-bar.php';
-		require_once DBE_DIR . 'includes/css-blocks.php';
-		// Named-block CSS guard: keeps ability-committed @block regions from
-		// being wiped by builder saves. Independent of the Abilities API, as
-		// blocks may exist from an earlier session.
-		require_once DBE_DIR . 'includes/css-guard.php';
-		// Server-side presence beats: lets abilities warn about dirty builder
-		// tabs before committing (the REST route must register on every
-		// request, not just builder pages).
-		require_once DBE_DIR . 'includes/presence.php';
-		// Agent abilities begin with the 2.1 release line. Before then the
-		// implementation stays unloaded even when an Abilities API provider is
-		// active, so 2.0 exposes only its foundation and HTML-authoring promise.
-		if ( dbe_release_feature_available( 'agent_abilities' ) && function_exists( 'wp_register_ability' ) ) {
-			require_once DBE_DIR . 'includes/abilities.php';
-			require_once DBE_DIR . 'includes/abilities-workflow.php';
-			require_once DBE_DIR . 'includes/abilities/verification.php';
-		}
-		// Agent skills follow the same release boundary as the abilities they
-		// describe and remain absent from Novamira discovery before 2.1.
-		if ( dbe_release_feature_available( 'agent_abilities' ) ) {
-			require_once DBE_DIR . 'includes/novamira-skills.php';
-		}
 	} else {
 		add_action( 'admin_notices', 'dbe_builderius_missing_notice' );
 	}
@@ -178,7 +157,7 @@ function dbe_bootstrap() {
 /**
  * Warn that Builderius is required when the parent plugin is not active.
  */
-function dbe_builderius_missing_notice() {
+function dbe_builderius_missing_notice(): void {
 	if ( ! current_user_can( 'activate_plugins' ) ) {
 		return;
 	}
@@ -196,7 +175,7 @@ function dbe_builderius_missing_notice() {
  * language packs on its own; this covers translations shipped with the
  * plugin itself (it is distributed from GitHub, not wordpress.org).
  */
-function dbe_load_textdomain() {
+function dbe_load_textdomain(): void {
 	load_plugin_textdomain( 'daveden-builderius-enhancements', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 }
 add_action( 'init', 'dbe_load_textdomain' );
@@ -209,7 +188,7 @@ register_activation_hook( __FILE__, 'dbe_activate' );
  * to enhance without it, so we block activation with a friendly message rather
  * than let the plugin activate into a no-op state.
  */
-function dbe_activate() {
+function dbe_activate(): void {
 	if ( ! dbe_builderius_is_active() ) {
 		deactivate_plugins( plugin_basename( __FILE__ ) );
 		wp_die(

@@ -49,12 +49,12 @@ The CSS code editor open by default, a scope badge with an instant Global/Templa
 
 A light, dark or follow-the-OS theme for the builder chrome with a top-bar switcher (props to David McCan), a comfortable/compact density toggle, resizable panels, restyled controls and a consistent typeface.
 
-For workflow: `Cmd`/`Ctrl`+`S` to save, a save-state cue that reports Unsaved, Saving and Saved, a command palette on `Cmd`/`Ctrl`+`K`, a keyboard-shortcuts overlay, a warning when another tab has the same template open with unsaved changes, protection for hand-written CSS blocks, and drag handles for resizing the preview canvas around its centre for container-query work.
+For workflow: `Cmd`/`Ctrl`+`S` to save, a save-state cue for Builderius versions before 1.3.6, a command palette on `Cmd`/`Ctrl`+`K`, a keyboard-shortcuts overlay, a warning when another tab has the same template open, and drag handles for resizing the preview canvas around its centre for container-query work.
 
 ## Requirements
 
-- WordPress 6.4 or later, PHP 7.4 or later
-- **Builderius** (the free wordpress.org plugin) active. It is a hard dependency; on WordPress 6.5+ this is enforced natively through the `Requires Plugins` header.
+- WordPress 6.4 or later, PHP 8.2 or later
+- **Builderius** (the free wordpress.org plugin) active. DBE is currently audited against 1.3.6-beta; on WordPress 6.5+ the hard dependency is enforced natively through the `Requires Plugins` header.
 - A handful of features need **Builderius Pro**. They are labelled on the settings screen and stay hidden without it.
 
 Every JavaScript feature fails softly. If a future Builderius release moves the markup a feature depends on, that feature reports itself as missing rather than breaking the builder.

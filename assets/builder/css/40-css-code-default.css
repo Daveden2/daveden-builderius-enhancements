@@ -3,7 +3,7 @@
    to a fixed 600px, swallowing a large slice of the workspace. Clamp the panel
    back to its normal width range (the same min/max the visual mode uses) so the
    code editor opens compact. When the panel_resize feature is on it re-points
-   this width at the shared --dbe-panel-width variable (75-panel-resize.css,
+   this width at the per-side --dbe-panel-width-left variable (75-panel-resize.css,
    which loads after this file and wins) and gives the user a drag handle to
    widen on demand — superseding the old one-shot "widen" header button.
    Scoped to html:not(.dbe-panels-hidden): the native "hide side panels" toggle

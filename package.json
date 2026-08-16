@@ -12,9 +12,8 @@
     "test:undo-order": "node tests/undo-order-regressions.mjs",
     "test:runtime": "node tests/runtime-regressions.mjs",
     "test:performance": "node tests/performance-budgets.mjs",
-    "test:release": "php tests/release-availability-regressions.php",
     "test:settings": "php tests/settings-registry-regressions.php",
-    "test": "npm run test:a11y && npm run test:adapter && npm run test:html-editor && npm run test:undo-order && npm run test:runtime && npm run test:performance && npm run test:release && npm run test:settings"
+    "test": "npm run test:a11y && npm run test:adapter && npm run test:html-editor && npm run test:undo-order && npm run test:runtime && npm run test:performance && npm run test:settings"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -24,3 +23,4 @@
     "stylelint-config-recommended": "^18.0.0"
   }
 }
+

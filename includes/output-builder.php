@@ -120,6 +120,36 @@ function dbe_builder_css( $files = null ) {
 }
 
 /**
+ * The entity id of the template named in the builder entry URL, or 0.
+ *
+ * Builderius keys its persistent canvas tabs by entity id; the entry URL names
+ * the template by slug. Resolved server-side so the head bootstrap can align
+ * the stored active tab with the requested document before the SPA boots (see
+ * the entryEntity block in dbe_print_builder_head()).
+ *
+ * @return int
+ */
+function dbe_builder_entry_entity_id(): int {
+	if ( empty( $_GET['builderius_template'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing context, same signal builder mode itself keys on.
+		return 0;
+	}
+	$slug = sanitize_title( wp_unslash( $_GET['builderius_template'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( '' === $slug ) {
+		return 0;
+	}
+	$posts = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => 'builderius_template',
+			'post_status'    => 'any',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	return $posts ? (int) $posts[0] : 0;
+}
+
+/**
  * Theme, density and workspace bootstrap printed on wp_head (before the styles,
  * so the first paint already has the user's preferences), followed by the
  * concatenated chrome CSS.
@@ -128,19 +158,45 @@ function dbe_print_builder_head() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
+	?>
+	<script id="dbe-builder-store-bridge">
+	(function (w, d) {
+		function register() {
+			try {
+				var hooks = w.Builderius && w.Builderius.API && w.Builderius.API.hooks;
+				var createElement = w.React && w.React.createElement;
+				if (!hooks || typeof hooks.addFilter !== 'function' || !createElement) { return false; }
+				hooks.addFilter('builderius.FooterPanelExtraButtons', 'dbe-store-bridge', function (component) {
+					/* Capture the shared prop, then render Free's empty default or
+					 * Pro/another extension's component unchanged. */
+					return function DbeStoreBridge(props) {
+						w.dbeBuilderiusStoreFns = props && props.storeFns;
+						return component ? createElement(component, props) : null;
+					};
+				});
+				return true;
+			} catch (error) { return false; }
+		}
+		if (!register()) {
+			d.addEventListener('builderius.api.started', register, { once: true });
+		}
+	})(window, document);
+	</script>
+	<?php
 
-	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) || dbe_enabled( 'compact_panes' ) ) {
+	if ( dbe_enabled( 'theme_switcher' ) || dbe_enabled( 'density_toggle' ) || dbe_enabled( 'panel_resize' ) || dbe_enabled( 'command_palette' ) || dbe_enabled( 'compact_panes' ) || dbe_enabled( 'panel_tabs' ) ) {
 		$bootstrap = array(
 			'theme'           => dbe_enabled( 'theme_switcher' ) ? dbe_setting( 'theme_default' ) : '',
 			'density'         => dbe_enabled( 'density_toggle' ) ? dbe_setting( 'density_default' ) : '',
 			'panelWidth'      => dbe_enabled( 'panel_resize' ),
 			'panelVisibility' => dbe_enabled( 'command_palette' ),
 			'compactPanes'    => dbe_enabled( 'compact_panes' ),
+			'entryEntity'     => dbe_enabled( 'panel_tabs' ) ? dbe_builder_entry_entity_id() : 0,
 		);
 		?>
 		<script id="dbe-theme-bootstrap">
 		(function (d) {
-			var cfg = <?php echo wp_json_encode( $bootstrap ); ?>;
+			const cfg = <?php echo wp_json_encode( $bootstrap ); ?>;
 			function pick(key, fallback) {
 				try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
 			}
@@ -159,12 +215,12 @@ function dbe_print_builder_head() {
 				} catch (e) { return mode === 'auto' ? 'dark' : mode; }
 			}
 			if (cfg.theme) {
-				var mode = pick('dbeBuilderTheme', cfg.theme);
+				const mode = pick('dbeBuilderTheme', cfg.theme);
 				d.dataset.dbeThemeMode = mode;
 				d.dataset.dbeTheme = resolve(mode);
 				// Auto keeps following the OS live, not just at load.
 				try {
-					matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+					matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
 						if (d.dataset.dbeThemeMode === 'auto') { d.dataset.dbeTheme = resolve('auto'); }
 					});
 				} catch (e) {}
@@ -180,16 +236,43 @@ function dbe_print_builder_head() {
 			 * stored width. Clamp mirrors DBE_PANEL_MIN/MAX in builder.js.
 			 */
 			if (cfg.panelWidth) {
-				var pw = parseInt(pick('dbeBuilderPanelWidth', ''), 10);
-				if (!isNaN(pw)) {
-					d.style.setProperty('--dbe-panel-width', Math.max(260, Math.min(600, pw)) + 'px');
-				}
+				/* Per-side widths; the pre-split shared key seeds a side that
+				 * has never stored its own. Clamp mirrors builder.js. */
+				const pwShared = pick('dbeBuilderPanelWidth', '');
+				['Left', 'Right'].forEach((side) => {
+					const pw = Number.parseInt(pick('dbeBuilderPanelWidth' + side, pwShared), 10);
+					if (!Number.isNaN(pw)) {
+						d.style.setProperty('--dbe-panel-width-' + side.toLowerCase(), Math.max(260, Math.min(600, pw)) + 'px');
+					}
+				});
 			}
 			if (cfg.panelVisibility) {
 				try {
-					var panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
+					const panels = JSON.parse(localStorage.getItem('dbeBuilderPanelVisibility') || '{}');
 					d.classList.toggle('dbe-left-panel-hidden', panels.left === true);
 					d.classList.toggle('dbe-right-panel-hidden', panels.right === true);
+				} catch (e) {}
+			}
+			/*
+			 * Builderius 1.3.6 restores the last-active persistent canvas tab
+			 * AFTER the URL-requested document has already loaded — a wasted
+			 * full preview load and a visible content swap, and the template
+			 * named in the URL is abandoned (bug-reports
+			 * 2026-08-16-builderius-canvas-loads-two-documents-on-entry).
+			 * Align the stored active tab with the requested document BEFORE
+			 * the SPA boots, so only one document loads and the URL wins.
+			 */
+			if (cfg.entryEntity) {
+				try {
+					const rawTabs = localStorage.getItem('builderius_open_tabs_v1');
+					if (rawTabs) {
+						const openTabs = JSON.parse(rawTabs);
+						const entryKey = '0_' + cfg.entryEntity;
+						if (openTabs && typeof openTabs === 'object' && openTabs.activeKey && openTabs.activeKey !== entryKey) {
+							openTabs.activeKey = entryKey;
+							localStorage.setItem('builderius_open_tabs_v1', JSON.stringify(openTabs));
+						}
+					}
 				} catch (e) {}
 			}
 			/* Default narrow sessions to the primary editing surface before the
@@ -224,6 +307,92 @@ function dbe_print_builder_head() {
 add_action( 'wp_head', 'dbe_print_builder_head', 999 );
 
 /**
+ * The JavaScript chunk manifest: delivery order, config key and the feature
+ * ids that justify delivering each chunk.
+ *
+ * Every chunk registers behind a `typeof === 'function'` guard in builder.js
+ * and every chunk-provided service has a no-op default there, so a chunk
+ * whose features are all disabled can be skipped entirely — the runtime
+ * degrades feature-by-feature rather than breaking. Each list holds the
+ * feature ids the chunk itself checks with on('…'), curated against the
+ * chunk sources; dbe_builder_chunks_needed() layers the one cross-chunk
+ * dependency on top.
+ *
+ * @return array<string,array{config:string,features:string[]}> File stem
+ *         (under assets/builder/js/chunks/) => config key and feature ids.
+ */
+function dbe_builder_chunk_manifest(): array {
+	return array(
+		'a11y'            => array(
+			'config'   => 'a11y',
+			'features' => array( 'chrome_landmarks', 'keyboard_shortcuts', 'tooltips' ),
+		),
+		'a11y-composites' => array(
+			'config'   => 'a11yComposites',
+			'features' => array( 'builderius_menu', 'element_moves', 'favourites_reorder', 'footer_toolbar', 'icon_declutter', 'inserter_keyboard', 'navigator_keyboard', 'panel_tabs', 'select_combobox', 'settings_accordions', 'tag_badges', 'tooltips', 'topbar_toolbar', 'tree_row_styling' ),
+		),
+		'workspace'       => array(
+			'config'   => 'workspace',
+			'features' => array( 'command_palette', 'compact_panes', 'css_code_default', 'density_toggle', 'keyboard_shortcuts', 'panel_detach', 'panel_resize', 'panel_tabs', 'preview_resize', 'reveal_selected', 'theme_switcher', 'tooltips' ),
+		),
+		'editing'         => array(
+			'config'   => 'editing',
+			'features' => array( 'attr_helpers', 'auto_bem', 'command_palette', 'condition_helpers', 'dblclick_rename', 'edit_as_html', 'element_moves', 'image_defaults', 'import_html', 'inline_rename', 'keyboard_shortcuts', 'navigator_paste', 'properties_reorder', 'save_shortcut', 'save_state_cue', 'tag_change', 'undo_delete', 'wrap_in' ),
+		),
+		'styles'          => array(
+			'config'   => 'styles',
+			'features' => array( 'css_code_default', 'css_hint_dialog', 'hide_minimap', 'scope_bar' ),
+		),
+		'integrations'    => array(
+			'config'   => 'integrations',
+			'features' => array( 'ai_terminal_tabs', 'presence_heartbeat' ),
+		),
+		'shortcuts'       => array(
+			'config'   => 'shortcuts',
+			// shortcuts_overlay lives in the commands chunk but drives this
+			// chunk's discovery API (host.shortcuts), so it belongs here too.
+			'features' => array( 'ai_terminal_tabs', 'command_palette', 'element_moves', 'keyboard_shortcuts', 'navigator_keyboard', 'save_shortcut', 'shortcuts_overlay' ),
+		),
+		'commands'        => array(
+			'config'   => 'commands',
+			'features' => array( 'auto_bem', 'collapse_expand_all', 'command_palette', 'context_menu', 'edit_as_html', 'element_moves', 'footer_toolbar', 'import_html', 'inline_rename', 'keyboard_shortcuts', 'navigator_keyboard', 'navigator_paste', 'navigator_row_actions', 'preview_context_menu', 'preview_rename', 'reveal_selected', 'save_split_button', 'shortcuts_overlay', 'tag_change', 'tree_search', 'wrap_in' ),
+		),
+	);
+}
+
+/**
+ * Which chunks the current toggle set (and user) actually needs.
+ *
+ * A chunk is needed when any of its manifest features may emit output for the
+ * current user. The commands controllers additionally consume services that
+ * the editing, a11y-composites, workspace and shortcuts chunks register via
+ * builder.js's set*Api hooks (rename/wrap/move verbs, the Navigator adapter,
+ * panel verbs and shortcut discovery), so those four always accompany the
+ * commands chunk rather than degrading its menus to the no-op defaults.
+ *
+ * @return array<string,bool> File stem => needed.
+ */
+function dbe_builder_chunks_needed(): array {
+	$needed = array();
+	foreach ( dbe_builder_chunk_manifest() as $stem => $chunk ) {
+		$needed[ $stem ] = false;
+		foreach ( $chunk['features'] as $id ) {
+			if ( dbe_feature_output_permitted( $id ) ) {
+				$needed[ $stem ] = true;
+				break;
+			}
+		}
+	}
+	if ( $needed['commands'] ) {
+		$needed['a11y-composites'] = true;
+		$needed['workspace']       = true;
+		$needed['editing']         = true;
+		$needed['shortcuts']       = true;
+	}
+	return $needed;
+}
+
+/**
  * Config object (inline — it varies per site and per toggle set), the small
  * core runtime and the builder feature runtime on wp_footer.
  *
@@ -236,23 +405,31 @@ add_action( 'wp_head', 'dbe_print_builder_head', 999 );
  * and no enqueue machinery is involved. Each file is versioned by filemtime
  * so a plugin update — or an edit while developing — busts its cache
  * immediately.
+ *
+ * Chunks whose features are all disabled are not printed at all (see
+ * dbe_builder_chunks_needed()); config.chunks records the decision so the
+ * runtime can tell a deliberately omitted chunk from one that failed to load.
+ * Every external tag carries `defer`, which preserves document order while
+ * freeing the parser.
  */
 function dbe_print_builder_footer() {
 	if ( ! dbe_builder_output_allowed() ) {
 		return;
 	}
 
-	$runtime_path         = DBE_DIR . 'assets/builder/js/core-runtime.js';
-	$a11y_path            = DBE_DIR . 'assets/builder/js/chunks/a11y.js';
-	$a11y_composites_path = DBE_DIR . 'assets/builder/js/chunks/a11y-composites.js';
-	$workspace_path       = DBE_DIR . 'assets/builder/js/chunks/workspace.js';
-	$editing_path         = DBE_DIR . 'assets/builder/js/chunks/editing.js';
-	$styles_path          = DBE_DIR . 'assets/builder/js/chunks/styles.js';
-	$integrations_path    = DBE_DIR . 'assets/builder/js/chunks/integrations.js';
-	$commands_path        = DBE_DIR . 'assets/builder/js/chunks/commands.js';
-	$builder_path         = DBE_DIR . 'assets/builder/js/builder.js';
-	if ( ! is_readable( $runtime_path ) || ! is_readable( $a11y_path ) || ! is_readable( $a11y_composites_path ) || ! is_readable( $workspace_path ) || ! is_readable( $editing_path ) || ! is_readable( $styles_path ) || ! is_readable( $integrations_path ) || ! is_readable( $commands_path ) || ! is_readable( $builder_path ) ) {
+	$manifest     = dbe_builder_chunk_manifest();
+	$runtime_path = DBE_DIR . 'assets/builder/js/core-runtime.js';
+	$builder_path = DBE_DIR . 'assets/builder/js/builder.js';
+	if ( ! is_readable( $runtime_path ) || ! is_readable( $builder_path ) ) {
 		return;
+	}
+	$chunk_paths = array();
+	foreach ( $manifest as $stem => $chunk ) {
+		$path = DBE_DIR . 'assets/builder/js/chunks/' . $stem . '.js';
+		if ( ! is_readable( $path ) ) {
+			return;
+		}
+		$chunk_paths[ $stem ] = $path;
 	}
 
 	$flags = array();
@@ -261,6 +438,7 @@ function dbe_print_builder_footer() {
 			$flags[ $id ] = dbe_feature_output_permitted( $id );
 		}
 	}
+	$builderius_version = dbe_builderius_version();
 
 	$config = array(
 		'features'   => $flags,
@@ -272,7 +450,11 @@ function dbe_print_builder_footer() {
 		'i18n'       => dbe_builder_strings(),
 		'version'    => DBE_VERSION,
 		'builderius' => array(
-			'version' => function_exists( 'builderius_get_version' ) ? builderius_get_version() : '',
+			'version' => $builderius_version,
+			'native'  => array(
+				'elementShortcuts' => '' !== $builderius_version && version_compare( $builderius_version, '1.3.6-beta', '>=' ),
+				'shortcutPanel'    => '' !== $builderius_version && version_compare( $builderius_version, '1.3.6-beta', '>=' ),
+			),
 		),
 	);
 
@@ -282,36 +464,25 @@ function dbe_print_builder_footer() {
 		'settings'  => current_user_can( 'manage_options' ) ? admin_url( 'admin.php?page=builderius-settings' ) : '',
 	);
 
-	// Server-side presence beats ride the presence_heartbeat toggle; the
-	// nonce enables cookie-authenticated REST from the builder page.
-	if ( dbe_feature_output_permitted( 'presence_heartbeat' ) ) {
-		$config['presence'] = array(
-			'url'                => rest_url( 'dbe/v1/presence' ),
-			'nonce'              => wp_create_nonce( 'wp_rest' ),
-			'interval'           => 20000,
-			'transitionInterval' => 2500,
-		);
+	$needed           = dbe_builder_chunks_needed();
+	$config['chunks'] = array();
+	foreach ( $manifest as $stem => $chunk ) {
+		$config['chunks'][ $chunk['config'] ] = $needed[ $stem ];
 	}
 
-	$runtime_src         = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
-	$a11y_src            = add_query_arg( 'ver', (string) filemtime( $a11y_path ), DBE_URL . 'assets/builder/js/chunks/a11y.js' );
-	$a11y_composites_src = add_query_arg( 'ver', (string) filemtime( $a11y_composites_path ), DBE_URL . 'assets/builder/js/chunks/a11y-composites.js' );
-	$workspace_src       = add_query_arg( 'ver', (string) filemtime( $workspace_path ), DBE_URL . 'assets/builder/js/chunks/workspace.js' );
-	$editing_src         = add_query_arg( 'ver', (string) filemtime( $editing_path ), DBE_URL . 'assets/builder/js/chunks/editing.js' );
-	$styles_src          = add_query_arg( 'ver', (string) filemtime( $styles_path ), DBE_URL . 'assets/builder/js/chunks/styles.js' );
-	$integrations_src    = add_query_arg( 'ver', (string) filemtime( $integrations_path ), DBE_URL . 'assets/builder/js/chunks/integrations.js' );
-	$commands_src        = add_query_arg( 'ver', (string) filemtime( $commands_path ), DBE_URL . 'assets/builder/js/chunks/commands.js' );
-	$builder_src         = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
+	$runtime_src = add_query_arg( 'ver', (string) filemtime( $runtime_path ), DBE_URL . 'assets/builder/js/core-runtime.js' );
+	$builder_src = add_query_arg( 'ver', (string) filemtime( $builder_path ), DBE_URL . 'assets/builder/js/builder.js' );
 
 	echo '<script id="dbe-builder-config">window.dbeBuilderEnhancements = ' . wp_json_encode( $config ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '<script id="dbe-builder-runtime-js" src="' . esc_url( $runtime_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed in dependency order because the enqueue pipeline is unproven under builder mode (see the function docblock).
-	echo '<script id="dbe-builder-a11y-js" src="' . esc_url( $a11y_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers the accessibility chunk before builder.js supplies its host services.
-	echo '<script id="dbe-builder-a11y-composites-js" src="' . esc_url( $a11y_composites_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers APG composite controllers before builder.js supplies its host services.
-	echo '<script id="dbe-builder-workspace-js" src="' . esc_url( $workspace_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers responsive workspace controllers before builder.js supplies its host services.
-	echo '<script id="dbe-builder-editing-js" src="' . esc_url( $editing_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers editing controllers before builder.js supplies its host and late-bound command services.
-	echo '<script id="dbe-builder-styles-js" src="' . esc_url( $styles_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers CSS editing controllers before builder.js supplies its host and command services.
-	echo '<script id="dbe-builder-integrations-js" src="' . esc_url( $integrations_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers terminal and presence controllers before builder.js supplies their host services.
-	echo '<script id="dbe-builder-commands-js" src="' . esc_url( $commands_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: registers command and Navigator interaction controllers before builder.js supplies its host services.
-	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
+	echo '<script id="dbe-builder-runtime-js" src="' . esc_url( $runtime_src ) . '" defer></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed in dependency order because the enqueue pipeline is unproven under builder mode (see the function docblock).
+	foreach ( $manifest as $stem => $chunk ) {
+		if ( ! $needed[ $stem ] ) {
+			continue;
+		}
+		$src = add_query_arg( 'ver', (string) filemtime( $chunk_paths[ $stem ] ), DBE_URL . 'assets/builder/js/chunks/' . $stem . '.js' );
+		echo '<script id="dbe-builder-' . esc_attr( $stem ) . '-js" src="' . esc_url( $src ) . '" defer></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: chunks register controllers before builder.js supplies its host services; defer preserves that order.
+	}
+	echo '<script id="dbe-builder-enhancements-js" src="' . esc_url( $builder_src ) . '" defer></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- deliberate: printed after the runtime and chunks so controllers register synchronously before boot.
 }
 add_action( 'wp_footer', 'dbe_print_builder_footer', 999 );
+

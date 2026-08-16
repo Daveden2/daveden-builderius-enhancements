@@ -68,7 +68,7 @@
     transition: background var(--dbe-t), color var(--dbe-t) !important;
 }
 .dbe-scope-allcss:hover { background: var(--dbe-l2-hi) !important; color: var(--dbe-text) !important; }
-.dbe-scope-allcss:focus-visible { outline: 2px solid var(--dbe-focus) !important; outline-offset: 1px !important; }
+.dbe-scope-allcss:focus-visible { outline: 2px solid var(--dbe-focus) !important; outline-offset: -2px !important; }
 .dbe-scope-allcss:disabled { opacity: .45 !important; cursor: not-allowed !important; }
 /* Icon-only variant: a square 28px target (clears WCAG 2.5.8) holding the
    Builderius CSS-file glyph, so the scope switch keeps its label room. */

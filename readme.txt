@@ -3,8 +3,8 @@ Contributors: daveden2
 Tags: builderius, page builder, accessibility, admin, editor
 Requires at least: 6.4
 Tested up to: 7.0
-Stable tag: 2.0.2
-Requires PHP: 7.4
+Stable tag: 2.0.3
+Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ Daveden Builder Enhancements refines the Builderius builder's own interface with
 
 Everything is configured under **Builderius → Builder Enhancements**, and every feature can be switched off without affecting the rest.
 
-The plugin targets Builderius 1.3.5-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
+The plugin targets Builderius 1.3.6-beta and requires Builderius to be active. The plugin directory name must contain "builderius" — see the header docblock in `daveden-builderius-enhancements.php` and the FAQ below.
 
 = Credits =
 
@@ -62,10 +62,15 @@ Yes — the repository's Sponsor button lists the ways (GitHub Sponsors, Ko-fi o
 
 A short summary of recent releases. The full, detailed notes for every release live in CHANGELOG.md in the plugin repository.
 
-= 2.0.2 =
-Minor security fixes and new ways to support the project.
-* Security: minor security fixes and development dependency updates.
-* Improved: the settings dashboard and project documentation now link to GitHub Sponsors, Ko-fi and PayPal for anyone who wants to support continued development. Support remains entirely optional and every feature stays available either way.
+= 2.0.3 =
+Builderius 1.3.6 compatibility, direct preview actions and a faster, calmer builder.
+* New: the preview right-click menu and Rename from the preview are stable, on-by-default features. Right-click a rendered element or use Shift+F10/Menu for its familiar element actions, and rename its Navigator label there or with F2 without changing visible text or its HTML tag.
+* Changed: DBE now extends Builderius 1.3.6-beta's native admin bar, canvas tabs, change history, rename, Auto-BEM, favourites editor, CSS workflow, context menu, Wrap in dialog, shortcuts, save state and full-width preview instead of loading overlapping replacements. Downgrade-safe fallbacks remain for older Builderius versions.
+* Accessibility: the native admin bar, persistent canvas tabs, favourites editor, element menus and Wrap in dialog gain complete keyboard models, clear names and states, contained focus where appropriate, reliable focus return and one visible high-contrast focus treatment.
+* Fixed: DBE's store-backed features now work with Builderius Free on its own. Opening a builder URL honours the requested document instead of first restoring a different saved tab, and preview Rename no longer appears twice beside Builderius's native action.
+* Improved: resize the left and right panels independently. Builderius menu links regain consistent full-row cards and focus targets, and long class names remain readable inside menus and command results.
+* Performance: DBE now defers its builder runtime and delivers only the JavaScript chunks required by enabled features. Shortcut discovery has its own cacheable chunk, and redundant Navigator refresh work is suppressed.
+* Development: the supported baseline is now PHP 8.2 with current PHP, JavaScript, CSS and GitHub Actions checks.
 
 = 2.0.1 =
 A fix for element names lost when editing a component as HTML.

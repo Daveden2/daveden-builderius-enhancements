@@ -28,7 +28,8 @@ const assetBudgets = new Map([
     ['assets/builder/js/chunks/editing.js', 70 * 1024],
     ['assets/builder/js/chunks/styles.js', 35 * 1024],
     ['assets/builder/js/chunks/integrations.js', 15 * 1024],
-    ['assets/builder/js/chunks/commands.js', 55 * 1024],
+    ['assets/builder/js/chunks/shortcuts.js', 8 * 1024],
+    ['assets/builder/js/chunks/commands.js', 54 * 1024],
     ['assets/builder/js/builder.js', 20 * 1024]
 ]);
 const chunkPaths = [...assetBudgets.keys()].filter((path) => path.includes('/chunks/'));
@@ -94,7 +95,7 @@ runInNewContext(sources.get('assets/builder/js/core-runtime.js'), {
 });
 
 const runtime = runtimeWindow.dbeBuilderRuntime.create({
-    builderius: { version: '1.3.5-beta' },
+    builderius: { version: '1.3.6-beta' },
     features: {}
 });
 let mountCalls = 0;
@@ -122,6 +123,73 @@ scheduledFrames.shift()();
 assert.ok(
     observerRefreshes <= maxRefreshesPerObserverBurst,
     `A ${observerBurstSize}-callback mutation burst caused ${observerRefreshes} refreshes; the budget is ${maxRefreshesPerObserverBurst}.`
+);
+
+// Preview tabs mutate the shared main panel across many frames. The Navigator
+// APG pass must recognise an unchanged tree after its first synchronisation,
+// rather than re-walking every row for each unrelated preview mutation.
+const compositesSource = sources.get('assets/builder/js/chunks/a11y-composites.js');
+const navSnapshotChangedSource = compositesSource.match(
+    /function navAriaSnapshotChanged\(previous, next\) \{[\s\S]*?\n        \}/
+)?.[0];
+assert.ok(navSnapshotChangedSource, 'The Navigator snapshot comparison must remain testable.');
+const navSnapshotContext = {};
+runInNewContext(`${navSnapshotChangedSource}; result = navAriaSnapshotChanged;`, navSnapshotContext);
+const navSnapshotChanged = navSnapshotContext.result;
+const navRoot = {};
+const navRow = {};
+const navList = {};
+const stableNavSnapshot = () => ({
+    root: navRoot,
+    selection: 'module-1',
+    rows: [{
+        node: navRow,
+        list: navList,
+        id: 'module-1',
+        expanded: true,
+        expandable: true
+    }]
+});
+const previewMutationBurstSize = 50;
+let navSynchronisations = 0;
+let previousNavSnapshot = null;
+for (let index = 0; index < previewMutationBurstSize; index += 1) {
+    const nextNavSnapshot = stableNavSnapshot();
+    if (navSnapshotChanged(previousNavSnapshot, nextNavSnapshot)) {
+        navSynchronisations += 1;
+        previousNavSnapshot = nextNavSnapshot;
+    }
+}
+assert.equal(
+    navSynchronisations,
+    1,
+    `An unchanged Navigator synchronised ${navSynchronisations} times during a ${previewMutationBurstSize}-refresh preview burst.`
+);
+assert.match(
+    compositesSource,
+    /const DBE_COMPOSITE_SETTLE_MS = 32;[\s\S]+function dbeScheduleA11yCompositeRefresh\(\)[\s\S]+dbeClearOwnedTimeout\('a11y\/composites', dbeCompositeRefreshTimer\)[\s\S]+dbeSetOwnedTimeout\('a11y\/composites'[\s\S]+reason === 'mutation'[\s\S]+dbeScheduleA11yCompositeRefresh\(\)/,
+    'Preview mutation waves must settle before the composite accessibility pass runs.'
+);
+assert.equal(
+    navSnapshotChanged(stableNavSnapshot(), { ...stableNavSnapshot(), selection: 'module-2' }),
+    true,
+    'A selection change must invalidate the Navigator snapshot.'
+);
+assert.equal(
+    navSnapshotChanged(stableNavSnapshot(), {
+        ...stableNavSnapshot(),
+        rows: [{ ...stableNavSnapshot().rows[0], expanded: false }]
+    }),
+    true,
+    'An expansion change must invalidate the Navigator snapshot.'
+);
+assert.equal(
+    navSnapshotChanged(stableNavSnapshot(), {
+        ...stableNavSnapshot(),
+        rows: [{ ...stableNavSnapshot().rows[0], node: {} }]
+    }),
+    true,
+    'A React row replacement must invalidate the Navigator snapshot.'
 );
 
 // A browser long task starts at 50 ms. Repeated Node VM medians are a stable
@@ -153,4 +221,5 @@ console.log('Performance budgets passed.');
 gzipResults.forEach(({ path, bytes, budget }) => console.log(`gzip ${path}: ${bytes}/${budget} bytes`));
 console.log(`controller mounts: ${mountCalls}/${maxControllerMounts}`);
 console.log(`observer burst refreshes: ${observerRefreshes}/${maxRefreshesPerObserverBurst} (${observerBurstSize} callbacks)`);
+console.log(`unchanged Navigator syncs: ${navSynchronisations}/1 (${previewMutationBurstSize} preview refreshes)`);
 taskResults.forEach(({ path, duration }) => console.log(`initial task ${path}: ${duration.toFixed(2)}/${longTaskMs} ms median`));

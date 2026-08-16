@@ -7,7 +7,7 @@
    feature is on. Scoped to the Inserter items only. */
 .uniModItems__item:focus-visible {
     outline: 2px solid var(--dbe-focus) !important;
-    outline-offset: 2px !important;
+    outline-offset: -2px !important;
     border-radius: var(--dbe-r-sm);
 }
 

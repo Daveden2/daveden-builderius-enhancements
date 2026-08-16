@@ -1,0 +1,96 @@
+/* Preview rename: a compact, explicit Navigator-name editor in builder chrome. */
+dialog.dbe-preview-rename {
+	inline-size: min(420px, calc(100vw - 32px));
+	box-sizing: border-box;
+	background: var(--dbe-l1);
+	color: var(--dbe-text-2);
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-md);
+	box-shadow: 0 12px 40px var(--dbe-shadow);
+	padding: 20px;
+	font: 400 13px/1.5 var(--dbe-ui-font);
+}
+dialog.dbe-preview-rename:not([open]) { display: none; }
+dialog.dbe-preview-rename::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dbe-preview-rename__title {
+	margin: 0;
+	color: var(--dbe-text);
+	font-size: 16px;
+	font-weight: 650;
+}
+
+.dbe-preview-rename__hint {
+	margin: 6px 0 16px;
+	color: var(--dbe-muted);
+	font-size: 12px;
+}
+
+.dbe-preview-rename__label {
+	display: block;
+	margin-block-end: 6px;
+	color: var(--dbe-text);
+	font-weight: 600;
+}
+
+.dbe-preview-rename__input {
+	inline-size: 100%;
+	box-sizing: border-box;
+	background: var(--dbe-l2);
+	color: var(--dbe-text);
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-sm);
+	padding: 9px 10px;
+	font: 500 13px/1.4 var(--dbe-ui-font);
+}
+.dbe-preview-rename__input:focus {
+	/* Pull the outline in over the recoloured border so the two read as one
+	   2px ring rather than a gapped double indicator. */
+	border-color: var(--dbe-accent);
+	outline: 2px solid var(--dbe-accent);
+	outline-offset: -1px;
+}
+.dbe-preview-rename__input::selection {
+	background: var(--dbe-accent-strong);
+	color: var(--dbe-on-accent-strong);
+}
+
+.dbe-preview-rename__error {
+	min-block-size: 18px;
+	margin: 6px 0 0;
+	color: var(--dbe-danger);
+	font-size: 12px;
+}
+
+.dbe-preview-rename__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 14px;
+}
+
+.dbe-preview-rename__cancel,
+.dbe-preview-rename__save {
+	min-block-size: 34px;
+	border: 1px solid var(--dbe-line-hi);
+	border-radius: var(--dbe-r-sm);
+	padding: 7px 13px;
+	font: 600 12px/1.2 var(--dbe-ui-font);
+	cursor: pointer;
+}
+.dbe-preview-rename__cancel {
+	background: var(--dbe-l2);
+	color: var(--dbe-text-2);
+}
+.dbe-preview-rename__save {
+	background: var(--dbe-accent-strong);
+	color: var(--dbe-on-accent-strong);
+	border-color: var(--dbe-accent-strong);
+}
+.dbe-preview-rename__cancel:hover { background: var(--dbe-hover-wash); }
+.dbe-preview-rename__save:hover { filter: brightness(1.08); }
+.dbe-preview-rename__cancel:focus-visible,
+.dbe-preview-rename__save:focus-visible {
+	outline: 2px solid var(--dbe-accent);
+	outline-offset: 2px;
+}

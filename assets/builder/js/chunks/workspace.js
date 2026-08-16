@@ -3,41 +3,42 @@
 
     /* Workspace controllers register after builder.js supplies the shared
        lifecycle, Builderius adapter and command services. */
-    var chunks = window.dbeBuilderChunks || {};
+    const chunks = window.dbeBuilderChunks || {};
 
     chunks.workspace = function (host) {
-        var on = host.on;
-        var dbeT = host.translate;
-        var dbeFmt = host.format;
-        var CFG = host.config;
-        var dbeQuery = host.query;
-        var dbeNavigatorRow = host.builderius.navigatorRow;
-        var activeId = host.builderius.activeId;
-        var dbeBreakpoints = host.breakpoints;
-        var schedule = host.schedule;
-        var setTip = host.tooltip;
-        var dbeSyncSelectionContext = host.syncSelectionContext;
-        var dbeCanvasInteractive = host.canvas.interactive;
-        var dbeSetCanvasInteractive = host.canvas.setInteractive;
-        var dbeControllers = host.controllers;
-        var dbeObserveChrome = host.observe;
-        var dbeObserveFooter = host.observeFooter;
-        var dbeUnobserveFooter = host.unobserveFooter;
-        var dbeRememberOwnedAttributes = host.rememberOwnedAttributes;
-        var dbeBindOwnedEvent = host.bindOwnedEvent;
-        var dbeSetOwnedTimeout = host.setOwnedTimeout;
-        var dbeSetOwnedFrame = host.setOwnedFrame;
-        var dbeDestroyOwnedActivity = host.destroyOwnedActivity;
-        var dbeDestroyOwnedGroups = host.destroyOwnedGroups;
-        var DBE_WORKSPACE_OWNER = 'workspace';
-        var dbeWorkspaceControllerActive = false;
+        const on = host.on;
+        const dbeT = host.translate;
+        const dbeFmt = host.format;
+        const CFG = host.config;
+        const dbeQuery = host.query;
+        const dbeNavigatorRow = host.builderius.navigatorRow;
+        const activeId = host.builderius.activeId;
+        const store = host.builderius.store;
+        const dbeBreakpoints = host.breakpoints;
+        const schedule = host.schedule;
+        const setTip = host.tooltip;
+        const dbeSyncSelectionContext = host.syncSelectionContext;
+        const dbeCanvasInteractive = host.canvas.interactive;
+        const dbeSetCanvasInteractive = host.canvas.setInteractive;
+        const dbeControllers = host.controllers;
+        const dbeObserveChrome = host.observe;
+        const dbeObserveFooter = host.observeFooter;
+        const dbeUnobserveFooter = host.unobserveFooter;
+        const dbeRememberOwnedAttributes = host.rememberOwnedAttributes;
+        const dbeBindOwnedEvent = host.bindOwnedEvent;
+        const dbeSetOwnedTimeout = host.setOwnedTimeout;
+        const dbeSetOwnedFrame = host.setOwnedFrame;
+        const dbeDestroyOwnedActivity = host.destroyOwnedActivity;
+        const dbeDestroyOwnedGroups = host.destroyOwnedGroups;
+        const DBE_WORKSPACE_OWNER = 'workspace';
+        let dbeWorkspaceControllerActive = false;
 
         /* (i) Theme switcher: cycles light -> dark -> auto, persisted per browser.
            html[data-dbe-theme] selects the token palette (00-tokens.css) and sets
            color-scheme for native controls without per-element repainting. Monaco
            follows the resolved theme through the established stylesheet treatment. */
-        var THEME_ORDER = ['light', 'dark', 'auto'];
-        var THEME_ICONS = {
+        const THEME_ORDER = ['light', 'dark', 'auto'];
+        const THEME_ICONS = {
             light: '<circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M7 .9v1.7M7 11.4v1.7M.9 7h1.7M11.4 7h1.7M2.7 2.7l1.2 1.2M10.1 10.1l1.2 1.2M11.3 2.7l-1.2 1.2M3.9 10.1 2.7 11.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
             dark:  '<path d="M12.1 8.5A5.5 5.5 0 0 1 5.5 1.9 5.6 5.6 0 1 0 12.1 8.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>',
             auto:  '<circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11Z" fill="currentColor"/>'
@@ -61,7 +62,7 @@
            instead — the joshwcomeau pattern. Created eagerly when a toggle mounts
            (dbeEnsureModeStatus) so it is present in the DOM before the first update;
            a live region added and written in the same tick is unreliable. */
-        var dbeModeStatus = null;
+        let dbeModeStatus = null;
         function dbeEnsureModeStatus() {
             if (dbeModeStatus && document.body.contains(dbeModeStatus)) { return dbeModeStatus; }
             dbeModeStatus = document.createElement('div');
@@ -79,7 +80,7 @@
            script resolves before first paint and follows OS changes while the
            mode is auto). The switcher cycles and displays the MODE. */
         function currentTheme() {
-            var t = document.documentElement.dataset.dbeThemeMode;
+            const t = document.documentElement.dataset.dbeThemeMode;
             return THEME_ORDER.indexOf(t) !== -1 ? t : ((CFG.theme && CFG.theme.default) || 'auto');
         }
         function dbeResolveTheme(mode) {
@@ -91,12 +92,12 @@
         }
 
         function decorateThemeButton(btn) {
-            var t = currentTheme();
-            var next = THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length];
+            const t = currentTheme();
+            const next = THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length];
             btn.querySelector('span').innerHTML =
                 '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
                 THEME_ICONS[t] + '</svg>';
-            var tip = dbeFmt(dbeT('themeTip', 'Theme: %1$s (switch to %2$s)'), dbeModeName(t), dbeModeName(next));
+            const tip = dbeFmt(dbeT('themeTip', 'Theme: %1$s (switch to %2$s)'), dbeModeName(t), dbeModeName(next));
             setTip(btn, tip);
             // setTip only sets aria-label when absent (it must not clobber static
             // controls an observer re-decorates); this label is dynamic, so keep the
@@ -107,19 +108,19 @@
             document.documentElement.dataset.dbeThemeMode = t;
             document.documentElement.dataset.dbeTheme = dbeResolveTheme(t);
             try { localStorage.setItem('dbeBuilderTheme', t); } catch (e) {}
-            var btn = document.querySelector('.dbe-theme-btn');
+            const btn = document.querySelector('.dbe-theme-btn');
             if (btn) { decorateThemeButton(btn); }
             // Only speak on a user switch, never on the initial restore.
             if (announce) { dbeModeAnnounce(dbeFmt(dbeT('themeAnnounce', 'Theme set to %s'), dbeModeName(t))); }
         }
         function ensureThemeButton() {
-            var col = document.querySelector('.uniTopPanel__rightCol');
+            const col = document.querySelector('.uniTopPanel__rightCol');
             if (!col || col.querySelector('.dbe-theme-btn')) { return; }
-            var btn = document.createElement('button');
+            const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'uniPanelButton dbe-theme-btn';
             btn.appendChild(document.createElement('span'));
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', () => {
                 setTheme(THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length], true);
             });
             decorateThemeButton(btn);
@@ -129,35 +130,35 @@
 
         /* (i2) Density toggle: comfortable <-> compact, persisted per browser.
            html[data-dbe-density] drives the row/padding tokens (62-density.css). */
-        var DENSITY_ICONS = {
+        const DENSITY_ICONS = {
             comfortable: '<path d="M1.5 3h11M1.5 7h11M1.5 11h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
             compact: '<path d="M1.5 2.4h11M1.5 5.4h11M1.5 8.4h11M1.5 11.4h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'
         };
         function currentDensity() {
-            var d = document.documentElement.dataset.dbeDensity;
+            const d = document.documentElement.dataset.dbeDensity;
             return d === 'compact' ? 'compact' : 'comfortable';
         }
         function decorateDensityButton(btn) {
-            var d = currentDensity();
-            var next = d === 'compact' ? 'comfortable' : 'compact';
+            const d = currentDensity();
+            const next = d === 'compact' ? 'comfortable' : 'compact';
             btn.querySelector('span').innerHTML =
                 '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
                 DENSITY_ICONS[d] + '</svg>';
-            var tip = dbeFmt(dbeT('densityTip', 'Density: %1$s (switch to %2$s)'), dbeModeName(d), dbeModeName(next));
+            const tip = dbeFmt(dbeT('densityTip', 'Density: %1$s (switch to %2$s)'), dbeModeName(d), dbeModeName(next));
             setTip(btn, tip);
             // Dynamic label — set explicitly so the accessible name tracks each toggle
             // (setTip won't overwrite an existing aria-label).
             btn.setAttribute('aria-label', tip);
         }
         function ensureDensityButton() {
-            var col = document.querySelector('.uniTopPanel__rightCol');
+            const col = document.querySelector('.uniTopPanel__rightCol');
             if (!col || col.querySelector('.dbe-density-btn')) { return; }
-            var btn = document.createElement('button');
+            const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'uniPanelButton dbe-density-btn';
             btn.appendChild(document.createElement('span'));
-            btn.addEventListener('click', function () {
-                var next = currentDensity() === 'compact' ? 'comfortable' : 'compact';
+            btn.addEventListener('click', () => {
+                const next = currentDensity() === 'compact' ? 'comfortable' : 'compact';
                 document.documentElement.dataset.dbeDensity = next;
                 try { localStorage.setItem('dbeBuilderDensity', next); } catch (e) {}
                 decorateDensityButton(btn);
@@ -166,7 +167,7 @@
             decorateDensityButton(btn);
             dbeEnsureModeStatus(); // present before the first click so the switch is announced
             // Sit next to the theme button when both are on.
-            var themeBtn = col.querySelector('.dbe-theme-btn');
+            const themeBtn = col.querySelector('.dbe-theme-btn');
             col.insertBefore(btn, themeBtn ? themeBtn.nextSibling : col.firstChild);
         }
 
@@ -178,7 +179,7 @@
         function dbeFocusArea(which, compactReady) {
             if (!compactReady && on('compact_panes') && dbeCompactActive()) {
                 if (dbeSetCompactPane(which, { announce: true, focus: false })) {
-                    dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which, true); }, which === 'inserter' || which === 'settings' ? 140 : 0);
+                    dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, () => { dbeFocusArea(which, true); }, which === 'inserter' || which === 'settings' ? 140 : 0);
                 }
                 return;
             }
@@ -190,17 +191,17 @@
                 && (which === 'inserter' || which === 'settings')
                 && dbeCompactLeftMode() !== which) {
                 if (!dbeEnsureCompactLeftMode(which)) { return; }
-                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which, true); }, 140);
+                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, () => { dbeFocusArea(which, true); }, 140);
                 return;
             }
-            var wrappers = dbePanelWrappers();
-            var side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
+            const wrappers = dbePanelWrappers();
+            const side = which === 'navigator' ? 'right' : ((which === 'settings' || which === 'inserter') ? 'left' : '');
             if (side && dbePanelSideHidden(side, wrappers[side])) {
                 dbeSetPanelVisibility(side, false);
-                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(which); }, 120);
+                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, () => { dbeFocusArea(which); }, 120);
                 return;
             }
-            var el = null;
+            let el = null;
             if (which === 'navigator') {
                 el = dbeNavigatorRow(activeId()) || dbeQuery('navigatorFirstRow');
                 if (el) { el.setAttribute('tabindex', '0'); }
@@ -208,7 +209,7 @@
                 // The settings panel shows the selected element's settings — nothing to
                 // go to without a selection.
                 if (!activeId()) { return; }
-                var left = dbeQuery('leftPanel');
+                const left = dbeQuery('leftPanel');
                 el = (left && left.querySelector('button, input, select, textarea, a[href], [tabindex="0"]')) || left;
                 if (el === left && left && left.tabIndex < 0) { left.setAttribute('tabindex', '-1'); }
             } else if (which === 'canvas') {
@@ -218,7 +219,7 @@
                     || document.querySelector('.uniModTree__favouritesListItem');
                 if (el && el.tabIndex < 0 && !/^(a|button|input)$/i.test(el.tagName)) { el.setAttribute('tabindex', '-1'); }
             } else if (which === 'footer') {
-                var footerBar = dbeQuery('footerBar');
+                const footerBar = dbeQuery('footerBar');
                 el = footerBar && (footerBar.querySelector('button[tabindex="0"]')
                     || footerBar.querySelector('button:not([disabled]):not([aria-disabled="true"])'));
             }
@@ -228,18 +229,18 @@
         }
 
         function ensureCanvasModeControl() {
-            var toggle = document.querySelector('.overlayToggleIcon');
+            const toggle = document.querySelector('.overlayToggleIcon');
             if (!toggle) { return; }
             dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, toggle, ['role', 'tabindex', 'aria-pressed', 'aria-label']);
-            var interactive = dbeCanvasInteractive();
-            var label = interactive
+            const interactive = dbeCanvasInteractive();
+            const label = interactive
                 ? dbeT('exitInteractiveCanvas', 'Select elements')
                 : dbeT('enterInteractiveCanvas', 'Interact with page');
             if (toggle.getAttribute('role') !== 'button') { toggle.setAttribute('role', 'button'); }
             if (toggle.getAttribute('tabindex') !== '0') { toggle.setAttribute('tabindex', '0'); }
             if (toggle.getAttribute('aria-pressed') !== String(interactive)) { toggle.setAttribute('aria-pressed', String(interactive)); }
             if (toggle.getAttribute('aria-label') !== label) { toggle.setAttribute('aria-label', label); }
-            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, toggle, 'canvas-mode-keys', 'keydown', function (e) {
+            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, toggle, 'canvas-mode-keys', 'keydown', (e) => {
                 if (e.key !== 'Enter' && e.key !== ' ') { return; }
                 e.preventDefault();
                 e.stopPropagation();
@@ -257,13 +258,13 @@
            width that has no numeric equivalent is the base/"All" state (see
            dbeApplyPreviewWidth): a full-open drag selects it by clicking the base
            button rather than writing a width that would land on Desktop/Tablet. */
-        var DBE_PREVIEW_MIN = 240;
+        const DBE_PREVIEW_MIN = 240;
 
         function dbeSetCanvasWidth(w) {
-            var input = document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]');
+            const input = document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]');
             if (!input) { return false; }
             try {
-                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                 setter.call(input, String(Math.round(w)));
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -274,15 +275,15 @@
         function dbeCanvasInner() { return dbeQuery('canvasInner'); }
 
         function dbeCanvasMax() {
-            var outer = dbeQuery('canvasOuter');
+            const outer = dbeQuery('canvasOuter');
             return outer ? Math.round(outer.getBoundingClientRect().width) : window.innerWidth;
         }
 
         /* Widest breakpoint max (Desktop's "max 1279px" → 1279), 0 if unknown. */
         function dbeLargestBpMax() {
-            var bps = dbeBreakpoints();
-            var m = 0;
-            if (bps) { bps.forEach(function (bp) { if (bp.width && bp.width > m) { m = bp.width; } }); }
+            const bps = dbeBreakpoints();
+            let m = 0;
+            if (bps) { bps.forEach((bp) => { if (bp.width && bp.width > m) { m = bp.width; } }); }
             return m;
         }
 
@@ -291,26 +292,26 @@
            order matches the breakpoint list (same pairing dbeAllBreakpointBtn
            relies on); null when the two cannot be paired. */
         function dbeBpBtnForWidth(w) {
-            var btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
-            var bps = dbeBreakpoints();
+            const btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
+            const bps = dbeBreakpoints();
             if (!btns.length || !bps || bps.length !== btns.length) { return null; }
-            var best = -1, bestW = Infinity;
-            for (var i = 0; i < bps.length; i++) {
+            let best = -1, bestW = Infinity;
+            for (let i = 0; i < bps.length; i++) {
                 if (bps[i].width && w <= bps[i].width && bps[i].width < bestW) { best = i; bestW = bps[i].width; }
             }
             if (best !== -1) { return btns[best]; }
-            for (var j = 0; j < bps.length; j++) { if (!bps[j].width) { return btns[j]; } }
+            for (let j = 0; j < bps.length; j++) { if (!bps[j].width) { return btns[j]; } }
             return btns[0];
         }
 
         /* The base/"All" (full-width, no media query) breakpoint button. It carries
            no width in the breakpoint list; in the top-bar row it sits first. */
         function dbeAllBreakpointBtn() {
-            var btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
+            const btns = document.querySelectorAll('.uniPanelButtonBreakpoint');
             if (!btns.length) { return null; }
-            var bps = dbeBreakpoints();
+            const bps = dbeBreakpoints();
             if (bps && bps.length === btns.length) {
-                for (var i = 0; i < bps.length; i++) {
+                for (let i = 0; i < bps.length; i++) {
                     if (!bps[i].width) { return btns[i]; }
                 }
             }
@@ -339,19 +340,19 @@
              - At full — the true native "All", no override, so the state stays clean. */
 
         function dbePreviewSetReadout(w) {
-            var input = document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]');
+            const input = document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]');
             if (!input) { return; }
             try {
-                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                 setter.call(input, String(Math.round(w)));
             } catch (e) {}
         }
 
-        var dbePreviewOverriding = false;
-        var dbePreviewWantW = 0;
-        var dbePreviewGuardObserver = null;
-        var dbePreviewGuardTimer = 0;
-        var dbePreviewGuardRaf = 0;
+        let dbePreviewOverriding = false;
+        let dbePreviewWantW = 0;
+        let dbePreviewGuardObserver = null;
+        let dbePreviewGuardTimer = 0;
+        let dbePreviewGuardRaf = 0;
 
         /* Hold the canvas at our width across React's re-render when we flip to the
            base/"All" context. Clicking that button makes React reset the sized element
@@ -366,11 +367,11 @@
            keeps it from ever fighting a later breakpoint click or a manual width entry. */
         function dbePreviewGuard(wantW) {
             dbePreviewWantW = wantW;
-            var inner = dbeCanvasInner();
+            const inner = dbeCanvasInner();
             if (inner && !dbePreviewGuardObserver && window.MutationObserver) {
-                dbePreviewGuardObserver = new MutationObserver(function () {
+                dbePreviewGuardObserver = new MutationObserver(() => {
                     if (!dbePreviewOverriding) { return; }
-                    var el = dbeCanvasInner();
+                    const el = dbeCanvasInner();
                     if (el && el.style.width !== dbePreviewWantW + 'px') {
                         el.style.width = dbePreviewWantW + 'px';
                     }
@@ -394,15 +395,15 @@
         function dbePreviewClearOverride() {
             dbePreviewGuardStop();
             if (!dbePreviewOverriding) { return; }
-            var inner = dbeCanvasInner();
+            const inner = dbeCanvasInner();
             if (inner) { inner.style.removeProperty('width'); }
             dbePreviewOverriding = false;
         }
 
         function dbeApplyPreviewWidth(w, max) {
             w = Math.round(w);
-            var bpMax = dbeLargestBpMax();
-            var inner = dbeCanvasInner();
+            const bpMax = dbeLargestBpMax();
+            const inner = dbeCanvasInner();
 
             // Native "hide side panels" pins the canvas to width:100% and IGNORES
             // the numeric width channel entirely (verified: while hidden, a width
@@ -412,7 +413,7 @@
             // with the same inline+guard channel the above-widest zone uses, and
             // keep the breakpoint CONTEXT in step by clicking the matching band.
             if (inner && w < max && document.documentElement.classList.contains('dbe-panels-hidden')) {
-                var band = dbeBpBtnForWidth(w);
+                const band = dbeBpBtnForWidth(w);
                 if (band && !band.classList.contains('active')) {
                     try { band.click(); } catch (e) {}
                 }
@@ -426,7 +427,7 @@
             // Custom width strictly between the widest breakpoint and full: base/"All"
             // context, canvas sized by us.
             if (bpMax && inner && w > bpMax && w < max) {
-                var all = dbeAllBreakpointBtn();
+                const all = dbeAllBreakpointBtn();
                 if (all && !all.classList.contains('active')) {
                     try { all.click(); } catch (e) {}
                 }
@@ -443,7 +444,7 @@
             // would collapse the canvas to nothing.
             if (w >= max) {
                 dbePreviewGuardStop();
-                var allBtn = dbeAllBreakpointBtn();
+                const allBtn = dbeAllBreakpointBtn();
                 if (allBtn && !allBtn.classList.contains('active')) {
                     try { allBtn.click(); } catch (e) {}
                 }
@@ -462,20 +463,20 @@
            changes that move the canvas maximum (detaching/docking the Navigator,
            hiding the side panels), so it must not churn attributes every tick. */
         function dbeSyncHandleAria(handle) {
-            var inner = dbeCanvasInner();
+            const inner = dbeCanvasInner();
             if (!inner) { return; }
-            var set = function (name, value) {
+            const set = function (name, value) {
                 if (handle.getAttribute(name) !== value) { handle.setAttribute(name, value); }
             };
             set('aria-valuemin', String(DBE_PREVIEW_MIN));
             set('aria-valuemax', String(dbeCanvasMax()));
-            var width = Math.round(inner.getBoundingClientRect().width);
+            const width = Math.round(inner.getBoundingClientRect().width);
             set('aria-valuenow', String(width));
             set('aria-valuetext', dbeFmt(dbeT('pixelsWide', '%s pixels wide'), width));
         }
 
         function makePreviewHandle(edge) {
-            var h = document.createElement('button');
+            const h = document.createElement('button');
             h.type = 'button';
             h.className = 'dbe-preview-handle';
             h.setAttribute('data-edge', edge);
@@ -485,25 +486,25 @@
                 ? dbeT('resizePreviewLeft', 'Resize canvas from left edge')
                 : dbeT('resizePreviewRight', 'Resize canvas from right edge'));
 
-            var drag = null;
-            h.addEventListener('pointerdown', function (ev) {
-                var inner = dbeCanvasInner();
+            let drag = null;
+            h.addEventListener('pointerdown', (ev) => {
+                const inner = dbeCanvasInner();
                 if (!inner) { return; }
                 ev.preventDefault();
                 // Drag spans the whole available canvas: the widest breakpoint is a
                 // boundary within it (dbeApplyPreviewWidth), not a ceiling.
                 drag = { x: ev.clientX, w: inner.getBoundingClientRect().width, max: dbeCanvasMax(), raf: 0 };
                 try { h.setPointerCapture(ev.pointerId); } catch (e) {}
-                var panel = dbeQuery('canvasPanel');
+                const panel = dbeQuery('canvasPanel');
                 if (panel) { panel.classList.add('dbe-preview-resizing'); }
             });
-            h.addEventListener('pointermove', function (ev) {
+            h.addEventListener('pointermove', (ev) => {
                 if (!drag || drag.raf) { return; }
                 // The canvas is centred, so a 1px pointer move changes the width
                 // by 2px (both edges mirror around the middle).
-                var delta = (ev.clientX - drag.x) * (edge === 'right' ? 2 : -2);
-                var w = Math.max(DBE_PREVIEW_MIN, Math.min(drag.max, drag.w + delta));
-                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                const delta = (ev.clientX - drag.x) * (edge === 'right' ? 2 : -2);
+                const w = Math.max(DBE_PREVIEW_MIN, Math.min(drag.max, drag.w + delta));
+                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, () => {
                     if (!drag) { return; }
                     drag.raf = 0;
                     dbeApplyPreviewWidth(w, drag.max);
@@ -513,7 +514,7 @@
             function endPreviewDrag() {
                 if (!drag) { return; }
                 drag = null;
-                var panel = dbeQuery('canvasPanel');
+                const panel = dbeQuery('canvasPanel');
                 if (panel) { panel.classList.remove('dbe-preview-resizing'); }
                 // Release the guard now the drag is over, so it can never fight a
                 // breakpoint click; the custom width stays as a plain inline value.
@@ -522,13 +523,13 @@
             h.addEventListener('pointerup', endPreviewDrag);
             h.addEventListener('pointercancel', endPreviewDrag);
 
-            h.addEventListener('keydown', function (ev) {
-                var inner = dbeCanvasInner();
+            h.addEventListener('keydown', (ev) => {
+                const inner = dbeCanvasInner();
                 if (!inner) { return; }
-                var max = dbeCanvasMax();
-                var w = inner.getBoundingClientRect().width;
-                var step = ev.shiftKey ? 50 : 10;
-                var next;
+                const max = dbeCanvasMax();
+                const w = inner.getBoundingClientRect().width;
+                const step = ev.shiftKey ? 50 : 10;
+                let next;
                 switch (ev.key) {
                     case 'ArrowRight':
                     case 'ArrowUp':
@@ -551,19 +552,19 @@
         }
 
         function ensurePreviewHandles() {
-            var inner = dbeCanvasInner();
+            const inner = dbeCanvasInner();
             if (!inner) { return; }
             // No native width input = no write channel; don't render dead handles.
             if (!document.querySelector('.uniGlobalBreakpoints__canvasControl input[name="width"]')) { return; }
-            var existing = inner.querySelectorAll(':scope > .dbe-preview-handle');
+            const existing = inner.querySelectorAll(':scope > .dbe-preview-handle');
             if (existing.length) {
                 // The range moves whenever the canvas maximum does (Navigator
                 // detached/docked, side panels hidden) — keep the ARIA in step.
                 existing.forEach(dbeSyncHandleAria);
                 return;
             }
-            var left = makePreviewHandle('left');
-            var right = makePreviewHandle('right');
+            const left = makePreviewHandle('left');
+            const right = makePreviewHandle('right');
             inner.appendChild(left);
             inner.appendChild(right);
             dbeSyncHandleAria(left);
@@ -571,35 +572,37 @@
         }
 
         /* Side-panel resize (panel_resize): drag the inner edge of either side panel
-           to set ONE shared width for both — the settings/styles panel (left) and the
-           Navigator (right) always match. The width is a single CSS custom property,
-           --dbe-panel-width on <body>, that every panel-width rule reads (see
-           75-panel-resize.css), so moving either handle moves both. The left panel is
+           to set that panel's OWN width — the settings/styles panel (left) and the
+           Navigator (right) are independent. Each side is a CSS custom property,
+           --dbe-panel-width-left / --dbe-panel-width-right on <body>, that the
+           panel-width rules read (see 75-panel-resize.css). The left panel is
            a normal flex item (the canvas reflows on its own); the right panel is an
            absolutely-positioned overlay whose reserved space lives in the iframe
-           panel's own margin — 75-panel-resize.css re-points both at the variable,
+           panel's own margin — 75-panel-resize.css re-points both at their variable,
            scoped to when the Navigator is actually mounted so a closed panel still
-           gives the space back. Width persists in localStorage and re-applies after
-           native re-renders. Keyboard: arrows nudge, Home/End jump to the clamp ends. */
-        var DBE_PANEL_KEY = 'dbeBuilderPanelWidth';
-        var DBE_PANEL_MIN = 260;
-        var DBE_PANEL_MAX = 600;
-        var DBE_PANEL_DEFAULT = 320;
+           gives the space back. Each width persists in localStorage (the pre-split
+           shared key seeds both sides once) and re-applies after native re-renders.
+           Keyboard: arrows nudge, Home/End jump to the clamp ends. */
+        const DBE_PANEL_KEY = 'dbeBuilderPanelWidth'; // legacy shared-width key: seed only
+        const DBE_PANEL_KEYS = { left: 'dbeBuilderPanelWidthLeft', right: 'dbeBuilderPanelWidthRight' };
+        const DBE_PANEL_MIN = 260;
+        const DBE_PANEL_MAX = 600;
+        const DBE_PANEL_DEFAULT = 320;
 
-        function dbePanelWidth() {
-            var v = parseInt(getComputedStyle(document.body).getPropertyValue('--dbe-panel-width'), 10);
+        function dbePanelWidth(side) {
+            const v = parseInt(getComputedStyle(document.body).getPropertyValue('--dbe-panel-width-' + side), 10);
             return isNaN(v) ? DBE_PANEL_DEFAULT : v;
         }
-        function dbeSetPanelWidth(w) {
+        function dbeSetPanelWidth(side, w) {
             w = Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, Math.round(w)));
-            document.body.style.setProperty('--dbe-panel-width', w + 'px');
-            try { localStorage.setItem(DBE_PANEL_KEY, String(w)); } catch (e) {}
+            document.body.style.setProperty('--dbe-panel-width-' + side, w + 'px');
+            try { localStorage.setItem(DBE_PANEL_KEYS[side], String(w)); } catch (e) {}
             dbeSyncPanelHandlesAria();
             return w;
         }
         function dbeSyncPanelHandlesAria() {
-            var w = dbePanelWidth();
-            document.querySelectorAll('.dbe-panel-handle').forEach(function (h) {
+            document.querySelectorAll('.dbe-panel-handle').forEach((h) => {
+                const w = dbePanelWidth(h.getAttribute('data-side'));
                 h.setAttribute('aria-valuemin', String(DBE_PANEL_MIN));
                 h.setAttribute('aria-valuemax', String(DBE_PANEL_MAX));
                 h.setAttribute('aria-valuenow', String(w));
@@ -608,7 +611,7 @@
         }
 
         function makePanelHandle(side) { // side: 'left' | 'right'
-            var h = document.createElement('button');
+            const h = document.createElement('button');
             h.type = 'button';
             h.className = 'dbe-panel-handle';
             h.setAttribute('data-side', side);
@@ -618,23 +621,23 @@
                 ? dbeT('resizePanelLeft', 'Resize left panel')
                 : dbeT('resizePanelRight', 'Resize right panel'));
 
-            var drag = null;
-            h.addEventListener('pointerdown', function (ev) {
+            let drag = null;
+            h.addEventListener('pointerdown', (ev) => {
                 ev.preventDefault();
                 drag = { raf: 0 };
                 try { h.setPointerCapture(ev.pointerId); } catch (e) {}
                 document.body.classList.add('dbe-panel-resizing');
             });
-            h.addEventListener('pointermove', function (ev) {
+            h.addEventListener('pointermove', (ev) => {
                 if (!drag || drag.raf) { return; }
                 // Left panel's inner edge is measured from viewport x=0; the right
                 // panel sits flush to the viewport's right edge.
-                var vw = document.documentElement.clientWidth;
-                var w = side === 'left' ? ev.clientX : (vw - ev.clientX);
-                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                const vw = document.documentElement.clientWidth;
+                const w = side === 'left' ? ev.clientX : (vw - ev.clientX);
+                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, () => {
                     if (!drag) { return; }
                     drag.raf = 0;
-                    dbeSetPanelWidth(w);
+                    dbeSetPanelWidth(side, w);
                 });
             });
             function endPanelDrag() {
@@ -645,10 +648,10 @@
             h.addEventListener('pointerup', endPanelDrag);
             h.addEventListener('pointercancel', endPanelDrag);
 
-            h.addEventListener('keydown', function (ev) {
-                var step = ev.shiftKey ? 40 : 10;
-                var w = dbePanelWidth();
-                var next;
+            h.addEventListener('keydown', (ev) => {
+                const step = ev.shiftKey ? 40 : 10;
+                const w = dbePanelWidth(side);
+                let next;
                 switch (ev.key) {
                     case 'ArrowRight':
                     case 'ArrowUp': next = w + step; break;
@@ -661,7 +664,7 @@
                 // Keep arrows off the builder's global canvas-nudge shortcuts.
                 ev.preventDefault();
                 ev.stopPropagation();
-                dbeSetPanelWidth(next);
+                dbeSetPanelWidth(side, next);
             });
             return h;
         }
@@ -684,10 +687,10 @@
             return !!(el && /max-width:\s*0px/.test(el.getAttribute('style') || ''));
         }
 
-        var DBE_PANEL_VISIBILITY_KEY = 'dbeBuilderPanelVisibility';
-        var DBE_COMPACT_QUERY = '(max-width: 720px)';
-        var dbeCompactMql = null;
-        var dbeCompactPane = 'canvas';
+        const DBE_PANEL_VISIBILITY_KEY = 'dbeBuilderPanelVisibility';
+        const DBE_COMPACT_QUERY = '(max-width: 720px)';
+        let dbeCompactMql = null;
+        let dbeCompactPane = 'canvas';
 
         function dbeCompactMedia() {
             if (!dbeCompactMql) {
@@ -702,7 +705,7 @@
         }
 
         function dbeCompactActive() {
-            var mq = dbeCompactMedia();
+            const mq = dbeCompactMedia();
             return !!(mq && mq.matches && document.documentElement.classList.contains('dbe-compact-panes'));
         }
 
@@ -725,7 +728,7 @@
         }
 
         function dbeCompactLeftMode() {
-            var left = document.querySelector('.uniLeftPanel');
+            const left = document.querySelector('.uniLeftPanel');
             return left && left.querySelector('.uniModList') ? 'inserter' : 'settings';
         }
 
@@ -736,7 +739,7 @@
                 return false;
             }
             if (dbeCompactLeftMode() === pane) { return true; }
-            var button = dbeCompactElementsButton();
+            const button = dbeCompactElementsButton();
             if (button) {
                 /* This native control is a standard React onClick button. A full
                    synthetic pointer sequence does not complete the wide-layout
@@ -753,33 +756,33 @@
         }
 
         function dbeSyncCompactSelect() {
-            var select = dbeCompactSelect();
+            const select = dbeCompactSelect();
             if (!select) { return; }
-            var settings = select.querySelector('option[value="settings"]');
+            const settings = select.querySelector('option[value="settings"]');
             if (settings) { settings.disabled = !activeId(); }
             if (select.value !== dbeCompactPane) { select.value = dbeCompactPane; }
         }
 
         function dbeEnsureCompactSwitcher() {
-            var col = document.querySelector('.uniTopPanel__leftCol');
+            const col = document.querySelector('.uniTopPanel__leftCol');
             if (!col) { return null; }
-            var existing = col.querySelector('.dbe-compact-pane-switcher');
+            const existing = col.querySelector('.dbe-compact-pane-switcher');
             if (existing) { return existing; }
-            var label = document.createElement('label');
+            const label = document.createElement('label');
             label.className = 'dbe-compact-pane-switcher';
-            var select = document.createElement('select');
+            const select = document.createElement('select');
             select.setAttribute('aria-label', dbeT('compactView', 'Builder view'));
-            ['inserter', 'settings', 'canvas', 'navigator'].forEach(function (pane) {
-                var option = document.createElement('option');
+            ['inserter', 'settings', 'canvas', 'navigator'].forEach((pane) => {
+                const option = document.createElement('option');
                 option.value = pane;
                 option.textContent = dbeCompactPaneLabel(pane);
                 select.appendChild(option);
             });
-            select.addEventListener('change', function () {
+            select.addEventListener('change', () => {
                 dbeSetCompactPane(select.value, { announce: true, focus: true });
             });
             label.appendChild(select);
-            var menu = col.querySelector('.uniPanelButton--builderiusMenu');
+            const menu = col.querySelector('.uniPanelButton--builderiusMenu');
             col.insertBefore(label, menu ? menu.nextSibling : col.firstChild);
             return label;
         }
@@ -802,21 +805,21 @@
                 ));
             }
             if (opts.focus) {
-                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, function () { dbeFocusArea(pane, true); }, pane === 'inserter' || pane === 'settings' ? 140 : 0);
+                dbeSetOwnedTimeout(DBE_WORKSPACE_OWNER, () => { dbeFocusArea(pane, true); }, pane === 'inserter' || pane === 'settings' ? 140 : 0);
             }
             return true;
         }
 
         function dbeSetCompactAccessibility() {
-            var wrappers = dbePanelWrappers();
-            var canvas = dbeQuery('canvasPanel');
-            var iframe = dbeQuery('previewFrame');
-            var tabs = document.querySelector('.uniIframeTabs');
-            var leftShown = dbeCompactPane === 'inserter' || dbeCompactPane === 'settings';
-            var canvasShown = dbeCompactPane === 'canvas';
-            var navigatorShown = dbeCompactPane === 'navigator';
-            var active = document.activeElement;
-            var hidingFocus = active && (
+            const wrappers = dbePanelWrappers();
+            const canvas = dbeQuery('canvasPanel');
+            const iframe = dbeQuery('previewFrame');
+            const tabs = document.querySelector('.uniIframeTabs');
+            const leftShown = dbeCompactPane === 'inserter' || dbeCompactPane === 'settings';
+            const canvasShown = dbeCompactPane === 'canvas';
+            const navigatorShown = dbeCompactPane === 'navigator';
+            const active = document.activeElement;
+            const hidingFocus = active && (
                 (!leftShown && wrappers.left && wrappers.left.contains(active))
                 || (!canvasShown && iframe && iframe === active)
                 || (!navigatorShown && wrappers.right && wrappers.right.contains(active))
@@ -842,18 +845,18 @@
             }
             document.documentElement.classList.toggle('dbe-panels-hidden', canvasShown);
             if (hidingFocus) {
-                var select = dbeCompactSelect();
+                const select = dbeCompactSelect();
                 if (select) { try { select.focus(); } catch (e) {} }
             }
             return canvasShown;
         }
 
         function ensureCompactPanes() {
-            var mq = dbeCompactMedia();
-            var root = document.documentElement;
+            const mq = dbeCompactMedia();
+            const root = document.documentElement;
             if (!mq || !mq.matches) {
-                var switcher = document.querySelector('.dbe-compact-pane-switcher');
-                var restoreFocus = !!(switcher && switcher.contains(document.activeElement));
+                const switcher = document.querySelector('.dbe-compact-pane-switcher');
+                const restoreFocus = !!(switcher && switcher.contains(document.activeElement));
                 if (switcher) { switcher.remove(); }
                 root.classList.remove('dbe-compact-panes');
                 delete root.dataset.dbeCompactPane;
@@ -861,13 +864,13 @@
                 dbeSetPanelHiddenState(dbeQuery('previewFrame'), false);
                 dbeSetPanelHiddenState(document.querySelector('.uniIframeTabs'), false);
                 if (restoreFocus) {
-                    var frame = dbeQuery('previewFrame');
+                    const frame = dbeQuery('previewFrame');
                     if (frame) { try { frame.focus(); } catch (e) {} }
                 }
                 return false;
             }
             root.classList.add('dbe-compact-panes');
-            var seeded = root.dataset.dbeCompactPane;
+            const seeded = root.dataset.dbeCompactPane;
             if (['inserter', 'settings', 'canvas', 'navigator'].indexOf(seeded) !== -1) {
                 dbeCompactPane = seeded;
             }
@@ -883,20 +886,20 @@
         }
 
         function dbePanelVisibility() {
-            var state = {};
+            let state = {};
             try { state = JSON.parse(localStorage.getItem(DBE_PANEL_VISIBILITY_KEY) || '{}') || {}; } catch (e) {}
             return { left: state.left === true, right: state.right === true };
         }
 
         function dbeApplyPanelVisibility(state) {
-            var next = state || dbePanelVisibility();
+            const next = state || dbePanelVisibility();
             document.documentElement.classList.toggle('dbe-left-panel-hidden', next.left);
             document.documentElement.classList.toggle('dbe-right-panel-hidden', next.right);
             return next;
         }
 
         function dbeSavePanelVisibility(state) {
-            var next = { left: state.left === true, right: state.right === true };
+            const next = { left: state.left === true, right: state.right === true };
             try { localStorage.setItem(DBE_PANEL_VISIBILITY_KEY, JSON.stringify(next)); } catch (e) {}
             dbeApplyPanelVisibility(next);
             dbeSyncPanelsHidden();
@@ -904,13 +907,22 @@
         }
 
         function dbeSetPanelVisibility(side, hidden) {
-            var state = dbePanelVisibility();
+            const state = dbePanelVisibility();
             state[side] = !!hidden;
+            if (!hidden && dbePanelsAreHidden()) {
+                const wrappers = dbePanelWrappers();
+                const nativeHidden = dbePanelCollapsed(wrappers.left)
+                    && (!wrappers.right || dbePanelCollapsed(wrappers.right));
+                if (!dbeSetNativeFullScreen(false) && nativeHidden) {
+                    const button = dbeSidePanelsButton();
+                    if (button) { button.click(); }
+                }
+            }
             return dbeSavePanelVisibility(state);
         }
 
         function dbePanelWrappers() {
-            var rp = dbeQuery('navigatorPanel');
+            const rp = dbeQuery('navigatorPanel');
             return {
                 left: dbeQuery('leftPanelOuter'),
                 right: rp && rp.parentElement
@@ -918,7 +930,7 @@
         }
 
         function dbePanelsAreHidden() {
-            var wrappers = dbePanelWrappers();
+            const wrappers = dbePanelWrappers();
             return dbePanelSideHidden('left', wrappers.left) && (!wrappers.right || dbePanelSideHidden('right', wrappers.right));
         }
 
@@ -931,26 +943,52 @@
         }
 
         function dbeSidePanelsButton() {
-            return [].slice.call(document.querySelectorAll('.uniTopPanel__rightCol .uniPanelButton')).filter(function (b) {
-                var path = b.querySelector('svg path');
+            return [].slice.call(document.querySelectorAll(
+                '.uniTopPanel__rightCol :is(.uniPanelButton, .uniPanelIconButton)'
+            )).filter((b) => {
+                const path = b.querySelector('svg path');
                 return path && (path.getAttribute('d') || '').indexOf('M14.4551') === 0;
             })[0] || null;
+        }
+
+        function dbeSetNativeFullScreen(hidden) {
+            try {
+                const sf = store();
+                if (!sf || typeof sf.storeGet !== 'function' || typeof sf.storeSet !== 'function') { return false; }
+                hidden = !!hidden;
+                if (sf.storeGet('forceFullScreen') !== hidden) { sf.storeSet('forceFullScreen', hidden); }
+                return true;
+            } catch (e) { return false; }
         }
 
         function dbeSyncPanelToggle(button, hidden) {
             if (!button) { return; }
             dbeRememberOwnedAttributes(DBE_WORKSPACE_OWNER, button, ['aria-label', 'aria-pressed', 'data-dbe-tip']);
-            var label = hidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)');
+            const label = hidden ? dbeT('showSidePanels', 'Show side panels') : dbeT('hideSidePanels', 'Hide side panels (full-width canvas)');
             if (button.getAttribute('aria-label') !== label) { button.setAttribute('aria-label', label); }
-            var pressed = hidden ? 'true' : 'false';
+            const pressed = hidden ? 'true' : 'false';
             if (button.getAttribute('aria-pressed') !== pressed) { button.setAttribute('aria-pressed', pressed); }
             if (on('tooltips') && button.getAttribute('data-dbe-tip') !== label) { button.setAttribute('data-dbe-tip', label); }
             if (on('command_palette')) {
-                dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, button, 'persisted-panels', 'click', function (event) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    var nextHidden = !dbePanelsAreHidden();
+                dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, button, 'persisted-panels', 'click', (event) => {
+                    const wrappers = dbePanelWrappers();
+                    const nativeHidden = dbePanelCollapsed(wrappers.left)
+                        && (!wrappers.right || dbePanelCollapsed(wrappers.right));
+                    const nextHidden = !dbePanelsAreHidden();
                     dbeSavePanelVisibility({ left: nextHidden, right: nextHidden });
+                    /* Builderius derives full-width preview sizing from its own
+                       forceFullScreen store value, not merely from collapsed panel
+                       wrappers. Keep that native value aligned with DBE persistence
+                       and suppress the native onClick only after the write succeeds,
+                       avoiding a double toggle. If the store bridge is unavailable,
+                       let the native handler run on entry and on a genuinely native
+                       exit. A DBE-only legacy mismatch exits through CSS alone so an
+                       open native state is not accidentally toggled on. */
+                    const nativeSynced = dbeSetNativeFullScreen(nextHidden);
+                    if (nativeSynced || (!nextHidden && !nativeHidden)) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                    }
                 }, true);
             }
         }
@@ -970,18 +1008,18 @@
         function dbeSyncPanelsHidden() {
             if (on('command_palette')) { dbeApplyPanelVisibility(); }
             if (on('compact_panes') && dbeCompactActive()) {
-                var compactCanvas = dbeSetCompactAccessibility();
+                const compactCanvas = dbeSetCompactAccessibility();
                 if (on('reveal_selected')) { try { dbeSyncSelectionContext(); } catch (e) {} }
                 return compactCanvas;
             }
-            var wrappers = dbePanelWrappers();
-            var leftHidden = dbePanelSideHidden('left', wrappers.left);
-            var rightHidden = !wrappers.right || dbePanelSideHidden('right', wrappers.right);
-            var hidden = dbePanelsAreHidden();
+            const wrappers = dbePanelWrappers();
+            const leftHidden = dbePanelSideHidden('left', wrappers.left);
+            const rightHidden = !wrappers.right || dbePanelSideHidden('right', wrappers.right);
+            const hidden = dbePanelsAreHidden();
             if (document.activeElement &&
                 ((leftHidden && wrappers.left && wrappers.left.contains(document.activeElement)) ||
                     (rightHidden && wrappers.right && wrappers.right.contains(document.activeElement)))) {
-                var fallback = document.querySelector('.dbe-palette-btn') || dbeQuery('previewFrame') || dbeSidePanelsButton();
+                const fallback = document.querySelector('.dbe-palette-btn') || dbeQuery('previewFrame') || dbeSidePanelsButton();
                 if (fallback) { try { fallback.focus(); } catch (e) {} }
             }
             document.documentElement.classList.toggle('dbe-panels-hidden', hidden);
@@ -993,8 +1031,20 @@
         }
 
         function dbeToggleSidePanels(done) {
-            var wantHidden = !dbePanelsAreHidden();
-            dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+            const wantHidden = !dbePanelsAreHidden();
+            const wrappers = dbePanelWrappers();
+            const nativeHidden = dbePanelCollapsed(wrappers.left)
+                && (!wrappers.right || dbePanelCollapsed(wrappers.right));
+            if (dbeSetNativeFullScreen(wantHidden)) {
+                dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+            } else {
+                const button = dbeSidePanelsButton();
+                if (button && (wantHidden || nativeHidden)) {
+                    button.click();
+                } else {
+                    dbeSavePanelVisibility({ left: wantHidden, right: wantHidden });
+                }
+            }
             if (done) { done(true); }
             return true;
         }
@@ -1003,35 +1053,41 @@
             // Left settings/inserter panel — grip on its inner (right) edge. The outer
             // is made position:relative by 75-panel-resize.css so the absolute grip
             // anchors to it without taking flex space.
-            var lpo = document.querySelector('.uniLeftPanelOuter');
+            const lpo = document.querySelector('.uniLeftPanelOuter');
             if (lpo && !lpo.querySelector(':scope > .dbe-panel-handle')) {
                 lpo.appendChild(makePanelHandle('left'));
             }
             // Right Navigator panel — grip on its inner (left) edge, appended to the
             // absolutely-positioned wrapper so panel overflow can't clip it.
-            var rp = document.querySelector('.uniRightPanel');
-            var rpWrap = rp && rp.parentElement;
+            const rp = document.querySelector('.uniRightPanel');
+            const rpWrap = rp && rp.parentElement;
             if (rpWrap && !rpWrap.querySelector(':scope > .dbe-panel-handle')) {
                 rpWrap.appendChild(makePanelHandle('right'));
             }
             dbeSyncPanelHandlesAria();
         }
 
-        /* Seed --dbe-panel-width from the stored value before the handles mount.
-           The FIRST-paint seed actually happens earlier, in the wp_head bootstrap
-           (output-builder.php), inline on <html> — this script only runs once the
-           SPA has mounted, ~1s after the canvas painted, and seeding only here
-           made a stored width visibly snap the canvas. This body-level write
-           remains the live channel the drag handles use, and a belt-and-braces
-           re-seed in case head output was filtered away. Clamp mirrors the
-           bootstrap's. */
+        /* Seed --dbe-panel-width-left/right from the stored values before the
+           handles mount. The FIRST-paint seed actually happens earlier, in the
+           wp_head bootstrap (output-builder.php), inline on <html> — this script
+           only runs once the SPA has mounted, ~1s after the canvas painted, and
+           seeding only here made a stored width visibly snap the canvas. This
+           body-level write remains the live channel the drag handles use, and a
+           belt-and-braces re-seed in case head output was filtered away. The
+           pre-split shared key seeds a side that has never stored its own width.
+           Clamp mirrors the bootstrap's. */
         function applyStoredPanelWidth() {
-            var v;
-            try { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); } catch (e) {}
-            if (!isNaN(v)) {
-                document.body.style.setProperty('--dbe-panel-width',
-                    Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, v)) + 'px');
-            }
+            ['left', 'right'].forEach((side) => {
+                let v;
+                try {
+                    v = parseInt(localStorage.getItem(DBE_PANEL_KEYS[side]), 10);
+                    if (isNaN(v)) { v = parseInt(localStorage.getItem(DBE_PANEL_KEY), 10); }
+                } catch (e) {}
+                if (!isNaN(v)) {
+                    document.body.style.setProperty('--dbe-panel-width-' + side,
+                        Math.max(DBE_PANEL_MIN, Math.min(DBE_PANEL_MAX, v)) + 'px');
+                }
+            });
         }
 
         /* Detachable Navigator (panel_detach, experimental): float the Navigator free
@@ -1043,11 +1099,11 @@
            panel header, resize from the bottom-inline-end grip. The detached flag and
            geometry persist in localStorage and re-apply idempotently after native
            re-renders (CSS vars + a body class, never one-shot inline writes). */
-        var DBE_NAV_KEY = 'dbeBuilderNavFloat';
-        var DBE_NAV_MIN_W = 240;
-        var DBE_NAV_MIN_H = 200;
+        const DBE_NAV_KEY = 'dbeBuilderNavFloat';
+        const DBE_NAV_MIN_W = 240;
+        const DBE_NAV_MIN_H = 200;
         function navWrap() {
-            var rp = document.querySelector('.uniRightPanel');
+            const rp = document.querySelector('.uniRightPanel');
             return rp ? rp.parentElement : null;
         }
         function navFloatState() {
@@ -1059,8 +1115,8 @@
         /* Keep the floating panel inside the viewport (below the ~47px top bar), with
            a sensible minimum size. */
         function clampNav(st) {
-            var vw = document.documentElement.clientWidth;
-            var vh = document.documentElement.clientHeight;
+            const vw = document.documentElement.clientWidth;
+            const vh = document.documentElement.clientHeight;
             st.w = Math.max(DBE_NAV_MIN_W, Math.min(st.w, vw));
             st.h = Math.max(DBE_NAV_MIN_H, Math.min(st.h, vh - 47));
             st.x = Math.max(0, Math.min(st.x, vw - 40));
@@ -1068,7 +1124,7 @@
             return st;
         }
         function applyNavFloatVars(st) {
-            var r = document.documentElement.style;
+            const r = document.documentElement.style;
             r.setProperty('--dbe-nav-x', st.x + 'px');
             r.setProperty('--dbe-nav-y', st.y + 'px');
             r.setProperty('--dbe-nav-w', st.w + 'px');
@@ -1076,12 +1132,12 @@
         }
 
         function detachNav() {
-            var wrap = navWrap();
+            const wrap = navWrap();
             if (!wrap) { return; }
-            var st = navFloatState();
+            let st = navFloatState();
             if (!st || !st.detached) {
                 // Seed geometry from the panel's current docked box so it floats in place.
-                var r = wrap.getBoundingClientRect();
+                const r = wrap.getBoundingClientRect();
                 st = { detached: true, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
             } else {
                 st.detached = true;
@@ -1095,7 +1151,7 @@
         }
         function dockNav() {
             document.body.classList.remove('dbe-nav-detached');
-            var st = navFloatState() || {};
+            const st = navFloatState() || {};
             st.detached = false;
             saveNavFloat(st);
             syncDetachButton();
@@ -1112,18 +1168,18 @@
             if (document.body.classList.contains('dbe-nav-detached')) { dockNav(); } else { detachNav(); }
         }
 
-        var DETACH_SVG = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+        const DETACH_SVG = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
             '<path d="M8 1.5h4.5V6M12.5 1.5 7 7M6 2H2.5A1 1 0 0 0 1.5 3v8.5a1 1 0 0 0 1 1H11a1 1 0 0 0 1-1V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
             '</svg>';
 
 
         function syncDetachButton() {
-            var btn = document.querySelector('.uniRightPanel .dbe-detach-btn');
+            const btn = document.querySelector('.uniRightPanel .dbe-detach-btn');
             if (!btn) { return; }
-            var floating = document.body.classList.contains('dbe-nav-detached');
+            const floating = document.body.classList.contains('dbe-nav-detached');
             btn.classList.toggle('is-detached', floating);
             btn.setAttribute('aria-pressed', floating ? 'true' : 'false');
-            var label = floating ? dbeT('dockPanel', 'Dock panel') : dbeT('detachPanel', 'Detach panel');
+            const label = floating ? dbeT('dockPanel', 'Dock panel') : dbeT('detachPanel', 'Detach panel');
             btn.setAttribute('aria-label', label);
             // Prefer our branded chip. The label is dynamic (Detach ↔ Dock), so this
             // button can't ride the static DBE_TIPS list like the other header icons
@@ -1139,9 +1195,9 @@
         }
 
         function ensureDetachButton() {
-            var icons = document.querySelector('.uniRightPanel .uniPanelHeader__icons');
+            const icons = document.querySelector('.uniRightPanel .uniPanelHeader__icons');
             if (!icons || icons.querySelector('.dbe-detach-btn')) { return; }
-            var btn = document.createElement('button');
+            const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'uniPanelIconButton uniPanelIconButtonSmall dbe-detach-btn';
             btn.innerHTML = '<span>' + DETACH_SVG + '</span>';
@@ -1158,9 +1214,9 @@
            buttons/inputs — still fires on it. Re-added each schedule() tick, so it
            survives the header re-rendering. */
         function ensureNavGrip() {
-            var header = document.querySelector('.uniRightPanel .uniPanelHeader');
+            const header = document.querySelector('.uniRightPanel .uniPanelHeader');
             if (!header || header.querySelector(':scope > .dbe-nav-grip')) { return; }
-            var grip = document.createElement('span');
+            const grip = document.createElement('span');
             grip.className = 'dbe-nav-grip';
             grip.setAttribute('aria-hidden', 'true');
             grip.title = dbeT('dragToMove', 'Drag to move');
@@ -1168,27 +1224,27 @@
         }
 
         function ensureNavResizeGrip() {
-            var wrap = navWrap();
+            const wrap = navWrap();
             if (!wrap || wrap.querySelector(':scope > .dbe-nav-resize')) { return; }
-            var grip = document.createElement('button');
+            const grip = document.createElement('button');
             grip.type = 'button';
             grip.className = 'dbe-nav-resize';
             grip.setAttribute('aria-label', dbeT('resizePanel', 'Resize panel'));
-            var drag = null;
-            grip.addEventListener('pointerdown', function (ev) {
+            let drag = null;
+            grip.addEventListener('pointerdown', (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
-                var st = navFloatState() || {};
+                const st = navFloatState() || {};
                 drag = { x: ev.clientX, y: ev.clientY, w: st.w, h: st.h, raf: 0 };
                 try { grip.setPointerCapture(ev.pointerId); } catch (e) {}
                 document.body.classList.add('dbe-nav-dragging');
             });
-            grip.addEventListener('pointermove', function (ev) {
+            grip.addEventListener('pointermove', (ev) => {
                 if (!drag || drag.raf) { return; }
-                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, () => {
                     if (!drag) { return; }
                     drag.raf = 0;
-                    var st = navFloatState() || {};
+                    const st = navFloatState() || {};
                     st.w = drag.w + (ev.clientX - drag.x);
                     st.h = drag.h + (ev.clientY - drag.y);
                     clampNav(st);
@@ -1206,24 +1262,24 @@
            it survives the header re-rendering). Ignores clicks on the header's own
            buttons so the detach/collapse/expand icons still work. */
         function bindNavHeaderDrag() {
-            var drag = null;
-            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-start', 'pointerdown', function (ev) {
+            let drag = null;
+            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-start', 'pointerdown', (ev) => {
                 if (!document.body.classList.contains('dbe-nav-detached')) { return; }
-                var header = ev.target.closest && ev.target.closest('.uniRightPanel .uniPanelHeader');
+                const header = ev.target.closest && ev.target.closest('.uniRightPanel .uniPanelHeader');
                 if (!header) { return; }
                 if (ev.target.closest('button, input, [contenteditable="true"]')) { return; }
-                var st = navFloatState();
+                const st = navFloatState();
                 if (!st) { return; }
                 ev.preventDefault();
                 drag = { px: ev.clientX, py: ev.clientY, x: st.x, y: st.y, raf: 0 };
                 document.body.classList.add('dbe-nav-dragging');
             }, true);
-            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-move', 'pointermove', function (ev) {
+            dbeBindOwnedEvent(DBE_WORKSPACE_OWNER, document, 'navigator-drag-move', 'pointermove', (ev) => {
                 if (!drag || drag.raf) { return; }
-                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, function () {
+                drag.raf = dbeSetOwnedFrame(DBE_WORKSPACE_OWNER, () => {
                     if (!drag) { return; }
                     drag.raf = 0;
-                    var st = navFloatState() || {};
+                    const st = navFloatState() || {};
                     st.x = drag.x + (ev.clientX - drag.px);
                     st.y = drag.y + (ev.clientY - drag.py);
                     clampNav(st);
@@ -1243,7 +1299,7 @@
             ensureNavGrip();
             ensureNavResizeGrip();
             bindNavHeaderDrag();
-            var st = navFloatState();
+            const st = navFloatState();
             if (st && st.detached) {
                 clampNav(st);
                 applyNavFloatVars(st);
@@ -1264,7 +1320,7 @@
         }));
 
         function dbeObserveWorkspace() {
-            var main = dbeQuery('mainPanel');
+            const main = dbeQuery('mainPanel');
             dbeObserveChrome('workspace-main', main, {
                 childList: true,
                 subtree: true,
@@ -1291,8 +1347,8 @@
             if (on('density_toggle')) { ensureDensityButton(); }
         }
         function dbeRestoreWorkspaceState() {
-            var root = document.documentElement;
-            var body = document.body;
+            const root = document.documentElement;
+            const body = document.body;
             dbePreviewClearOverride();
             dbeObserveChrome('workspace-main', null);
             dbeObserveChrome('workspace-top', null);
@@ -1302,7 +1358,7 @@
             document.querySelectorAll(
                 '.dbe-preview-handle, .dbe-panel-handle, .dbe-compact-pane-switcher, ' +
                 '.dbe-detach-btn, .dbe-nav-grip, .dbe-nav-resize, .dbe-theme-btn, .dbe-density-btn'
-            ).forEach(function (node) { node.remove(); });
+            ).forEach((node) => { node.remove(); });
             if (dbeModeStatus) { dbeModeStatus.remove(); }
             dbeModeStatus = null;
             root.classList.remove(
@@ -1310,14 +1366,16 @@
                 'dbe-left-panel-hidden', 'dbe-right-panel-hidden'
             );
             delete root.dataset.dbeCompactPane;
-            ['--dbe-panel-width', '--dbe-nav-x', '--dbe-nav-y', '--dbe-nav-w', '--dbe-nav-h'].forEach(function (name) {
+            ['--dbe-panel-width', '--dbe-panel-width-left', '--dbe-panel-width-right', '--dbe-nav-x', '--dbe-nav-y', '--dbe-nav-w', '--dbe-nav-h'].forEach((name) => {
                 root.style.removeProperty(name);
             });
             if (body) {
                 body.classList.remove('dbe-nav-detached', 'dbe-nav-dragging', 'dbe-panel-resizing');
                 body.style.removeProperty('--dbe-panel-width');
+                body.style.removeProperty('--dbe-panel-width-left');
+                body.style.removeProperty('--dbe-panel-width-right');
             }
-            var canvas = dbeQuery('canvasPanel');
+            const canvas = dbeQuery('canvasPanel');
             if (canvas) { canvas.classList.remove('dbe-preview-resizing'); }
             dbeCompactMql = null;
             dbeCompactPane = 'canvas';
@@ -1327,12 +1385,12 @@
             dbeRestoreWorkspaceState();
         }
         dbeControllers.register(DBE_WORKSPACE_OWNER, {
-            init: function (context) {
+            init (context) {
                 if (!context || !context.builderius) { return; }
                 dbeWorkspaceControllerActive = true;
                 if (on('panel_resize')) { applyStoredPanelWidth(); }
                 if (on('panel_detach')) {
-                    var navState = navFloatState();
+                    const navState = navFloatState();
                     if (navState && navState.detached) {
                         applyNavFloatVars(clampNav(navState));
                         document.body.classList.add('dbe-nav-detached');
@@ -1340,10 +1398,10 @@
                 }
                 dbeRefreshWorkspace();
             },
-            refresh: function (reason) {
+            refresh (reason) {
                 if (reason) { dbeRefreshWorkspace(); }
             },
-            destroy: function () {
+            destroy () {
                 destroyWorkspace();
             }
         }, on('preview_resize') || on('panel_resize') || on('compact_panes') ||

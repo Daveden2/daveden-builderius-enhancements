@@ -1,12 +1,12 @@
 <?php
 /**
- * Admin bar: "Edit template" link + second-builder-tab warning.
+ * Admin bar: applied-template link compatibility + second-builder-tab warning.
  *
- * 1. Adds an item to the Builderius admin-bar menu on the logged-in front end
- *    (alongside the native dev/live preview switch): a direct link that opens
- *    the Builderius template applied to the current page in the builder,
- *    labelled with the template's name.
- * 2. Before following that link, warns if the builder already appears to be
+ * 1. Makes Builderius' own admin-bar menu trigger keyboard-focusable. The
+ *    parent plugin renders a div with menuitem semantics but no Tab stop.
+ * 2. Uses Builderius' native applied-template link when present. Older parent
+ *    versions retain DBE's direct "Edit template" fallback.
+ * 3. Before following either link, warns if the builder already appears to be
  *    open in another tab (two builder tabs can overwrite each other's
  *    changes). Detection: the builder page writes a heartbeat into
  *    localStorage (see builder.js); the front-end click handler treats a beat
@@ -106,7 +106,8 @@ function dbe_builderius_runtime_cache() {
 }
 
 /**
- * Add the "Edit template" node under the native Builderius admin-bar menu.
+ * Make the native Builderius menu focusable and add DBE's legacy edit link
+ * only when the parent plugin does not provide its own applied-template item.
  *
  * @param WP_Admin_Bar $wp_admin_bar Admin bar instance.
  */
@@ -123,6 +124,22 @@ function dbe_adminbar_edit_template( WP_Admin_Bar $wp_admin_bar ) {
 	// Builderius adds its parent node only for builderius developers with the
 	// admin bar showing — piggyback on that rather than re-checking.
 	if ( ! $wp_admin_bar->get_node( 'builderius' ) ) {
+		return;
+	}
+
+	// Builderius renders its top-level menu trigger as a div role="menuitem"
+	// without a Tab stop. Re-adding the existing node merges this supported
+	// meta value without replacing Builderius' title, children or classes.
+	$wp_admin_bar->add_node(
+		array(
+			'id'   => 'builderius',
+			'meta' => array( 'tabindex' => 0 ),
+		)
+	);
+
+	// Builderius 1.3.6-beta supplies the applied-template link natively. Keep
+	// the reflection-based DBE fallback only for parent versions without it.
+	if ( $wp_admin_bar->get_node( 'builderius-applied-template' ) ) {
 		return;
 	}
 
@@ -158,6 +175,79 @@ function dbe_adminbar_edit_template( WP_Admin_Bar $wp_admin_bar ) {
 add_action( 'admin_bar_menu', 'dbe_adminbar_edit_template', 9999 );
 
 /**
+ * Keep keyboard focus visible on Builderius' native top-level admin-bar item.
+ *
+ * Builderius' coloured inner wrapper covers WordPress' focused background, so
+ * use one inset ring and suppress any competing outer outline.
+ */
+function dbe_adminbar_focus_styles() {
+	if ( ! dbe_enabled( 'presence_heartbeat' ) || ! is_user_logged_in() || is_admin() || ! is_admin_bar_showing() ) {
+		return;
+	}
+	?>
+<style id="dbe-adminbar-builderius-focus">
+#wpadminbar #wp-admin-bar-builderius {
+	--dbe-adminbar-accent: #72aee6;
+	--dbe-adminbar-interaction: rgba(114, 174, 230, 0.24);
+	--dbe-adminbar-interaction-text: #f0f6fc;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible {
+	outline: none;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper {
+	background-color: transparent;
+	box-shadow: inset 0 0 0 2px currentColor;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper span {
+	color: inherit;
+}
+#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper svg path {
+	fill: currentColor;
+}
+#wpadminbar #wp-admin-bar-builderius-preview-mode > .ab-item {
+	padding-inline: 0;
+}
+#wpadminbar #wp-admin-bar-builderius-preview-mode .status-heading,
+#wpadminbar #wp-admin-bar-builderius-preview-mode [role="menuitemradio"] {
+	box-sizing: border-box;
+	padding-inline: 10px;
+	width: 100%;
+}
+#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:not([aria-disabled="true"]):hover,
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover {
+	background-color: var(--dbe-adminbar-interaction);
+	color: var(--dbe-adminbar-interaction-text);
+}
+#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitem"]:focus-visible,
+#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:focus-visible {
+	background-color: var(--dbe-adminbar-interaction);
+	box-shadow: inset 0 0 0 2px var(--dbe-adminbar-accent);
+	color: var(--dbe-adminbar-interaction-text);
+	outline: none;
+}
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:hover > .ab-item,
+#wpadminbar #wp-admin-bar-builderius .ab-submenu a[role="menuitem"]:focus-visible > .ab-item {
+	background-color: transparent;
+	color: inherit;
+}
+#wpadminbar #wp-admin-bar-builderius .builderius-status-item[aria-disabled="true"] {
+	cursor: default;
+}
+@media (forced-colors: active) {
+	#wpadminbar #wp-admin-bar-builderius > .ab-item:focus-visible .builderius-status-wrapper,
+	#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitem"]:focus-visible,
+	#wpadminbar #wp-admin-bar-builderius .ab-submenu [role="menuitemradio"]:focus-visible {
+		box-shadow: none;
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+	}
+}
+</style>
+	<?php
+}
+add_action( 'wp_head', 'dbe_adminbar_focus_styles', 999 );
+
+/**
  * Front-end click guard: confirm before opening the builder when a builder
  * tab already appears to be open (fresh heartbeat in localStorage).
  */
@@ -174,8 +264,8 @@ function dbe_adminbar_second_tab_warning() {
 <script id="dbe-adminbar-open-template">
 (function () {
 	'use strict';
-	var HB = <?php echo wp_json_encode( $heartbeat ); ?>;
-	var MSG = 
+	const HB = <?php echo wp_json_encode( $heartbeat ); ?>;
+	const MSG =
 	<?php
 	echo wp_json_encode(
 		array(
@@ -185,6 +275,118 @@ function dbe_adminbar_second_tab_warning() {
 	);
 	?>
 	;
+	function enhanceBuilderiusMenu() {
+		const menu = document.getElementById('wp-admin-bar-builderius');
+		const trigger = menu && menu.querySelector(':scope > .ab-item');
+		const submenu = menu && menu.querySelector(':scope > .ab-sub-wrapper');
+		const submenuList = submenu && submenu.querySelector(':scope > ul[id]');
+		if (!trigger || !submenu || !submenuList) { return; }
+		const preview = submenu.querySelector('#wp-admin-bar-builderius-preview-mode');
+		const previewContainer = preview && preview.querySelector(':scope > .ab-item');
+		const previewGroup = previewContainer && previewContainer.querySelector('.builderius-status-management-wrapper');
+		const previewHeading = previewGroup && previewGroup.querySelector('.status-heading');
+		const previewItems = previewGroup ? Array.from(previewGroup.querySelectorAll('.builderius-status-item')) : [];
+		let suppressFocusOpen = false;
+		submenuList.querySelectorAll(':scope > li').forEach((item) => {
+			item.setAttribute('role', 'none');
+		});
+		if (previewContainer) { previewContainer.setAttribute('role', 'none'); }
+		if (previewGroup) {
+			previewGroup.setAttribute('role', 'group');
+			if (previewHeading) {
+				previewHeading.id = previewHeading.id || 'dbe-builderius-preview-mode-label';
+				previewGroup.setAttribute('aria-labelledby', previewHeading.id);
+			}
+		}
+		previewItems.forEach((item) => {
+			const current = item.classList.contains('active');
+			item.setAttribute('role', 'menuitemradio');
+			item.setAttribute('tabindex', '-1');
+			item.setAttribute('aria-checked', current ? 'true' : 'false');
+			if (current) { item.setAttribute('aria-disabled', 'true'); }
+			else { item.removeAttribute('aria-disabled'); }
+			const indicator = item.querySelector('i');
+			if (indicator) { indicator.setAttribute('aria-hidden', 'true'); }
+		});
+		submenuList.setAttribute('aria-labelledby', trigger.id || 'dbe-builderius-adminbar-trigger');
+		if (!trigger.id) { trigger.id = 'dbe-builderius-adminbar-trigger'; }
+		function menuItems() {
+			return Array.from(submenu.querySelectorAll('[role="menuitemradio"], a[role="menuitem"]'));
+		}
+		function setRovingItem(item) {
+			menuItems().forEach((candidate) => {
+				candidate.setAttribute('tabindex', candidate === item ? '0' : '-1');
+			});
+		}
+		function setMenuOpen(open) {
+			menu.classList.toggle('hover', open);
+			trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+			if (!open) { setRovingItem(null); }
+		}
+		function focusItem(index) {
+			const items = menuItems();
+			if (!items.length) { return; }
+			const target = items[(index + items.length) % items.length];
+			setMenuOpen(true);
+			setRovingItem(target);
+			target.focus();
+		}
+		setRovingItem(null);
+		trigger.setAttribute('aria-haspopup', 'menu');
+		trigger.setAttribute('aria-controls', submenuList.id);
+		trigger.addEventListener('focus', () => {
+			if (!suppressFocusOpen) { setMenuOpen(true); }
+		});
+		trigger.addEventListener('keydown', (e) => {
+			if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ') { return; }
+			e.preventDefault();
+			focusItem(e.key === 'ArrowUp' ? menuItems().length - 1 : 0);
+		});
+		menu.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && menu.contains(document.activeElement)) {
+				e.preventDefault();
+				suppressFocusOpen = true;
+				trigger.focus();
+				suppressFocusOpen = false;
+				setMenuOpen(false);
+				return;
+			}
+			const current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
+			const items = menuItems();
+			const index = items.indexOf(current);
+			if (index < 0) { return; }
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+				e.preventDefault();
+				if (e.key === 'Home') { focusItem(0); }
+				else if (e.key === 'End') { focusItem(items.length - 1); }
+				else { focusItem(index + (e.key === 'ArrowDown' ? 1 : -1)); }
+				return;
+			}
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				if (current.getAttribute('aria-disabled') !== 'true') { current.click(); }
+			}
+		});
+		menu.addEventListener('focusin', (e) => {
+			const current = e.target.closest && e.target.closest('[role="menuitemradio"], a[role="menuitem"]');
+			if (current && submenu.contains(current)) {
+				setMenuOpen(true);
+				setRovingItem(current);
+			}
+		});
+		menu.addEventListener('focusout', (e) => {
+			if (!menu.contains(e.relatedTarget)) { setMenuOpen(false); }
+		});
+		menu.addEventListener('mouseenter', () => { setMenuOpen(true); });
+		menu.addEventListener('mouseleave', () => {
+			if (!menu.contains(document.activeElement)) { setMenuOpen(false); }
+		});
+	}
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', enhanceBuilderiusMenu, { once: true });
+	} else {
+		enhanceBuilderiusMenu();
+	}
 	// The builder page heartbeats into localStorage (builder.js); a beat
 	// fresher than HB.staleAfter means a builder tab is (very likely) open.
 	function freshestBeat(value) {
@@ -192,25 +394,23 @@ function dbe_adminbar_second_tab_warning() {
 			return (Date.now() - value.t) <= HB.staleAfter ? value : null;
 		}
 		if (!value || !value.tabs || typeof value.tabs !== 'object' || Array.isArray(value.tabs)) { return null; }
-		return Object.keys(value.tabs).map(function (id) {
-			return value.tabs[id];
-		}).filter(function (beat) {
+		return Object.keys(value.tabs).map((id) => value.tabs[id]).filter((beat) => {
 			return beat && typeof beat.t === 'number' && (Date.now() - beat.t) <= HB.staleAfter;
-		}).sort(function (a, b) {
+		}).sort((a, b) => {
 			return b.t - a.t;
 		})[0] || null;
 	}
-	document.addEventListener('click', function (e) {
-		var a = e.target.closest && e.target.closest('#wp-admin-bar-dbe-open-template > a');
+	document.addEventListener('click', (e) => {
+		const a = e.target.closest && e.target.closest('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a');
 		if (!a) { return; }
-		var raw = null;
+		let raw = null;
 		try { raw = localStorage.getItem(HB.key); } catch (err) {}
 		if (!raw) { return; }
-		var stored;
+		let stored;
 		try { stored = JSON.parse(raw); } catch (err) { return; }
-		var beat = freshestBeat(stored);
+		const beat = freshestBeat(stored);
 		if (!beat) { return; }
-		var msg = MSG.open
+		const msg = MSG.open
 			+ (beat.title ? ':\n“' + beat.title + '”' : '')
 			+ '\n\n' + MSG.warn;
 		if (!window.confirm(msg)) {

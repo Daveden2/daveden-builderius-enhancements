@@ -3,7 +3,10 @@
    Dialog pattern matches the shortcuts overlay (71-shortcuts.css). */
 
 dialog.dbe-bem {
-    inline-size: min(560px, 92vw);
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    inline-size: min(860px, calc(100vw - 32px));
     max-block-size: 84vh;
     display: flex;
     flex-direction: column;
@@ -79,7 +82,7 @@ dialog.dbe-bem::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-bem__row {
     display: grid;
-    grid-template-columns: auto auto 1fr minmax(140px, 200px);
+    grid-template-columns: auto auto minmax(0, 1fr) minmax(340px, .9fr);
     align-items: center;
     column-gap: 8px;
     padding-block: 4px;

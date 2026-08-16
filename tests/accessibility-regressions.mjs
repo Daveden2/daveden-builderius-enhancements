@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
@@ -22,9 +23,11 @@ const editing = read('assets/builder/js/chunks/editing.js');
 const styles = read('assets/builder/js/chunks/styles.js');
 const integrations = read('assets/builder/js/chunks/integrations.js');
 const commands = read('assets/builder/js/chunks/commands.js');
+const shortcuts = read('assets/builder/js/chunks/shortcuts.js');
 const coreRuntime = read('assets/builder/js/core-runtime.js');
 const topbar = read('assets/builder/css/03-topbar-layout.css');
 const controls = read('assets/builder/css/12-controls.css');
+const theme = read('assets/builder/css/60-theme.css');
 const palette = read('assets/builder/css/82-command-palette.css');
 const saveCue = read('assets/builder/css/72-save-cue.css');
 const tokens = read('assets/builder/css/00-tokens.css');
@@ -37,10 +40,13 @@ const compactPanes = read('assets/builder/css/83-compact-panes.css');
 const saveMenu = read('assets/builder/css/35-save-menu.css');
 const inserterKeyboard = read('assets/builder/css/78-inserter-keyboard.css');
 const navigatorKeyboard = read('assets/builder/css/79-navigator-keyboard.css');
+const contextMenu = read('assets/builder/css/30-context-menu.css');
+const autoBem = read('assets/builder/css/33-auto-bem.css');
 const strings = read('includes/i18n-builder.php');
 const outputBuilder = read('includes/output-builder.php');
 const features = read('includes/features.php');
 const adminBar = read('includes/admin-bar.php');
+const contextParentFactory = commands.slice(commands.indexOf('function makeParent'), commands.indexOf('function makeCtxItem'));
 
 assert.match(
     a11y,
@@ -84,7 +90,7 @@ assert.match(
 );
 assert.match(
     commands,
-    /var AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
+    /const AREA = \{ KeyO: 'navigator', KeyE: 'settings', KeyP: 'canvas', KeyL: 'inserter', KeyB: 'footer' \}[\s\S]{0,350}input, textarea/,
     'Area-jump shortcuts must run before editable targets suppress element commands.'
 );
 assert.match(
@@ -109,7 +115,7 @@ assert.match(
 );
 assert.match(
     a11y,
-    /host\.controllers\.register\('a11y\/chrome',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyChrome\(\)/,
+    /host\.controllers\.register\('a11y\/chrome',[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyChrome\(\)/,
     'Builder landmarks must participate in the shared init, refresh and destroy lifecycle.'
 );
 assert.match(
@@ -123,13 +129,23 @@ assert.match(
     'The chrome controller must own reversible tooltip event listeners.'
 );
 assert.match(
+    builder,
+    /function setTip\(el, label\)[\s\S]+closest\('\.tooltipItem\[data-tooltip-content\]'\)[\s\S]+nativeAnchor\.removeAttribute\('data-tooltip-content'\)/,
+    'DBE tooltips must suppress a native tooltip wrapper so controls such as Edit favourites never show duplicate chips.'
+);
+assert.match(
+    builder,
+    /\.uniRightPanel \.uniPanelHeader__icons > \.tooltipItem > button[\s\S]+\.uniLeftPanel \.uniPanelHeader__icons > \.tooltipItem > button[\s\S]+M13\.6445[\s\S]+expandAllGroups[\s\S]+M11\.9198[\s\S]+closePanel/,
+    'Builderius 1.3.6 wrapped panel-header controls must retain Expand all and Close names and tooltips.'
+);
+assert.match(
     a11y,
     /function observeChrome\(\)[\s\S]+a11y-chrome-main[\s\S]+a11y-chrome-top[\s\S]+a11y-chrome-footer/,
     'The chrome controller must declare its own shared observation roots.'
 );
 assert.match(
     composites,
-    /dbeControllers\.register\('a11y\/composites',[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyA11yComposites\(\)/,
+    /dbeControllers\.register\('a11y\/composites',[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyA11yComposites\(\)/,
     'Breakpoint and footer composites must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -161,6 +177,11 @@ assert.match(
     composites,
     /function ensurePanelTabs\(\)[\s\S]+dbeBindOwnedEvent\('a11y\/composites', strip, 'panel-tabs-keys'[\s\S]+e\.key === 'Enter'[\s\S]+e\.key === ' '[\s\S]+clickSeq\(focused\)[\s\S]+dbeSetOwnedTimeout\('a11y\/composites'/,
     'Panel tablists must own arrow movement, Enter/Space activation and delayed-refocus work.'
+);
+assert.match(
+    composites,
+    /canvasDocumentTabs[\s\S]+role', 'tablist'[\s\S]+aria-selected[\s\S]+canvasStops\.length !== 1[\s\S]+!canvasFocused && canvasActive[\s\S]+canvas-tabs-keys[\s\S]+e\.key === 'Delete'[\s\S]+uniIframeTabButton__closeIcon[\s\S]+openCanvasDocument/,
+    'Persistent canvas tabs must expose APG semantics, roving keys, keyboard close and a named document opener.'
 );
 assert.match(
     composites,
@@ -234,7 +255,7 @@ assert.doesNotMatch(
 );
 assert.match(
     integrations,
-    /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyTerminalIntegration\(\)/,
+    /dbeControllers\.register\(DBE_TERMINAL_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyTerminalIntegration\(\)/,
     'Sense AI terminal accessibility must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -269,7 +290,7 @@ assert.doesNotMatch(
 );
 assert.match(
     workspace,
-    /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyWorkspace\(\)/,
+    /dbeControllers\.register\(DBE_WORKSPACE_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyWorkspace\(\)/,
     'Workspace features must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -299,7 +320,7 @@ assert.doesNotMatch(
 );
 assert.match(
     commands,
-    /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init: function \(context\)[\s\S]+refresh: function \(reason\)[\s\S]+destroy: function \(\)[\s\S]+destroyCommands\(\)/,
+    /dbeControllers\.register\(DBE_COMMANDS_OWNER,[\s\S]+init \(context\)[\s\S]+refresh \(reason\)[\s\S]+destroy \(\)[\s\S]+destroyCommands\(\)/,
     'Command interfaces must participate in the shared controller lifecycle.'
 );
 assert.match(
@@ -318,8 +339,8 @@ assert.match(
     'The command search field must use concise spoken copy independently of its visual placeholder.'
 );
 assert.match(
-    commands,
-    /function openShortcutsDialog\(\)[\s\S]+e\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeShortcutFocusReturn[\s\S]+target\.focus\(\)/,
+    shortcuts,
+    /function openShortcutsDialog\(\)[\s\S]+event\.key === 'Escape'[\s\S]+dlg\.close\(\)[\s\S]+dbeShortcutFocusReturn[\s\S]+target\.focus\(\)/,
     'Shortcut help must close explicitly on Escape and return focus to its invoker.'
 );
 assert.match(
@@ -334,6 +355,11 @@ assert.match(
 );
 assert.match(
     commands,
+    /function dbeBindKeyboardFrameDocument\(frame\)[\s\S]+frame\.isConnected[\s\S]+doc\.documentElement[\s\S]+!root \|\| root\.nodeType !== 1[\s\S]+record\.observer\.observe\(root[\s\S]+record\.observer = null/,
+    'Persistent canvas-tab swaps must not observe a detached or unhydrated preview document.'
+);
+assert.match(
+    commands,
     /function dbeReleaseCommandFrameDocuments\(keepDoc\)[\s\S]+dbeUnbindOwnedEvent\(DBE_COMMANDS_OWNER, record\.doc[\s\S]+record\.observer\.disconnect\(\)[\s\S]+function ensureKeyboardIframeBridge\(\)[\s\S]+canvas-frame-load/,
     'Reloaded preview documents must release listeners and observers before the new bridge binds.'
 );
@@ -344,8 +370,144 @@ assert.match(
 );
 assert.match(
     commands,
+    /function nativeCtxLabel\(li\)[\s\S]+uniContextMenu__shortcut[\s\S]+function collectNativeItems\(container, regex\)[\s\S]+regex\.test\(nativeCtxLabel\(li\)\)/,
+    'Builderius 1.3.6 shortcut spans must not become part of native context-menu command names.'
+);
+assert.match(
+    commands,
+    /nativeContextItem\(container, \/\^Cut\$\/\)[\s\S]+collectNativeItems\(container, \/\^\(Copy\|Paste\|Cut\)\$\/\)[\s\S]+collectNativeItems\(container, \/\^Rename\$\/\)[\s\S]+collectNativeItems\(container, \/\^Auto-BEM\$\/\)[\s\S]+collectNativeItems\(container, \/\^Wrap in\$\/\)[\s\S]+collectNativeItems\(container, \/\^Expand children\$\/\)/,
+    'The enhanced menu must adopt Builderius 1.3.6 actions instead of adding duplicate Cut, rename, wrapping or expansion commands.'
+);
+assert.match(
+    contextParentFactory,
+    /li\.addEventListener\('mousedown',[\s\S]+aria-expanded[\s\S]+openFlyout\(\)/,
+    'DBE context-menu branches must follow Builderius 1.3.6 and open on click.'
+);
+assert.doesNotMatch(
+    contextParentFactory,
+    /mouseenter|mouseleave/,
+    'DBE context-menu branches must not mix hover-open behaviour with Builderius click-open branches.'
+);
+assert.match(
+    contextMenu,
+    /uniMiniModal--wrapIn\.dbe-wrap-in-anchored[\s\S]+position:\s*fixed\s*!important[\s\S]+translate:\s*none\s*!important[\s\S]+max-inline-size:\s*calc\(100vw - 16px\)[\s\S]+max-block-size:\s*calc\(100vh - 16px\)/,
+    'The native Wrap in dialog must use a viewport-capped fixed layer that can be recalculated after browser zoom.'
+);
+assert.doesNotMatch(
+    contextMenu + commands,
+    /\.dbe-wrap-in-anchor\s*\{|--dbe-wrap-in-anchor|function dbeSetNativeWrapAnchor/,
+    'Wrap in must not retain a temporary pixel anchor that becomes stale after browser zoom.'
+);
+assert.match(
+    contextMenu,
+    /dbe-chip-menu \.uniContextMenu__item[\s\S]+max-inline-size:\s*min\(460px, calc\(100vw - 32px\)\)[\s\S]+white-space:\s*normal[\s\S]+overflow-wrap:\s*anywhere/,
+    'Class-bearing context menus must wrap unusually long class names within the viewport instead of clipping them.'
+);
+assert.match(
+    palette,
+    /\.dbe-palette__label,[\s\S]+\.dbe-palette__reason[\s\S]+overflow-wrap:\s*anywhere/,
+    'Command-palette class actions and disabled reasons must preserve long names.'
+);
+assert.match(
+    autoBem,
+    /dialog\.dbe-bem\s*\{[\s\S]+position:\s*fixed;[\s\S]+inset:\s*0;[\s\S]+margin:\s*auto;[\s\S]+inline-size:\s*min\(860px, calc\(100vw - 32px\)\)[\s\S]+grid-template-columns:\s*auto auto minmax\(0, 1fr\) minmax\(340px, \.9fr\)/,
+    'The fallback Auto-BEM task must stay centred and reserve enough width to show generated class names.'
+);
+assert.match(
+    contextMenu,
+    /dialog\.uniMiniModal\.uniMiniModal--autoBem\s*\{[\s\S]+position:\s*fixed\s*!important;[\s\S]+inset:\s*0\s*!important;[\s\S]+margin:\s*auto\s*!important;[\s\S]+inline-size:\s*min\(860px, calc\(100vw - 32px\)\)[\s\S]+uniAutoBemModal__row[\s\S]+grid-template-columns:\s*minmax\(0, 1fr\) minmax\(340px, \.9fr\)[\s\S]+uniAutoBemModal__rowClassInput/,
+    'Builderius 1.3.6 native Auto-BEM must stay centred and replace its 130px class-name column with a readable responsive width.'
+);
+assert.match(
+    commands,
+    /function dbeNormaliseNativeAutoBemLabels\(dialog\)[\s\S]+uniAutoBemModal__rowTag[\s\S]+uniAutoBemModal__rowLabel[\s\S]+replace\(\/\[<>\]\/g, ''\)[\s\S]+labelText === tagText[\s\S]+label\.hidden = true[\s\S]+data-dbe-auto-bem-default-label[\s\S]+function dbeWatchNativeAutoBemDialog\(\)[\s\S]+dialog\.uniMiniModal--autoBem\[open\][\s\S]+dialog\.querySelector\('\.uniAutoBemModal__row'\)[\s\S]+builderius\.miniModal\.openAutoBem[\s\S]+dbeNativeAutoBemLabels[\s\S]+dbeWatchNativeAutoBemDialog/,
+    'Native Auto-BEM must hide only a redundant default label that duplicates its adjacent HTML tag badge.'
+);
+assert.match(
+    commands,
+    /function dbePositionNativeWrapDialog\(dialog, targetId\)[\s\S]+uniRightPanel[\s\S]+panel\.getBoundingClientRect\(\)[\s\S]+row\.getBoundingClientRect\(\)[\s\S]+window\.innerWidth[\s\S]+window\.innerHeight[\s\S]+anchorLeft - dialogRect\.width - gap[\s\S]+anchorRight \+ gap[\s\S]+style\.setProperty\('left',[\s\S]+'important'\)[\s\S]+style\.setProperty\('top',[\s\S]+'important'\)[\s\S]+function scheduleWrapDialogPosition\(\)[\s\S]+wrap-dialog-resize[\s\S]+wrap-dialog-visual-resize/,
+    'Wrap in must recalculate from live Navigator geometry and clamp both axes whenever browser or visual viewport zoom changes.'
+);
+assert.match(
+    commands,
+    /function dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+aria-label[\s\S]+dbe-wrap-in-figure[\s\S]+wrap\('figure', \[targetId\]\)[\s\S]+function dbeEnhanceNativeWrapItem/,
+    'The native Wrap in modal must include DBE Figure wrapping and an accessible close name.'
+);
+assert.match(
+    commands,
+    /dbeDecorateNativeWrapDialog\(dialog, targetId\)[\s\S]+dialog\.setAttribute\('aria-label', dbeT\('wrapIn'[\s\S]+ev\.key === 'Escape'[\s\S]+returnWrapDialogFocus\(\)[\s\S]+ev\.key !== 'Tab'[\s\S]+ev\.shiftKey[\s\S]+focusables\[next\]\.focus\(\)[\s\S]+wrap-dialog-cancel[\s\S]+wrap-dialog-close-return[\s\S]+wrap-dialog-choice-return-[\s\S]+uni-tree-node-[\s\S]+first\.focus\(\)/,
+    'The Wrap in modal must be named, contain Tab focus, start on the first choice and return focus to its Navigator row.'
+);
+assert.doesNotMatch(
+    commands,
+    /wrapFigureLi/,
+    'Figure wrapping must not remain as a separate top-level command when the native Wrap in modal is available.'
+);
+assert.match(
+    contextMenu,
+    /uniMiniModal--wrapIn[\s\S]+uniIconButton\s*\{[\s\S]+inline-size:\s*28px\s*!important;[\s\S]+block-size:\s*28px\s*!important;[\s\S]+focus-visible/,
+    'The native Wrap in close button must expose a visible 28px target and keyboard focus treatment.'
+);
+assert.match(
+    contextMenu,
+    /uniWrapInModal__option:hover[\s\S]+dbe-hover-wash[\s\S]+uniWrapInModal__option:focus-visible[\s\S]+color-mix\(in srgb, var\(--dbe-focus\) 10%, transparent\)[\s\S]+outline:\s*2px solid var\(--dbe-focus\)[\s\S]+outline-offset:\s*-2px/,
+    'Wrap in choices must have subtle hover and focus colours plus one inset focus ring.'
+);
+const wrapChoiceFocus = contextMenu.match(/\.uniMiniModal--wrapIn \.uniWrapInModal__option:focus-visible\s*\{([^}]*)\}/)?.[1] || '';
+assert.doesNotMatch(
+    wrapChoiceFocus,
+    /border-color/,
+    'Wrap in choices must not add a second focus-coloured border around the inset ring.'
+);
+assert.match(
+    focus,
+    /outline:\s*2px solid var\(--dbe-focus\) !important;[\s\S]+outline-offset:\s*-2px !important;/,
+    'The shared builder focus treatment must use one inset ring instead of a separated outer outline.'
+);
+assert.match(
+    commands,
     /function dbeNavigatorContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+row\.dispatchEvent\(new MouseEvent\('contextmenu'[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, document, 'navigator-context-menu-key'/,
     'Navigator rows must explicitly open their context menu from Shift+F10 and the Menu key.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextMenuKeydown\(e\)[\s\S]+e\.key !== 'ContextMenu'[\s\S]+e\.key === 'F10' && e\.shiftKey[\s\S]+dbeOpenPreviewContextMenu[\s\S]+dbeBindOwnedEvent\(DBE_COMMANDS_OWNER, doc, 'preview-context-menu-key'/,
+    'Preview elements must open the shared context menu from Shift+F10 and the Menu key.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextMenuKeydown\(e\)[\s\S]+e\.key === 'F2'[\s\S]+on\('preview_rename'\)[\s\S]+dbePreviewContextBlocked\(e\.target\)[\s\S]+dbeOpenPreviewRename\(renameTarget\.id, renameTarget\.element\)/,
+    'Preview F2 rename must ignore editing controls and use the rendered target.'
+);
+assert.match(
+    commands,
+    /const nativePreviewRename = previewRenamePath[\s\S]+nativeContextItem\(container, \/\^Rename\$\/\)[\s\S]+const renameLi = nativePreviewRename \|\| document\.createElement\('li'\)[\s\S]+renameLi\.classList\.add\('dbe-ctx-item'\)[\s\S]+nativePreviewRename[\s\S]+ev\.stopPropagation\(\)/,
+    'Preview rename must reroute Builderius\u2019s native Rename row instead of adding a duplicate action.'
+);
+assert.match(
+    commands,
+    /function dbeOpenPreviewRename\(id, renderedTarget\)[\s\S]+aria-labelledby[\s\S]+form\.noValidate = true[\s\S]+previewRenameLabel[\s\S]+function restoreFocus\(\)[\s\S]+dbeRestorePreviewContextTarget\(focusState\)[\s\S]+aria-invalid[\s\S]+next\.length > 120[\s\S]+dlg\.addEventListener\('keydown'[\s\S]+e\.key === 'Escape'/,
+    'Preview rename must clearly name its field, validate input, support Escape and restore canvas focus.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextBlocked\(target\)[\s\S]+input, textarea, select[\s\S]+contenteditable[\s\S]+function dbePreviewContextPointerDown\(e\)[\s\S]+dbeCanvasInteractive\(\)[\s\S]+function dbePreviewContextMenu\(e\)/,
+    'Preview menus must preserve editable and interaction-mode context menus.'
+);
+assert.match(
+    commands,
+    /function dbeReleasePreviewContextState\(state, keepFocused\)[\s\S]+state\.element\.addEventListener\('blur'[\s\S]+function dbeRestorePreviewContextTarget\(state\)[\s\S]+target\.focus[\s\S]+stableChecks >= 2[\s\S]+function dbeDiscardPreviewContext\(restoreFocus\)[\s\S]+dialog\.uniBuilderContextMenu\[open\][\s\S]+dbeRestorePreviewContextTarget\(state\)/,
+    'Closing a preview context menu must restore focus to its rendered target.'
+);
+assert.match(
+    commands,
+    /function dbePreviewContextCloseKeydown\(e\)[\s\S]+e\.key !== 'Escape'[\s\S]+dbeRestorePreviewContextTarget\(state\)[\s\S]+preview-context-close-key'[\s\S]+dbePreviewContextCloseKeydown/,
+    'Preview focus restoration must survive the native dialog Escape handling.'
+);
+assert.match(
+    commands,
+    /preview-context-close'[\s\S]+dbeDiscardPreviewContext\(true\)[\s\S]+builderius\.contextMenu\.hide'[\s\S]+dbePreviewContextState[\s\S]+200/,
+    'Preview focus restoration must follow dialog close and retain a bounded fallback.'
 );
 assert.match(
     commands,
@@ -399,8 +561,8 @@ assert.match(
 );
 assert.match(
     editing,
-    /function closeRename\(commit, restoreFocus\)[\s\S]+dbeRestoreRenameFocus\(st\.id, st\.focusReturn\)[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
-    'Committing or cancelling inline rename from the keyboard must return focus to its tree row.'
+    /function dbeNavigatorLabel\(row\)[\s\S]+dbe-visually-hidden[\s\S]+raw\.indexOf\(' \.'\)[\s\S]+function dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+current !== st\.oldLabel[\s\S]+commitRename\(st\.id, st\.oldLabel[\s\S]+function closeRename\(commit, restoreFocus\)[\s\S]+dbeFinishCancelledRename\(st, restoreFocus\)[\s\S]+const oldLabel = dbeNavigatorLabel\(row\) \|\| mods\[id\]\.label[\s\S]+closeRename\(true, true\)[\s\S]+closeRename\(false, true\)/,
+    'Inline rename must seed from the rendered 1.3.5 label, restore it on cancellation and return focus to its tree row.'
 );
 assert.match(
     editing,
@@ -414,7 +576,7 @@ assert.match(
 );
 assert.match(
     editing,
-    /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape: function \(\) \{ dlg\.close\(\); \}/,
+    /opts\.onEscape && typeof ed\.onKeyDown[\s\S]+browserEvent\.key !== 'Escape'[\s\S]+event\.preventDefault\(\)[\s\S]+opts\.onEscape\(\)[\s\S]+ed\.addCommand\(api\.KeyCode\.Escape, opts\.onEscape\)[\s\S]+ed\.addAction\([\s\S]+keybindings: \[api\.KeyCode\.Escape\][\s\S]+escapeKeyListener\.dispose\(\)[\s\S]+onEscape \(\) \{ dlg\.close\(\); \}/,
     'Monaco editing dialogs must handle Escape through the editor event and command APIs.'
 );
 assert.match(
@@ -444,12 +606,12 @@ assert.doesNotMatch(
 );
 assert.match(
     builder,
-    /var NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)/,
+    /const NEED_STYLES = on\('css_code_default'\)[\s\S]+on\('hide_minimap'\)/,
     'The host must compute one toggle gate for the styles domain.'
 );
 assert.match(
     styles,
-    /var NEED_STYLES = host\.needStyles[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
+    /const NEED_STYLES = host\.needStyles[\s\S]+dbeControllers\.register\(DBE_STYLES_OWNER,[\s\S]+dbeRefreshStyles\(\)[\s\S]+destroyStyles\(\)/,
     'Style features must participate in one shared controller lifecycle.'
 );
 assert.match(
@@ -459,7 +621,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)[\s\S]+refreshOpenStyleInspector\(\)/,
+    /function dbeRefreshStyles\(\)[\s\S]+ensureCssCodeDefault\(\)[\s\S]+ensureCodeModeTabs\(\)[\s\S]+ensureCssHint\(\)[\s\S]+dbeDisableMinimap\(\)[\s\S]+ensureScopeBar\(\)[\s\S]+ensureScopeIsolation\(\)/,
     'Style interfaces must refresh through their controller rather than the global scheduler.'
 );
 assert.match(
@@ -469,13 +631,8 @@ assert.match(
 );
 assert.match(
     styles,
-    /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-style-inspector[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
+    /function destroyStyles\(\)[\s\S]+dbeScopeFinish\(\)[\s\S]+dbeDestroyOwnedActivity\(DBE_STYLES_OWNER\)[\s\S]+dbeClearAllCssDecorations\(\)[\s\S]+dbe-css-hint-dialog[\s\S]+dbe-scope-covered[\s\S]+dbeRestoreMinimap\(\)/,
     'Style teardown must settle transitions, cancel work, remove generated UI and restore Monaco.'
-);
-assert.match(
-    styles,
-    /function dbeCloseStyleInspector\(panel\)[\s\S]+preferred && preferred\.isConnected[\s\S]+target\.focus\(\)/,
-    'Style inspector dismissal must return focus to a stable invoking control.'
 );
 assert.match(
     styles,
@@ -484,7 +641,7 @@ assert.match(
 );
 assert.match(
     styles,
-    /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, function \(\) \{ clickSelectorUntilLoaded/,
+    /dbeSetOwnedFrame\(DBE_STYLES_OWNER, waitForContentTab\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, done, 6000\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, poll, 150\)[\s\S]+dbeSetOwnedTimeout\(DBE_STYLES_OWNER, \(\) => \{ clickSelectorUntilLoaded/,
     'Styles navigation and selector polling must use controller-owned delayed work.'
 );
 assert.doesNotMatch(
@@ -533,29 +690,9 @@ assert.doesNotMatch(
     'Dirty state must not return to a timing-based selection hold that can absorb real edits.'
 );
 assert.match(
-    integrations,
-    /function dbePresenceDirty\(\) \{[\s\S]{0,120}return dbeHasUnsavedChanges\(\)/,
-    'Server presence must use the same corrected dirty-state contract as the visible save cue.'
-);
-assert.match(
-    editing,
-    /var dbePresenceDirtyChanged = host\.presenceDirtyChanged[\s\S]+dbePresenceDirtyChanged\(dirty\)/,
-    'The visible save cue must publish its computed dirty transition to server presence.'
-);
-assert.match(
     builder,
     /function dbeSetOwnedInterval\(owner, callback, delay\)[\s\S]+function dbeDestroyOwnedActivity\(owner\)[\s\S]+clearInterval\(interval\.id\)/,
     'Controller-owned intervals must be cancelled with their lifecycle.'
-);
-assert.match(
-    integrations,
-    /dbePresenceServerLastDirty === true[\s\S]{0,180}dbePresenceServer\.interval \|\| 20000/,
-    'Server presence must renew only a dirty record on the slow cadence.'
-);
-assert.match(
-    integrations,
-    /if \(!on\('save_state_cue'\)\)[\s\S]{0,240}dbePresenceServer\.transitionInterval \|\| 2500/,
-    'The fast dirty-state scanner must only run when the visible save cue cannot publish transitions.'
 );
 assert.match(
     integrations,
@@ -569,13 +706,73 @@ assert.match(
 );
 assert.match(
     integrations,
-    /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)[\s\S]+dbePresenceSendServerBeat\(true, true\)/,
+    /function dbePresenceDestroy\(\)[\s\S]+dbePresenceDirtyChanged = function \(\) \{\};[\s\S]+dbeDestroyOwnedActivity\(DBE_PRESENCE_OWNER\)[\s\S]+dbePresenceClearLocalBeat\(\)/,
     'Presence teardown must release its publisher, intervals and per-tab records.'
 );
 assert.match(
     adminBar,
-    /function freshestBeat\(value\)[\s\S]+value\.tabs[\s\S]+sort\(function \(a, b\)[\s\S]+var beat = freshestBeat\(stored\)/,
+    /function freshestBeat\(value\)[\s\S]+value\.tabs[\s\S]+sort\(\(a, b\) =>[\s\S]+const beat = freshestBeat\(stored\)/,
     'The admin-bar warning must accept legacy beats and choose the freshest v2 tab record.'
+);
+assert.match(
+    adminBar,
+    /get_node\( 'builderius' \)[\s\S]+add_node\([\s\S]+?'id'\s+=> 'builderius'[\s\S]+?'tabindex' => 0[\s\S]+?get_node\( 'builderius-applied-template' \)/,
+    'The native Builderius admin-bar trigger must gain a Tab stop before DBE checks for the native edit link.'
+);
+assert.match(
+    adminBar,
+    /get_node\( 'builderius-applied-template' \)[\s\S]+?return;[\s\S]+?dbe_builderius_runtime_cache\(\)/,
+    'The reflection-based edit link must remain a fallback after Builderius supplies its own item.'
+);
+assert.match(
+    adminBar,
+    /closest\('#wp-admin-bar-builderius-applied-template > a, #wp-admin-bar-dbe-open-template > a'\)/,
+    'Duplicate-tab protection must follow both the native link and DBE’s downgrade fallback.'
+);
+assert.match(
+    adminBar,
+    /function enhanceBuilderiusMenu\(\)[\s\S]+function setMenuOpen\(open\)[\s\S]+classList\.toggle\('hover', open\)[\s\S]+aria-expanded[\s\S]+trigger\.addEventListener\('focus'[\s\S]+setMenuOpen\(true\)/,
+    'Focusing the native Builderius trigger must expose its submenu and expanded state.'
+);
+assert.match(
+    adminBar,
+    /document\.readyState === 'loading'[\s\S]+DOMContentLoaded[\s\S]+enhanceBuilderiusMenu\(\)/,
+    'Admin-bar keyboard wiring must wait until WordPress has rendered the toolbar after DBE’s footer hook.'
+);
+assert.match(
+    adminBar,
+    /dbe-adminbar-builderius-focus[\s\S]+--dbe-adminbar-accent: #72aee6[\s\S]+--dbe-adminbar-interaction-text: #f0f6fc[\s\S]+:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px currentColor[\s\S]+\[role="menuitemradio"\]:focus-visible[\s\S]+box-shadow: inset 0 0 0 2px var\(--dbe-adminbar-accent\)[\s\S]+forced-colors: active[\s\S]+outline-offset: -2px/,
+    'The native Builderius trigger and submenu items must expose consistent inset focus cues with a forced-colours fallback.'
+);
+assert.match(
+    adminBar,
+    /#wp-admin-bar-builderius-preview-mode > \.ab-item[\s\S]+padding-inline: 0[\s\S]+\[role="menuitemradio"\][\s\S]+padding-inline: 10px[\s\S]+width: 100%/,
+    'Preview choices must fill the same menu width as the native edit link without moving their text.'
+);
+assert.match(
+    adminBar,
+    /\[role="menuitemradio"\]:not\(\[aria-disabled="true"\]\):hover,[\s\S]+a\[role="menuitem"\]:hover[\s\S]+background-color: var\(--dbe-adminbar-interaction\)[\s\S]+color: var\(--dbe-adminbar-interaction-text\)/,
+    'Available preview choices and the native edit link must share one higher-contrast hover treatment while the disabled choice remains static.'
+);
+assert.match(
+    adminBar,
+    /previewGroup\.setAttribute\('role', 'group'\)[\s\S]+aria-labelledby[\s\S]+item\.setAttribute\('role', 'menuitemradio'\)[\s\S]+aria-checked[\s\S]+aria-disabled/,
+    'The native preview-mode choices must form a labelled radio group with explicit selected and disabled state.'
+);
+assert.match(
+    adminBar,
+    /function menuItems\(\)[\s\S]+\[role="menuitemradio"\], a\[role="menuitem"\][\s\S]+function setRovingItem\(item\)[\s\S]+tabindex[\s\S]+function focusItem\(index\)[\s\S]+setRovingItem\(null\)/,
+    'Every native preview choice and edit link must start outside the Tab order and participate in one roving menu sequence.'
+);
+assert.match(
+    adminBar,
+    /e\.key !== 'ArrowDown'[\s\S]+e\.key !== 'ArrowUp'[\s\S]+focusItem[\s\S]+e\.key === 'Escape'[\s\S]+trigger\.focus\(\)[\s\S]+e\.key === 'Home'[\s\S]+e\.key === 'End'[\s\S]+aria-disabled[\s\S]+current\.click\(\)/,
+    'The native Builderius menu must support complete arrow navigation, guarded activation and Escape focus return.'
+);
+assert.match(
+    adminBar,
+    /addEventListener\('focusout'[\s\S]+relatedTarget[\s\S]+setMenuOpen\(false\)/,
+    'The native Builderius menu must close after keyboard focus leaves it.'
 );
 assert.match(
     coreRuntime,
@@ -584,7 +781,7 @@ assert.match(
 );
 assert.match(
     builder,
-    /var dbeChromeObserver = dbeRuntime\.createMutationRouter\(schedule\)[\s\S]+dbeChromeObserver\.observe\(key, node, options\)/,
+    /const dbeChromeObserver = dbeRuntime\.createMutationRouter\(schedule\)[\s\S]+dbeChromeObserver\.observe\(key, node, options\)/,
     'Feature controllers must register chrome roots through the core observer router.'
 );
 assert.equal(
@@ -609,6 +806,21 @@ assert.match(
     topbar,
     /@media \(max-width: 1599px\)/,
     'The fluid top-bar layout must cover the measured DBE/native-control collision range.'
+);
+assert.match(
+    tokens,
+    /--dbe-topbar-item-gap:\s*4px[\s\S]+--dbe-topbar-group-gap:\s*8px/,
+    'The top bar must keep a constrained 4px item / 8px group spacing rhythm.'
+);
+assert.match(
+    topbar,
+    /\.uniTopPanel__rightCol\s*\{[\s\S]+gap:\s*var\(--dbe-topbar-item-gap\) !important[\s\S]+\.uniApplicantsSelect,[\s\S]+\.uniHistoryBtns,[\s\S]+\.tooltipId__topPanel_fullscreen,[\s\S]+\.saveBtn[\s\S]+margin-inline-start:\s*calc\(var\(--dbe-topbar-group-gap\) - var\(--dbe-topbar-item-gap\)\) !important/,
+    'The right top bar must separate context, history, preview and Save groups without restructuring them.'
+);
+assert.match(
+    topbar,
+    /@media \(max-width: 1023px\)[\s\S]+\.uniApplicantsSelect,[\s\S]+\.saveBtn[\s\S]+margin-inline-start:\s*0 !important/,
+    'The top bar must surrender extra group spacing before compact mode is needed.'
 );
 assert.match(
     palette,
@@ -689,9 +901,14 @@ assert.match(
     /\.dbe-save-menu-btn[\s\S]+display:\s*flex !important[\s\S]+:has\(> \.dbe-save-menu-btn\) \.saveBtn/,
     'Compact mode must preserve both halves of the Save split button.'
 );
+assert.match(
+    compactPanes,
+    /\.uniHistoryBtns,[\s\S]+\.tooltipId__topPanel_fullscreen,[\s\S]+\.tooltipId__topPanel_preview[\s\S]+display:\s*none !important/,
+    'Compact mode must remove native history and preview wrappers before they overlap essential controls.'
+);
 const saveFeature = features.slice(
     features.indexOf("'save_split_button'     => array("),
-    features.indexOf("'css_block_guard'", features.indexOf("'save_split_button'     => array("))
+    features.indexOf("'presence_heartbeat'", features.indexOf("'save_split_button'     => array("))
 );
 assert.doesNotMatch(
     saveFeature,
@@ -700,7 +917,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
     commands,
-    /dbeRevealTimer|setInterval\(function \(\) \{[\s\S]{0,300}revealActiveInTree/,
+    /dbeRevealTimer|setInterval\(\(\) => \{[\s\S]{0,300}revealActiveInTree/,
     'Selection reveal must not return to permanent interval polling.'
 );
 assert.match(
@@ -718,15 +935,57 @@ assert.match(
     /data-dbe-favourite-name[\s\S]+insertFavourite[\s\S]+Insert %s/,
     'Favourite controls must expose an action-led accessible name without changing tree rows.'
 );
+assert.ok(
+    composites.includes('function dbeTreeDisplayLabel(raw, tag)')
+        && composites.includes("const idx = raw.indexOf(' .');")
+        && composites.includes('const nativeTag = label.match(/^<([a-z][a-z0-9-]*)>$/i);')
+        && composites.includes("return '<' + tag + '>' + (!labelIsTag && label ? ' ' + label : '');"),
+    'Tag badges must recognise Builderius 1.3.6 native tag labels and remove class suffixes.'
+);
+const treeDisplayLabelSource = composites.match(/function dbeTreeDisplayLabel\(raw, tag\) \{[\s\S]*?\n        \}/)?.[0];
+assert.ok(treeDisplayLabelSource, 'The Navigator display-label helper must remain testable.');
+const treeDisplayLabelContext = {};
+runInNewContext(`${treeDisplayLabelSource}; result = dbeTreeDisplayLabel;`, treeDisplayLabelContext);
+assert.equal(treeDisplayLabelContext.result('<strong> .hero-title', 'strong'), '<strong>');
+assert.equal(treeDisplayLabelContext.result('strong .hero-title', 'strong'), '<strong>');
+assert.equal(
+    treeDisplayLabelContext.result('Documentation homepage .page-content.dbe-docs', 'main'),
+    '<main> Documentation homepage'
+);
 assert.match(
     composites,
-    /badge\.setAttribute\('aria-hidden', 'true'\)[\s\S]+spokenLabel\.textContent = raw/,
-    'Visual tag badges must preserve the native Navigator row name verbatim.'
+    /dbeTreeBadgeRecords\.push\(\{ node: span, html: span\.innerHTML, title: span\.getAttribute\('title'\) \}\)[\s\S]+span\.setAttribute\('title', displayLabel\)[\s\S]+spokenLabel\.textContent = displayLabel[\s\S]+record\.title === null[\s\S]+removeAttribute\('title'\)/,
+    'Decorated rows must share one class-free visible, tooltip and accessible label and restore native content on teardown.'
+);
+assert.match(
+    composites,
+    /function dbeRememberTreeDragOrigin\(e\)[\s\S]+:scope > \.uniModTree__itemWrapper[\s\S]+wrapper\.contains\(e\.target\)[\s\S]+function dbeGuardTreeDragStart\(e\)[\s\S]+if \(!item\) \{[\s\S]+return;[\s\S]+e\.preventDefault\(\)/,
+    'Navigator dragging must begin on the visible row rather than an ancestor indentation area.'
+);
+assert.match(
+    treeRows,
+    /\.uniModTree__itemDrag > \.uniModTree__list\s*\{[\s\S]+cursor:\s*default !important;/,
+    'Blocked Navigator indentation must not advertise the native grab interaction.'
+);
+assert.match(
+    treeRows,
+    /\.uniModTree__itemDrag:hover\s*\{\s*cursor:\s*default !important;\s*\}[\s\S]+\.uniModTree__itemDrag > \.uniModTree__itemWrapper\s*\{\s*cursor:\s*grab !important;\s*\}/,
+    'Navigator grab affordance must be limited to the visible row wrapper.'
+);
+assert.match(
+    composites,
+    /tree-drag-origin'[\s\S]+pointerdown[\s\S]+tree-drag-start'[\s\S]+dragstart[\s\S]+tree-drag-end'[\s\S]+dragend[\s\S]+tree-drag-cancel'[\s\S]+pointercancel/,
+    'The tree drag-origin guard must use reversible composite-controller listeners.'
 );
 assert.match(
     composites,
     /function navSyncAria\(\)[\s\S]+aria-level[\s\S]+aria-posinset[\s\S]+aria-setsize[\s\S]+function ensureNavKeyboard\(\)[\s\S]+navigator-keys/,
     'The composites chunk must own the APG Navigator tree structure and keyboard binding.'
+);
+assert.match(
+    composites,
+    /let dbeNavAriaSnapshot = null[\s\S]+function navAriaSnapshotChanged\(previous, next\)[\s\S]+previous\.root !== next\.root[\s\S]+before\.node !== after\.node[\s\S]+function navSyncAria\(\)[\s\S]+if \(!navAriaSnapshotChanged\(dbeNavAriaSnapshot, snapshot\)\) \{ return; \}/,
+    'Unrelated preview mutations must not re-synchronise an unchanged Navigator tree.'
 );
 assert.match(
     composites,
@@ -757,6 +1016,26 @@ assert.match(
     composites,
     /function applyFavouritesOrder\(\)[\s\S]+function bindFavDrag\(list\)[\s\S]+function dbeResetFavouritesReorder\(\)[\s\S]+function ensureFavouritesReorder\(\)/,
     'Favourites ordering, interaction and teardown must remain in one composite boundary.'
+);
+assert.match(
+    composites,
+    /function ensureNativeFavouritesReorder\(list, button\)[\s\S]+aria-pressed[\s\S]+native-favourites-reorder-keys[\s\S]+ArrowUp[\s\S]+ArrowDown[\s\S]+moveNativeFavourite/,
+    'Builderius native favourites editing must gain names, state and arrow-key reordering.'
+);
+assert.match(
+    composites,
+    /function moveNativeFavourite\(list, li, offset\)[\s\S]+storeSet\('pinnedModules', updated\)[\s\S]+storeSet\('pinnedModulesUpdate', updated\)[\s\S]+movedToPosition/,
+    'Keyboard favourite moves must use Builderius persistence and announce the new position.'
+);
+assert.match(
+    composites,
+    /function favKey\(li\)[\s\S]+tooltipId__favModule_\(\?!remove_\)[\s\S]+function favSavedOrder\(\)[\s\S]+replace\(\/\^remove_\//,
+    'Favourite identity must ignore the native remove-control tooltip and migrate legacy saved keys.'
+);
+assert.match(
+    composites,
+    /function applyFavouritesOrder\(\)[\s\S]+if \(nativeFavButton\(\)\) \{ return; \}/,
+    'DBE local favourite persistence must step aside when the native editor exists.'
 );
 assert.match(
     editing,
@@ -810,13 +1089,81 @@ assert.match(
 );
 assert.match(
     workspace,
-    /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, function \(\) \{ dbeFocusArea\(pane, true\); \}/,
+    /compactViewChanged[\s\S]+dbeSetOwnedTimeout\(DBE_WORKSPACE_OWNER, \(\) => \{ dbeFocusArea\(pane, true\); \}/,
     'Compact view changes must be announced and move focus to the chosen destination.'
 );
 assert.match(
     commands,
     /if \(!dbeCompactActive\(\)\)[\s\S]+hideSidePanels[\s\S]+goToNavigator/,
     'Wide-view panel visibility commands must not masquerade as compact-view controls.'
+);
+assert.match(
+    workspace,
+    /function dbeSidePanelsButton\(\)[\s\S]+:is\(\.uniPanelButton, \.uniPanelIconButton\)[\s\S]+M14\.4551/,
+    'The full-width canvas control must support both Builderius button classes.'
+);
+assert.match(
+    workspace,
+    /function dbeSetNativeFullScreen\(hidden\)[\s\S]+storeGet\('forceFullScreen'\)[\s\S]+storeSet\('forceFullScreen', hidden\)[\s\S]+persisted-panels[\s\S]+dbeSavePanelVisibility\([\s\S]+nativeSynced \|\| \(!nextHidden && !nativeHidden\)/,
+    'The full-width control must reconcile persisted visibility with Builderius native full-screen state.'
+);
+const nativeFullScreenSource = workspace.slice(
+    workspace.indexOf('function dbeSetNativeFullScreen'),
+    workspace.indexOf('function dbeSyncPanelToggle')
+).trim();
+let nativeFullScreenState = false;
+const nativeFullScreenWrites = [];
+const nativeFullScreenContext = {
+    store: () => ({
+        storeGet: () => nativeFullScreenState,
+        storeSet: (name, value) => {
+            nativeFullScreenWrites.push([name, value]);
+            nativeFullScreenState = value;
+        }
+    })
+};
+runInNewContext(`${nativeFullScreenSource}; result = dbeSetNativeFullScreen;`, nativeFullScreenContext);
+assert.equal(nativeFullScreenContext.result(true), true);
+assert.equal(nativeFullScreenState, true);
+assert.equal(JSON.stringify(nativeFullScreenWrites), JSON.stringify([['forceFullScreen', true]]));
+assert.equal(nativeFullScreenContext.result(true), true);
+assert.equal(nativeFullScreenWrites.length, 1, 'An unchanged native full-screen state must not be rewritten.');
+nativeFullScreenContext.store = () => null;
+assert.equal(nativeFullScreenContext.result(false), false, 'A missing store bridge must leave the native click available.');
+assert.match(
+    workspace,
+    /function dbeSetPanelVisibility\(side, hidden\)[\s\S]+!hidden && dbePanelsAreHidden\(\)[\s\S]+dbeSetNativeFullScreen\(false\)[\s\S]+function dbeToggleSidePanels\(done\)[\s\S]+dbeSetNativeFullScreen\(wantHidden\)[\s\S]+button\.click\(\)/,
+    'Partial-panel and command-palette routes must leave native full screen coherently.'
+);
+assert.match(
+    builder,
+    /uniTopPanel__rightCol :is\(\.uniPanelButton, \.uniPanelIconButton\)[\s\S]+M14\.4551[\s\S]+hideSidePanels/,
+    'The 1.3.6 full-width canvas icon must retain its accessible name and tooltip.'
+);
+assert.match(
+    controls,
+    /\.uniTopPanel \.uniTopPanelCssModeBtn\.active\s*\{[\s\S]+background:\s*var\(--dbe-icon-toggle-active-bg\) !important;[\s\S]+box-shadow:\s*inset 0 0 0 1px var\(--dbe-accent\) !important;[\s\S]+color:\s*var\(--dbe-accent\) !important;/,
+    'The Builderius 1.3.6 CSS-mode toggle must use a persistent contrast-safe active state.'
+);
+assert.match(
+    controls,
+    /\.uniTopPanel \.uniTopPanelCssModeBtn\.active:focus-visible\s*\{\s*box-shadow:\s*none !important;\s*\}[\s\S]+\.uniTopPanel \.uniTopPanelCssModeBtn svg path\s*\{\s*fill:\s*currentColor !important;/,
+    'The CSS-mode toggle must inherit its glyph colour and avoid a doubled active/focus ring.'
+);
+assert.match(
+    builder,
+    /\['\.uniIconCssMode',\s*dbeT\('tipToggleCssEditor', 'Enable CSS code editor'\)\][\s\S]+\.uniTopPanelCssModeBtn[\s\S]+tipDisableCssEditor[\s\S]+aria-pressed[\s\S]+data-dbe-tip/,
+    'Both CSS-mode controls must receive an accessible name, exposed pressed state and state-aware tooltip.'
+);
+assert.match(
+    strings,
+    /'tipToggleCssEditor'\s*=>\s*__\( 'Enable CSS code editor'[\s\S]+tipDisableCssEditor'\s*=>\s*__\( 'Disable CSS code editor'/,
+    'The CSS-mode accessible name and state-aware tooltip actions must remain localisable.'
+);
+assert.match(
+    a11y,
+    /a11y-chrome-top[\s\S]+attributes:\s*true[\s\S]+attributeFilter:\s*\['class'\]/,
+    'The top-toolbar observer must refresh the CSS-mode pressed state when Builderius changes its active class.'
 );
 assert.match(compactPanes, /@media \(max-width: 720px\)/, 'Compact workspace layout must activate at its documented breakpoint.');
 assert.match(
@@ -828,6 +1175,26 @@ assert.doesNotMatch(
     compactPanes,
     /max-width:\s*359px/,
     'The command palette must remain visibly voice-addressable at 320 CSS pixels.'
+);
+assert.match(
+    tabs,
+    /\.uniScopeControl\s*\{[\s\S]+display:\s*flex !important[\s\S]+inline-size:\s*100% !important[\s\S]+\.uniScopeControl button\s*\{[\s\S]+flex:\s*1 1 0 !important/,
+    'Global and Template scope tabs must divide the full code-mode sidebar width.'
+);
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn\s*\{[\s\S]+background:\s*var\(--dbe-l2-hi\) !important;[\s\S]+border:\s*1px solid var\(--dbe-line-hi\) !important;[\s\S]+color:\s*var\(--dbe-text-2\) !important;/,
+    'The add-template button must use a theme-resolved raised surface and readable icon colour.'
+);
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn svg path\s*\{[\s\S]+fill:\s*currentColor !important;[\s\S]+\.uniIframeTabs__navigatorBtn:hover\s*\{[\s\S]+border-color:\s*var\(--dbe-accent\) !important;[\s\S]+\.uniIframeTabs__navigatorBtn:active\s*\{[\s\S]+color:\s*var\(--dbe-text\) !important;/,
+    'The add-template glyph must inherit its foreground and retain noticeable hover and pressed states.'
+);
+assert.match(
+    tabs,
+    /\.uniIframeTabs__navigatorBtn:focus-visible\s*\{[\s\S]+outline:\s*2px solid var\(--dbe-focus\) !important;[\s\S]+outline-offset:\s*-2px !important;/,
+    'The add-template button must retain a single visible keyboard focus ring.'
 );
 
 [tokens, tabs, focus, treeRows, saveCue, previewResize, panelResize, compactPanes].forEach((css) => {

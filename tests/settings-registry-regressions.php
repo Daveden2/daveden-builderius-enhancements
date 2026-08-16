@@ -32,12 +32,23 @@ define( 'DBE_VERSION', $version_match[1] );
  * dbe_get_options() caches for the request, so the saved fixture is fixed for
  * the whole run and every sanitisation case is written against it.
  */
-$dbe_test_option = array(
+$dbe_test_option             = array(
 	'theme_switcher'   => true,
 	'theme_default'    => 'dark',
 	'density_default'  => 'compact',
 	'palette_shortcut' => 'mod-slash',
 );
+$dbe_test_builderius_version = '1.3.6-beta';
+
+/**
+ * Return the Builderius compatibility fixture version.
+ *
+ * @return string
+ */
+function builderius_get_version() {
+	global $dbe_test_builderius_version;
+	return $dbe_test_builderius_version;
+}
 
 /**
  * Stub WordPress translation for a registry-only test.
@@ -223,6 +234,39 @@ foreach ( dbe_feature_presets() as $preset_id => $preset ) {
 	}
 }
 
+/* -------------------------- Builderius-native feature retirement */
+
+$native_feature_ids = array( 'auto_bem', 'css_code_default', 'dblclick_rename', 'inline_rename', 'preview_resize', 'save_state_cue', 'scope_bar', 'undo_delete' );
+$replaced_ids       = array_keys( dbe_builderius_replaced_features() );
+sort( $replaced_ids );
+
+dbe_settings_test_assert(
+	$native_feature_ids === $replaced_ids,
+	'Builderius 1.3.6-beta did not retire exactly the audited native duplicates.'
+);
+
+foreach ( $native_feature_ids as $feature_id ) {
+	dbe_settings_test_assert(
+		! dbe_feature_replaced_by_builderius_for_version( $feature_id, '1.3.5-beta' ),
+		sprintf( 'Feature "%s" retired before Builderius 1.3.6-beta.', $feature_id )
+	);
+	dbe_settings_test_assert(
+		dbe_feature_replaced_by_builderius_for_version( $feature_id, '1.3.6-beta' ),
+		sprintf( 'Feature "%s" remains available on Builderius 1.3.6-beta.', $feature_id )
+	);
+	dbe_settings_test_assert(
+		! isset( $features[ $feature_id ] ) && ! dbe_enabled( $feature_id ),
+		sprintf( 'Feature "%s" still appears or emits output after native replacement.', $feature_id )
+	);
+}
+
+foreach ( array( 'context_menu', 'favourites_reorder', 'keyboard_shortcuts', 'tag_badges' ) as $feature_id ) {
+	dbe_settings_test_assert(
+		! dbe_feature_replaced_by_builderius_for_version( $feature_id, '1.3.6-beta' ),
+		sprintf( 'Additive feature "%s" was retired prematurely.', $feature_id )
+	);
+}
+
 /* ------------------------------- Enum preservation in the sanitiser */
 
 // The regression this guards: a select whose parent feature is off renders
@@ -232,6 +276,13 @@ $clean = dbe_sanitise_options(
 		'density_default' => 'comfortable',
 	)
 );
+
+foreach ( $native_feature_ids as $feature_id ) {
+	dbe_settings_test_assert(
+		! empty( $clean[ $feature_id ] ),
+		sprintf( 'Saving settings discarded retired feature preference "%s".', $feature_id )
+	);
+}
 
 dbe_settings_test_assert(
 	'dark' === $clean['theme_default'],

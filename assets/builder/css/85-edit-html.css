@@ -85,7 +85,7 @@ dialog.dbe-html::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 .dbe-html__tool:focus-visible {
 	outline: 2px solid var(--dbe-accent);
-	outline-offset: 2px;
+	outline-offset: -2px;
 }
 .dbe-html__tool[hidden] { display: none; }
 

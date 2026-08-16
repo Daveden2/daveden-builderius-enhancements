@@ -33,7 +33,7 @@
 
     html.dbe-compact-panes .dbe-compact-pane-switcher select:focus-visible {
         outline: 2px solid var(--dbe-focus);
-        outline-offset: 1px;
+        outline-offset: -2px;
     }
 
     /* Keep the four essential top-bar controls visible: Builderius menu,
@@ -44,7 +44,10 @@
     html.dbe-compact-panes .uniTopPanel__rightCol .uniApplicantsSelect,
     html.dbe-compact-panes .uniTopPanel__rightCol .uniPanelButton,
     html.dbe-compact-panes .uniTopPanel__rightCol .dbe-theme-btn,
-    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-density-btn {
+    html.dbe-compact-panes .uniTopPanel__rightCol .dbe-density-btn,
+    html.dbe-compact-panes .uniTopPanel__rightCol > .uniHistoryBtns,
+    html.dbe-compact-panes .uniTopPanel__rightCol > .tooltipId__topPanel_fullscreen,
+    html.dbe-compact-panes .uniTopPanel__rightCol > .tooltipId__topPanel_preview {
         display: none !important;
     }
 

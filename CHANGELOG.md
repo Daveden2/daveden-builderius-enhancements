@@ -3,6 +3,159 @@
 The plugin `readme.txt` carries a concise summary of each release for users.
 This file keeps the full, detailed notes.
 
+## 2.0.3
+
+This compatibility release adapts DBE to Builderius and Builderius Pro
+1.3.6-beta, adds a stable preview context menu and preview-based element rename,
+and modernises the development baseline for PHP 8.2 and current JavaScript
+linting.
+
+* Changed: the front-end admin bar now uses Builderius 1.3.6-beta's native
+  **Edit: {name}** item instead of adding DBE's duplicate. Older Builderius
+  versions retain DBE's direct-link fallback, and both routes keep the warning
+  before opening a second builder tab.
+* Accessibility: Builderius's top-level admin-bar item now receives its missing
+  Tab stop, a single inset focus ring and keyboard entry/return behaviour,
+  allowing focus to open and enter the native menu without a duplicate outline.
+  The Development/Live preview choices are now a labelled radio group with
+  selected and disabled state, while Up/Down, Home and End move through every
+  menu item and Enter/Space activates the available choice or edit link. The
+  preview choices and edit link now share the same full-width blue hover wash,
+  high-contrast text and focus treatment instead of inheriting different sizes
+  and colours from Builderius and WordPress.
+* Fixed: cancelling DBE's downgrade-safe inline rename fallback on Builderius
+  1.3.5-beta no longer replaces a custom Navigator label with its default HTML
+  tag after a double-click.
+
+* Performance: shortcut discovery now loads as its own cacheable runtime chunk,
+  reducing the compressed commands chunk from its 16-byte safety margin to
+  more than 1.4 KB of enforced headroom without adding another controller.
+* Compatibility: audited the Builderius runtime adapter against Builderius and
+  Builderius Pro 1.3.6-beta.
+* Fixed: Builderius Free now exposes its builder store to DBE through the
+  existing footer-extension hook. DBE previously relied on a private store
+  global published only by Builderius Pro, which left store-backed features
+  inactive when Free ran on its own; the bridge adds no visible footer control
+  and renders Pro or another extension's component unchanged.
+* Changed: Builderius 1.3.6-beta now supplies change history with undo/redo,
+  inline and double-click rename, Auto-BEM and preview resize handles. DBE stops
+  loading its older copies on 1.3.6-beta and later, hides those settings, and
+  preserves their saved preferences so a parent-plugin downgrade remains safe.
+* Changed: **HTML tag badges** now adapt to Builderius 1.3.6-beta's native
+  Navigator labels. A custom label keeps its HTML tag, a native `<tag>` default
+  is not duplicated, and Builderius's appended class list is removed from the
+  visible row, tooltip and accessible name. Older Builderius versions retain
+  the same enhancement through the existing fallback path.
+* Changed: Builderius 1.3.6-beta's native Save button now carries the unsaved
+  state and its notification region confirms successful saves. DBE retires its
+  additional visible **Save status** cue on 1.3.6-beta and later, reclaiming
+  top-bar space while retaining the cue for older Builderius versions.
+* Improved: **Accessible builder tabs** now includes Builderius 1.3.6-beta's
+  persistent template/component tabs above the canvas. The strip gains proper
+  tab semantics and one roving Tab stop; Left/Right, Home and End move focus,
+  Enter/Space switches documents, Delete closes through Builderius's native
+  action, and the template/component opener receives an accessible name.
+* Fixed: switching a persistent canvas tab no longer lets DBE's command and
+  shortcut bridge observe the preview document during Builderius's transient
+  iframe replacement. The bridge waits for the live document instead of
+  logging a controller refresh error.
+* Changed: **Rearrange favourites** now extends Builderius’s native editor with
+  accessible state, move announcements and Up/Down keyboard reordering. Native
+  pointer dragging and persistence remain authoritative; older Builderius
+  versions retain DBE’s complete fallback editor.
+* Changed: Builderius 1.3.6-beta’s persistent CSS code mode, native
+  Global/Template editors and Selector CSS/All CSS views replace DBE’s **CSS
+  code editor by default** and **CSS scope bar**. DBE stops loading those older
+  controls on 1.3.6-beta and later while retaining them for older Builderius
+  versions. The separate CSS token guide, minimap preference and style
+  token guide and minimap preference remain available.
+* Fixed: the native Global/Template tabs in the code-mode Styles panel now
+  divide the full sidebar width evenly instead of shrink-wrapping their labels.
+* Changed: the enhanced element context menu now adopts Builderius 1.3.6-beta’s
+  native Cut, Rename, Auto-BEM, Wrap in and Expand children actions instead of
+  displaying DBE duplicates. Native shortcut labels are ignored when matching
+  commands, stock separators are replaced by DBE’s logical groups, and the
+  DBE wrapping toggle contributes its additional Figure choice inside the
+  native wrapping modal and its Unwrap action when the native wrapper is
+  present. Older Builderius versions retain the complete DBE fallbacks.
+* Improved: Builderius 1.3.6-beta’s native **Wrap in** mini-dialog now attaches
+  to the live Navigator panel and originating row instead of appearing in the
+  viewport centre or pinned to a corner. It opens to the left of a right-hand
+  Navigator, flips to the right when space is tight, and recalculates its fully
+  clamped position when browser zoom changes. Larger task dialogs such as
+  Auto-BEM remain centred.
+* Fixed: both Builderius 1.3.6-beta’s native **Auto-BEM** task dialog and DBE's
+  older fallback now enforce that centred placement instead of inheriting a
+  right-side position from the builder dialog layer. Their responsive width and
+  class-name column are also enlarged so generated BEM names remain visible.
+* Fixed: Builderius 1.3.6-beta’s native **Auto-BEM** no longer displays a
+  duplicated tag such as `<div> <div>` when an element has no user-defined
+  label. DBE suppresses only the redundant default copy and retains custom
+  labels beside their tag badges.
+* Fixed: context-menu class actions, class-chip menus and matching command
+  palette entries now wrap exceptionally long class names within the viewport
+  instead of clipping their final characters.
+* Improved: **Figure** is now the fourth choice inside the native **Wrap in**
+  modal instead of a separate context-menu command. The modal's unnamed 8x9px
+  close control is now labelled and presented as a 28x28px target with visible
+  keyboard focus.
+* Accessibility: the **Wrap in** modal now has an accessible name, starts focus
+  on Div, contains Tab and Shift+Tab within its choices and Close control, and
+  returns focus to the originating Navigator row when dismissed. Choices and
+  Close use subtle hover/focus colour washes with one clear inset focus ring.
+* Improved: keyboard focus indicators now sit inside bordered builder controls
+  instead of adding a second outer ring. The same 2px high-contrast cue remains
+  visible without overwhelming the surrounding interface.
+* Fixed: Builderius 1.3.6-beta's full-width canvas control now clears DBE's
+  persisted hidden-panel state correctly. The native control changed from a
+  panel button to an icon button, which left the two visibility states out of
+  sync and made restoring the editing panels appear to do nothing.
+* Fixed: full-width canvas mode now also synchronises Builderius's native
+  `forceFullScreen` state. Responsive breakpoint and custom-width previews no
+  longer retain centred gutters after the side panels disappear, and the
+  command-palette route uses the same state transition as the top-bar control.
+* Changed: context-menu branches now share Builderius 1.3.6-beta’s click-open
+  interaction. Insert, Change tag, Move and navigate, and More element tools no
+  longer open merely because the pointer crosses them; click, Enter or
+  ArrowRight opens their flyout, matching native Wrap in and Save to.
+* Changed: the **Keyboard shortcut reference** now extends Builderius
+  1.3.6-beta’s native Shortcuts panel with DBE-only commands instead of opening
+  a second, overlapping dialog. The `?` key and command palette both open the
+  native panel; older Builderius versions retain DBE’s complete fallback
+  dialog. DBE continues to yield Duplicate, Cut, Rename, Undo and Redo to the
+  native handlers while keeping its unique element, canvas and region routes.
+
+* Performance: the builder runtime now uses deferred scripts and delivers only
+  the JavaScript chunks required by the enabled feature set. Dependency order
+  remains explicit, deliberately omitted chunks no longer report false loading
+  failures, and installs with a smaller toggle set transfer and execute less
+  code.
+* Fixed: opening a Builderius URL for a named template now aligns the stored
+  persistent-tab state before the SPA starts. The requested document loads once
+  and remains selected instead of being replaced by the previously active tab
+  after a second preview load.
+* Improved: **Resizable side panels** now remembers an independent width for
+  the settings panel and Navigator. Existing installs seed both sides from the
+  former shared width until each side is resized, preserving the old preference
+  without keeping the panels locked together.
+* Fixed: WordPress-admin links and actions in Builderius's menu regain the same
+  full-row card, spacing, hover and focus treatment as template rows in both
+  themes. The preview rename field also uses one joined high-contrast focus
+  ring instead of a gapped double indicator.
+* Added: **Preview right-click menu**. In canvas selection mode,
+  right-click a rendered element or press Shift+F10/Menu to select it and open
+  the same labelled, keyboard-operable command menu used by the Navigator.
+  Interaction mode and editable, form, Monaco and embedded content retain their
+  native context menus; closing returns focus to the rendered target.
+* Added: **Rename from the preview**. Rename in the preview menu
+  and F2 on a canvas-focused element now open a compact Navigator-name dialog
+  without changing visible text or the HTML tag. Empty and overlong names stay
+  open with an accessible error; Save uses the existing Builderius rename
+  channel, while Cancel and Escape restore focus without changing the name.
+  Builderius 1.3.6-beta's native Rename row is reused for this route, so the
+  preview menu presents one Rename action rather than overlapping native and
+  DBE copies.
+
 ## 2.0.2
 Minor security fixes and new ways to support the project.
 
