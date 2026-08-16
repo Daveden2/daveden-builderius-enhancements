@@ -22,9 +22,9 @@
     margin-inline-start: 4px !important;
 }
 /* Drag handle strip removed: the row's li carries draggable="true", so a drag
-   starts from anywhere on the row (verified — dragstart from the row body enters
-   the full drag state). The 8px strip was decoration only; hiding it reclaims
-   width and de-clutters the tree. */
+   starts from anywhere on the visible row. The JS guard prevents the nested-list
+   indentation from acting as an invisible ancestor drag target. The 8px strip
+   was decoration only; hiding it reclaims width and de-clutters the tree. */
 .uniModTree__itemDragHandleWrapper { display: none !important; }
 /* The handle also used to recolour as the "drop INSIDE this element" cue —
    re-route that state onto the target row itself. */

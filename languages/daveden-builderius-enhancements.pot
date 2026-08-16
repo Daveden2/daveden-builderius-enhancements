@@ -324,7 +324,7 @@ msgid "Larger, easier-to-scan Navigator rows."
 msgstr ""
 
 #: includes/features.php:311
-msgid "Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works."
+msgid "Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works from the visible row without turning nested indentation into a drag target."
 msgstr ""
 
 #: includes/features.php:317

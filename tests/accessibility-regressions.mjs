@@ -923,6 +923,16 @@ assert.match(
 );
 assert.match(
     composites,
+    /function dbeRememberTreeDragOrigin\(e\)[\s\S]+:scope > \.uniModTree__itemWrapper[\s\S]+wrapper\.contains\(e\.target\)[\s\S]+function dbeGuardTreeDragStart\(e\)[\s\S]+e\.preventDefault\(\)/,
+    'Navigator dragging must begin on the visible row rather than an ancestor indentation area.'
+);
+assert.match(
+    composites,
+    /tree-drag-origin'[\s\S]+pointerdown[\s\S]+tree-drag-start'[\s\S]+dragstart[\s\S]+tree-drag-end'[\s\S]+dragend[\s\S]+tree-drag-cancel'[\s\S]+pointercancel/,
+    'The tree drag-origin guard must use reversible composite-controller listeners.'
+);
+assert.match(
+    composites,
     /function navSyncAria\(\)[\s\S]+aria-level[\s\S]+aria-posinset[\s\S]+aria-setsize[\s\S]+function ensureNavKeyboard\(\)[\s\S]+navigator-keys/,
     'The composites chunk must own the APG Navigator tree structure and keyboard binding.'
 );

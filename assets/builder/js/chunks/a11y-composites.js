@@ -1571,6 +1571,27 @@
             return '<' + tag + '>' + (!labelIsTag && label ? ' ' + label : '');
         }
 
+        /* Builderius makes each tree <li> draggable, so the indentation occupied
+           by its descendant list also starts a drag for that ancestor. Once DBE
+           hides the decorative handle, this becomes an invisible and surprising
+           hit area beside nested rows. Remember the actual pointer origin and
+           allow native dragging only when it began inside that item's own visible
+           row wrapper. Dragging the row itself remains entirely Builderius-owned. */
+        let dbeTreeDragOrigin = null;
+        function dbeRememberTreeDragOrigin(e) {
+            if (!on('tree_row_styling')) { return; }
+            const item = e.target && e.target.closest && e.target.closest('li.uniModTree__itemDrag');
+            const wrapper = item && item.querySelector(':scope > .uniModTree__itemWrapper');
+            dbeTreeDragOrigin = wrapper && wrapper.contains(e.target) ? item : null;
+        }
+        function dbeGuardTreeDragStart(e) {
+            if (!on('tree_row_styling')) { return; }
+            const item = e.target && e.target.closest && e.target.closest('li.uniModTree__itemDrag');
+            if (!dbeTreeDragOrigin || item !== dbeTreeDragOrigin) { e.preventDefault(); }
+            dbeTreeDragOrigin = null;
+        }
+        function dbeClearTreeDragOrigin() { dbeTreeDragOrigin = null; }
+
         function decorateTree() {
             const iframe = dbeQuery('previewFrame');
             const idoc = iframe && iframe.contentDocument;
@@ -2521,6 +2542,12 @@
                 if (on('select_combobox')) { bindSelectCombobox(); }
                 if (on('builderius_menu')) {
                     dbeBindOwnedEvent('a11y/composites', document, 'builderius-menu-keys', 'keydown', dbeMenuKeydown, true);
+                }
+                if (on('tree_row_styling')) {
+                    dbeBindOwnedEvent('a11y/composites', document, 'tree-drag-origin', 'pointerdown', dbeRememberTreeDragOrigin, true);
+                    dbeBindOwnedEvent('a11y/composites', document, 'tree-drag-start', 'dragstart', dbeGuardTreeDragStart, true);
+                    dbeBindOwnedEvent('a11y/composites', document, 'tree-drag-end', 'dragend', dbeClearTreeDragOrigin, true);
+                    dbeBindOwnedEvent('a11y/composites', document, 'tree-drag-cancel', 'pointercancel', dbeClearTreeDragOrigin, true);
                 }
                 dbeRefreshA11yComposites();
                 dbeRetryCompositeFooter();

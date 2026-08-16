@@ -308,7 +308,7 @@ function dbe_features(): array {
 		'tree_row_styling'      => array(
 			'title'       => __( 'Larger Navigator rows', 'daveden-builderius-enhancements' ),
 			'summary'     => __( 'Larger, easier-to-scan Navigator rows.', 'daveden-builderius-enhancements' ),
-			'description' => __( 'Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works.', 'daveden-builderius-enhancements' ),
+			'description' => __( 'Makes Navigator rows larger and easier to scan, with clear hover and selected states. The decorative drag-handle strip is removed; dragging still works from the visible row without turning nested indentation into a drag target.', 'daveden-builderius-enhancements' ),
 			'tab'         => 'appearance',
 			'css'         => array( '14-tree-rows.css' ),
 			'js'          => true,
